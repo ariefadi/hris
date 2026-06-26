@@ -5527,9 +5527,8 @@ class data_mysql:
                 data_domain_list = [selected_domain_list.strip()] if selected_domain_list.strip() else []
             else:
                 data_domain_list = []
-            # Gunakan LIKE tanpa wildcard jika domain sama persis dengan TLD (AdX)
             like_conditions_domain = " OR ".join(["log_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params_domain = [domain for domain in data_domain_list]
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
             base_sql = [
                 "SELECT",
                 "\tDATE(log_adx_country_tanggal) AS date,",

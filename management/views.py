@@ -5072,16 +5072,16 @@ class DashboardScoringCompareView(View):
                 last_rt = tmp['run_time_dt'].max().strftime('%Y-%m-%d %H:%M:%S')
 
             return {
-                'health_score': health,
-                'ivt_risk_score': risk,
-                'adjustment_score': adj,
-                'confidence': conf01,
-                'decision_margin': dm,
-                'score': score,
-                'decision': decision,
-                'label': label,
-                'reason_summary': reason_summary,
-                'updated_at': last_rt,
+                'health_score': float(health),
+                'ivt_risk_score': float(risk),
+                'adjustment_score': float(adj),
+                'confidence': float(conf01),
+                'decision_margin': float(dm),
+                'score': int(score),
+                'decision': str(decision),
+                'label': str(label),
+                'reason_summary': str(reason_summary),
+                'updated_at': str(last_rt),
                 'countries': int(len(tmp)),
                 'positive_signal_count': int(pd.to_numeric(tmp['positive_signal_count'], errors='coerce').fillna(0).sum()),
                 'negative_signal_count': int(pd.to_numeric(tmp['negative_signal_count'], errors='coerce').fillna(0).sum()),
@@ -5173,6 +5173,16 @@ class DashboardScoringCompareView(View):
             if domain:
                 src_where_parts.append(f"lower(site) = '{domain_sql}'")
             src_where_sql = ' AND '.join(src_where_parts)
+            src_order_col = 'run_time'
+            try:
+                src_cols_df = query_df_func(f"DESCRIBE TABLE {source_table}")
+                src_cols = set(str(c).strip() for c in (src_cols_df.get('name') or []).tolist())
+                if 'mdd' in src_cols:
+                    src_order_col = 'mdd'
+                elif 'run_time' in src_cols:
+                    src_order_col = 'run_time'
+            except Exception:
+                src_order_col = 'run_time'
             src_sql = f"""
             SELECT
                 toDate(date) AS date,
@@ -5180,7 +5190,7 @@ class DashboardScoringCompareView(View):
                 sum(meta_spend) AS meta_spend,
                 sum(adx_revenue) AS adx_revenue,
                 sum(adsense_estimated_earnings) AS adsense_estimated_earnings,
-                argMax(mapped_revenue_source, mdd) AS mapped_revenue_source
+                argMax(mapped_revenue_source, {src_order_col}) AS mapped_revenue_source
             FROM {source_table}
             WHERE {src_where_sql}
             GROUP BY date, run_hour
@@ -5262,7 +5272,8 @@ class DashboardScoringCompareView(View):
                     if not snap_hour:
                         continue
                     snap_hour['date'] = day_value.isoformat()
-                    snap_hour['run_hour'] = hr
+                    snap_hour['run_hour'] = int(hr)
+                    snap_hour['run_hour_label'] = f"{str(int(hr)).zfill(2)}:00"
                     series.append(snap_hour)
                 return series
 
@@ -5319,22 +5330,37 @@ class DashboardScoringCompareView(View):
                     if snap_day:
                         row_hist.update(snap_day)
                     history_by_day.append(row_hist)
-            return JsonResponse({
-                'status': True,
-                'data': {
-                    'domain': domain,
-                    'country_code': country_code_raw,
-                    'date': target_date.isoformat(),
-                    'current': cur or {},
-                    'compare_offsets': compare_offsets,
-                    'compare_dates': {k: v.isoformat() for k, v in compare_dates.items()},
-                    'compare_by_day': by_day,
-                    'compare_by_hour': by_hour,
-                    'hourly_series': hourly_series,
-                    'history_by_day': history_by_day,
-                    'recommendation': rec,
-                }
-            }, safe=False)
+            try:
+                from management.scoring_concept import _json_safe_value
+            except Exception:
+                def _json_safe_value(value):
+                    if isinstance(value, dict):
+                        return {str(k): _json_safe_value(v) for k, v in value.items()}
+                    if isinstance(value, (list, tuple, set)):
+                        return [_json_safe_value(v) for v in value]
+                    if hasattr(value, 'item'):
+                        try:
+                            return value.item()
+                        except Exception:
+                            pass
+                    if isinstance(value, (date, datetime)):
+                        return value.isoformat()
+                    return value
+
+            payload_out = _json_safe_value({
+                'domain': domain,
+                'country_code': country_code_raw,
+                'date': target_date.isoformat(),
+                'current': cur or {},
+                'compare_offsets': compare_offsets,
+                'compare_dates': {k: v.isoformat() for k, v in compare_dates.items()},
+                'compare_by_day': by_day,
+                'compare_by_hour': by_hour,
+                'hourly_series': hourly_series,
+                'history_by_day': history_by_day,
+                'recommendation': rec,
+            })
+            return JsonResponse({'status': True, 'data': payload_out}, safe=False)
         except Exception as e:
             logger.exception('DashboardScoringCompareView failed')
             return JsonResponse({'status': False, 'error': str(e), 'traceback': traceback.format_exc()}, status=500)
@@ -13339,12 +13365,16 @@ class RoiCountryHourlyDataView(View):
             selected_domain = req.GET.get('selected_domains', '')
             selected_domain_str = ''
             if selected_domain:
-                # gunakan domain pertama jika ada multiple, fokus single domain
                 selected_domain_str = str(selected_domain.split(',')[0]).strip()
+            selected_domain_list = build_domain_filter_terms(
+                selected_domain_str,
+                include_original=True,
+                include_base=True,
+            ) if selected_domain_str else []
             cache_key = generate_cache_key(
-                'roi_country_hourly_v3',
+                'roi_country_hourly_v4',
                 target_date,
-                selected_domain_str
+                ','.join(selected_domain_list) if selected_domain_list else selected_domain_str,
             )
             cached = get_cached_data(cache_key)
             if cached is not None:
@@ -13352,12 +13382,12 @@ class RoiCountryHourlyDataView(View):
             db = data_mysql()
             adx_resp = db.get_all_adx_roi_country_hourly_logs_by_params(
                 target_date,
-                selected_domain_str,
+                selected_domain_list if selected_domain_list else selected_domain_str,
             )
             adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
             ads_resp = db.get_all_ads_roi_country_hourly_logs_by_params(
                 target_date,
-                selected_domain_str,
+                selected_domain_list if selected_domain_list else selected_domain_str,
             )
             ads_rows = (ads_resp.get('hasil') or {}).get('data') if isinstance(ads_resp, dict) else []
             by_country = {}
@@ -13679,11 +13709,12 @@ class DashboardDomainHourlyHeatmapView(View):
             for h in hours:
                 r = float(rev_by_hour.get(h, 0.0) or 0.0)
                 s = float(spend_by_hour.get(h, 0.0) or 0.0)
-                total_revenue += r
-                total_spend += s
                 revenue_series.append(round(r, 2))
                 spend_series.append(round(s, 2))
                 roi_series.append(round((((r - s) / s) * 100) if s > 0 else 0.0, 2))
+                if r > 0 or s > 0:
+                    total_revenue = r
+                    total_spend = s
             result = {
                 'status': True,
                 'tanggal': tanggal_formatted,

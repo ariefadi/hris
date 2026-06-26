@@ -1186,6 +1186,7 @@ html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
     min-width: 120px;
     max-width: 160px;
     vertical-align: middle;
+    text-align: center;
 }
 .detail-scoring-card .dataTables_length select,
 .detail-scoring-card .dataTables_filter input {
@@ -1306,17 +1307,17 @@ html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
     font-weight: 700;
 }
 .ds-decision-wrap {
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    width: 100%;
+    max-width: 100%;
     margin: 0 auto;
     text-align: center;
 }
-.ds-decision-wrap.keputusan-badge-clickable:hover {
-    transform: translateY(-2px);
+.ds-decision-wrap.ds-decision-has-tooltip {
+    cursor: help;
 }
 .ds-decision-chip {
     display: inline-block;
@@ -1339,16 +1340,14 @@ html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
 .ds-decision--pending { background: #f1f5f9; color: #64748b; border-color: rgba(100, 116, 139, 0.25); box-shadow: none; }
 .ds-decision-cause {
     display: block;
-    width: 100%;
+    width: auto;
+    max-width: 148px;
     font-size: 10px;
     font-weight: 700;
     line-height: 1.35;
     color: #64748b;
-    max-width: 148px;
+    text-align: center;
     word-break: break-word;
-}
-.ds-decision-wrap.ds-decision-has-tooltip {
-    cursor: help;
 }
 .ds-keputusan-tooltip-float {
     position: fixed;
@@ -2758,6 +2757,17 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
 }
 .score-detail-modal__body .scx-pane-mini-v.is-negative { color: #b91c1c; }
 .score-detail-modal__body .scx-pane-mini-v.is-positive { color: #15803d; }
+.score-detail-modal__body #scoreDetailDecisionBody .decision-detail-modal-content {
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+    background: transparent;
+    animation: none;
+}
 .score-detail-modal__body .scx-pane-metrics {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2870,6 +2880,237 @@ html[data-theme="dark"] .score-detail-modal__body .scx-modal-tab.is-active .scx-
 }
 html[data-theme="dark"] .score-detail-modal__body .scx-modal-nav-label {
     color: rgba(226, 232, 240, 0.72);
+}
+.score-detail-modal__body .scx-range-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 14px;
+    margin-bottom: 14px;
+}
+.score-detail-modal__body .scx-range-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 130px;
+}
+.score-detail-modal__body .scx-range-field label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin: 0;
+}
+.score-detail-modal__body .scx-range-field .form-control {
+    min-height: 36px;
+    border-radius: 10px;
+    font-size: 13px;
+}
+.score-detail-modal__body .scx-metric-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+@media (max-width: 767px) {
+    .score-detail-modal__body .scx-metric-summary-grid { grid-template-columns: 1fr; }
+}
+.score-detail-modal__body .scx-metric-summary-box {
+    border-radius: 14px;
+    padding: 14px 16px;
+    color: #fff;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+}
+.score-detail-modal__body .scx-metric-summary-box.spend { background: linear-gradient(135deg, #dc2626, #f97316); }
+.score-detail-modal__body .scx-metric-summary-box.revenue { background: linear-gradient(135deg, #7c3aed, #ec4899); }
+.score-detail-modal__body .scx-metric-summary-box.roi { background: linear-gradient(135deg, #047857, #10b981); }
+.score-detail-modal__body .scx-metric-summary-box .k {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.92;
+}
+.score-detail-modal__body .scx-metric-summary-box .v {
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin-top: 4px;
+}
+.score-detail-modal__body .scx-data-table-wrap {
+    overflow-x: auto;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    border-radius: 12px;
+}
+.score-detail-modal__body .scx-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.score-detail-modal__body .scx-data-table thead th {
+    background: rgba(99, 102, 241, 0.08);
+    color: #334155;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 11px;
+    padding: 10px 8px;
+    white-space: nowrap;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+}
+.score-detail-modal__body .scx-data-table tbody td {
+    padding: 9px 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+    vertical-align: middle;
+}
+.score-detail-modal__body .scx-data-table tbody tr:hover td {
+    background: rgba(99, 102, 241, 0.05);
+}
+.score-detail-modal__body .scx-val-up { color: #047857; font-weight: 800; }
+.score-detail-modal__body .scx-val-down { color: #dc2626; font-weight: 800; }
+.score-detail-modal__body .scx-chart-box {
+    position: relative;
+    height: 300px;
+    padding: 8px 4px 4px;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-data-table thead th {
+    background: rgba(99, 102, 241, 0.16);
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-data-table tbody td {
+    color: #e2e8f0;
+    border-color: rgba(148, 163, 184, 0.14);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-val-up { color: #6ee7b7; }
+html[data-theme="dark"] .score-detail-modal__body .scx-val-down { color: #fca5a5; }
+.score-detail-modal__body .scx-analytic-table .scx-compare-head {
+    text-align: center;
+    font-size: 10px;
+    background: rgba(99, 102, 241, 0.10);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.14);
+}
+.score-detail-modal__body .scx-analytic-table .scx-compare-sub {
+    font-size: 10px;
+    white-space: nowrap;
+}
+.score-detail-modal__body .scx-analytic-table tbody tr.scx-hourly-day-sep td {
+    background: rgba(99, 102, 241, 0.08);
+    font-weight: 800;
+    color: #4338ca;
+    border-top: 2px solid rgba(99, 102, 241, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-table tbody tr.scx-hourly-day-sep td {
+    background: rgba(99, 102, 241, 0.16);
+    color: #c7d2fe;
+}
+.score-detail-modal__body .scx-analytic-hourly-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.score-detail-modal__body .scx-analytic-hourly-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.score-detail-modal__body .scx-analytic-hourly-day-tabs,
+.score-detail-modal__body .scx-analytic-hourly-view-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.score-detail-modal__body .scx-analytic-hourly-scroll {
+    max-height: 380px;
+    overflow: auto;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    border-radius: 12px;
+}
+.score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    box-shadow: 0 1px 0 rgba(99, 102, 241, 0.12);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-hourly-scroll {
+    border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead th {
+    box-shadow: 0 1px 0 rgba(148, 163, 184, 0.18);
+}
+.score-detail-modal__body .scx-monitoring-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px 14px;
+    margin-bottom: 14px;
+}
+.score-detail-modal__body .scx-monitoring-range-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 14px;
+    flex: 0 0 auto;
+}
+.score-detail-modal__body .scx-monitoring-country-filter-top {
+    flex: 1 1 360px;
+    min-width: min(100%, 320px);
+}
+.score-detail-modal__body .scx-monitoring-country-filter {
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(99, 102, 241, 0.03);
+}
+.score-detail-modal__body .scx-monitoring-country-filter-label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin: 0 0 6px;
+}
+.score-detail-modal__body .scx-monitoring-country-filter-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.score-detail-modal__body .scx-monitoring-country-search {
+    flex: 1 1 220px;
+    min-width: 180px;
+    min-height: 36px;
+    border-radius: 10px;
+    font-size: 13px;
+}
+.score-detail-modal__body .scx-monitoring-country-filter-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.score-detail-modal__body .scx-monitoring-country-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 72px;
+    overflow: auto;
+}
+.score-detail-modal__body .scx-monitoring-country-chip {
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 12px;
+    white-space: nowrap;
+}
+.score-detail-modal__body .scx-monitoring-country-filter-meta {
+    margin-top: 8px;
+    margin-bottom: 0;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-country-filter {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(148, 163, 184, 0.18);
 }
 html[data-theme="dark"] .score-detail-modal__body .scx-summary-box,
 html[data-theme="dark"] .score-detail-modal__body .scx-checklist-item {
@@ -3776,6 +4017,24 @@ html[data-theme="dark"] .score-detail-modal__body div[style*="475569"] {
     border: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 16px;
     background: rgba(255,255,255,0.98);
+}
+
+.decision-detail-table-card.decision-chart-card {
+    position: relative;
+    box-sizing: border-box;
+    height: 280px;
+    padding: 10px;
+}
+
+.decision-chart-host {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 220px;
+}
+
+.decision-chart-host canvas {
+    display: block;
 }
 
 .decision-detail-table-card table {
@@ -4687,24 +4946,15 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
                                 <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardRecapTable">
                                     <thead>
                                         <tr id="dashboardRecapHeadMain">
-                                            <th class="text-center" rowspan="2">No</th>
-                                            <th id="dashboardRecapThName" class="text-center" rowspan="2">Sub <br> Negara</th>
-                                            <th class="text-center" rowspan="2">Account <br> Ads</th>
-                                            <th id="dashboardRecapThCode" class="text-center" style="width:90px;display:none;" rowspan="2">Kode</th>
-                                            <th id="dashboardRecapThVisitorGroup" class="text-center dashboard-recap-th-group" colspan="3">Visitor</th>
-                                            <th class="text-center" rowspan="2">Spend</th>
-                                            <th class="text-center" rowspan="2">Pendapatan</th>
-                                            <th class="text-center" rowspan="2">Pendapatan <br> Bersih</th>
-                                            <th class="text-center" rowspan="2">ROI</th>
-                                            <th class="text-center" rowspan="2">Score</th>
-                                            <th class="text-center" rowspan="2">Hasil <br> Keputusan</th>
-                                            <th class="text-center" rowspan="2">Data <br> Updated</th>
-                                            <th class="text-center" rowspan="2">Detail</th>
-                                        </tr>
-                                        <tr id="dashboardRecapVisitorSubhead">
-                                            <th id="dashboardRecapThVisits" class="text-center dashboard-recap-th-sub">Total <br> Visitor</th>
-                                            <th id="dashboardRecapThUnique" class="text-center dashboard-recap-th-sub">Unique <br> Visitor</th>
-                                            <th id="dashboardRecapThPageviews" class="text-center dashboard-recap-th-sub">Total <br> Pageview</th>
+                                            <th class="text-center">No</th>
+                                            <th id="dashboardRecapThName" class="text-center">Sub <br> Negara</th>
+                                            <th class="text-center">Account <br> Ads</th>
+                                            <th class="text-center">Spend</th>
+                                            <th class="text-center">Pendapatan</th>
+                                            <th class="text-center">ROI</th>
+                                            <th class="text-center">Score</th>
+                                            <th class="text-center">Hasil <br> Keputusan</th>
+                                            <th class="text-center">Detail</th>
                                         </tr>
                                     </thead>
                                     <tbody id="dashboardRecapTbody"></tbody>
@@ -4975,18 +5225,6 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
         </div>
     </div>
 
-    <!-- Modal Detail Keputusan -->
-    <div id="decision-detail-modal" class="decision-detail-modal">
-        <div class="decision-detail-modal-content modal-md">
-            <div class="decision-detail-header">
-                <div class="decision-detail-title">Detail Keputusan <span id="decision-detail-domain" class="decision-detail-domain" style="display:none;"></span></div>
-                <button type="button" class="decision-detail-close" id="decision-detail-close-btn" title="Tutup">
-                    ✕
-                </button>
-            </div>
-            <div id="decision-detail-body"></div>
-        </div>
-    </div>
 </main>
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -6266,7 +6504,7 @@ function keputusanBadge(meta, ctx) {
     const chipCls = dsDecisionChipClass(d);
     const labelText = d || 'BELUM SIAP';
     const causeHtml = causeText ? `<span class="ds-decision-cause">${esc(causeText)}</span>` : '';
-    return `<div class="ds-decision-wrap keputusan-badge-clickable ds-decision-has-tooltip" data-keputusan-key="${storeKey}" role="button" tabindex="0" aria-label="Keputusan ${esc(labelText)}. Arahkan kursor untuk penjelasan."><span class="ds-decision-chip ${chipCls}">${esc(labelText)}</span>${causeHtml}</div>`;
+    return `<div class="ds-decision-wrap ds-decision-has-tooltip" data-keputusan-key="${storeKey}" aria-label="Keputusan ${esc(labelText)}"><span class="ds-decision-chip ${chipCls}">${esc(labelText)}</span>${causeHtml}</div>`;
 }
 
 function scxFriendlyLabelGlobal(label) {
@@ -6476,7 +6714,7 @@ function bindKeputusanTooltipHover() {
         });
     };
     document.body.addEventListener('mouseover', function(e) {
-        const trigger = e.target && e.target.closest ? e.target.closest('.keputusan-badge-clickable[data-keputusan-key]') : null;
+        const trigger = e.target && e.target.closest ? e.target.closest('.ds-decision-wrap[data-keputusan-key]') : null;
         if (!trigger) return;
         clearTimeout(hideTimer);
         const sk = String(trigger.getAttribute('data-keputusan-key') || '').trim();
@@ -6485,7 +6723,7 @@ function bindKeputusanTooltipHover() {
         show(trigger, entry.tooltipHtml);
     });
     document.body.addEventListener('mouseout', function(e) {
-        const trigger = e.target && e.target.closest ? e.target.closest('.keputusan-badge-clickable[data-keputusan-key]') : null;
+        const trigger = e.target && e.target.closest ? e.target.closest('.ds-decision-wrap[data-keputusan-key]') : null;
         if (!trigger) return;
         const to = e.relatedTarget;
         if (to && trigger.contains(to)) return;
@@ -7005,7 +7243,7 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
 
     html += '<div class="decision-detail-section decision-detail-card">';
     html += `<div class="decision-detail-section-header"><div><div class="decision-detail-section-title" style="margin-bottom:4px;">Grafik Metrik Snapshot</div><div class="decision-detail-section-sub">Bandingkan snapshot per 3 jam antara hari ini dengan H-1, H-3, H-7, H-14, H-28, dan H-35 agar kenaikan atau penurunan tiap jam lebih jelas terlihat.</div></div></div>`;
-    html += `<div class="decision-timeline-tabs">`;
+    html += `<div class="decision-timeline-tabs" id="decisionSnapshotTabs">`;
     const metricOptions = [
         { key: 'score', label: 'Score' },
         { key: 'health_score', label: 'Health' },
@@ -7015,18 +7253,19 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         { key: 'decision_margin', label: 'Margin' }
     ];
     metricOptions.forEach(function(m){
-        html += `<button type="button" class="decision-timeline-tab ${activeMetric===m.key?'active':''}" data-metric="${m.key}" onclick="switchDecisionMetricTab('${esc(storeKey)}', '${m.key}')">${esc(m.label)}</button>`;
+        html += `<button type="button" class="decision-timeline-tab ${activeMetric===m.key?'active':''}" data-metric="${m.key}">${esc(m.label)}</button>`;
     });
     html += `</div>`;
-    html += `<div class="decision-timeline-tabs" style="margin-top:-2px;">`;
-    html += `<button type="button" class="decision-timeline-tab ${activeChartMode==='overlay'?'active':''}" onclick="switchDecisionChartMode('${esc(storeKey)}','overlay')">Overlay</button>`;
-    html += `<button type="button" class="decision-timeline-tab ${activeChartMode==='delta'?'active':''}" onclick="switchDecisionChartMode('${esc(storeKey)}','delta')">Selisih</button>`;
-    html += `<button type="button" class="decision-timeline-tab" ${chartFocusActive ? '' : 'disabled style="opacity:.55;cursor:not-allowed;"'} onclick="clearDecisionChartFocus('${esc(storeKey)}')">Reset Fokus</button>`;
+    html += `<div class="decision-timeline-tabs" id="decisionSnapshotModeTabs" style="margin-top:-2px;">`;
+    html += `<button type="button" class="decision-timeline-tab ${activeChartMode==='overlay'?'active':''}" data-mode="overlay">Overlay</button>`;
+    html += `<button type="button" class="decision-timeline-tab ${activeChartMode==='delta'?'active':''}" data-mode="delta">Selisih</button>`;
+    html += `<button type="button" class="decision-timeline-tab" data-action="reset-focus" ${chartFocusActive ? '' : 'disabled style="opacity:.55;cursor:not-allowed;"'}>Reset Fokus</button>`;
     html += `</div>`;
-    html += `<div class="decision-detail-inline-note" style="margin-bottom:10px;">${activeChartMode === 'delta' ? 'Mode selisih menampilkan perbedaan setiap snapshot terhadap hari ini, sehingga kenaikan atau penurunan nilainya lebih cepat terbaca.' : 'Mode overlay menumpuk semua garis histori pada jam yang sama agar pola harian antar periode mudah dibandingkan.'}</div>`;
-    html += `<div class="decision-detail-table-card" style="padding:10px;height:240px;"><canvas id="decision-score-hourly-chart"></canvas></div>`;
-    html += `<div id="decision-score-hourly-insights" class="decision-chart-insights"></div>`;
-    html += `<div id="decision-score-hourly-story" class="decision-chart-story" style="display:none;"></div>`;
+    html += `<div class="decision-detail-inline-note" id="decisionSnapshotNote" style="margin-bottom:10px;">${activeChartMode === 'delta' ? 'Mode selisih menampilkan perbedaan setiap snapshot terhadap hari ini, sehingga kenaikan atau penurunan nilainya lebih cepat terbaca.' : 'Mode overlay menumpuk semua garis histori pada jam yang sama agar pola harian antar periode mudah dibandingkan.'}</div>`;
+    html += `<div class="decision-detail-table-card" style="padding:10px;height:280px;position:relative;"><canvas id="decisionSnapshotChart"></canvas></div>`;
+    html += `<div id="decisionSnapshotInsights" class="decision-chart-insights"></div>`;
+    html += `<div id="decisionSnapshotStory" class="decision-chart-story" style="display:none;"></div>`;
+    html += `<div id="decisionSnapshotCompare" style="display:none;"></div>`;
     html += '</div>';
 
     // === Compare hari sebelumnya ===
@@ -7115,10 +7354,6 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
             const fairnessNote = campaignRecapRows.length ? `Source: keputusan tabel (${tableDecision || '-'}) · Majority: ${majorityAction} · STOP ratio: ${(stopRatio*100).toFixed(0)}%` : `Source: keputusan tabel (${tableDecision || '-'})`;
             if (recReason) html += `<div class="decision-detail-inline-note">${esc(recReason)}</div>`;
             if (fairnessNote) html += `<div class="decision-detail-inline-note">${esc(fairnessNote)}</div>`;
-            html += `</div>`;
-            // tombol untuk membuka modal detail scoring (di sana ada aksi campaign)
-            html += `<div style="margin-top:10px;">`;
-            html += `<button type="button" class="btn btn-sm btn-primary decision-detail-action-btn" onclick="tryOpenScoringDetailFromDecision('${esc(String(storeKey||''))}')">Buka Detail Scoring</button>`;
             html += `</div>`;
             html += `</div>`;
         }
@@ -7334,21 +7569,93 @@ function clearDecisionChartFocus(storeKey) {
     rerenderDetailKeputusanByStoreKey(storeKey);
 }
 
+function bindDecisionSnapshotChart(storeKey, timeline, activeIndex) {
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    if (!entry) return;
+    const tl = (Array.isArray(timeline) && timeline.length)
+        ? timeline
+        : (Array.isArray(entry.normalizedTimeline) ? entry.normalizedTimeline : []);
+    const seriesMap = Object.assign({}, (entry.snapshotSeriesMap && typeof entry.snapshotSeriesMap === 'object') ? entry.snapshotSeriesMap : {});
+    if (!Array.isArray(seriesMap.current) || !seriesMap.current.length) {
+        seriesMap.current = tl;
+    }
+    if (typeof window.bindScoreSnapshotMetricTabs !== 'function') {
+        scheduleDecisionScoreHourlyChart(storeKey);
+        return;
+    }
+    if (!window.scxSnapshotUiState || typeof window.scxSnapshotUiState !== 'object') window.scxSnapshotUiState = {};
+    window.scxSnapshotUiState.decisionSnapshot = {
+        metric: entry.activeMetric || 'score',
+        mode: entry.activeChartMode || 'overlay',
+        focus: entry.chartFocus || null
+    };
+    window.bindScoreSnapshotMetricTabs('decisionSnapshot', tl, {
+        activeIndex: activeIndex,
+        seriesMap: seriesMap
+    });
+    const ui = window.scxSnapshotUiState.decisionSnapshot || {};
+    entry.activeMetric = ui.metric || entry.activeMetric || 'score';
+    entry.activeChartMode = ui.mode || entry.activeChartMode || 'overlay';
+    entry.chartFocus = ui.focus || null;
+    if (!window.decisionSnapshotChartInstance && !window.decisionScoreHourlyChart && tl.length) {
+        scheduleDecisionScoreHourlyChart(storeKey);
+    }
+}
+
+function scheduleDecisionSnapshotChart(storeKey, timeline, activeIndex) {
+    if (window.__decisionChartRenderRaf) {
+        cancelAnimationFrame(window.__decisionChartRenderRaf);
+    }
+    window.__decisionChartRenderRaf = requestAnimationFrame(function() {
+        window.__decisionChartRenderRaf = requestAnimationFrame(function() {
+            window.__decisionChartRenderRaf = null;
+            bindDecisionSnapshotChart(storeKey, timeline, activeIndex);
+            const chart = window.decisionSnapshotChartInstance || window.decisionScoreHourlyChart;
+            if (chart && typeof chart.resize === 'function') {
+                try { chart.resize(); } catch (_) {}
+            }
+        });
+    });
+}
+
+function scheduleDecisionScoreHourlyChart(storeKey) {
+    if (window.__decisionChartRenderRaf) {
+        cancelAnimationFrame(window.__decisionChartRenderRaf);
+    }
+    window.__decisionChartRenderRaf = requestAnimationFrame(function() {
+        window.__decisionChartRenderRaf = requestAnimationFrame(function() {
+            window.__decisionChartRenderRaf = null;
+            renderDecisionScoreHourlyChart(storeKey);
+            const chart = window.decisionScoreHourlyChart;
+            if (chart && typeof chart.resize === 'function') {
+                try { chart.resize(); } catch (_) {}
+            }
+        });
+    });
+}
+
 function renderDecisionScoreHourlyChart(storeKey) {
-    const cvs = document.getElementById('decision-score-hourly-chart');
-    const insightsEl = document.getElementById('decision-score-hourly-insights');
-    const storyEl = document.getElementById('decision-score-hourly-story');
+    const cvs = document.getElementById('decisionSnapshotChart') || document.getElementById('decision-score-hourly-chart');
+    const insightsEl = document.getElementById('decisionSnapshotInsights') || document.getElementById('decision-score-hourly-insights');
+    const storyEl = document.getElementById('decisionSnapshotStory') || document.getElementById('decision-score-hourly-story');
     if (!cvs || typeof Chart === 'undefined') return;
     const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
     const info = entry?.meta?.breakdown?.meta || {};
-    const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
+    const timeline = (Array.isArray(entry?.normalizedTimeline) && entry.normalizedTimeline.length)
+        ? entry.normalizedTimeline
+        : (Array.isArray(info.scoring_timeline) ? info.scoring_timeline : []);
     const decisionCompare = (info?.decision_compare && typeof info.decision_compare === 'object') ? info.decision_compare : {};
     const activeMetric = entry?.activeMetric || 'score';
     const chartMode = (String(entry?.activeChartMode || 'overlay').toLowerCase() === 'delta') ? 'delta' : 'overlay';
     const chartFocus = (entry?.chartFocus && typeof entry.chartFocus === 'object') ? entry.chartFocus : {};
 
+    if (window.decisionSnapshotChartInstance && typeof window.decisionSnapshotChartInstance.destroy === 'function') {
+        try { window.decisionSnapshotChartInstance.destroy(); } catch (_) {}
+        window.decisionSnapshotChartInstance = null;
+    }
     if (window.decisionScoreHourlyChart && typeof window.decisionScoreHourlyChart.destroy === 'function') {
         try { window.decisionScoreHourlyChart.destroy(); } catch (_) {}
+        window.decisionScoreHourlyChart = null;
     }
 
     const pickVal = (t, key) => {
@@ -7412,10 +7719,26 @@ function renderDecisionScoreHourlyChart(storeKey) {
         if (raw.includes('H-35')) return 'h35';
         return '';
     };
-    const hourlySeriesMap = (decisionCompare?.hourly_series && typeof decisionCompare.hourly_series === 'object') ? decisionCompare.hourly_series : {};
-    const hasCompareSeries = compareOrder.some(function(key){
-        return Array.isArray(hourlySeriesMap?.[key]) && hourlySeriesMap[key].length;
+    const hourlyFromCompare = (decisionCompare?.hourly_series && typeof decisionCompare.hourly_series === 'object') ? decisionCompare.hourly_series : {};
+    const hourlyFromEntry = (entry?.hourlySeriesFromCompare && typeof entry.hourlySeriesFromCompare === 'object') ? entry.hourlySeriesFromCompare : {};
+    const seriesMap = (entry?.snapshotSeriesMap && typeof entry.snapshotSeriesMap === 'object') ? entry.snapshotSeriesMap : {};
+    const hourlyFromSnapshot = {};
+    compareOrder.forEach(function(key) {
+        hourlyFromSnapshot[key] = Array.isArray(seriesMap[key]) ? seriesMap[key] : [];
     });
+    const hasCompareHourly = compareOrder.some(function(key) {
+        return Array.isArray(hourlyFromCompare?.[key]) && hourlyFromCompare[key].length;
+    });
+    const hasEntryHourly = compareOrder.some(function(key) {
+        return Array.isArray(hourlyFromEntry?.[key]) && hourlyFromEntry[key].length;
+    });
+    const hasSnapshotSeries = compareOrder.some(function(key) {
+        return Array.isArray(hourlyFromSnapshot?.[key]) && hourlyFromSnapshot[key].length;
+    });
+    const hourlySeriesMap = hasCompareHourly
+        ? hourlyFromCompare
+        : (hasEntryHourly ? hourlyFromEntry : hourlyFromSnapshot);
+    const hasCompareSeries = hasCompareHourly || hasEntryHourly || hasSnapshotSeries;
     let labels = [];
     let datasets = [];
 
@@ -7521,6 +7844,107 @@ function renderDecisionScoreHourlyChart(storeKey) {
     }
 
     if (!labels.length || !datasets.length) return;
+
+    const isDarkTheme = String(document.documentElement.getAttribute('data-theme') || '').toLowerCase() === 'dark';
+    const axisTickColor = isDarkTheme ? '#94a3b8' : '#64748b';
+    const axisGridColor = isDarkTheme ? 'rgba(148,163,184,.12)' : 'rgba(148,163,184,.2)';
+
+    const scorePointLabelPlugin = {
+        id: 'decisionScorePointLabel_' + String(storeKey || 'chart').replace(/\W/g, ''),
+        afterDatasetsDraw(chart) {
+            if (hasCompareSeries) return;
+            const { ctx } = chart;
+            const meta = chart.getDatasetMeta(0);
+            const data = chart.data.datasets?.[0]?.data || [];
+            ctx.save();
+            ctx.fillStyle = isDarkTheme ? '#e2e8f0' : '#0f172a';
+            ctx.font = '700 11px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            meta.data.forEach(function(pt, i){
+                const v = Number(data[i]);
+                if (!Number.isFinite(v)) return;
+                ctx.fillText(v % 1 === 0 ? String(v) : v.toFixed(1), pt.x, pt.y - 8);
+            });
+            ctx.restore();
+        }
+    };
+
+    try {
+        window.decisionScoreHourlyChart = new Chart(cvs.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: hasCompareSeries ? 8 : 18 } },
+                plugins: {
+                    legend: {
+                        display: hasCompareSeries,
+                        position: 'top',
+                        labels: {
+                            color: axisTickColor,
+                            usePointStyle: true,
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            padding: 10
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(items) {
+                                const item = Array.isArray(items) ? items[0] : null;
+                                return item ? `Snapshot ${item.label}` : '';
+                            },
+                            label: function(ctx) {
+                                const v = Number(ctx.parsed.y);
+                                const dsLabel = String(ctx.dataset?.label || currentLabel);
+                                const txt = Number.isFinite(v)
+                                    ? (chartMode === 'delta' && dsLabel !== 'Hari Ini (baseline)' ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}` : v.toFixed(2))
+                                    : '-';
+                                return `${dsLabel}: ${txt}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: activeMetric === 'confidence' || activeMetric === 'ivt_risk_score',
+                        ticks: {
+                            color: axisTickColor,
+                            precision: 1,
+                            callback: function(value) {
+                                const n = Number(value);
+                                if (!Number.isFinite(n)) return value;
+                                return chartMode === 'delta' ? `${n > 0 ? '+' : ''}${n.toFixed(1)}` : n.toFixed(1);
+                            }
+                        },
+                        grid: { color: axisGridColor },
+                        border: { color: axisGridColor },
+                        title: chartMode === 'delta' ? { display: true, text: `Selisih ${currentLabel} vs Hari Ini`, color: axisTickColor } : undefined
+                    },
+                    x: {
+                        ticks: { color: axisTickColor, maxRotation: 0, autoSkip: true },
+                        grid: { display: false },
+                        border: { color: axisGridColor },
+                        title: hasCompareSeries ? { display: true, text: 'Snapshot per 3 jam', color: axisTickColor } : undefined
+                    }
+                }
+            },
+            plugins: [scorePointLabelPlugin]
+        });
+        const chartBox = cvs.parentElement;
+        if (chartBox && window.decisionScoreHourlyChart && typeof window.decisionScoreHourlyChart.resize === 'function') {
+            window.decisionScoreHourlyChart.resize(chartBox.clientWidth, chartBox.clientHeight);
+        }
+        window.decisionSnapshotChartInstance = window.decisionScoreHourlyChart;
+    } catch (chartErr) {
+        try { console.warn('renderDecisionScoreHourlyChart failed:', chartErr); } catch (_) {}
+        return;
+    }
 
     const renderInsights = function(cards, storyText) {
         if (!insightsEl) return;
@@ -7722,82 +8146,6 @@ function renderDecisionScoreHourlyChart(storeKey) {
             : 'Belum ada cukup titik snapshot untuk membangun narasi intraday.'
         );
     }
-
-    const scorePointLabelPlugin = {
-        id: 'scorePointLabelPlugin',
-        afterDatasetsDraw(chart) {
-            if (hasCompareSeries) return;
-            const { ctx } = chart;
-            const meta = chart.getDatasetMeta(0);
-            const data = chart.data.datasets?.[0]?.data || [];
-            ctx.save();
-            ctx.fillStyle = '#0f172a';
-            ctx.font = '700 11px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            meta.data.forEach(function(pt, i){
-                const v = Number(data[i]);
-                if (!Number.isFinite(v)) return;
-                ctx.fillText(v % 1 === 0 ? String(v) : v.toFixed(1), pt.x, pt.y - 8);
-            });
-            ctx.restore();
-        }
-    };
-
-    window.decisionScoreHourlyChart = new Chart(cvs.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels,
-            datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: { padding: { top: hasCompareSeries ? 8 : 18 } },
-            plugins: {
-                legend: {
-                    display: hasCompareSeries,
-                    position: 'top',
-                    labels: { usePointStyle: true, boxWidth: 10, boxHeight: 10 }
-                },
-                tooltip: {
-                    callbacks: {
-                        title: function(items) {
-                            const item = Array.isArray(items) ? items[0] : null;
-                            return item ? `Snapshot ${item.label}` : '';
-                        },
-                        label: function(ctx) {
-                            const v = Number(ctx.parsed.y);
-                            const dsLabel = String(ctx.dataset?.label || currentLabel);
-                            const txt = Number.isFinite(v)
-                                ? (chartMode === 'delta' && dsLabel !== 'Hari Ini (baseline)' ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}` : v.toFixed(2))
-                                : '-';
-                            return `${dsLabel}: ${txt}`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: activeMetric === 'confidence' || activeMetric === 'ivt_risk_score',
-                    ticks: {
-                        precision: 1,
-                        callback: function(value) {
-                            const n = Number(value);
-                            if (!Number.isFinite(n)) return value;
-                            return chartMode === 'delta' ? `${n > 0 ? '+' : ''}${n.toFixed(1)}` : n.toFixed(1);
-                        }
-                    },
-                    title: chartMode === 'delta' ? { display: true, text: `Selisih ${currentLabel} vs Hari Ini` } : undefined
-                },
-                x: {
-                    grid: { display: false },
-                    title: hasCompareSeries ? { display: true, text: 'Snapshot per 3 jam' } : undefined
-                }
-            }
-        },
-        plugins: [scorePointLabelPlugin]
-    });
 }
 
 function getDecisionRawMeta(row, state) {
@@ -7818,30 +8166,22 @@ function getDecisionRawMeta(row, state) {
     return null;
 }
 
-function openDetailKeputusan(storeKey, activeTimelineIdx) {
-    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
-    if (!entry || typeof entry !== 'object') return;
+function getScoreDetailDecisionBodyEl() {
+    return document.getElementById('scoreDetailDecisionBody');
+}
 
-    const modal = document.getElementById('decision-detail-modal');
-    if (!modal) return;
+function isDecisionDetailVisible(storeKey) {
+    const modal = document.getElementById('scoreDetailModal');
+    const body = getScoreDetailDecisionBodyEl();
+    const pane = document.querySelector('[data-scx-tab-pane="decision"]');
+    if (!modal || !modal.classList.contains('is-open') || !body || !pane) return false;
+    if (!pane.classList.contains('is-active') || pane.hidden) return false;
+    if (storeKey && String(window.scoreDetailDecisionStoreKey || '') !== String(storeKey || '')) return false;
+    return true;
+}
 
-    const body = document.getElementById('decision-detail-body');
-    const domainEl = document.getElementById('decision-detail-domain');
+function resolveDecisionTimelineIdx(entry, activeTimelineIdx) {
     const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : entry;
-    const row = entry?.row || {};
-    const rawMeta = getDecisionRawMeta(row, entry?.state || {}) || null;
-    const domainName = String(row?.name || row?.domain || row?.site || '').trim();
-
-    if (domainEl) {
-        if (domainName) {
-            domainEl.textContent = domainName;
-            domainEl.style.display = 'inline-flex';
-        } else {
-            domainEl.textContent = '';
-            domainEl.style.display = 'none';
-        }
-    }
-
     const info = meta?.breakdown?.meta || {};
     const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
     const targetDate = String(entry?.state?.date || info?.date || '').trim();
@@ -7898,7 +8238,22 @@ function openDetailKeputusan(storeKey, activeTimelineIdx) {
     }
     const defaultIdx = Number.isFinite(preferredIdx) ? preferredIdx : 0;
     const askedIdx = (activeTimelineIdx == null || activeTimelineIdx === '') ? defaultIdx : Number(activeTimelineIdx);
-    const idx = Math.max(0, Math.min(Number.isFinite(askedIdx) ? askedIdx : defaultIdx, Math.max(0, timeline.length - 1)));
+    return Math.max(0, Math.min(Number.isFinite(askedIdx) ? askedIdx : defaultIdx, Math.max(0, timeline.length - 1)));
+}
+
+function renderScoreDetailDecisionTab(storeKey, activeTimelineIdx) {
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    if (!entry || typeof entry !== 'object') return;
+
+    const body = getScoreDetailDecisionBodyEl();
+    if (!body) return;
+
+    const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : entry;
+    const row = entry?.row || {};
+    const rawMeta = getDecisionRawMeta(row, entry?.state || {}) || null;
+    const info = meta?.breakdown?.meta || {};
+    const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
+    const idx = resolveDecisionTimelineIdx(entry, activeTimelineIdx);
     entry.activeTimelineIdx = idx;
 
     const activeT = timeline[idx] || null;
@@ -7906,15 +8261,17 @@ function openDetailKeputusan(storeKey, activeTimelineIdx) {
     const cacheMap = (info && typeof info.decision_compare_by_hour === 'object') ? info.decision_compare_by_hour : {};
     info.decision_compare = runHour && cacheMap[runHour] ? cacheMap[runHour] : null;
 
-    if (body) body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta);
-    renderDecisionScoreHourlyChart(storeKey);
-    modal.classList.add('active');
-
-    // Load compare data async untuk 1/3/7 hari sebelumnya
+    closeDetailKeputusan();
+    body.innerHTML = `<div class="decision-detail-modal-content">${renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta)}</div>`;
+    scheduleDecisionSnapshotChart(storeKey, timeline, idx);
     ensureDecisionCompareLoaded(storeKey, idx).catch(function(){});
     ensureCountryDetailFromDomainScoring(storeKey, idx).catch(function(e){
         try { console.warn('ensureCountryDetailFromDomainScoring failed:', e); } catch(_){}
     });
+}
+
+function openDetailKeputusan(storeKey, activeTimelineIdx) {
+    renderScoreDetailDecisionTab(storeKey, activeTimelineIdx);
 }
 
 async function ensureCountryDetailFromDomainScoring(storeKey, activeTimelineIdx) {
@@ -8017,13 +8374,8 @@ async function ensureCountryDetailFromDomainScoring(storeKey, activeTimelineIdx)
     });
     entry.meta = meta;
 
-    const modal = document.getElementById('decision-detail-modal');
-    const body = document.getElementById('decision-detail-body');
-    if (modal && modal.classList.contains('active') && body) {
-        const idx = Math.max(0, Number(activeTimelineIdx) || 0);
-        const rawMeta = getDecisionRawMeta(row, state) || null;
-        body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta);
-        renderDecisionScoreHourlyChart(storeKey);
+    if (isDecisionDetailVisible(storeKey)) {
+        renderScoreDetailDecisionTab(storeKey, activeTimelineIdx);
     }
 }
 
@@ -8034,7 +8386,6 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
     const info = meta?.breakdown?.meta || {};
     const row = entry?.row || {};
     const state = entry?.state || {};
-    const rawMeta = getDecisionRawMeta(row, state) || null;
     const date = String(state?.date || info.date || '').trim();
     const dim = String(state?.dim || '').toLowerCase();
     const countryCode = String(row?.code || row?.country_cd || row?.country_code || '').trim().toUpperCase();
@@ -8056,16 +8407,21 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
 
     if (runHour && cache[runHour]) {
         meta.breakdown.meta.decision_compare = cache[runHour];
-        entry.meta = meta;
-        const modal = document.getElementById('decision-detail-modal');
-        const body = document.getElementById('decision-detail-body');
-        if (modal && modal.classList.contains('active') && body) {
-            body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta);
-            renderDecisionScoreHourlyChart(storeKey);
+        if (cache[runHour]?.hourly_series && typeof cache[runHour].hourly_series === 'object') {
+            entry.hourlySeriesFromCompare = cache[runHour].hourly_series;
         }
+        entry.meta = meta;
         return;
     }
 
+    if (!window.__decisionCompareInflight) window.__decisionCompareInflight = {};
+    const inflightKey = `${storeKey}|${date}|${domain}|${countryCode}|${runHour}`;
+    if (window.__decisionCompareInflight[inflightKey]) {
+        try { await window.__decisionCompareInflight[inflightKey]; } catch (_) {}
+        return;
+    }
+
+    window.__decisionCompareInflight[inflightKey] = (async function() {
     try {
         const comparePayload = { date, run_hour: runHour };
         if (domain) comparePayload.domain = domain;
@@ -8076,51 +8432,44 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
             body: JSON.stringify(comparePayload),
             credentials: 'same-origin'
         });
-        const json = await res.json();
-        if (!res.ok || !json || !json.status) return;
+        const json = await res.json().catch(function(){ return null; });
+        if (!res.ok || !json || !json.status) {
+            try { console.warn('dashboard_scoring_compare failed:', json?.error || res.status); } catch (_) {}
+            return;
+        }
 
         if (runHour) cache[runHour] = json.data || {};
         meta.breakdown.meta.decision_compare_by_hour = cache;
         meta.breakdown.meta.decision_compare = (runHour && cache[runHour]) ? cache[runHour] : (json.data || {});
+        if (json?.data?.hourly_series && typeof json.data.hourly_series === 'object') {
+            entry.hourlySeriesFromCompare = json.data.hourly_series;
+            const sm = (entry.snapshotSeriesMap && typeof entry.snapshotSeriesMap === 'object') ? Object.assign({}, entry.snapshotSeriesMap) : {};
+            ['current', 'h1', 'h3', 'h7', 'h14', 'h28', 'h35'].forEach(function(key) {
+                const rows = Array.isArray(json.data.hourly_series[key]) ? json.data.hourly_series[key] : [];
+                if (rows.length) sm[key] = rows;
+            });
+            entry.snapshotSeriesMap = sm;
+        }
         entry.meta = meta;
 
-        const modal = document.getElementById('decision-detail-modal');
-        const body = document.getElementById('decision-detail-body');
-        if (modal && modal.classList.contains('active') && body) {
-            body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta);
-            renderDecisionScoreHourlyChart(storeKey);
+        if (isDecisionDetailVisible(storeKey)) {
+            renderScoreDetailDecisionTab(storeKey, idx);
         }
     } catch (e) {
-        // ignore
+        try { console.warn('ensureDecisionCompareLoaded failed:', e); } catch (_) {}
+    } finally {
+        delete window.__decisionCompareInflight[inflightKey];
     }
-}
+    })();
 
-function tryOpenScoringDetailFromDecision(storeKey) {
-    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
-    if (!entry) return;
-    const row = entry?.row || {};
-    const domain = String(row?.name || row?.domain || row?.site || '').trim().toLowerCase();
-    if (!domain) return;
-    const buttons = Array.from(document.querySelectorAll('.dashboard-open-score-detail-btn'));
-    for (const b of buttons) {
-        const tr = b.closest ? b.closest('tr') : null;
-        if (!tr) continue;
-        const t = String(tr.innerText || '').toLowerCase();
-        if (t.includes(domain)) { b.click(); return; }
-    }
+    try { await window.__decisionCompareInflight[inflightKey]; } catch (_) {}
 }
 
 function rerenderDetailKeputusanByStoreKey(storeKey) {
+    if (!isDecisionDetailVisible(storeKey)) return;
     const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
     if (!entry) return;
-    const body = document.getElementById('decision-detail-body');
-    if (!body) return;
-    const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : entry;
-    const row = entry?.row || {};
-    const rawMeta = getDecisionRawMeta(row, entry?.state || {}) || null;
-    const idx = Number(entry?.activeTimelineIdx || 0) || 0;
-    body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta);
-    renderDecisionScoreHourlyChart(storeKey);
+    renderScoreDetailDecisionTab(storeKey, entry.activeTimelineIdx || 0);
 }
 
 function decisionInlineNorm(s) { return String(s || '').toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9_#.-]/g,''); }
@@ -8218,58 +8567,21 @@ async function executeDecisionCampaignInline(storeKey) {
 }
 
 function closeDetailKeputusan() {
-    const modal = document.getElementById('decision-detail-modal');
-    const domainEl = document.getElementById('decision-detail-domain');
+    if (window.__decisionChartRenderRaf) {
+        cancelAnimationFrame(window.__decisionChartRenderRaf);
+        window.__decisionChartRenderRaf = null;
+    }
+    if (window.decisionSnapshotChartInstance && typeof window.decisionSnapshotChartInstance.destroy === 'function') {
+        try { window.decisionSnapshotChartInstance.destroy(); } catch (_) {}
+        window.decisionSnapshotChartInstance = null;
+    }
     if (window.decisionScoreHourlyChart && typeof window.decisionScoreHourlyChart.destroy === 'function') {
         try { window.decisionScoreHourlyChart.destroy(); } catch (_) {}
         window.decisionScoreHourlyChart = null;
     }
-    if (modal) {
-        modal.classList.remove('active');
-    }
-    if (domainEl) {
-        domainEl.textContent = '';
-        domainEl.style.display = 'none';
-    }
 }
 
 function initDetailKeputusanModal() {
-    const modal = document.getElementById('decision-detail-modal');
-    const closeBtn = document.getElementById('decision-detail-close-btn');
-    if (closeBtn && !closeBtn.dataset.boundCloseDecision) {
-        closeBtn.onclick = closeDetailKeputusan;
-        closeBtn.dataset.boundCloseDecision = '1';
-    }
-    if (modal && !modal.dataset.boundCloseDecision) {
-        modal.addEventListener('click', function(e) {
-            if (e.target && e.target.id === 'decision-detail-modal') {
-                closeDetailKeputusan();
-            }
-        });
-        modal.dataset.boundCloseDecision = '1';
-    }
-    if (!document.body.dataset.boundOpenDecision) {
-        document.body.addEventListener('click', function(e) {
-            const trigger = e.target && e.target.closest ? e.target.closest('.keputusan-badge-clickable[data-keputusan-key]') : null;
-            if (!trigger) return;
-            const storeKey = String(trigger.getAttribute('data-keputusan-key') || '').trim();
-            if (!storeKey) return;
-            openDetailKeputusan(storeKey);
-        });
-        document.body.addEventListener('keydown', function(e) {
-            const trigger = e.target && e.target.closest ? e.target.closest('.keputusan-badge-clickable[data-keputusan-key]') : null;
-            if (!trigger) {
-                if (e.key === 'Escape') closeDetailKeputusan();
-                return;
-            }
-            if (e.key !== 'Enter' && e.key !== ' ') return;
-            e.preventDefault();
-            const storeKey = String(trigger.getAttribute('data-keputusan-key') || '').trim();
-            if (!storeKey) return;
-            openDetailKeputusan(storeKey);
-        });
-        document.body.dataset.boundOpenDecision = '1';
-    }
     bindKeputusanTooltipHover();
     bindScxRichTooltipHover();
 }
@@ -8378,8 +8690,8 @@ function initDashboardRecap() {
             if (target === 'all') return true;
             const aoRow = settings.aoData && settings.aoData[dataIndex] ? settings.aoData[dataIndex] : null;
             const rawRow = aoRow && Array.isArray(aoRow._aData) ? aoRow._aData : null;
-            const levelFromData = rawRow && rawRow[12] && typeof rawRow[12] === 'object'
-                ? String(rawRow[12].decisionKey || 'belum_siap').toLowerCase()
+            const levelFromData = rawRow && rawRow[7] && typeof rawRow[7] === 'object'
+                ? String(rawRow[7].decisionKey || 'belum_siap').toLowerCase()
                 : '';
             const rowNode = aoRow ? aoRow.nTr : null;
             const level = String(levelFromData || rowNode?.dataset?.decisionKey || 'belum_siap').toLowerCase();
@@ -8482,7 +8794,7 @@ function initDashboardRecap() {
     function getDashboardRecapPlaceholderColspan() {
         const tableEl = document.getElementById('dashboardRecapTable');
         const headRows = Array.from(tableEl?.tHead?.rows || []);
-        if (!headRows.length) return 14;
+        if (!headRows.length) return 8;
         const isVisibleCell = function(cell) {
             if (!cell) return false;
             if (cell.hidden) return false;
@@ -10544,6 +10856,7 @@ function initDashboardRecap() {
         }
         draw();
     }
+    window.bindScoreSnapshotMetricTabs = bindScoreSnapshotMetricTabs;
 
     function scxRevenueValue(row) {
         const revenue = Number(row?.revenue);
@@ -11184,6 +11497,1333 @@ function initDashboardRecap() {
         const pos = scxCondenseImpactItems(scxTopEvents(evs, 'positive'), 4);
         const neg = scxCondenseImpactItems(scxTopEvents(evs, 'negative'), 4);
         return scxRenderEntityPane(String(sub?.label || sub?.key || '-'), st, evs, pos, neg, tabKey, 'subdomain', '');
+    }
+
+    function resolveScoreDetailDomainKey(row, state) {
+        const dim = String(state?.dim || '').toLowerCase();
+        if (dim === 'country') {
+            return String(row?.site || row?.domain || row?.subdomain || row?.entity_key || state?.subdomain || '').trim();
+        }
+        return String(row?.name || row?.domain || row?.site || state?.subdomain || '').trim();
+    }
+
+    function resolveScoreDetailMonitoringSource(row, state) {
+        const srcState = String(state?.source || 'all').trim().toLowerCase();
+        if (srcState === 'adx' || srcState === 'adsense') return srcState;
+        const hasSources = row && row.sources && (row.sources.adx || row.sources.adsense);
+        if (hasSources) {
+            if (row.sources.adx && !row.sources.adsense) return 'adx';
+            if (row.sources.adsense && !row.sources.adx) return 'adsense';
+        }
+        const rowSrc = String(row?.source || '').trim().toLowerCase();
+        if (rowSrc === 'adx' || rowSrc === 'adsense') return rowSrc;
+        return 'adx';
+    }
+
+    function endpointScoreDetailMonitoringCountry(source, startYmd, endYmd, domain) {
+        const sd = encodeURIComponent(String(domain || '').trim());
+        const s = encodeURIComponent(String(startYmd || '').trim());
+        const e = encodeURIComponent(String(endYmd || '').trim());
+        if (source === 'adsense') {
+            return `/management/admin/page_monitoring_country_adsense?start_date=${s}&end_date=${e}&selected_account_adsense=&selected_domains=${sd}&selected_countries=&include_subdomains=1`;
+        }
+        return `/management/admin/page_monitoring_country?start_date=${s}&end_date=${e}&selected_account_adx=&selected_domains=${sd}&selected_countries=&include_subdomains=1`;
+    }
+
+    function scxDeltaCellHtml(delta, isPct) {
+        const n = Number(delta);
+        if (!Number.isFinite(n) || Math.abs(n) < 0.0001) return '<span class="text-muted">—</span>';
+        const cls = n > 0 ? 'scx-val-up' : 'scx-val-down';
+        const sign = n > 0 ? '+' : '';
+        const text = isPct ? `${sign}${n.toFixed(2)}%` : `${sign}${fmtIdr(n)}`;
+        return `<span class="${cls}">${esc(text)}</span>`;
+    }
+
+    function scxRenderMetricSummaryBoxes(spend, revenue, roi) {
+        return `<div class="scx-metric-summary-grid">
+            <div class="scx-metric-summary-box spend"><div class="k">Total Spend</div><div class="v">${esc(fmtIdr(spend))}</div></div>
+            <div class="scx-metric-summary-box revenue"><div class="k">Total Revenue</div><div class="v">${esc(fmtIdr(revenue))}</div></div>
+            <div class="scx-metric-summary-box roi"><div class="k">ROI Nett</div><div class="v">${esc(fmtPct(roi))}</div></div>
+        </div>`;
+    }
+
+    function scxAggregateHourlyFromPayload(payload) {
+        const hours = Array.isArray(payload?.hours) ? payload.hours : [];
+        const countries = Array.isArray(payload?.countries) ? payload.countries : [];
+        const spend = hours.map(function(_, i) {
+            return countries.reduce(function(s, c) { return s + Number((c.spend || [])[i] || 0); }, 0);
+        });
+        const revenue = hours.map(function(_, i) {
+            return countries.reduce(function(s, c) { return s + Number((c.revenue || [])[i] || 0); }, 0);
+        });
+        const roi = hours.map(function(_, i) {
+            const sp = spend[i] || 0;
+            const rev = revenue[i] || 0;
+            return sp > 0 ? ((rev - sp) / sp * 100) : 0;
+        });
+        return { hours: hours, spend: spend, revenue: revenue, roi: roi };
+    }
+
+    function resolveScoreDetailHourlySource(row, state) {
+        const srcState = String(state?.source || 'all').trim().toLowerCase();
+        if (srcState === 'adx' || srcState === 'adsense') return srcState;
+        const hasSources = row && row.sources && (row.sources.adx || row.sources.adsense);
+        if (hasSources) {
+            if (row.sources.adx && !row.sources.adsense) return 'adx';
+            if (row.sources.adsense && !row.sources.adx) return 'adsense';
+        }
+        const rowSrc = String(row?.source || '').trim().toLowerCase();
+        if (rowSrc === 'adx' || rowSrc === 'adsense') return rowSrc;
+        return 'all';
+    }
+
+    async function fetchScoreDetailHourlyHeatmap(source, dateYmd, domain) {
+        const qs = new URLSearchParams({
+            tanggal: String(dateYmd || '').trim(),
+            source: String(source || 'all').toLowerCase(),
+            domains: String(domain || '').trim().toLowerCase()
+        });
+        const resp = await fetch('/management/admin/dashboard_hourly_heatmap?' + qs.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const json = await resp.json();
+        if (!json || !json.status) return null;
+        const hours = Array.isArray(json.hours) ? json.hours : [];
+        const spend = Array.isArray(json.spend) ? json.spend : [];
+        const revenue = Array.isArray(json.revenue) ? json.revenue : [];
+        const roi = Array.isArray(json.roi) ? json.roi : [];
+        const summary = json.summary || {};
+        const totalSpend = Number(summary.total_spend != null ? summary.total_spend : spend.reduce(function(a, b) { return a + Number(b || 0); }, 0));
+        const totalRevenue = Number(summary.total_revenue != null ? summary.total_revenue : revenue.reduce(function(a, b) { return a + Number(b || 0); }, 0));
+        const totalRoi = Number(summary.roi_nett != null ? summary.roi_nett : (totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend * 100) : 0));
+        return {
+            hours: hours,
+            spend: spend,
+            revenue: revenue,
+            roi: roi,
+            summary: { total_spend: totalSpend, total_revenue: totalRevenue, roi_nett: totalRoi }
+        };
+    }
+
+    const SCX_ANALYTIC_COMPARE_OFFSETS = [1, 3, 7, 14];
+    const SCX_ANALYTIC_HOURLY_COMPARE_OFFSETS = [1, 3, 7];
+    const SCX_ANALYTIC_MAX_LOOKBACK = 14;
+
+    function scxDailyFromHourlySnap(snap) {
+        if (!snap) return { spend: 0, revenue: 0, roi: 0 };
+        const pseudo = {
+            hours: snap.hours || [],
+            spend: snap.spend || [],
+            revenue: snap.revenue || [],
+            roi: snap.roi || []
+        };
+        const lastIdx = scxLastRecordedHourIndex(pseudo);
+        if (lastIdx >= 0) {
+            const spend = Number(pseudo.spend[lastIdx] || 0);
+            const revenue = Number(pseudo.revenue[lastIdx] || 0);
+            const roi = spend > 0 ? ((revenue - spend) / spend * 100) : Number(pseudo.roi[lastIdx] || 0);
+            return { spend: spend, revenue: revenue, roi: roi };
+        }
+        const spend = Number(snap.summary?.total_spend || 0);
+        const revenue = Number(snap.summary?.total_revenue || 0);
+        const roi = Number(snap.summary?.roi_nett != null ? snap.summary.roi_nett : (spend > 0 ? ((revenue - spend) / spend * 100) : 0));
+        return { spend: spend, revenue: revenue, roi: roi };
+    }
+
+    async function fetchScoreDetailAnalyticSnapshots(source, startYmd, endYmd, domain) {
+        const hourlySource = String(source || 'all').toLowerCase();
+        const extStart = ymdShift(startYmd, -SCX_ANALYTIC_MAX_LOOKBACK);
+        const allDates = ymdSeq(extStart, endYmd);
+        const rangeDates = ymdSeq(startYmd, endYmd);
+        const historyMap = {};
+        const hourlyByDate = {};
+        const concurrency = 8;
+        for (let i = 0; i < allDates.length; i += concurrency) {
+            const batch = allDates.slice(i, i + concurrency);
+            const results = await Promise.all(batch.map(function(d) {
+                return fetchScoreDetailHourlyHeatmap(hourlySource, d, domain);
+            }));
+            batch.forEach(function(d, idx) {
+                const snap = results[idx];
+                historyMap[d] = scxDailyFromHourlySnap(snap);
+                hourlyByDate[d] = snap ? {
+                    hours: snap.hours || [],
+                    spend: snap.spend || [],
+                    revenue: snap.revenue || [],
+                    roi: snap.roi || []
+                } : { hours: [], spend: [], revenue: [], roi: [] };
+            });
+        }
+        const rangeRows = rangeDates.map(function(d) {
+            return Object.assign({ date: d }, historyMap[d] || { spend: 0, revenue: 0, roi: 0 });
+        });
+        return { rangeRows: rangeRows, historyMap: historyMap, hourlyByDate: hourlyByDate, rangeDates: rangeDates };
+    }
+
+    function scxCompareDeltaCell(currentVal, refRow, field, isPct) {
+        if (!refRow) return '<span class="text-muted" title="Data referensi belum tersedia">—</span>';
+        const cur = Number(currentVal || 0);
+        const ref = Number(refRow[field] || 0);
+        return scxDeltaCellHtml(cur - ref, isPct);
+    }
+
+    function scxCompareAbsCell(refRow, field, isPct) {
+        if (!refRow) return '<span class="text-muted" title="Data referensi belum tersedia">—</span>';
+        const ref = Number(refRow[field] || 0);
+        if (isPct) {
+            const roiCls = ref >= 0 ? 'scx-val-up' : 'scx-val-down';
+            return `<span class="${roiCls}">${esc(fmtPct(ref))}</span>`;
+        }
+        return esc(fmtIdr(ref));
+    }
+
+    function scxHourlyAbsCell(pt, field, isPct) {
+        if (!pt) return '<span class="text-muted">—</span>';
+        const ref = Number(pt[field] || 0);
+        if (isPct) {
+            const roiCls = ref >= 0 ? 'scx-val-up' : 'scx-val-down';
+            return `<span class="${roiCls}">${esc(fmtPct(ref))}</span>`;
+        }
+        return esc(fmtIdr(ref));
+    }
+
+    function scxHourLabel(h) {
+        const s = String(h || '').trim();
+        if (!s) return '-';
+        return s.length >= 2 ? `${s}:00` : `${String(s).padStart(2, '0')}:00`;
+    }
+
+    function scxHourIndexInSnap(snap, hourKey) {
+        if (!snap || !Array.isArray(snap.hours)) return -1;
+        const target = String(hourKey || '').padStart(2, '0');
+        return snap.hours.findIndex(function(h) { return String(h || '').padStart(2, '0') === target; });
+    }
+
+    function scxLastRecordedHourIndex(snap) {
+        if (!snap || !Array.isArray(snap.hours) || !snap.hours.length) return -1;
+        let lastIdx = -1;
+        for (let i = 0; i < snap.hours.length; i++) {
+            const spend = Number(snap.spend[i] || 0);
+            const revenue = Number(snap.revenue[i] || 0);
+            if (spend > 0 || revenue > 0) lastIdx = i;
+        }
+        return lastIdx;
+    }
+
+    function scxVisibleHourIndices(snap) {
+        const lastIdx = scxLastRecordedHourIndex(snap);
+        if (lastIdx < 0) return [];
+        let firstIdx = 0;
+        for (let i = 0; i <= lastIdx; i++) {
+            if (Number(snap.spend[i] || 0) > 0 || Number(snap.revenue[i] || 0) > 0) {
+                firstIdx = i;
+                break;
+            }
+        }
+        const out = [];
+        for (let i = firstIdx; i <= lastIdx; i++) out.push(i);
+        return out;
+    }
+
+    function scxAnalyticTableHourIndices(snap) {
+        return scxVisibleHourIndices(snap).filter(function(idx) {
+            const h = parseInt(String((snap.hours || [])[idx] || ''), 10);
+            return Number.isFinite(h) && h >= 1 && h <= 23;
+        });
+    }
+
+    function scxPrevHourlyPoint(hourlyByDate, dateYmd, hourKey) {
+        const snap = hourlyByDate[dateYmd];
+        const idx = scxHourIndexInSnap(snap, hourKey);
+        if (!snap || idx < 0) return null;
+        if (idx > 0) {
+            const pi = idx - 1;
+            return {
+                spend: Number(snap.spend[pi] || 0),
+                revenue: Number(snap.revenue[pi] || 0),
+                roi: Number(snap.roi[pi] || 0)
+            };
+        }
+        const prevDate = ymdShift(dateYmd, -1);
+        const prevSnap = hourlyByDate[prevDate];
+        if (!prevSnap || !prevSnap.hours.length) return null;
+        const lastIdx = scxLastRecordedHourIndex(prevSnap);
+        if (lastIdx < 0) return null;
+        return {
+            spend: Number(prevSnap.spend[lastIdx] || 0),
+            revenue: Number(prevSnap.revenue[lastIdx] || 0),
+            roi: Number(prevSnap.roi[lastIdx] || 0)
+        };
+    }
+
+    function scxSameHourPoint(hourlyByDate, dateYmd, hourKey, dayOffset) {
+        const refDate = ymdShift(dateYmd, -(Number(dayOffset) || 0));
+        const refSnap = hourlyByDate[refDate];
+        const idx = scxHourIndexInSnap(refSnap, hourKey);
+        if (!refSnap || idx < 0) return null;
+        return {
+            spend: Number(refSnap.spend[idx] || 0),
+            revenue: Number(refSnap.revenue[idx] || 0),
+            roi: Number(refSnap.roi[idx] || 0)
+        };
+    }
+
+    async function fetchScoreDetailDomainDailySeries(source, startYmd, endYmd, domain) {
+        const bundle = await fetchScoreDetailAnalyticSnapshots(source, startYmd, endYmd, domain);
+        return bundle.rangeRows;
+    }
+
+    function scxRenderAnalyticPane(defaultDate) {
+        const d = esc(String(defaultDate || ''));
+        return `<div data-scx-tab-pane="analytic" hidden>
+            <div class="scx-card">
+                <div class="scx-title">Analytic Performa Domain</div>
+                <div class="scx-sub" style="margin-bottom:12px;">Ringkasan spend, revenue, dan ROI per jam serta perbandingan harian dalam rentang tanggal yang dipilih.</div>
+                <div class="scx-range-filters">
+                    <div class="scx-range-field"><label>Dari</label><input type="text" class="form-control scx-analytic-start" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
+                    <div class="scx-range-field"><label>Sampai</label><input type="text" class="form-control scx-analytic-end" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
+                    <span class="scx-sub scx-analytic-status" style="margin:0;"></span>
+                </div>
+                <div id="scxAnalyticSummary">${scxRenderMetricSummaryBoxes(0, 0, 0)}</div>
+                <div class="scx-sub" style="margin-bottom:10px;">Total spend/revenue dihitung dari snapshot jam terakhir yang tercatat (bukan penjumlahan semua jam).</div>
+                <div class="scx-section-gap">
+                    <div class="scx-title">Perbandingan Harian (Range Tanggal)</div>
+                    <div class="scx-sub" style="margin-bottom:8px;">Performa harian dalam rentang yang dipilih, dibandingkan dengan H-1, H-3, H-7, dan H-14 dari tanggal yang sama.</div>
+                    <div id="scxAnalyticDailyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data...</div></div>
+                </div>
+                <div class="scx-section-gap">
+                    <div class="scx-title">Data Per Jam — <span id="scxAnalyticHourlyDateLabel">Range Tanggal</span></div>
+                    <div class="scx-sub" style="margin-bottom:8px;">Detail per jam (01:00–23:00). Pilih tanggal jika rentang lebih dari satu hari. Mode <em>Ringkas</em> hanya menampilkan perubahan (Δ), mode <em>Lengkap</em> menampilkan nilai referensi + perubahan.</div>
+                    <div id="scxAnalyticHourlyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data per jam...</div></div>
+                </div>
+                <div class="scx-section-gap">
+                    <div class="scx-title">Grafik ROI Per Jam (Range Tanggal)</div>
+                    <div class="scx-sub" style="margin-bottom:8px;">Sumbu X menampilkan jam (00:00 s/d jam terakhir). Setiap garis mewakili satu tanggal dalam range untuk perbandingan ROI per jam.</div>
+                    <div class="scx-chart-box"><canvas id="scxAnalyticRoiChart"></canvas></div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function scxRenderMonitoringPane(defaultDate, sourceLabel) {
+        const d = esc(String(defaultDate || ''));
+        return `<div data-scx-tab-pane="monitoring" hidden>
+            <div class="scx-card">
+                <div class="scx-title">Monitoring Negara</div>
+                <div class="scx-sub" style="margin-bottom:12px;">Performa per negara untuk domain ini (${esc(sourceLabel)}). Urutan grafik dari ROI tertinggi ke terendah.</div>
+                <div class="scx-monitoring-toolbar">
+                    <div class="scx-monitoring-range-filters">
+                        <div class="scx-range-field"><label>Dari</label><input type="text" class="form-control scx-monitoring-start" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
+                        <div class="scx-range-field"><label>Sampai</label><input type="text" class="form-control scx-monitoring-end" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
+                    </div>
+                    <div id="scxMonitoringCountryFilterWrap" class="scx-monitoring-country-filter-top" hidden>
+                        <div class="scx-monitoring-country-filter">
+                            <div class="scx-monitoring-country-filter-label">Filter Negara</div>
+                            <div class="scx-monitoring-country-filter-head">
+                                <input type="text" class="form-control scx-monitoring-country-search" placeholder="Cari negara atau kode..." autocomplete="off" />
+                                <div class="scx-monitoring-country-filter-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-primary scx-monitoring-country-all">Pilih Semua</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary scx-monitoring-country-reset">Reset</button>
+                                </div>
+                            </div>
+                            <div class="scx-monitoring-country-chips" id="scxMonitoringCountryChips"></div>
+                            <div class="scx-sub scx-monitoring-country-filter-meta" id="scxMonitoringCountryFilterMeta"></div>
+                        </div>
+                    </div>
+                    <span class="scx-sub scx-monitoring-status" style="margin:0;align-self:center;"></span>
+                </div>
+                <div id="scxMonitoringSummary">${scxRenderMetricSummaryBoxes(0, 0, 0)}</div>
+                <div class="scx-section-gap" id="scxMonitoringDailySection" hidden>
+                    <div class="scx-title">Perbandingan Harian (Range Tanggal)</div>
+                    <div class="scx-sub" style="margin-bottom:8px;">Total performa domain per hari dalam rentang yang dipilih, dibandingkan dengan H-1, H-3, H-7, dan H-14.</div>
+                    <div id="scxMonitoringDailyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat perbandingan harian...</div></div>
+                </div>
+                <div class="scx-section-gap">
+                    <div class="scx-title">Grafik ROI per Negara <span id="scxMonitoringChartDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span></div>
+                    <div class="scx-chart-box"><canvas id="scxMonitoringRoiChart"></canvas></div>
+                </div>
+                <div class="scx-section-gap">
+                    <div class="scx-title">Tabel Monitoring Negara <span id="scxMonitoringCountryDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span></div>
+                    <div class="scx-sub" style="margin-bottom:8px;" id="scxMonitoringCountryHint">Performa per negara untuk rentang tanggal yang dipilih. Kolom H-1 membandingkan dengan hari sebelumnya.</div>
+                    <div id="scxMonitoringTableWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data monitoring...</div></div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function scxDestroyChartInstance(key) {
+        const inst = window[key];
+        if (inst && typeof inst.destroy === 'function') {
+            try { inst.destroy(); } catch (_) {}
+        }
+        window[key] = null;
+    }
+
+    function scxRenderAnalyticDailyTable(rows, historyMap) {
+        if (!Array.isArray(rows) || !rows.length) {
+            return '<div class="scx-sub" style="padding:14px;">Tidak ada data harian untuk rentang tanggal ini.</div>';
+        }
+        const offsets = SCX_ANALYTIC_COMPARE_OFFSETS;
+        const map = historyMap || {};
+        let html = '<table class="scx-data-table scx-analytic-table"><thead>';
+        html += '<tr><th rowspan="2">Tanggal</th><th rowspan="2" class="text-end">Spend</th><th rowspan="2" class="text-end">Revenue</th><th rowspan="2" class="text-end">ROI</th>';
+        offsets.forEach(function(off) {
+            html += `<th colspan="4" class="scx-compare-head">H-${off}</th>`;
+        });
+        html += '</tr><tr>';
+        offsets.forEach(function() {
+            html += '<th class="text-end scx-compare-sub">Revenue</th><th class="text-end scx-compare-sub">ROI</th><th class="text-end scx-compare-sub">Δ Revenue</th><th class="text-end scx-compare-sub">Δ ROI</th>';
+        });
+        html += '</tr></thead><tbody>';
+        rows.forEach(function(r) {
+            const roiCls = Number(r.roi) >= 0 ? 'scx-val-up' : 'scx-val-down';
+            html += `<tr><td>${esc(String(r.date || '-'))}</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(r.spend))}</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(r.revenue))}</td>`;
+            html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(r.roi))}</span></td>`;
+            offsets.forEach(function(off) {
+                const ref = map[ymdShift(String(r.date || ''), -off)];
+                html += `<td class="text-end">${scxCompareAbsCell(ref, 'revenue', false)}</td>`;
+                html += `<td class="text-end">${scxCompareAbsCell(ref, 'roi', true)}</td>`;
+                html += `<td class="text-end">${scxCompareDeltaCell(r.revenue, ref, 'revenue', false)}</td>`;
+                html += `<td class="text-end">${scxCompareDeltaCell(r.roi, ref, 'roi', true)}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function scxDatesWithHourlyData(hourlyByDate, rangeDates) {
+        const byDate = hourlyByDate || {};
+        return (Array.isArray(rangeDates) ? rangeDates : []).filter(function(d) {
+            const snap = byDate[d];
+            return snap && scxAnalyticTableHourIndices(snap).length > 0;
+        });
+    }
+
+    function scxAnalyticHourlyCompareColspan(compact, groupCount) {
+        const perGroup = compact ? 2 : 4;
+        return perGroup * groupCount;
+    }
+
+    function scxAnalyticHourlyCompareSubHeaders(compact, groupCount) {
+        let html = '';
+        for (let i = 0; i < groupCount; i++) {
+            if (compact) {
+                html += '<th class="text-end scx-compare-sub">Δ Rev</th><th class="text-end scx-compare-sub">Δ ROI</th>';
+            } else {
+                html += '<th class="text-end scx-compare-sub">Revenue</th><th class="text-end scx-compare-sub">ROI</th><th class="text-end scx-compare-sub">Δ Rev</th><th class="text-end scx-compare-sub">Δ ROI</th>';
+            }
+        }
+        return html;
+    }
+
+    function scxAppendHourlyJamLaluCells(cells, revenue, roi, prevPt, compact) {
+        if (compact) {
+            cells.push(`<td class="text-end">${prevPt ? scxDeltaCellHtml(revenue - prevPt.revenue, false) : '<span class="text-muted">—</span>'}</td>`);
+            cells.push(`<td class="text-end">${prevPt ? scxDeltaCellHtml(roi - prevPt.roi, true) : '<span class="text-muted">—</span>'}</td>`);
+            return;
+        }
+        cells.push(`<td class="text-end">${scxHourlyAbsCell(prevPt, 'revenue', false)}</td>`);
+        cells.push(`<td class="text-end">${scxHourlyAbsCell(prevPt, 'roi', true)}</td>`);
+        cells.push(`<td class="text-end">${prevPt ? scxDeltaCellHtml(revenue - prevPt.revenue, false) : '<span class="text-muted">—</span>'}</td>`);
+        cells.push(`<td class="text-end">${prevPt ? scxDeltaCellHtml(roi - prevPt.roi, true) : '<span class="text-muted">—</span>'}</td>`);
+    }
+
+    function scxAppendHourlyRefCells(cells, revenue, roi, refPt, compact) {
+        if (compact) {
+            cells.push(`<td class="text-end">${refPt ? scxDeltaCellHtml(revenue - refPt.revenue, false) : '<span class="text-muted">—</span>'}</td>`);
+            cells.push(`<td class="text-end">${refPt ? scxDeltaCellHtml(roi - refPt.roi, true) : '<span class="text-muted">—</span>'}</td>`);
+            return;
+        }
+        cells.push(`<td class="text-end">${scxHourlyAbsCell(refPt, 'revenue', false)}</td>`);
+        cells.push(`<td class="text-end">${scxHourlyAbsCell(refPt, 'roi', true)}</td>`);
+        cells.push(`<td class="text-end">${refPt ? scxDeltaCellHtml(revenue - refPt.revenue, false) : '<span class="text-muted">—</span>'}</td>`);
+        cells.push(`<td class="text-end">${refPt ? scxDeltaCellHtml(roi - refPt.roi, true) : '<span class="text-muted">—</span>'}</td>`);
+    }
+
+    function scxRenderAnalyticHourlyDayTable(hourlyByDate, dateYmd, opts) {
+        const options = opts || {};
+        const compact = !!options.compact;
+        const byDate = hourlyByDate || {};
+        const offsets = SCX_ANALYTIC_HOURLY_COMPARE_OFFSETS;
+        const snap = byDate[dateYmd];
+        if (!snap || !Array.isArray(snap.hours) || !snap.hours.length) {
+            return '<div class="scx-sub" style="padding:14px;">Tidak ada data per jam untuk tanggal ini.</div>';
+        }
+        const visibleIdx = scxAnalyticTableHourIndices(snap);
+        if (!visibleIdx.length) {
+            return '<div class="scx-sub" style="padding:14px;">Tidak ada data per jam untuk tanggal ini.</div>';
+        }
+        const compareSpan = scxAnalyticHourlyCompareColspan(compact, 1);
+        const offsetSpan = scxAnalyticHourlyCompareColspan(compact, offsets.length);
+        let html = '<table class="scx-data-table scx-analytic-table"><thead>';
+        html += '<tr><th rowspan="2">Jam</th><th rowspan="2" class="text-end">Spend</th><th rowspan="2" class="text-end">Revenue</th><th rowspan="2" class="text-end">ROI</th>';
+        html += `<th colspan="${compareSpan}" class="scx-compare-head">Jam Lalu</th>`;
+        offsets.forEach(function(off) {
+            html += `<th colspan="${compareSpan}" class="scx-compare-head">Jam sama H-${off}</th>`;
+        });
+        html += '</tr><tr>';
+        html += scxAnalyticHourlyCompareSubHeaders(compact, 1);
+        html += scxAnalyticHourlyCompareSubHeaders(compact, offsets.length);
+        html += '</tr></thead><tbody>';
+        visibleIdx.forEach(function(idx) {
+            const h = snap.hours[idx];
+            const spend = Number(snap.spend[idx] || 0);
+            const revenue = Number(snap.revenue[idx] || 0);
+            const roi = Number(snap.roi[idx] || 0);
+            const roiCls = roi >= 0 ? 'scx-val-up' : 'scx-val-down';
+            const prevPt = scxPrevHourlyPoint(byDate, dateYmd, h);
+            const cells = [
+                `<td>${esc(scxHourLabel(h))}</td>`,
+                `<td class="text-end">${esc(fmtIdr(spend))}</td>`,
+                `<td class="text-end">${esc(fmtIdr(revenue))}</td>`,
+                `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(roi))}</span></td>`
+            ];
+            scxAppendHourlyJamLaluCells(cells, revenue, roi, prevPt, compact);
+            offsets.forEach(function(off) {
+                scxAppendHourlyRefCells(cells, revenue, roi, scxSameHourPoint(byDate, dateYmd, h, off), compact);
+            });
+            html += `<tr>${cells.join('')}</tr>`;
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function scxRenderAnalyticHourlySection(hourlyByDate, rangeDates, selectedDate, compact) {
+        const dates = scxDatesWithHourlyData(hourlyByDate, rangeDates);
+        if (!dates.length) {
+            return '<div class="scx-sub" style="padding:14px;">Tidak ada data per jam untuk rentang tanggal ini.</div>';
+        }
+        const activeDate = dates.includes(selectedDate) ? selectedDate : dates[dates.length - 1];
+        const isCompact = compact !== false;
+        let html = '<div class="scx-analytic-hourly-shell">';
+        html += '<div class="scx-analytic-hourly-toolbar">';
+        if (dates.length > 1) {
+            html += '<div class="dashboard-recap-tabs scx-analytic-hourly-day-tabs" role="tablist" aria-label="Pilih tanggal data per jam">';
+            dates.forEach(function(d) {
+                const on = d === activeDate;
+                html += `<button type="button" class="btn btn-sm ${on ? 'btn-primary' : 'btn-outline-primary'}" data-hourly-date="${esc(d)}">${esc(d)}</button>`;
+            });
+            html += '</div>';
+        } else {
+            html += `<div class="scx-sub" style="margin:0;">${esc(activeDate)}</div>`;
+        }
+        html += '<div class="dashboard-recap-tabs scx-analytic-hourly-view-tabs" role="tablist" aria-label="Mode tampilan data per jam">';
+        html += `<button type="button" class="btn btn-sm ${isCompact ? 'btn-primary' : 'btn-outline-primary'}" data-hourly-view="compact">Ringkas</button>`;
+        html += `<button type="button" class="btn btn-sm ${!isCompact ? 'btn-primary' : 'btn-outline-primary'}" data-hourly-view="full">Lengkap</button>`;
+        html += '</div></div>';
+        html += `<div class="scx-analytic-hourly-scroll">${scxRenderAnalyticHourlyDayTable(hourlyByDate, activeDate, { compact: isCompact })}</div>`;
+        html += '</div>';
+        return html;
+    }
+
+    function scxRefreshAnalyticHourlySection() {
+        const hourlyWrap = document.getElementById('scxAnalyticHourlyWrap');
+        const cache = window.scxAnalyticHourlyCache;
+        if (!hourlyWrap || !cache) return;
+        hourlyWrap.innerHTML = scxRenderAnalyticHourlySection(
+            cache.hourlyByDate,
+            cache.rangeDates,
+            cache.selectedDate,
+            cache.compact
+        );
+    }
+
+    function scxRenderAnalyticHourlyRangeTable(hourlyByDate, rangeDates) {
+        const dates = scxDatesWithHourlyData(hourlyByDate, rangeDates);
+        const selectedDate = dates.length ? dates[dates.length - 1] : '';
+        return scxRenderAnalyticHourlySection(hourlyByDate, rangeDates, selectedDate, true);
+    }
+
+    function scxRenderAnalyticHourlyTable(hours, spend, revenue, roi) {
+        if (!hours.length) {
+            return '<div class="scx-sub" style="padding:14px;">Tidak ada data per jam untuk tanggal ini.</div>';
+        }
+        let html = '<table class="scx-data-table"><thead><tr><th>Jam</th><th class="text-end">Spend</th><th class="text-end">Revenue</th><th class="text-end">ROI</th><th class="text-end">Δ Revenue</th><th class="text-end">Δ ROI</th></tr></thead><tbody>';
+        hours.forEach(function(h, idx) {
+            const prevIdx = idx - 1;
+            const dRev = prevIdx >= 0 ? (Number(revenue[idx] || 0) - Number(revenue[prevIdx] || 0)) : null;
+            const dRoi = prevIdx >= 0 ? (Number(roi[idx] || 0) - Number(roi[prevIdx] || 0)) : null;
+            const roiCls = Number(roi[idx]) >= 0 ? 'scx-val-up' : 'scx-val-down';
+            html += `<tr><td>${esc(String(h))}:00</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(spend[idx]))}</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(revenue[idx]))}</td>`;
+            html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(roi[idx]))}</span></td>`;
+            html += `<td class="text-end">${prevIdx >= 0 ? scxDeltaCellHtml(dRev, false) : '<span class="text-muted">—</span>'}</td>`;
+            html += `<td class="text-end">${prevIdx >= 0 ? scxDeltaCellHtml(dRoi, true) : '<span class="text-muted">—</span>'}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function scxBuildAnalyticRangeCompareChart(hourlyByDate, rangeDates) {
+        const dates = Array.isArray(rangeDates) ? rangeDates : [];
+        const byDate = hourlyByDate || {};
+        const palette = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6'];
+        let maxHour = -1;
+        dates.forEach(function(d) {
+            const snap = byDate[d];
+            scxVisibleHourIndices(snap).forEach(function(idx) {
+                const h = parseInt(String((snap.hours || [])[idx] || '0'), 10);
+                if (!Number.isFinite(h)) return;
+                if (h > maxHour) maxHour = h;
+            });
+        });
+        if (maxHour < 0) return { hourLabels: [], datasets: [] };
+        const minHour = 0;
+        const hourLabels = [];
+        for (let h = minHour; h <= maxHour; h++) {
+            hourLabels.push(scxHourLabel(String(h).padStart(2, '0')));
+        }
+        const datasets = dates.map(function(d, di) {
+            const snap = byDate[d] || { hours: [], roi: [] };
+            const roiByHour = {};
+            scxVisibleHourIndices(snap).forEach(function(idx) {
+                const hk = String(snap.hours[idx] || '').padStart(2, '0');
+                roiByHour[hk] = Number(snap.roi[idx] || 0);
+            });
+            const data = [];
+            for (let h = minHour; h <= maxHour; h++) {
+                const hk = String(h).padStart(2, '0');
+                data.push(Object.prototype.hasOwnProperty.call(roiByHour, hk) ? roiByHour[hk] : null);
+            }
+            const hasData = data.some(function(v) { return v != null; });
+            if (!hasData) return null;
+            const color = palette[di % palette.length];
+            const labelMatch = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            const label = labelMatch ? `${labelMatch[3]}/${labelMatch[2]}` : String(d || '');
+            return {
+                label: label,
+                data: data,
+                borderColor: color,
+                backgroundColor: color + '22',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.25,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                spanGaps: false
+            };
+        }).filter(Boolean);
+        return { hourLabels: hourLabels, datasets: datasets };
+    }
+
+    function scxBindAnalyticRoiCompareChart(hourLabels, datasets) {
+        const canvas = document.getElementById('scxAnalyticRoiChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+        scxDestroyChartInstance('scxAnalyticRoiChartInstance');
+        const labels = Array.isArray(hourLabels) ? hourLabels : [];
+        const series = Array.isArray(datasets) ? datasets : [];
+        if (!labels.length || !series.length) return;
+        window.scxAnalyticRoiChartInstance = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: { labels: labels, datasets: series },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { boxWidth: 12, boxHeight: 12, usePointStyle: true, padding: 14 }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(ctx) {
+                                const v = ctx.parsed?.y;
+                                if (v == null || !Number.isFinite(v)) return null;
+                                return `${ctx.dataset.label}: ${Number(v).toFixed(2)}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Jam' },
+                        grid: { display: false },
+                        ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 24 }
+                    },
+                    y: {
+                        title: { display: true, text: 'ROI (%)' },
+                        ticks: { callback: function(v) { return `${v}%`; } }
+                    }
+                }
+            }
+        });
+    }
+
+    function scxBindAnalyticRoiChart(hours, roi, labelsOverride) {
+        const canvas = document.getElementById('scxAnalyticRoiChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+        scxDestroyChartInstance('scxAnalyticRoiChartInstance');
+        const labels = Array.isArray(labelsOverride) && labelsOverride.length
+            ? labelsOverride
+            : (hours || []).map(function(h) { return scxHourLabel(h); });
+        window.scxAnalyticRoiChartInstance = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'ROI (%)',
+                    data: (roi || []).map(function(v) { return Number(v) || 0; }),
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.25,
+                    pointRadius: labels.length > 48 ? 0 : 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) { return `ROI: ${Number(ctx.parsed.y || 0).toFixed(2)}%`; }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: labels.length > 72 ? 24 : 48
+                        }
+                    },
+                    y: {
+                        ticks: { callback: function(v) { return `${v}%`; } }
+                    }
+                }
+            }
+        });
+    }
+
+    function scxBuildAnalyticRangeChartSeries(hourlyByDate, rangeDates) {
+        return scxBuildAnalyticRangeCompareChart(hourlyByDate, rangeDates);
+    }
+
+    function scxBindMonitoringRoiChart(items) {
+        const canvas = document.getElementById('scxMonitoringRoiChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+        scxDestroyChartInstance('scxMonitoringRoiChartInstance');
+        const sorted = (Array.isArray(items) ? items : []).slice().sort(function(a, b) {
+            return Number(b.roi || 0) - Number(a.roi || 0);
+        });
+        const labels = sorted.map(function(it) {
+            return String(it.country_name || it.country || it.country_code || '-');
+        });
+        const data = sorted.map(function(it) { return Number(it.roi || 0); });
+        const colors = data.map(function(v) { return Number(v) >= 0 ? 'rgba(16, 185, 129, 0.75)' : 'rgba(239, 68, 68, 0.75)'; });
+        window.scxMonitoringRoiChartInstance = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'ROI (%)',
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) { return `ROI: ${Number(ctx.parsed.x || 0).toFixed(2)}%`; }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { callback: function(v) { return `${v}%`; } }
+                    },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function scxParseMonitoringCountryPayload(json) {
+        const rows = Array.isArray(json?.data_filtered) && json.data_filtered.length
+            ? json.data_filtered
+            : (Array.isArray(json?.data) ? json.data : []);
+        const summary = json?.summary_filtered || json?.summary || {};
+        const spend = Number(summary.total_spend != null ? summary.total_spend : rows.reduce(function(s, r) { return s + Number(r.spend || 0); }, 0));
+        const revenue = Number(summary.total_revenue != null ? summary.total_revenue : rows.reduce(function(s, r) { return s + Number(r.revenue || 0); }, 0));
+        const roi = Number(summary.roi_nett != null ? summary.roi_nett : (spend > 0 ? ((revenue - spend) / spend * 100) : 0));
+        return { rows: rows, spend: spend, revenue: revenue, roi: roi };
+    }
+
+    async function fetchScoreDetailMonitoringDay(source, dateYmd, domain) {
+        const url = endpointScoreDetailMonitoringCountry(source, dateYmd, dateYmd, domain);
+        const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const json = await resp.json();
+        if (!json || !json.status) return { rows: [], spend: 0, revenue: 0, roi: 0 };
+        return scxParseMonitoringCountryPayload(json);
+    }
+
+    async function fetchScoreDetailMonitoringSnapshots(source, startYmd, endYmd, domain) {
+        const extStart = ymdShift(startYmd, -SCX_ANALYTIC_MAX_LOOKBACK);
+        const allDates = ymdSeq(extStart, endYmd);
+        const rangeDates = ymdSeq(startYmd, endYmd);
+        const historyMap = {};
+        const countriesByDate = {};
+        const concurrency = 6;
+        for (let i = 0; i < allDates.length; i += concurrency) {
+            const batch = allDates.slice(i, i + concurrency);
+            const results = await Promise.all(batch.map(function(d) {
+                return fetchScoreDetailMonitoringDay(source, d, domain);
+            }));
+            batch.forEach(function(d, idx) {
+                const r = results[idx];
+                historyMap[d] = { spend: r.spend, revenue: r.revenue, roi: r.roi };
+                countriesByDate[d] = r.rows;
+            });
+        }
+        const rangeRows = rangeDates.map(function(d) {
+            return Object.assign({ date: d }, historyMap[d] || { spend: 0, revenue: 0, roi: 0 });
+        });
+        return { rangeRows: rangeRows, historyMap: historyMap, countriesByDate: countriesByDate, rangeDates: rangeDates };
+    }
+
+    function scxDatesWithMonitoringData(countriesByDate, rangeDates) {
+        const byDate = countriesByDate || {};
+        return (Array.isArray(rangeDates) ? rangeDates : []).filter(function(d) {
+            const rows = byDate[d];
+            return Array.isArray(rows) && rows.length > 0;
+        });
+    }
+
+    function scxMonitoringCountryCode(row) {
+        const code = String(row?.country_code || row?.country_cd || row?.code || '').trim().toUpperCase();
+        if (!code) return '';
+        return code === 'TU' ? 'TR' : code;
+    }
+
+    function scxMonitoringCountryName(row) {
+        const name = String(row?.country_name || row?.country || row?.country_nm || '').trim();
+        const code = scxMonitoringCountryCode(row);
+        return name || code || '-';
+    }
+
+    function scxMonitoringCountryRowMetrics(row) {
+        const spend = Number(row?.spend || 0);
+        const revenue = Number(row?.revenue || 0);
+        const net = (row && row.net_profit != null) ? Number(row.net_profit || 0) : (revenue - spend);
+        const roi = (row && row.roi != null) ? Number(row.roi || 0) : (spend > 0 ? ((revenue - spend) / spend * 100) : 0);
+        return { spend: spend, revenue: revenue, net: net, roi: roi };
+    }
+
+    function scxMonitoringCountryMapByCode(rows) {
+        const map = {};
+        (rows || []).forEach(function(r) {
+            const code = scxMonitoringCountryCode(r);
+            if (code) map[code] = r;
+        });
+        return map;
+    }
+
+    function scxMonitoringPrevDayRows(cache) {
+        if (!cache) return [];
+        const activeDate = String(cache.selectedDate || (cache.rangeDates && cache.rangeDates[0]) || '').trim();
+        if (!activeDate) return [];
+        const prevDate = ymdShift(activeDate, -1);
+        const byDate = cache.countriesByDate || {};
+        return byDate[prevDate] || [];
+    }
+
+    function scxMonitoringCountryOptionsFromCache(cache) {
+        const map = new Map();
+        if (!cache) return [];
+        const absorb = function(rows) {
+            (rows || []).forEach(function(r) {
+                const code = scxMonitoringCountryCode(r);
+                if (!code) return;
+                if (!map.has(code)) map.set(code, scxMonitoringCountryName(r));
+            });
+        };
+        if (cache.countriesByDate && typeof cache.countriesByDate === 'object') {
+            Object.keys(cache.countriesByDate).forEach(function(d) {
+                absorb(cache.countriesByDate[d]);
+            });
+        } else {
+            absorb(cache.singleDayRows || []);
+        }
+        return Array.from(map.entries()).map(function(entry) {
+            return { code: entry[0], name: entry[1] };
+        }).sort(function(a, b) {
+            return String(a.name).localeCompare(String(b.name));
+        });
+    }
+
+    function scxGetMonitoringActiveRows(cache) {
+        if (!cache) return [];
+        if (cache.countriesByDate && cache.selectedDate) {
+            return cache.countriesByDate[cache.selectedDate] || [];
+        }
+        return cache.singleDayRows || [];
+    }
+
+    function scxFilterMonitoringRows(rows, selectedCodes) {
+        const codes = Array.isArray(selectedCodes) ? selectedCodes.filter(Boolean) : [];
+        if (!codes.length) return rows || [];
+        const set = new Set(codes.map(function(c) { return String(c).trim().toUpperCase(); }));
+        return (rows || []).filter(function(r) {
+            return set.has(scxMonitoringCountryCode(r));
+        });
+    }
+
+    function scxSummarizeMonitoringRows(rows) {
+        const list = Array.isArray(rows) ? rows : [];
+        const spend = list.reduce(function(s, r) { return s + Number(r.spend || 0); }, 0);
+        const revenue = list.reduce(function(s, r) { return s + Number(r.revenue || 0); }, 0);
+        const roi = spend > 0 ? ((revenue - spend) / spend * 100) : 0;
+        return { spend: spend, revenue: revenue, roi: roi };
+    }
+
+    function scxRenderMonitoringCountryFilterChips(cache, searchText) {
+        const chipsEl = document.getElementById('scxMonitoringCountryChips');
+        const metaEl = document.getElementById('scxMonitoringCountryFilterMeta');
+        if (!chipsEl || !cache) return;
+        const options = scxMonitoringCountryOptionsFromCache(cache);
+        const selected = new Set((cache.selectedCountries || []).map(function(c) { return String(c).trim().toUpperCase(); }));
+        const q = String(searchText || '').trim().toLowerCase();
+        const filteredOptions = options.filter(function(opt) {
+            if (!q) return true;
+            return String(opt.name).toLowerCase().includes(q) || String(opt.code).toLowerCase().includes(q);
+        });
+        if (!options.length) {
+            chipsEl.innerHTML = '<span class="scx-sub">Belum ada negara yang bisa difilter.</span>';
+            if (metaEl) metaEl.textContent = '';
+            return;
+        }
+        chipsEl.innerHTML = filteredOptions.map(function(opt) {
+            const on = selected.has(opt.code);
+            return `<button type="button" class="btn btn-sm scx-monitoring-country-chip ${on ? 'btn-primary' : 'btn-outline-primary'}" data-monitoring-country="${esc(opt.code)}" title="${esc(opt.code)}">${esc(opt.name)} <span class="text-muted">(${esc(opt.code)})</span></button>`;
+        }).join('');
+        const activeRows = scxGetMonitoringActiveRows(cache);
+        const visibleRows = scxFilterMonitoringRows(activeRows, cache.selectedCountries);
+        const totalCountries = options.length;
+        const selectedCount = selected.size;
+        const visibleCount = visibleRows.length;
+        let meta = `Total ${totalCountries} negara tersedia`;
+        if (selectedCount) meta += ` • ${selectedCount} dipilih • menampilkan ${visibleCount} baris`;
+        else meta += ` • menampilkan semua (${visibleCount} baris)`;
+        if (metaEl) metaEl.textContent = meta;
+    }
+
+    function scxPopulateMonitoringCountryFilter(cache) {
+        const wrap = document.getElementById('scxMonitoringCountryFilterWrap');
+        const searchEl = document.querySelector('.scx-monitoring-country-search');
+        const options = scxMonitoringCountryOptionsFromCache(cache);
+        if (!wrap) return;
+        if (!options.length) {
+            wrap.hidden = true;
+            return;
+        }
+        wrap.hidden = false;
+        const validCodes = new Set(options.map(function(o) { return o.code; }));
+        cache.selectedCountries = (cache.selectedCountries || []).filter(function(c) {
+            return validCodes.has(String(c).trim().toUpperCase());
+        });
+        scxRenderMonitoringCountryFilterChips(cache, searchEl ? searchEl.value : '');
+    }
+
+    function scxRefreshMonitoringView() {
+        const cache = window.scxMonitoringCache;
+        const tableWrap = document.getElementById('scxMonitoringTableWrap');
+        if (!cache || !tableWrap) return;
+        scxRenderMonitoringCountryFilterChips(cache, document.querySelector('.scx-monitoring-country-search')?.value || '');
+        if (cache.countriesByDate) {
+            tableWrap.innerHTML = scxRenderMonitoringCountrySection(
+                cache.countriesByDate,
+                cache.rangeDates,
+                cache.selectedDate,
+                cache.selectedCountries
+            );
+        } else {
+            const rows = scxFilterMonitoringRows(cache.singleDayRows || [], cache.selectedCountries);
+            tableWrap.innerHTML = scxRenderMonitoringCountryTable(rows, scxMonitoringPrevDayRows(cache));
+        }
+        const activeRows = scxGetMonitoringActiveRows(cache);
+        const filteredRows = scxFilterMonitoringRows(activeRows, cache.selectedCountries);
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() { scxBindMonitoringRoiChart(filteredRows); });
+        });
+        const chartLabel = document.getElementById('scxMonitoringChartDateLabel');
+        const countryLabel = document.getElementById('scxMonitoringCountryDateLabel');
+        const dates = cache.rangeDates || [];
+        const labelText = (cache.countriesByDate && dates.length > 1) ? `• ${cache.selectedDate}` : '';
+        if (chartLabel) chartLabel.textContent = labelText;
+        if (countryLabel) countryLabel.textContent = labelText;
+        const summaryEl = document.getElementById('scxMonitoringSummary');
+        if (summaryEl && cache.selectedCountries && cache.selectedCountries.length) {
+            const totals = scxSummarizeMonitoringRows(filteredRows);
+            summaryEl.innerHTML = scxRenderMetricSummaryBoxes(totals.spend, totals.revenue, totals.roi);
+        } else if (summaryEl && cache.baseSummary) {
+            summaryEl.innerHTML = scxRenderMetricSummaryBoxes(cache.baseSummary.spend, cache.baseSummary.revenue, cache.baseSummary.roi);
+        }
+    }
+
+    function scxRenderMonitoringCountrySection(countriesByDate, rangeDates, selectedDate, selectedCountries) {
+        const dates = scxDatesWithMonitoringData(countriesByDate, rangeDates);
+        if (!dates.length) {
+            return '<div class="scx-sub" style="padding:14px;">Tidak ada data monitoring negara untuk rentang tanggal ini.</div>';
+        }
+        const activeDate = dates.includes(selectedDate) ? selectedDate : dates[dates.length - 1];
+        const rows = scxFilterMonitoringRows((countriesByDate || {})[activeDate] || [], selectedCountries);
+        let html = '<div class="scx-analytic-hourly-shell">';
+        if (dates.length > 1) {
+            html += '<div class="scx-analytic-hourly-toolbar"><div class="dashboard-recap-tabs scx-monitoring-day-tabs" role="tablist" aria-label="Pilih tanggal monitoring negara">';
+            dates.forEach(function(d) {
+                const on = d === activeDate;
+                html += `<button type="button" class="btn btn-sm ${on ? 'btn-primary' : 'btn-outline-primary'}" data-monitoring-date="${esc(d)}">${esc(d)}</button>`;
+            });
+            html += '</div></div>';
+        }
+        html += `<div class="scx-data-table-wrap">${scxRenderMonitoringCountryTable(rows, scxMonitoringPrevDayRows({ countriesByDate: countriesByDate, selectedDate: activeDate }))}</div>`;
+        html += '</div>';
+        return html;
+    }
+
+    function scxRefreshMonitoringCountrySection() {
+        scxRefreshMonitoringView();
+    }
+
+    function scxHideMonitoringCountryFilter() {
+        const wrap = document.getElementById('scxMonitoringCountryFilterWrap');
+        const chipsEl = document.getElementById('scxMonitoringCountryChips');
+        const metaEl = document.getElementById('scxMonitoringCountryFilterMeta');
+        const searchEl = document.querySelector('.scx-monitoring-country-search');
+        if (wrap) wrap.hidden = true;
+        if (chipsEl) chipsEl.innerHTML = '';
+        if (metaEl) metaEl.textContent = '';
+        if (searchEl) searchEl.value = '';
+    }
+
+    function scxInitMonitoringCountryFilterCache(baseCache) {
+        const prev = window.scxMonitoringCache || {};
+        const prevSelected = Array.isArray(prev.selectedCountries) ? prev.selectedCountries.slice() : [];
+        const cache = Object.assign({}, baseCache, { selectedCountries: prevSelected });
+        window.scxMonitoringCache = cache;
+        scxPopulateMonitoringCountryFilter(cache);
+        return cache;
+    }
+
+    function scxRenderMonitoringCountryTable(rows, prevRows) {
+        if (!Array.isArray(rows) || !rows.length) {
+            return '<div class="scx-sub" style="padding:14px;">Tidak ada data monitoring negara untuk filter ini.</div>';
+        }
+        const prevMap = scxMonitoringCountryMapByCode(prevRows);
+        const sorted = rows.slice().sort(function(a, b) { return Number(b.roi || 0) - Number(a.roi || 0); });
+        let html = '<table class="scx-data-table scx-analytic-table"><thead><tr>';
+        html += '<th>Negara</th><th>Kode</th><th class="text-end">Spend</th><th class="text-end">Pendapatan</th><th class="text-end">Pendapatan Bersih</th><th class="text-end">ROI</th>';
+        html += '<th class="text-end scx-compare-sub">Δ Pendapatan (H-1)</th><th class="text-end scx-compare-sub">Δ ROI (H-1)</th>';
+        html += '</tr></thead><tbody>';
+        sorted.forEach(function(r) {
+            const cur = scxMonitoringCountryRowMetrics(r);
+            const roiCls = cur.roi >= 0 ? 'scx-val-up' : 'scx-val-down';
+            const name = String(r.country_name || r.country || r.country_nm || '-');
+            const code = String(r.country_code || r.country_cd || r.code || '-').toUpperCase();
+            const prev = prevMap[scxMonitoringCountryCode(r)];
+            const prevMetrics = prev ? scxMonitoringCountryRowMetrics(prev) : null;
+            html += `<tr><td>${esc(name)}</td><td><span class="scx-chip">${esc(code)}</span></td>`;
+            html += `<td class="text-end">${esc(fmtIdr(cur.spend))}</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(cur.revenue))}</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(cur.net))}</td>`;
+            html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(cur.roi))}</span></td>`;
+            html += `<td class="text-end">${prevMetrics ? scxDeltaCellHtml(cur.revenue - prevMetrics.revenue, false) : '<span class="text-muted">—</span>'}</td>`;
+            html += `<td class="text-end">${prevMetrics ? scxDeltaCellHtml(cur.roi - prevMetrics.roi, true) : '<span class="text-muted">—</span>'}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    async function loadScoreDetailAnalyticTab(row, state) {
+        const pane = document.querySelector('[data-scx-tab-pane="analytic"]');
+        if (!pane) return;
+        const domain = resolveScoreDetailDomainKey(row, state);
+        const startEl = pane.querySelector('.scx-analytic-start');
+        const endEl = pane.querySelector('.scx-analytic-end');
+        const statusEl = pane.querySelector('.scx-analytic-status');
+        const summaryEl = document.getElementById('scxAnalyticSummary');
+        const dailyWrap = document.getElementById('scxAnalyticDailyWrap');
+        const hourlyWrap = document.getElementById('scxAnalyticHourlyWrap');
+        const hourlyDateLabel = document.getElementById('scxAnalyticHourlyDateLabel');
+        if (!startEl || !endEl || !domain) {
+            if (dailyWrap) dailyWrap.innerHTML = '<div class="scx-sub" style="padding:14px;">Domain tidak ditemukan.</div>';
+            return;
+        }
+        let startYmd = String(startEl.value || state?.date || '').trim();
+        let endYmd = String(endEl.value || state?.date || '').trim();
+        if (startYmd && endYmd && startYmd > endYmd) {
+            const tmp = startYmd; startYmd = endYmd; endYmd = tmp;
+            startEl.value = startYmd;
+            endEl.value = endYmd;
+        }
+        if (statusEl) statusEl.textContent = 'Memuat...';
+        try {
+            const hourlySource = resolveScoreDetailHourlySource(row, state);
+            const bundle = await fetchScoreDetailAnalyticSnapshots(hourlySource, startYmd, endYmd, domain);
+            const dailyRows = bundle.rangeRows || [];
+            const historyMap = bundle.historyMap || {};
+            const hourlyByDate = bundle.hourlyByDate || {};
+            const rangeDates = bundle.rangeDates || [];
+            const totalSpend = dailyRows.reduce(function(s, r) { return s + Number(r.spend || 0); }, 0);
+            const totalRevenue = dailyRows.reduce(function(s, r) { return s + Number(r.revenue || 0); }, 0);
+            const totalRoi = totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend * 100) : 0;
+            if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(totalSpend, totalRevenue, totalRoi);
+            if (dailyWrap) dailyWrap.innerHTML = scxRenderAnalyticDailyTable(dailyRows, historyMap);
+            const hourlyDates = scxDatesWithHourlyData(hourlyByDate, rangeDates);
+            window.scxAnalyticHourlyCache = {
+                hourlyByDate: hourlyByDate,
+                rangeDates: rangeDates,
+                selectedDate: hourlyDates.length ? hourlyDates[hourlyDates.length - 1] : endYmd,
+                compact: (window.scxAnalyticHourlyCache && typeof window.scxAnalyticHourlyCache.compact === 'boolean')
+                    ? window.scxAnalyticHourlyCache.compact
+                    : true
+            };
+            if (hourlyDateLabel) {
+                hourlyDateLabel.textContent = hourlyDates.length > 1
+                    ? `${startYmd} s/d ${endYmd} • ${hourlyDates.length} hari`
+                    : String(hourlyDates[0] || startYmd);
+            }
+            if (hourlyWrap) {
+                hourlyWrap.innerHTML = scxRenderAnalyticHourlySection(
+                    hourlyByDate,
+                    rangeDates,
+                    window.scxAnalyticHourlyCache.selectedDate,
+                    window.scxAnalyticHourlyCache.compact
+                );
+            }
+            const chartSeries = scxBuildAnalyticRangeCompareChart(hourlyByDate, rangeDates);
+            if (chartSeries.hourLabels.length && chartSeries.datasets.length) {
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        scxBindAnalyticRoiCompareChart(chartSeries.hourLabels, chartSeries.datasets);
+                    });
+                });
+            } else {
+                scxDestroyChartInstance('scxAnalyticRoiChartInstance');
+            }
+            if (statusEl) statusEl.textContent = `${dailyRows.length} hari • ${domain}`;
+        } catch (e) {
+            if (dailyWrap) dailyWrap.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat analytic'))}</div>`;
+            if (statusEl) statusEl.textContent = 'Gagal memuat';
+        }
+    }
+
+    function scxBindScoreDetailDateRange(startEl, endEl, onChange) {
+        let timer = null;
+        const run = function() {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(function() { onChange(); }, 280);
+        };
+        [startEl, endEl].forEach(function(el) {
+            if (!el) return;
+            el.addEventListener('change', run);
+            el.addEventListener('input', run);
+            el.addEventListener('blur', run);
+        });
+        if (window.HrisDatepicker) {
+            if (startEl) HrisDatepicker.initElement(startEl);
+            if (endEl) HrisDatepicker.initElement(endEl);
+        }
+    }
+
+    function bindScoreDetailAnalyticTab(row, state) {
+        const pane = document.querySelector('[data-scx-tab-pane="analytic"]');
+        if (!pane || pane.dataset.bound === '1') return;
+        pane.dataset.bound = '1';
+        const startEl = pane.querySelector('.scx-analytic-start');
+        const endEl = pane.querySelector('.scx-analytic-end');
+        const run = function() { loadScoreDetailAnalyticTab(row, state).catch(function(){}); };
+        scxBindScoreDetailDateRange(startEl, endEl, run);
+        pane.addEventListener('click', function(e) {
+            const hourlyWrap = document.getElementById('scxAnalyticHourlyWrap');
+            if (!hourlyWrap || !hourlyWrap.contains(e.target)) return;
+            const cache = window.scxAnalyticHourlyCache;
+            if (!cache) return;
+            const dateBtn = e.target.closest('[data-hourly-date]');
+            const viewBtn = e.target.closest('[data-hourly-view]');
+            if (dateBtn) {
+                cache.selectedDate = dateBtn.getAttribute('data-hourly-date') || cache.selectedDate;
+                scxRefreshAnalyticHourlySection();
+                return;
+            }
+            if (viewBtn) {
+                cache.compact = String(viewBtn.getAttribute('data-hourly-view') || '') === 'compact';
+                scxRefreshAnalyticHourlySection();
+            }
+        });
+    }
+
+    async function loadScoreDetailMonitoringTab(row, state) {
+        const pane = document.querySelector('[data-scx-tab-pane="monitoring"]');
+        if (!pane) return;
+        const domain = resolveScoreDetailDomainKey(row, state);
+        const source = resolveScoreDetailMonitoringSource(row, state);
+        const startEl = pane.querySelector('.scx-monitoring-start');
+        const endEl = pane.querySelector('.scx-monitoring-end');
+        const statusEl = pane.querySelector('.scx-monitoring-status');
+        const summaryEl = document.getElementById('scxMonitoringSummary');
+        const dailySection = document.getElementById('scxMonitoringDailySection');
+        const dailyWrap = document.getElementById('scxMonitoringDailyWrap');
+        const tableWrap = document.getElementById('scxMonitoringTableWrap');
+        const countryHint = document.getElementById('scxMonitoringCountryHint');
+        const chartDateLabel = document.getElementById('scxMonitoringChartDateLabel');
+        const countryDateLabel = document.getElementById('scxMonitoringCountryDateLabel');
+        if (!startEl || !endEl || !domain) {
+            if (tableWrap) tableWrap.innerHTML = '<div class="scx-sub" style="padding:14px;">Domain tidak ditemukan.</div>';
+            return;
+        }
+        let startYmd = String(startEl.value || state?.date || '').trim();
+        let endYmd = String(endEl.value || state?.date || '').trim();
+        if (startYmd && endYmd && startYmd > endYmd) {
+            const tmp = startYmd; startYmd = endYmd; endYmd = tmp;
+            startEl.value = startYmd;
+            endEl.value = endYmd;
+        }
+        const isMultiDay = !!(startYmd && endYmd && startYmd !== endYmd);
+        if (statusEl) statusEl.textContent = 'Memuat...';
+        try {
+            if (isMultiDay) {
+                const bundle = await fetchScoreDetailMonitoringSnapshots(source, startYmd, endYmd, domain);
+                const dailyRows = bundle.rangeRows || [];
+                const historyMap = bundle.historyMap || {};
+                const countriesByDate = bundle.countriesByDate || {};
+                const rangeDates = bundle.rangeDates || [];
+                const monitoringDates = scxDatesWithMonitoringData(countriesByDate, rangeDates);
+                const selectedDate = monitoringDates.length ? monitoringDates[monitoringDates.length - 1] : endYmd;
+                const totalSpend = dailyRows.reduce(function(s, r) { return s + Number(r.spend || 0); }, 0);
+                const totalRevenue = dailyRows.reduce(function(s, r) { return s + Number(r.revenue || 0); }, 0);
+                const totalRoi = totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend * 100) : 0;
+                const cache = scxInitMonitoringCountryFilterCache({
+                    countriesByDate: countriesByDate,
+                    rangeDates: rangeDates,
+                    selectedDate: selectedDate,
+                    baseSummary: { spend: totalSpend, revenue: totalRevenue, roi: totalRoi }
+                });
+                if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(totalSpend, totalRevenue, totalRoi);
+                if (dailySection) dailySection.hidden = false;
+                if (dailyWrap) dailyWrap.innerHTML = scxRenderAnalyticDailyTable(dailyRows, historyMap);
+                if (countryHint) countryHint.textContent = 'Pilih tanggal untuk melihat performa per negara. Filter negara berlaku untuk tabel dan grafik.';
+                const dateLabel = `• ${selectedDate}`;
+                if (chartDateLabel) chartDateLabel.textContent = dateLabel;
+                if (countryDateLabel) countryDateLabel.textContent = dateLabel;
+                scxRefreshMonitoringView();
+                const activeRows = scxFilterMonitoringRows(scxGetMonitoringActiveRows(cache), cache.selectedCountries);
+                if (statusEl) statusEl.textContent = `${dailyRows.length} hari • ${activeRows.length} negara • ${source.toUpperCase()} • ${domain}`;
+                return;
+            }
+
+            scxHideMonitoringCountryFilter();
+            window.scxMonitoringCache = null;
+            if (dailySection) dailySection.hidden = true;
+            if (dailyWrap) dailyWrap.innerHTML = '';
+            if (chartDateLabel) chartDateLabel.textContent = '';
+            if (countryDateLabel) countryDateLabel.textContent = '';
+            if (countryHint) countryHint.textContent = 'Performa per negara untuk rentang tanggal yang dipilih.';
+            const url = endpointScoreDetailMonitoringCountry(source, startYmd, endYmd, domain);
+            const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const json = await resp.json();
+            if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat monitoring negara');
+            const parsed = scxParseMonitoringCountryPayload(json);
+            const rows = parsed.rows;
+            const prevYmd = ymdShift(startYmd, -1);
+            const prevParsed = await fetchScoreDetailMonitoringDay(source, prevYmd, domain);
+            const cache = scxInitMonitoringCountryFilterCache({
+                singleDayRows: rows,
+                countriesByDate: {},
+                rangeDates: [startYmd],
+                selectedDate: startYmd,
+                baseSummary: { spend: parsed.spend, revenue: parsed.revenue, roi: parsed.roi }
+            });
+            cache.countriesByDate[startYmd] = rows;
+            cache.countriesByDate[prevYmd] = prevParsed.rows || [];
+            if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(parsed.spend, parsed.revenue, parsed.roi);
+            scxRefreshMonitoringView();
+            const visibleRows = scxFilterMonitoringRows(rows, cache.selectedCountries);
+            if (statusEl) statusEl.textContent = `${visibleRows.length} negara • ${source.toUpperCase()} • ${domain}`;
+        } catch (e) {
+            if (dailySection) dailySection.hidden = true;
+            scxHideMonitoringCountryFilter();
+            window.scxMonitoringCache = null;
+            if (tableWrap) tableWrap.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat monitoring'))}</div>`;
+            scxDestroyChartInstance('scxMonitoringRoiChartInstance');
+            if (statusEl) statusEl.textContent = 'Gagal memuat';
+        }
+    }
+
+    function bindScoreDetailMonitoringTab(row, state) {
+        const pane = document.querySelector('[data-scx-tab-pane="monitoring"]');
+        if (!pane || pane.dataset.bound === '1') return;
+        pane.dataset.bound = '1';
+        const startEl = pane.querySelector('.scx-monitoring-start');
+        const endEl = pane.querySelector('.scx-monitoring-end');
+        const run = function() { loadScoreDetailMonitoringTab(row, state).catch(function(){}); };
+        scxBindScoreDetailDateRange(startEl, endEl, run);
+        pane.addEventListener('click', function(e) {
+            const cache = window.scxMonitoringCache;
+            if (!cache) return;
+
+            const dateBtn = e.target.closest('[data-monitoring-date]');
+            if (dateBtn) {
+                cache.selectedDate = dateBtn.getAttribute('data-monitoring-date') || cache.selectedDate;
+                scxRefreshMonitoringView();
+                return;
+            }
+
+            const countryBtn = e.target.closest('[data-monitoring-country]');
+            if (countryBtn) {
+                const code = String(countryBtn.getAttribute('data-monitoring-country') || '').trim().toUpperCase();
+                if (!code) return;
+                const selected = new Set((cache.selectedCountries || []).map(function(c) { return String(c).trim().toUpperCase(); }));
+                if (selected.has(code)) selected.delete(code);
+                else selected.add(code);
+                cache.selectedCountries = Array.from(selected);
+                scxRefreshMonitoringView();
+                return;
+            }
+
+            if (e.target.closest('.scx-monitoring-country-reset')) {
+                cache.selectedCountries = [];
+                scxRefreshMonitoringView();
+                return;
+            }
+
+            if (e.target.closest('.scx-monitoring-country-all')) {
+                cache.selectedCountries = scxMonitoringCountryOptionsFromCache(cache).map(function(o) { return o.code; });
+                scxRefreshMonitoringView();
+            }
+        });
+        const searchEl = pane.querySelector('.scx-monitoring-country-search');
+        if (searchEl && !searchEl.dataset.bound) {
+            searchEl.dataset.bound = '1';
+            let searchTimer = null;
+            searchEl.addEventListener('input', function() {
+                if (searchTimer) clearTimeout(searchTimer);
+                searchTimer = setTimeout(function() {
+                    const cache = window.scxMonitoringCache;
+                    if (!cache) return;
+                    scxRenderMonitoringCountryFilterChips(cache, searchEl.value);
+                }, 180);
+            });
+        }
     }
 
     function bindScoreCountryTabs(onShow) {
@@ -12310,6 +13950,8 @@ function initDashboardRecap() {
             try { window.sdMetric14Chart.destroy(); } catch (_) {}
             window.sdMetric14Chart = null;
         }
+        closeDetailKeputusan();
+        window.scoreDetailDecisionStoreKey = null;
         if (modal) {
             modal.classList.remove('is-open');
             modal.setAttribute('aria-hidden', 'true');
@@ -13888,15 +15530,15 @@ function initDashboardRecap() {
                 { title: 'Negara yang perlu diprioritaskan', text: groups.length > 1 ? `${focusCountryLabel} saat ini menjadi fokus utama karena paling menekan hasil agregat domain.` : `Fokus analisa saat ini ada pada ${focusCountryLabel}.` },
                 { title: 'Early warning', text: forecastWarning }
             ];
-            const isCountryDim = String(state?.dim || '').toLowerCase() === 'country';
-            const showNavTabs = useSubTabs ? subgroups.length > 0 : (!isCountryDim && groups.length > 0);
-            const tabButtons = showNavTabs ? `<div class="scx-modal-nav"><div class="scx-modal-nav-label">${useSubTabs ? 'Navigasi hasil scoring per subdomain negara aktif' : 'Navigasi hasil scoring per negara aktif'}</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button>${(useSubTabs ? subgroups : groups).map(function(item, idx){ const count = Array.isArray(item?.events) ? item.events.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).length : 0; const label = useSubTabs ? String(item?.label || item?.key || '-') : String(scxCountryLabel(item?.status || { country_cd: item?.key || '-' }) || '-').toUpperCase(); return `<button type="button" class="scx-modal-tab" data-scx-tab-btn="${useSubTabs ? `sub-${idx}` : `country-${idx}`}">${esc(label)}<span class="scx-tab-count">${esc(String(count))}</span></button>`; }).join('')}</div></div>` : '';
+            const monitoringSource = resolveScoreDetailMonitoringSource(row, state);
+            const monitoringSourceLabel = monitoringSource === 'adsense' ? 'AdSense' : 'ADX';
+            const defaultScxDate = String(state?.date || '').trim();
+            const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">Navigasi hasil scoring</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="decision">Hasil Keputusan</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="analytic">Analytic</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="monitoring">Monitoring</button></div></div>`;
             const actionPanel = canAct ? `<div class="scx-section-gap scx-action-panel"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
-            const countryPanes = useSubTabs ? subgroups.map(function(sub, idx){ return `<div data-scx-tab-pane="sub-${idx}" hidden>${scxRenderSubdomainPane(sub, `scxSubTrend${idx}`)}</div>`; }).join('') : (isCountryDim ? '' : groups.map(function(group, idx){ return `<div data-scx-tab-pane="country-${idx}" hidden>${scxRenderCountryPane(group, `scxCountryTrend${idx}`, scoringTimeline)}</div>`; }).join(''));
 
             let html = '';
             html += tabButtons;
-            html += `<div data-scx-tab-pane="summary"${showNavTabs ? '' : ' class="is-active"'}>`;
+            html += `<div data-scx-tab-pane="summary" class="is-active">`;
             html += `<div class="scx-grid">`;
 
             html += `<div class="scx-card">`;
@@ -14019,7 +15661,9 @@ function initDashboardRecap() {
             html += `</div>`;
             html += `</div>`;
             html += `</div>`;
-            html += countryPanes;
+            html += `<div data-scx-tab-pane="decision" hidden><div id="scoreDetailDecisionBody"><div class="score-loading-state"><div class="score-loading-card"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div class="score-loading-title">Memuat Hasil Keputusan</div></div></div></div></div>`;
+            html += scxRenderAnalyticPane(defaultScxDate);
+            html += scxRenderMonitoringPane(defaultScxDate, monitoringSourceLabel);
     
             return html;
         }
@@ -14435,11 +16079,27 @@ function initDashboardRecap() {
                 return fallback;
             };
             if (dim === 'domain' && domainCompareName && Array.isArray(groups) && groups.length) {
-                const countryCodesForCompare = groups.map(function(group) {
-                    return String(group?.status?.country_cd || group?.status?.country_code || group?.key || '').trim().toUpperCase();
-                }).filter(Boolean);
-                await loadCountryCompareSeriesAll(countryCodesForCompare, 4);
+                // Country compare series dimuat lazy saat tab negara dibuka (mengurangi spam dashboard_scoring_compare).
             }
+
+            const decisionStoreKey = 'score_' + (++window.detailKeputusanStoreCounter);
+            const snapshotCountryCodeForDecision = dim === 'country' ? scxResolveCountryCode(row) : '';
+            const metaForDecisionStore = Object.assign({}, effectiveMeta, {
+                breakdown: Object.assign({}, effectiveMeta?.breakdown || {}, {
+                    meta: Object.assign({}, effectiveMeta?.breakdown?.meta || {}, {
+                        scoring_timeline: normalizedTimeline
+                    })
+                })
+            });
+            window.detailKeputusanStore[decisionStoreKey] = {
+                meta: metaForDecisionStore,
+                row: row,
+                state: state,
+                snapshotSeriesMap: buildSnapshotSeriesMap(snapshotCountryCodeForDecision),
+                normalizedTimeline: normalizedTimeline
+            };
+            window.scoreDetailDecisionStoreKey = decisionStoreKey;
+
             openScoreDetailModal(
                 `Detail Scoring: ${String(row?.name || '-')}`,
                 renderCreateScoringResult(normalizedJson, rowWithTrend, state, effectiveMeta)
@@ -14452,6 +16112,21 @@ function initDashboardRecap() {
                     bindScoreCountryTabs(async function(tabKey){
                         const endYmd = String(state.date || '').trim();
                         if (!endYmd) return;
+                        if (tabKey === 'decision') {
+                            const sk = window.scoreDetailDecisionStoreKey;
+                            if (sk) renderScoreDetailDecisionTab(sk);
+                            return;
+                        }
+                        if (tabKey === 'analytic') {
+                            bindScoreDetailAnalyticTab(row, state);
+                            await loadScoreDetailAnalyticTab(row, state);
+                            return;
+                        }
+                        if (tabKey === 'monitoring') {
+                            bindScoreDetailMonitoringTab(row, state);
+                            await loadScoreDetailMonitoringTab(row, state);
+                            return;
+                        }
                         if (tabKey === 'summary') {
                             const snapshotCountryCode = dim === 'country' ? scxResolveCountryCode(row) : '';
                             bindScoreSnapshotMetricTabs('sdSnapshot', normalizedTimeline, { activeIndex: effectiveMeta?.breakdown?.meta?.scoring_timeline_active_idx, seriesMap: buildSnapshotSeriesMap(snapshotCountryCode) });
@@ -14470,22 +16145,6 @@ function initDashboardRecap() {
                             }
                             return;
                         }
-                        if (String(tabKey || '').indexOf('sub-') === 0) {
-                            const idx = Number(String(tabKey || '').replace('sub-', ''));
-                            const sub = Array.isArray(subgroups) ? subgroups[idx] : null;
-                            if (sub?.key) bindScoreTrendControls(sub.key, endYmd, Object.assign({}, state, { dim: 'domain' }), { btn1Id: `scxSubTrend${idx}Btn1`, btn3Id: `scxSubTrend${idx}Btn3`, btn7Id: `scxSubTrend${idx}Btn7`, btn14Id: `scxSubTrend${idx}Btn14`, btn35Id: `scxSubTrend${idx}Btn${SCORE_METRIC_CHART_DAYS}`, statusId: `scxSubTrend${idx}Status`, statsId: `scxSubTrend${idx}Stats`, canvasId: `scxSubTrend${idx}Chart`, chartKey: `scxSubTrendChart${idx}` });
-                            return;
-                        }
-                        const idx = Number(String(tabKey || '').replace('country-', ''));
-                        const group = Array.isArray(groups) ? groups[idx] : null;
-                        const st = group?.status || {};
-                        const trendKey = String(row?.name || row?.domain || row?.site || '').trim();
-                        const countryCode = String(st?.country_cd || st?.country_code || group?.key || '').trim().toUpperCase();
-                        if (countryCode && dim === 'domain') {
-                            await loadCountryCompareSeries(countryCode);
-                        }
-                        bindScoreSnapshotMetricTabs(`scxCountryTrend${idx}Snapshot`, scxBuildCountrySnapshotRows(normalizedTimeline, countryCode), { activeIndex: effectiveMeta?.breakdown?.meta?.scoring_timeline_active_idx, seriesMap: buildSnapshotSeriesMap(countryCode) });
-                        if (trendKey && countryCode) bindScoreTrendControls(trendKey, endYmd, Object.assign({}, state, { dim: 'domain' }), { btn1Id: `scxCountryTrend${idx}Btn1`, btn3Id: `scxCountryTrend${idx}Btn3`, btn7Id: `scxCountryTrend${idx}Btn7`, btn14Id: `scxCountryTrend${idx}Btn14`, btn35Id: `scxCountryTrend${idx}Btn${SCORE_METRIC_CHART_DAYS}`, statusId: `scxCountryTrend${idx}Status`, statsId: `scxCountryTrend${idx}Stats`, canvasId: `scxCountryTrend${idx}Chart`, chartKey: `scxCountryTrendChart${idx}`, row: row, seriesOpts: { countryCode: countryCode } });
                     });
                     if (String(state?.dim || '').toLowerCase() === 'domain' && rowWithTrend?.account_ads && state?.date) bindScoreCampaignControls(rowWithTrend, String(state.date || '').trim(), normalizedJson?.scoring || {});
                 } catch (e) {}
@@ -14572,25 +16231,13 @@ function initDashboardRecap() {
     async function renderTable(dim, rows, state) {
         const recapDim = String(dim || 'domain').toLowerCase() === 'country' ? 'country' : 'domain';
         const thName = document.getElementById('dashboardRecapThName');
-        const thCode = document.getElementById('dashboardRecapThCode');
-        const thVisits = document.getElementById('dashboardRecapThVisits');
-        const thUnique = document.getElementById('dashboardRecapThUnique');
-        const thPageviews = document.getElementById('dashboardRecapThPageviews');
         if (thName) thName.textContent = recapDim === 'country' ? 'Nama Negara' : 'Domain';
 
         function applyDashboardRecapColumnLayout(dt) {
             const isCountry = recapDim === 'country';
-            if (thCode) thCode.style.display = 'none';
-            if (thVisits) thVisits.style.display = isCountry ? 'none' : '';
-            if (thUnique) thUnique.style.display = isCountry ? 'none' : '';
-            if (thPageviews) thPageviews.style.display = isCountry ? 'none' : '';
             if (!dt || typeof dt.column !== 'function') return;
             try {
                 if (dt.column(2).length) dt.column(2).visible(!isCountry, false);
-                if (dt.column(3).length) dt.column(3).visible(false, false);
-                if (dt.column(4).length) dt.column(4).visible(!isCountry, false);
-                if (dt.column(5).length) dt.column(5).visible(!isCountry, false);
-                if (dt.column(6).length) dt.column(6).visible(!isCountry, false);
             } catch (e) {}
         }
 
@@ -14603,13 +16250,7 @@ function initDashboardRecap() {
                     const payload = (window.dashboardRecapScoreDetails || {})[key];
                     if (!payload) return;
                     openScoreDetailFromDashboardData(payload.row, payload.state, payload.meta);
-                    return;
                 }
-
-                const btn = e.target && e.target.closest ? e.target.closest('.dashboard-score-detail-btn') : null;
-                if (!btn) return;
-                const detailKey = btn.getAttribute('data-detail-key') || '';
-                if (detailKey) openDetailKeputusan(detailKey);
             });
             tableEl.dataset.boundScoreDetail = '1';
         }
@@ -15192,17 +16833,11 @@ function initDashboardRecap() {
                 i + 1,
                 domainCell(r),
                 esc(r.account_ads || '-'),
-                esc(r.code || ''),
-                Number(r.total_visits) || 0,
-                Number(r.unique_visitor) || 0,
-                Number(r.total_pageviews) || 0,
                 Number(r.spend) || 0,
                 Number(r.revenue) || 0,
-                Number(r.net) || 0,
                 Number(r.roi) || 0,
                 buildScoreCellData(meta),
                 keputusanData,
-                updatedCell(r, meta),
                 detailBtn,
             ];
         });
@@ -15215,7 +16850,6 @@ function initDashboardRecap() {
         if (!tableEl || !tbody) return;
 
         if (!hasDt) {
-            if (thCode) thCode.style.display = 'none';
             tbody.innerHTML = '';
             if (!data.length) {
                 setRecapTableEmpty('Belum ada data untuk filter ini.');
@@ -15223,9 +16857,9 @@ function initDashboardRecap() {
             }
             data.forEach(row => {
                 const tr = document.createElement('tr');
-                const scoreVal = Number(row[11]?.value) || 0;
-                tr.dataset.alertLevel = String(row[11]?.alertLevel || 'normal').toLowerCase();
-                tr.dataset.decisionKey = String(row[12]?.decisionKey || 'belum_siap').toLowerCase();
+                const scoreVal = Number(row[6]?.value) || 0;
+                tr.dataset.alertLevel = String(row[6]?.alertLevel || 'normal').toLowerCase();
+                tr.dataset.decisionKey = String(row[7]?.decisionKey || 'belum_siap').toLowerCase();
                 const isCountry = recapDim === 'country';
                 if (hasRange && scoreVal === minScore) tr.classList.add('ds-row-highlight-worst');
                 else if (hasRange && scoreVal === maxScore) tr.classList.add('ds-row-highlight-best');
@@ -15233,18 +16867,12 @@ function initDashboardRecap() {
                     <td class="text-center">${row[0]}</td>
                     <td>${row[1]}</td>
                     <td class="text-left"${isCountry ? ' style="display:none;"' : ''}>${row[2]}</td>
-                    <td class="text-center" style="display:none;">${row[3]}</td>
-                    <td class="text-right"${isCountry ? ' style="display:none;"' : ''}>${renderCountCell(row[4], 'display')}</td>
-                    <td class="text-right"${isCountry ? ' style="display:none;"' : ''}>${renderCountCell(row[5], 'display')}</td>
-                    <td class="text-right"${isCountry ? ' style="display:none;"' : ''}>${renderCountCell(row[6], 'display')}</td>
-                    <td class="text-right">${renderMoneyCell(row[7], 'display')}</td>
-                    <td class="text-right">${renderMoneyCell(row[8], 'display')}</td>
-                    <td class="text-right">${renderMoneyCell(row[9], 'display')}</td>
-                    <td class="text-center">${renderRoiCell(row[10], 'display')}</td>
-                    <td class="text-center">${renderScoreCell(row[11], 'display')}</td>
-                    <td class="text-center ds-keputusan-cell">${row[12]?.html || ''}</td>
-                    <td class="text-center">${row[13]}</td>
-                    <td class="text-center">${row[14]}</td>
+                    <td class="text-right">${renderMoneyCell(row[3], 'display')}</td>
+                    <td class="text-right">${renderMoneyCell(row[4], 'display')}</td>
+                    <td class="text-center">${renderRoiCell(row[5], 'display')}</td>
+                    <td class="text-center">${renderScoreCell(row[6], 'display')}</td>
+                    <td class="text-center ds-keputusan-cell">${row[7]?.html || ''}</td>
+                    <td class="text-center">${row[8]}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -15252,7 +16880,17 @@ function initDashboardRecap() {
         }
 
         const $table = jQuery(tableEl);
-        const isInit = jQuery.fn.DataTable.isDataTable(tableEl);
+        let isInit = jQuery.fn.DataTable.isDataTable(tableEl);
+        if (isInit) {
+            const expectedCols = tableEl.querySelectorAll('thead th').length;
+            const dtExisting = window.dashboardRecapDt || $table.DataTable();
+            if (dtExisting && typeof dtExisting.columns === 'function' && dtExisting.columns().count() !== expectedCols) {
+                dtExisting.destroy();
+                tbody.innerHTML = '';
+                window.dashboardRecapDt = null;
+                isInit = false;
+            }
+        }
 
         function bindNoColumn(dt) {
             if (!dt || typeof dt.on !== 'function') return;
@@ -15267,6 +16905,7 @@ function initDashboardRecap() {
         }
 
         if (!isInit) {
+            tbody.innerHTML = '';
             const exportDate = String(state?.date || '').trim();
             const exportDim = String(dim || 'domain').toLowerCase();
             const exportBase = `dashboard_detail_${exportDim}${exportDate ? '_' + exportDate : ''}`;
@@ -15281,7 +16920,7 @@ function initDashboardRecap() {
                 searching: true,
                 info: true,
                 ordering: true,
-                order: [[11, 'desc']],
+                order: [[6, 'desc']],
                 autoWidth: false,
                 responsive: false,
                 dom: hasDtButtons
@@ -15305,14 +16944,14 @@ function initDashboardRecap() {
                 },
                 rowCallback: function(row, rowData) {
                     const hasRange = !!(tableEl && tableEl.dataset && tableEl.dataset.hasRange === '1');
-                    row.dataset.alertLevel = String(rowData && rowData[11] && rowData[11].alertLevel || 'normal').toLowerCase();
-                    row.dataset.decisionKey = String(rowData && rowData[12] && rowData[12].decisionKey || 'belum_siap').toLowerCase();
+                    row.dataset.alertLevel = String(rowData && rowData[6] && rowData[6].alertLevel || 'normal').toLowerCase();
+                    row.dataset.decisionKey = String(rowData && rowData[7] && rowData[7].decisionKey || 'belum_siap').toLowerCase();
                     jQuery(row).removeClass('table-danger table-info ds-row-highlight-best ds-row-highlight-worst');
                     if (!hasRange) return;
 
                     const minScore = Number(tableEl.dataset.minScore);
                     const maxScore = Number(tableEl.dataset.maxScore);
-                    const sc = Number(rowData && rowData[11] && rowData[11].value) || 0;
+                    const sc = Number(rowData && rowData[6] && rowData[6].value) || 0;
 
                     if (sc === minScore) jQuery(row).addClass('ds-row-highlight-worst');
                     else if (sc === maxScore) jQuery(row).addClass('ds-row-highlight-best');
@@ -15332,37 +16971,36 @@ function initDashboardRecap() {
                     },
                     { targets: 1, orderable: true },
                     { targets: 2, className: 'text-left', visible: recapDim !== 'country' },
-                    { targets: 3, className: 'text-center', width: '90px', visible: false },
                     {
-                        targets: [7, 8, 9],
+                        targets: 3,
                         className: 'text-right',
                         render: function (data, type) {
                             return renderMoneyCell(data, type);
                         }
                     },
                     {
-                        targets: [4, 5, 6],
+                        targets: 4,
                         className: 'text-right',
                         render: function (data, type) {
-                            return renderCountCell(data, type);
+                            return renderMoneyCell(data, type);
                         }
                     },
                     {
-                        targets: 10,
+                        targets: 5,
                         className: 'text-center',
                         render: function (data, type) {
                             return renderRoiCell(data, type);
                         }
                     },
                     {
-                        targets: 11,
+                        targets: 6,
                         className: 'text-center',
                         render: function (data, type) {
                             return renderScoreCell(data, type);
                         }
                     },
                     {
-                        targets: 12,
+                        targets: 7,
                         className: 'text-center ds-keputusan-cell',
                         orderable: false,
                         render: function (data, type) {
@@ -15376,29 +17014,7 @@ function initDashboardRecap() {
                             return key;
                         }
                     },
-                    {
-                        targets: 13,
-                        className: 'text-center',
-                        orderable: true,
-                        searchable: false,
-                        render: function (data, type) {
-                            const s = String(data || '');
-                            if (type === 'display') return s;
-                            const times = s.match(/\d{2}:\d{2}:\d{2}/g) || [];
-                            if (type === 'filter') return times.join(' ');
-                            let maxSec = -1;
-                            for (const t of times) {
-                                const p = t.split(':');
-                                const hh = Number(p[0]) || 0;
-                                const mm = Number(p[1]) || 0;
-                                const ss = Number(p[2]) || 0;
-                                const sec = (hh * 3600) + (mm * 60) + ss;
-                                if (sec > maxSec) maxSec = sec;
-                            }
-                            return maxSec;
-                        }
-                    },
-                    { targets: 14, className: 'text-center', orderable: false, searchable: false }
+                    { targets: 8, className: 'text-center', orderable: false, searchable: false }
                 ]
             });
             bindNoColumn(window.dashboardRecapDt);
@@ -16264,49 +17880,6 @@ document.addEventListener('DOMContentLoaded', function() {
             startDashboardTour();
         });
     });
-    
-    const modal = document.getElementById('decision-detail-modal');
-    const closeBtn = document.getElementById('decision-detail-close-btn');
-    
-    // Event delegation for keputusan badge clicks
-    document.addEventListener('click', function(e) {
-        const badge = e.target.closest('.keputusan-badge-clickable');
-        if (badge) {
-            const key = badge.getAttribute('data-keputusan-key');
-            if (key) {
-                openDetailKeputusan(key);
-            } else {
-                console.warn('[BADGE CLICK] No data-keputusan-key attribute found');
-            }
-        }
-        
-        // Close button click
-        if (e.target && e.target.id === 'decision-detail-close-btn') {
-            closeDetailKeputusan();
-        }
-    });
-    
-    // Handle Enter/Space on badge
-    document.addEventListener('keydown', function(e) {
-        if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('keputusan-badge-clickable')) {
-            e.preventDefault();
-            const key = e.target.getAttribute('data-keputusan-key');
-            if (key) openDetailKeputusan(key);
-        }
-        // Close on escape key
-        if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
-            closeDetailKeputusan();
-        }
-    });
-    
-    // Click on modal backdrop to close
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target && e.target.id === 'decision-detail-modal') {
-                closeDetailKeputusan();
-            }
-        });
-    }
 });
 </script>
 {% endblock %}
