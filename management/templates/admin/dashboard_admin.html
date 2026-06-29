@@ -17962,11 +17962,11 @@ function initDashboardRecap() {
     function attachPrevRows(curRows, prevRows) {
         const m = new Map();
         (prevRows || []).forEach(function(r){
-            const k = `${String(r?.name||'')} ${String(r?.code||'')}`;
+            const k = `${String(r?.name||'')}${String(r?.code||'')}`;
             m.set(k, r);
         });
         (curRows || []).forEach(function(r){
-            const k = `${String(r?.name||'')} ${String(r?.code||'')}`;
+            const k = `${String(r?.name||'')}${String(r?.code||'')}`;
             const p = m.get(k);
             if (!p) return;
 
