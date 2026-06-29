@@ -13597,6 +13597,25 @@ class DashboardDomainHourlyHeatmapView(View):
             domains_raw = (req.GET.get('domains') or req.GET.get('selected_domains') or req.GET.get('domain') or '').strip()
             selected_domains = [str(x).strip().lower() for x in domains_raw.split(',') if str(x).strip()]
             selected_domain_set = set(selected_domains)
+            countries_raw = (req.GET.get('country_code') or req.GET.get('selected_countries') or '').strip()
+            selected_country_set = set()
+            if countries_raw:
+                for part in countries_raw.split(','):
+                    cc = str(part or '').strip().upper()
+                    if cc == 'TU':
+                        cc = 'TR'
+                    if cc:
+                        selected_country_set.add(cc)
+                if 'TR' in selected_country_set:
+                    selected_country_set.add('TU')
+
+            def _country_match(row):
+                if not selected_country_set:
+                    return True
+                cc = str((row or {}).get('country_code', '') or '').strip().upper()
+                if cc == 'TU':
+                    cc = 'TR'
+                return cc in selected_country_set
 
             def _norm_site(v):
                 s = str(v or '').strip().lower()
@@ -13651,6 +13670,10 @@ class DashboardDomainHourlyHeatmapView(View):
                 adx_rows = [r for r in (adx_rows or []) if _site_match((r or {}).get('log_adx_country_domain', ''))]
                 adsense_rows = [r for r in (adsense_rows or []) if _site_match((r or {}).get('log_adsense_country_domain', ''))]
 
+            if selected_country_set:
+                adx_rows = [r for r in (adx_rows or []) if _country_match(r)]
+                adsense_rows = [r for r in (adsense_rows or []) if _country_match(r)]
+
             unique_name_site = []
             extracted_sites = set[Any]()
             def _collect_sites(rows, key):
@@ -13669,12 +13692,34 @@ class DashboardDomainHourlyHeatmapView(View):
                 unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
             ads_resp = None
-            if unique_name_site:
+            ads_rows = []
+            if selected_country_set:
+                ads_resp = db.get_all_ads_roi_country_hourly_logs_by_params(
+                    tanggal_formatted,
+                    unique_name_site if unique_name_site else None
+                )
+                ads_rows_raw = ((ads_resp or {}).get('hasil') or {}).get('data') or []
+                if not isinstance(ads_rows_raw, list):
+                    ads_rows_raw = []
+                spend_by_country_hour = {f"{h:02d}": 0.0 for h in range(24)}
+                for row in ads_rows_raw:
+                    if not _country_match(row):
+                        continue
+                    try:
+                        hour = int(row.get('hour', 0) or 0)
+                    except Exception:
+                        hour = 0
+                    if hour < 0 or hour > 23:
+                        continue
+                    hkey = f"{hour:02d}"
+                    spend_by_country_hour[hkey] = spend_by_country_hour.get(hkey, 0.0) + float(row.get('spend', 0) or 0)
+                ads_rows = [{'hour': int(h), 'spend': spend_by_country_hour[h]} for h in spend_by_country_hour]
+            elif unique_name_site:
                 ads_resp = db.get_all_ads_country_hourly_by_params(
                     tanggal_formatted,
                     unique_name_site
                 )
-            ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
+                ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
             if not isinstance(ads_rows, list):
                 ads_rows = []
             rev_by_hour = {f"{h:02d}": 0.0 for h in range(24)}

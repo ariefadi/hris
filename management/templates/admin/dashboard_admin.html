@@ -11540,12 +11540,21 @@ function initDashboardRecap() {
         return scxRenderEntityPane(String(sub?.label || sub?.key || '-'), st, evs, pos, neg, tabKey, 'subdomain', '');
     }
 
-    function resolveScoreDetailDomainKey(row, state) {
+    function resolveScoreDetailScope(row, state) {
         const dim = String(state?.dim || '').toLowerCase();
-        if (dim === 'country') {
-            return String(row?.site || row?.domain || row?.subdomain || row?.entity_key || state?.subdomain || '').trim();
+        const isCountryDim = dim === 'country';
+        const countryCode = isCountryDim ? scxResolveCountryCode(row) : '';
+        let domain = '';
+        if (isCountryDim) {
+            domain = String(state?.subdomain || row?.subdomain || '').trim().toLowerCase();
+        } else {
+            domain = String(row?.name || row?.domain || row?.site || state?.subdomain || '').trim();
         }
-        return String(row?.name || row?.domain || row?.site || state?.subdomain || '').trim();
+        return { dim: dim, isCountryDim: isCountryDim, domain: domain, countryCode: countryCode };
+    }
+
+    function resolveScoreDetailDomainKey(row, state) {
+        return resolveScoreDetailScope(row, state).domain;
     }
 
     function resolveScoreDetailMonitoringSource(row, state) {
@@ -11561,14 +11570,82 @@ function initDashboardRecap() {
         return 'adx';
     }
 
-    function endpointScoreDetailMonitoringCountry(source, startYmd, endYmd, domain) {
+    function endpointScoreDetailMonitoringCountry(source, startYmd, endYmd, domain, countryCode) {
         const sd = encodeURIComponent(String(domain || '').trim());
         const s = encodeURIComponent(String(startYmd || '').trim());
         const e = encodeURIComponent(String(endYmd || '').trim());
+        const cc = encodeURIComponent(String(countryCode || '').trim().toUpperCase());
         if (source === 'adsense') {
-            return `/management/admin/page_monitoring_country_adsense?start_date=${s}&end_date=${e}&selected_account_adsense=&selected_domains=${sd}&selected_countries=&include_subdomains=1`;
+            return `/management/admin/page_monitoring_country_adsense?start_date=${s}&end_date=${e}&selected_account_adsense=&selected_domains=${sd}&selected_countries=${cc}&include_subdomains=1`;
         }
-        return `/management/admin/page_monitoring_country?start_date=${s}&end_date=${e}&selected_account_adx=&selected_domains=${sd}&selected_countries=&include_subdomains=1`;
+        return `/management/admin/page_monitoring_country?start_date=${s}&end_date=${e}&selected_account_adx=&selected_domains=${sd}&selected_countries=${cc}&include_subdomains=1`;
+    }
+
+    function endpointScoreDetailMonitoringBreakdown(source, startYmd, endYmd, domain, countryCode) {
+        const sd = encodeURIComponent(String(domain || '').trim());
+        const s = encodeURIComponent(String(startYmd || '').trim());
+        const e = encodeURIComponent(String(endYmd || '').trim());
+        const cc = encodeURIComponent(String(countryCode || '').trim().toUpperCase());
+        if (source === 'adsense') {
+            return `/management/admin/page_monitoring_country_adsense_breakdown?start_date=${s}&end_date=${e}&selected_domains=${sd}&country_code=${cc}`;
+        }
+        return `/management/admin/page_monitoring_country_breakdown?start_date=${s}&end_date=${e}&selected_domains=${sd}&country_code=${cc}`;
+    }
+
+    async function fetchScoreDetailMonitoringBreakdown(source, startYmd, endYmd, domain, countryCode) {
+        const url = endpointScoreDetailMonitoringBreakdown(source, startYmd, endYmd, domain, countryCode);
+        const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const json = await resp.json();
+        if (!json || !json.status) return [];
+        return Array.isArray(json.data) ? json.data : [];
+    }
+
+    function scxAggregateBreakdownForChart(rows) {
+        const map = {};
+        (rows || []).forEach(function(r) {
+            const key = String(r.subdomain || r.domain || '-').trim() || '-';
+            if (!map[key]) map[key] = { country_name: key, spend: 0, revenue: 0, roi: 0 };
+            map[key].spend += Number(r.spend || 0);
+            map[key].revenue += Number(r.revenue || 0);
+        });
+        return Object.values(map).map(function(it) {
+            it.roi = it.spend > 0 ? ((it.revenue - it.spend) / it.spend * 100) : 0;
+            return it;
+        }).sort(function(a, b) { return Number(b.roi || 0) - Number(a.roi || 0); });
+    }
+
+    function scxRenderMonitoringBreakdownTable(rows) {
+        if (!Array.isArray(rows) || !rows.length) {
+            return '<div class="scx-sub" style="padding:14px;">Tidak ada data subdomain/campaign untuk negara ini.</div>';
+        }
+        const sorted = rows.slice().sort(function(a, b) { return Number(b.spend || 0) - Number(a.spend || 0); });
+        let html = '<table class="scx-data-table scx-analytic-table"><thead><tr>';
+        html += '<th>Subdomain</th><th>Campaign</th><th class="text-end">Spend</th><th class="text-end">Pendapatan</th><th class="text-end">Pendapatan Bersih</th><th class="text-end">ROI</th>';
+        html += '</tr></thead><tbody>';
+        sorted.forEach(function(r) {
+            const spend = Number(r.spend || 0);
+            const revenue = Number(r.revenue || 0);
+            const net = Number(r.net_profit != null ? r.net_profit : (revenue - spend));
+            const roi = Number(r.roi != null ? r.roi : (spend > 0 ? ((revenue - spend) / spend * 100) : 0));
+            const roiCls = roi >= 0 ? 'scx-val-up' : 'scx-val-down';
+            html += `<tr><td>${esc(String(r.subdomain || r.domain || '-'))}</td><td>${esc(String(r.campaign || r.campaign_name || '-'))}</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(spend))}</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(revenue))}</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(net))}</td>`;
+            html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(roi))}</span></td></tr>`;
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function scxSetMonitoringSectionTitles(isCountryDim, dateLabelText) {
+        const chartTitle = document.getElementById('scxMonitoringChartTitle');
+        const tableTitle = document.getElementById('scxMonitoringTableTitle');
+        const label = String(dateLabelText || '').trim();
+        const labelHtml = label ? ` <span id="scxMonitoringChartDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;">${esc(label)}</span>` : ' <span id="scxMonitoringChartDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span>';
+        const tableLabelHtml = label ? ` <span id="scxMonitoringCountryDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;">${esc(label)}</span>` : ' <span id="scxMonitoringCountryDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span>';
+        if (chartTitle) chartTitle.innerHTML = (isCountryDim ? 'Grafik ROI per Subdomain' : 'Grafik ROI per Negara') + labelHtml;
+        if (tableTitle) tableTitle.innerHTML = (isCountryDim ? 'Subdomain & Campaign' : 'Tabel Monitoring Negara') + tableLabelHtml;
     }
 
     function scxDeltaCellHtml(delta, isPct) {
@@ -11618,12 +11695,14 @@ function initDashboardRecap() {
         return 'all';
     }
 
-    async function fetchScoreDetailHourlyHeatmap(source, dateYmd, domain) {
+    async function fetchScoreDetailHourlyHeatmap(source, dateYmd, domain, countryCode) {
         const qs = new URLSearchParams({
             tanggal: String(dateYmd || '').trim(),
             source: String(source || 'all').toLowerCase(),
             domains: String(domain || '').trim().toLowerCase()
         });
+        const cc = String(countryCode || '').trim().toUpperCase();
+        if (cc) qs.set('country_code', cc);
         const resp = await fetch('/management/admin/dashboard_hourly_heatmap?' + qs.toString(), {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
@@ -11671,7 +11750,7 @@ function initDashboardRecap() {
         return { spend: spend, revenue: revenue, roi: roi };
     }
 
-    async function fetchScoreDetailAnalyticSnapshots(source, startYmd, endYmd, domain) {
+    async function fetchScoreDetailAnalyticSnapshots(source, startYmd, endYmd, domain, countryCode) {
         const hourlySource = String(source || 'all').toLowerCase();
         const extStart = ymdShift(startYmd, -SCX_ANALYTIC_MAX_LOOKBACK);
         const allDates = ymdSeq(extStart, endYmd);
@@ -11682,7 +11761,7 @@ function initDashboardRecap() {
         for (let i = 0; i < allDates.length; i += concurrency) {
             const batch = allDates.slice(i, i + concurrency);
             const results = await Promise.all(batch.map(function(d) {
-                return fetchScoreDetailHourlyHeatmap(hourlySource, d, domain);
+                return fetchScoreDetailHourlyHeatmap(hourlySource, d, domain, countryCode);
             }));
             batch.forEach(function(d, idx) {
                 const snap = results[idx];
@@ -11880,11 +11959,11 @@ function initDashboardRecap() {
                     <div id="scxMonitoringDailyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat perbandingan harian...</div></div>
                 </div>
                 <div class="scx-section-gap">
-                    <div class="scx-title">Grafik ROI per Negara <span id="scxMonitoringChartDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span></div>
+                    <div class="scx-title" id="scxMonitoringChartTitle">Grafik ROI per Negara <span id="scxMonitoringChartDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span></div>
                     <div class="scx-chart-box"><canvas id="scxMonitoringRoiChart"></canvas></div>
                 </div>
                 <div class="scx-section-gap">
-                    <div class="scx-title">Tabel Monitoring Negara <span id="scxMonitoringCountryDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span></div>
+                    <div class="scx-title" id="scxMonitoringTableTitle">Tabel Monitoring Negara <span id="scxMonitoringCountryDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span></div>
                     <div class="scx-sub" style="margin-bottom:8px;" id="scxMonitoringCountryHint">Performa per negara untuk rentang tanggal yang dipilih. Kolom H-1 membandingkan dengan hari sebelumnya.</div>
                     <div id="scxMonitoringTableWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data monitoring...</div></div>
                 </div>
@@ -12309,15 +12388,15 @@ function initDashboardRecap() {
         return { rows: rows, spend: spend, revenue: revenue, roi: roi };
     }
 
-    async function fetchScoreDetailMonitoringDay(source, dateYmd, domain) {
-        const url = endpointScoreDetailMonitoringCountry(source, dateYmd, dateYmd, domain);
+    async function fetchScoreDetailMonitoringDay(source, dateYmd, domain, countryCode) {
+        const url = endpointScoreDetailMonitoringCountry(source, dateYmd, dateYmd, domain, countryCode);
         const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         const json = await resp.json();
         if (!json || !json.status) return { rows: [], spend: 0, revenue: 0, roi: 0 };
         return scxParseMonitoringCountryPayload(json);
     }
 
-    async function fetchScoreDetailMonitoringSnapshots(source, startYmd, endYmd, domain) {
+    async function fetchScoreDetailMonitoringSnapshots(source, startYmd, endYmd, domain, countryCode) {
         const extStart = ymdShift(startYmd, -SCX_ANALYTIC_MAX_LOOKBACK);
         const allDates = ymdSeq(extStart, endYmd);
         const rangeDates = ymdSeq(startYmd, endYmd);
@@ -12327,7 +12406,7 @@ function initDashboardRecap() {
         for (let i = 0; i < allDates.length; i += concurrency) {
             const batch = allDates.slice(i, i + concurrency);
             const results = await Promise.all(batch.map(function(d) {
-                return fetchScoreDetailMonitoringDay(source, d, domain);
+                return fetchScoreDetailMonitoringDay(source, d, domain, countryCode);
             }));
             batch.forEach(function(d, idx) {
                 const r = results[idx];
@@ -12472,7 +12551,7 @@ function initDashboardRecap() {
         const searchEl = document.querySelector('.scx-monitoring-country-search');
         const options = scxMonitoringCountryOptionsFromCache(cache);
         if (!wrap) return;
-        if (!options.length) {
+        if (cache?.lockCountryCode || !options.length) {
             wrap.hidden = true;
             return;
         }
@@ -12488,8 +12567,20 @@ function initDashboardRecap() {
         const cache = window.scxMonitoringCache;
         const tableWrap = document.getElementById('scxMonitoringTableWrap');
         if (!cache || !tableWrap) return;
+        if (cache.isCountryBreakdownMode) {
+            tableWrap.innerHTML = scxRenderMonitoringBreakdownTable(cache.breakdownRows || []);
+            const chartItems = scxAggregateBreakdownForChart(cache.breakdownRows || []);
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() { scxBindMonitoringRoiChart(chartItems); });
+            });
+            const summaryEl = document.getElementById('scxMonitoringSummary');
+            if (summaryEl && cache.baseSummary) {
+                summaryEl.innerHTML = scxRenderMetricSummaryBoxes(cache.baseSummary.spend, cache.baseSummary.revenue, cache.baseSummary.roi);
+            }
+            return;
+        }
         scxRenderMonitoringCountryFilterChips(cache, document.querySelector('.scx-monitoring-country-search')?.value || '');
-        if (cache.countriesByDate) {
+        if (cache.countriesByDate && Object.keys(cache.countriesByDate).length) {
             tableWrap.innerHTML = scxRenderMonitoringCountrySection(
                 cache.countriesByDate,
                 cache.rangeDates,
@@ -12556,10 +12647,15 @@ function initDashboardRecap() {
         if (searchEl) searchEl.value = '';
     }
 
-    function scxInitMonitoringCountryFilterCache(baseCache) {
+    function scxInitMonitoringCountryFilterCache(baseCache, opts) {
         const prev = window.scxMonitoringCache || {};
         const prevSelected = Array.isArray(prev.selectedCountries) ? prev.selectedCountries.slice() : [];
         const cache = Object.assign({}, baseCache, { selectedCountries: prevSelected });
+        const lockCountryCode = String(opts?.lockCountryCode || '').trim().toUpperCase();
+        if (lockCountryCode) {
+            cache.lockCountryCode = lockCountryCode;
+            cache.selectedCountries = [lockCountryCode];
+        }
         window.scxMonitoringCache = cache;
         scxPopulateMonitoringCountryFilter(cache);
         return cache;
@@ -12597,7 +12693,9 @@ function initDashboardRecap() {
     async function loadScoreDetailAnalyticTab(row, state) {
         const pane = document.querySelector('[data-scx-tab-pane="analytic"]');
         if (!pane) return;
-        const domain = resolveScoreDetailDomainKey(row, state);
+        const scope = resolveScoreDetailScope(row, state);
+        const domain = scope.domain;
+        const countryCode = scope.countryCode;
         const startEl = pane.querySelector('.scx-analytic-start');
         const endEl = pane.querySelector('.scx-analytic-end');
         const statusEl = pane.querySelector('.scx-analytic-status');
@@ -12605,7 +12703,18 @@ function initDashboardRecap() {
         const dailyWrap = document.getElementById('scxAnalyticDailyWrap');
         const hourlyWrap = document.getElementById('scxAnalyticHourlyWrap');
         const hourlyDateLabel = document.getElementById('scxAnalyticHourlyDateLabel');
-        if (!startEl || !endEl || !domain) {
+        const titleEl = pane.querySelector('.scx-title');
+        if (titleEl) {
+            titleEl.textContent = scope.isCountryDim
+                ? `Analytic Performa Negara${countryCode ? `: ${String(row?.name || countryCode).trim()}` : ''}`
+                : 'Analytic Performa Domain';
+        }
+        if (!startEl || !endEl) return;
+        if (scope.isCountryDim && !countryCode) {
+            if (dailyWrap) dailyWrap.innerHTML = '<div class="scx-sub" style="padding:14px;">Negara tidak ditemukan.</div>';
+            return;
+        }
+        if (!scope.isCountryDim && !domain) {
             if (dailyWrap) dailyWrap.innerHTML = '<div class="scx-sub" style="padding:14px;">Domain tidak ditemukan.</div>';
             return;
         }
@@ -12619,7 +12728,7 @@ function initDashboardRecap() {
         if (statusEl) statusEl.textContent = 'Memuat...';
         try {
             const hourlySource = resolveScoreDetailHourlySource(row, state);
-            const bundle = await fetchScoreDetailAnalyticSnapshots(hourlySource, startYmd, endYmd, domain);
+            const bundle = await fetchScoreDetailAnalyticSnapshots(hourlySource, startYmd, endYmd, domain, countryCode);
             const dailyRows = bundle.rangeRows || [];
             const historyMap = bundle.historyMap || {};
             const hourlyByDate = bundle.hourlyByDate || {};
@@ -12661,7 +12770,12 @@ function initDashboardRecap() {
             } else {
                 scxDestroyChartInstance('scxAnalyticRoiChartInstance');
             }
-            if (statusEl) statusEl.textContent = `${dailyRows.length} hari • ${domain}`;
+            if (statusEl) {
+                const scopeLabel = scope.isCountryDim
+                    ? `${String(row?.name || countryCode).trim()} (${countryCode})`
+                    : domain;
+                statusEl.textContent = `${dailyRows.length} hari • ${scopeLabel}`;
+            }
         } catch (e) {
             if (dailyWrap) dailyWrap.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat analytic'))}</div>`;
             if (statusEl) statusEl.textContent = 'Gagal memuat';
@@ -12716,7 +12830,9 @@ function initDashboardRecap() {
     async function loadScoreDetailMonitoringTab(row, state) {
         const pane = document.querySelector('[data-scx-tab-pane="monitoring"]');
         if (!pane) return;
-        const domain = resolveScoreDetailDomainKey(row, state);
+        const scope = resolveScoreDetailScope(row, state);
+        const domain = scope.domain;
+        const countryCode = scope.countryCode;
         const source = resolveScoreDetailMonitoringSource(row, state);
         const startEl = pane.querySelector('.scx-monitoring-start');
         const endEl = pane.querySelector('.scx-monitoring-end');
@@ -12728,10 +12844,29 @@ function initDashboardRecap() {
         const countryHint = document.getElementById('scxMonitoringCountryHint');
         const chartDateLabel = document.getElementById('scxMonitoringChartDateLabel');
         const countryDateLabel = document.getElementById('scxMonitoringCountryDateLabel');
-        if (!startEl || !endEl || !domain) {
+        const titleEl = pane.querySelector('.scx-title');
+        const subEl = pane.querySelector('.scx-card > .scx-sub');
+        if (titleEl) {
+            titleEl.textContent = scope.isCountryDim
+                ? `Monitoring Negara${countryCode ? `: ${String(row?.name || countryCode).trim()}` : ''}`
+                : 'Monitoring Negara';
+        }
+        if (subEl) {
+            subEl.textContent = scope.isCountryDim
+                ? `Performa negara ini${domain ? ` untuk domain ${domain}` : ' (semua domain)'} (${source.toUpperCase()}). Tabel di bawah menampilkan subdomain dan campaign aktif.`
+                : `Performa per negara untuk domain ini (${source.toUpperCase()}). Urutan grafik dari ROI tertinggi ke terendah.`;
+        }
+        scxSetMonitoringSectionTitles(scope.isCountryDim, '');
+        if (!startEl || !endEl) return;
+        if (scope.isCountryDim && !countryCode) {
+            if (tableWrap) tableWrap.innerHTML = '<div class="scx-sub" style="padding:14px;">Negara tidak ditemukan.</div>';
+            return;
+        }
+        if (!scope.isCountryDim && !domain) {
             if (tableWrap) tableWrap.innerHTML = '<div class="scx-sub" style="padding:14px;">Domain tidak ditemukan.</div>';
             return;
         }
+        const monitorOpts = scope.isCountryDim ? { lockCountryCode: countryCode } : null;
         let startYmd = String(startEl.value || state?.date || '').trim();
         let endYmd = String(endEl.value || state?.date || '').trim();
         if (startYmd && endYmd && startYmd > endYmd) {
@@ -12743,7 +12878,11 @@ function initDashboardRecap() {
         if (statusEl) statusEl.textContent = 'Memuat...';
         try {
             if (isMultiDay) {
-                const bundle = await fetchScoreDetailMonitoringSnapshots(source, startYmd, endYmd, domain);
+                const breakdownPromise = scope.isCountryDim
+                    ? fetchScoreDetailMonitoringBreakdown(source, startYmd, endYmd, domain, countryCode)
+                    : Promise.resolve([]);
+                const bundle = await fetchScoreDetailMonitoringSnapshots(source, startYmd, endYmd, domain, countryCode);
+                const breakdownRows = await breakdownPromise;
                 const dailyRows = bundle.rangeRows || [];
                 const historyMap = bundle.historyMap || {};
                 const countriesByDate = bundle.countriesByDate || {};
@@ -12757,49 +12896,88 @@ function initDashboardRecap() {
                     countriesByDate: countriesByDate,
                     rangeDates: rangeDates,
                     selectedDate: selectedDate,
-                    baseSummary: { spend: totalSpend, revenue: totalRevenue, roi: totalRoi }
-                });
+                    baseSummary: { spend: totalSpend, revenue: totalRevenue, roi: totalRoi },
+                    isCountryBreakdownMode: scope.isCountryDim,
+                    breakdownRows: scope.isCountryDim ? breakdownRows : []
+                }, monitorOpts);
                 if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(totalSpend, totalRevenue, totalRoi);
                 if (dailySection) dailySection.hidden = false;
                 if (dailyWrap) dailyWrap.innerHTML = scxRenderAnalyticDailyTable(dailyRows, historyMap);
-                if (countryHint) countryHint.textContent = 'Pilih tanggal untuk melihat performa per negara. Filter negara berlaku untuk tabel dan grafik.';
-                const dateLabel = `• ${selectedDate}`;
-                if (chartDateLabel) chartDateLabel.textContent = dateLabel;
-                if (countryDateLabel) countryDateLabel.textContent = dateLabel;
+                if (countryHint) {
+                    countryHint.textContent = scope.isCountryDim
+                        ? 'Perbandingan harian agregat negara ini. Tabel subdomain & campaign menggunakan total rentang tanggal yang dipilih.'
+                        : 'Pilih tanggal untuk melihat performa per negara. Filter negara berlaku untuk tabel dan grafik.';
+                }
+                const dateLabel = scope.isCountryDim && startYmd !== endYmd ? `• ${startYmd} s/d ${endYmd}` : `• ${selectedDate}`;
+                scxSetMonitoringSectionTitles(scope.isCountryDim, dateLabel);
                 scxRefreshMonitoringView();
                 const activeRows = scxFilterMonitoringRows(scxGetMonitoringActiveRows(cache), cache.selectedCountries);
-                if (statusEl) statusEl.textContent = `${dailyRows.length} hari • ${activeRows.length} negara • ${source.toUpperCase()} • ${domain}`;
+                const scopeLabel = scope.isCountryDim
+                    ? `${String(row?.name || countryCode).trim()} (${countryCode})`
+                    : domain;
+                if (statusEl) statusEl.textContent = `${dailyRows.length} hari • ${scope.isCountryDim ? scopeLabel : `${activeRows.length} negara`} • ${source.toUpperCase()}${scope.isCountryDim ? '' : ` • ${domain}`}`;
                 return;
             }
 
-            scxHideMonitoringCountryFilter();
+            if (!scope.isCountryDim) scxHideMonitoringCountryFilter();
             window.scxMonitoringCache = null;
             if (dailySection) dailySection.hidden = true;
             if (dailyWrap) dailyWrap.innerHTML = '';
             if (chartDateLabel) chartDateLabel.textContent = '';
             if (countryDateLabel) countryDateLabel.textContent = '';
-            if (countryHint) countryHint.textContent = 'Performa per negara untuk rentang tanggal yang dipilih.';
-            const url = endpointScoreDetailMonitoringCountry(source, startYmd, endYmd, domain);
+            if (countryHint) {
+                countryHint.textContent = scope.isCountryDim
+                    ? 'Rincian performa per subdomain dan campaign Meta untuk negara ini.'
+                    : 'Performa per negara untuk rentang tanggal yang dipilih.';
+            }
+            if (scope.isCountryDim) {
+                const url = endpointScoreDetailMonitoringCountry(source, startYmd, endYmd, domain, countryCode);
+                const breakdownUrl = endpointScoreDetailMonitoringBreakdown(source, startYmd, endYmd, domain, countryCode);
+                const [resp, breakdownResp] = await Promise.all([
+                    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
+                    fetch(breakdownUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                ]);
+                const json = await resp.json();
+                const breakdownJson = await breakdownResp.json();
+                if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat monitoring negara');
+                const parsed = scxParseMonitoringCountryPayload(json);
+                const breakdownRows = (breakdownJson && breakdownJson.status && Array.isArray(breakdownJson.data)) ? breakdownJson.data : [];
+                const cache = scxInitMonitoringCountryFilterCache({
+                    isCountryBreakdownMode: true,
+                    breakdownRows: breakdownRows,
+                    baseSummary: { spend: parsed.spend, revenue: parsed.revenue, roi: parsed.roi }
+                }, monitorOpts);
+                if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(parsed.spend, parsed.revenue, parsed.roi);
+                scxSetMonitoringSectionTitles(true, startYmd !== endYmd ? `• ${startYmd} s/d ${endYmd}` : `• ${startYmd}`);
+                scxRefreshMonitoringView();
+                const scopeLabel = `${String(row?.name || countryCode).trim()} (${countryCode})`;
+                if (statusEl) statusEl.textContent = `${breakdownRows.length} baris • ${scopeLabel} • ${source.toUpperCase()}`;
+                return;
+            }
+            const url = endpointScoreDetailMonitoringCountry(source, startYmd, endYmd, domain, countryCode);
             const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             const json = await resp.json();
             if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat monitoring negara');
             const parsed = scxParseMonitoringCountryPayload(json);
             const rows = parsed.rows;
             const prevYmd = ymdShift(startYmd, -1);
-            const prevParsed = await fetchScoreDetailMonitoringDay(source, prevYmd, domain);
+            const prevParsed = await fetchScoreDetailMonitoringDay(source, prevYmd, domain, countryCode);
             const cache = scxInitMonitoringCountryFilterCache({
                 singleDayRows: rows,
-                countriesByDate: {},
+                countriesByDate: null,
                 rangeDates: [startYmd],
                 selectedDate: startYmd,
                 baseSummary: { spend: parsed.spend, revenue: parsed.revenue, roi: parsed.roi }
-            });
+            }, monitorOpts);
+            cache.countriesByDate = {};
             cache.countriesByDate[startYmd] = rows;
             cache.countriesByDate[prevYmd] = prevParsed.rows || [];
             if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(parsed.spend, parsed.revenue, parsed.roi);
+            scxSetMonitoringSectionTitles(false, '');
             scxRefreshMonitoringView();
             const visibleRows = scxFilterMonitoringRows(rows, cache.selectedCountries);
-            if (statusEl) statusEl.textContent = `${visibleRows.length} negara • ${source.toUpperCase()} • ${domain}`;
+            const scopeLabel = domain;
+            if (statusEl) statusEl.textContent = `${visibleRows.length} negara • ${source.toUpperCase()} • ${scopeLabel}`;
         } catch (e) {
             if (dailySection) dailySection.hidden = true;
             scxHideMonitoringCountryFilter();
@@ -15698,7 +15876,6 @@ function initDashboardRecap() {
             html += `  <details class="sd-details" open><summary><span class="sd-det-left"><span class="sd-det-chevron" aria-hidden="true"></span><span>Grafik Score & KPI ${SCORE_METRIC_CHART_DAYS} Hari</span></span><span class="sd-det-meta"><span class="sd-det-toggle-label"><span class="when-closed">Klik untuk buka</span><span class="when-open">Klik untuk tutup</span></span><span class="sd-det-right" id="sdMetric14Status">Loading...</span></span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" id="sdMetric14Tabs" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-primary" data-metric="score">Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="health_score">Health</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="ivt_risk_score">Risk</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="adjustment_score">Adjustment</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="confidence">Confidence</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="decision_margin">Decision Margin</button></div><div style="height:320px;"><canvas id="sdMetric14Chart"></canvas></div><div class="scx-section-gap"><div class="scx-title">Ringkasan Trend ROI (H-1 s/d H-${SCORE_METRIC_CHART_DAYS})</div><p class="scx-sub mb-2">Metrik ROI/revenue diambil dari monitoring harian. Score memakai histori scoring bila tersedia.</p><div id="scxSummaryTrendWindows">${scxRenderTrendWindows(trendWindows)}</div></div></div></details>`;
             html += `  <details class="sd-details scx-tech-accordion" style="margin-top:16px;"><summary><span class="sd-det-left"><span class="sd-det-chevron" aria-hidden="true"></span><span>Trend 1 / 3 / 7 / 14 / ${SCORE_METRIC_CHART_DAYS} Hari</span></span><span class="sd-det-meta"><span class="sd-det-toggle-label"><span class="when-closed">Klik untuk buka</span><span class="when-open">Klik untuk tutup</span></span><span class="sd-det-right" id="sdTrendStatus">Loading trend...</span></span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" style="display:inline-flex;flex-wrap:wrap;gap:8px;"><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn1" data-days="1">H-1</button><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn3" data-days="3">H-3</button><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn7" data-days="7">H-7</button><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn14" data-days="14">H-14</button><button type="button" class="btn btn-sm btn-primary" id="sdTrendBtn35" data-days="${SCORE_METRIC_CHART_DAYS}">H-${SCORE_METRIC_CHART_DAYS}</button></div><div style="height:320px;"><canvas id="sdTrendChart"></canvas></div><div id="sdTrendStats"></div></div></details>`;
             html += `  <details class="sd-details scx-tech-accordion" style="margin-top:16px;"><summary><span class="sd-det-left"><span class="sd-det-chevron" aria-hidden="true"></span><span>Data Teknis Backend</span></span><span class="sd-det-meta"><span class="sd-det-toggle-label"><span class="when-closed">Klik untuk buka</span><span class="when-open">Klik untuk tutup</span></span><span class="sd-det-right">Untuk validasi teknis</span></span></summary><div class="sd-det-body"><div class="scx-section-head"><div class="left">Detail Status Backend (Semua Negara)</div><div class="right">Validasi spend • revenue • ROI</div></div><div class="scx-sub" style="margin-bottom:8px;">Bagian ini dipakai untuk validasi teknis, bukan ringkasan cepat user.</div><div id="scxBackendStatusLoading" class="scx-table-loading"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>Memuat tabel status backend...</span></div><div id="scxBackendStatusContent"></div><div class="scx-section-gap"><div class="scx-section-head"><div class="left">Detail Event Signal Backend</div><div class="right">Urut dari signal terbesar</div></div><div class="scx-sub" style="margin-bottom:8px;">Dipakai untuk membaca event yang paling mendorong naik atau menekan hasil scoring.</div><div id="scxBackendEventLoading" class="scx-table-loading"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>Memuat tabel event backend...</span></div><div id="scxBackendEventContent"></div></div></div></details>`;
-            html += `  <details class="sd-details scx-tech-accordion" style="margin-top:16px;"><summary><span class="sd-det-left"><span class="sd-det-chevron" aria-hidden="true"></span><span>Raw Response</span></span><span class="sd-det-meta"><span class="sd-det-toggle-label"><span class="when-closed">Klik untuk buka</span><span class="when-open">Klik untuk tutup</span></span><span class="sd-det-right">JSON</span></span></summary><div class="sd-det-body"><div class="scx-json-scroll"><pre>${esc(JSON.stringify(scoring, null, 2))}</pre></div></div></details>`;
             html += `</div>`;
             html += `</div>`;
             html += `</div>`;
