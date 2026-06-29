@@ -3456,7 +3456,29 @@ class DashboardAdmin(View):
             'oauth_banner': oauth_banner
         }
         return render(req, 'admin/dashboard_admin.html', data)
-    
+
+
+_SCORING_TABLE_COLS_CACHE = {}
+
+
+def _cached_scoring_table_columns(query_df, table_name, ttl_sec=3600):
+    now = time.time()
+    cached = _SCORING_TABLE_COLS_CACHE.get(table_name)
+    if cached and (now - float(cached.get('ts') or 0)) < ttl_sec:
+        return set(cached.get('cols') or set())
+    cols = set()
+    try:
+        schema_df = query_df(f"DESCRIBE TABLE {table_name}")
+        for c in ['name', 'column', 'Field']:
+            if c in schema_df.columns:
+                cols = set(schema_df[c].astype(str).str.strip().tolist())
+                break
+    except Exception as ex:
+        logger.warning('DashboardScoringDataView describe failed for %s: %s', table_name, ex)
+    _SCORING_TABLE_COLS_CACHE[table_name] = {'ts': now, 'cols': cols}
+    return cols
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class DashboardScoringDataView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -3689,15 +3711,23 @@ class DashboardScoringDataView(View):
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
             target_date = str(payload.get('date') or '').strip()
             target_date_obj = pd.to_datetime(target_date, errors='coerce').date() if str(target_date).strip() else None
-            history_lookback_days = 35
-            history_start_obj = (target_date_obj - timedelta(days=history_lookback_days)) if target_date_obj else None
-            history_start_sql = history_start_obj.isoformat() if history_start_obj else target_date
             target_date_sql = target_date_obj.isoformat() if target_date_obj else target_date
             dim = str(payload.get('dim') or 'domain').strip().lower()
             raw_entities = payload.get('entities') or []
             include_events = bool(payload.get('include_events'))
             include_source = bool(payload.get('include_source', True))
             include_timeline = bool(payload.get('include_timeline', True))
+            include_details = bool(payload.get('include_details', True))
+            try:
+                history_lookback_days = int(payload.get('lookback_days', 35))
+            except Exception:
+                history_lookback_days = 35
+            history_lookback_days = max(0, min(history_lookback_days, 35))
+            if payload.get('lookback_days') is None and (not include_events) and (not include_source) and (not include_timeline) and (not include_details):
+                history_lookback_days = 0
+            history_start_obj = (target_date_obj - timedelta(days=history_lookback_days)) if (target_date_obj and history_lookback_days > 0) else target_date_obj
+            history_start_sql = history_start_obj.isoformat() if history_start_obj else target_date
+            fast_mode = history_lookback_days <= 0 and (not include_events) and (not include_source) and (not include_timeline) and (not include_details)
             def normalize_site_entity(v):
                 s = str(v or '').strip().lower()
                 s = re.sub(r'^https?://', '', s)
@@ -3743,6 +3773,20 @@ class DashboardScoringDataView(View):
                 return JsonResponse({'status': False, 'error': 'date wajib diisi'}, status=400)
             if not entities:
                 return JsonResponse({'status': True, 'data': {}}, safe=False)
+            cache_key = generate_cache_key(
+                'dashboard_scoring_data_v4',
+                target_date_sql,
+                dim,
+                ','.join(sorted(set(entities))),
+                str(history_lookback_days),
+                str(include_events),
+                str(include_source),
+                str(include_timeline),
+                str(include_details),
+            )
+            cached_response = get_cached_data(cache_key)
+            if cached_response is not None:
+                return JsonResponse(cached_response, safe=False)
             scoring_module = _get_scoring_concept_module()
             query_df = getattr(scoring_module, 'query_df', None)
             if query_df is None:
@@ -3767,23 +3811,11 @@ class DashboardScoringDataView(View):
                     'scoring_ready': False,
                     'reason': 'Tabel scoring status belum tersedia'
                 }, safe=False)
-            if include_events and (not table_exists(event_table)):
-                return JsonResponse({
-                    'status': True,
-                    'data': {},
-                    'scoring_ready': False,
-                    'reason': 'Tabel scoring event belum tersedia'
-                }, safe=False)
-            def resolve_table_columns(table_name):
-                try:
-                    schema_df = query_df(f"DESCRIBE TABLE {table_name}")
-                    for c in ['name', 'column', 'Field']:
-                        if c in schema_df.columns:
-                            return set(schema_df[c].astype(str).str.strip().tolist())
-                except Exception as ex:
-                    logger.warning('DashboardScoringDataView resolve_table_columns failed for %s: %s', table_name, ex)
-                return set()
-            table_cols = resolve_table_columns(status_table)
+            events_enabled = bool(include_events)
+            if events_enabled and (not table_exists(event_table)):
+                logger.warning('DashboardScoringDataView: event table missing (%s), lanjut tanpa events', event_table)
+                events_enabled = False
+            table_cols = _cached_scoring_table_columns(query_df, status_table)
             literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
             is_country_dim = (dim == 'country')
             entity_key_expr = "upper(country_code)" if is_country_dim else "lower(site)"
@@ -3797,6 +3829,10 @@ class DashboardScoringDataView(View):
             reco_pct_expr = "toFloat64(recommended_budget_change_pct)" if 'recommended_budget_change_pct' in table_cols else "toFloat64(0)"
             reco_target_expr = "toFloat64(recommended_budget_target)" if 'recommended_budget_target' in table_cols else "toFloat64(0)"
             reco_reason_expr = "toString(budget_reco_reason)" if 'budget_reco_reason' in table_cols else "''"
+            if history_lookback_days <= 0:
+                status_date_where = f"toDate(date) = toDate('{target_date_sql}')"
+            else:
+                status_date_where = f"toDate(date) >= toDate('{history_start_sql}') AND toDate(date) <= toDate('{target_date_sql}')"
             sql = f"""
             SELECT
                 site,
@@ -3846,8 +3882,7 @@ class DashboardScoringDataView(View):
                 {reco_target_expr} AS recommended_budget_target,
                 {reco_reason_expr} AS budget_reco_reason
             FROM {status_table}
-            WHERE toDate(date) >= toDate('{history_start_sql}')
-              AND toDate(date) <= toDate('{target_date_sql}')
+            WHERE {status_date_where}
               AND {status_filter_expr}
             """
             event_sql = f"""
@@ -3899,7 +3934,7 @@ class DashboardScoringDataView(View):
             is_composite
             FROM {event_table}
             WHERE toDate(date) = toDate('{target_date}')
-              AND lower(site) IN ({literals})
+              AND {status_filter_expr}
             """
             source_sql = f"""
             SELECT
@@ -3964,7 +3999,7 @@ class DashboardScoringDataView(View):
                     df['run_hour'] = pd.to_numeric(df['run_hour'], errors='coerce').fillna(0).astype(int)
                 return df
             def load_event_df():
-                if not include_events:
+                if not events_enabled:
                     return pd.DataFrame()
                 ev = query_df(event_sql)
                 if 'run_hour' in ev.columns:
@@ -3989,10 +4024,15 @@ class DashboardScoringDataView(View):
                 if 'entity_key' in tdf.columns:
                     tdf['entity_key'] = tdf['entity_key'].astype(str).map(lambda x: x.strip().upper())
                 return tdf
-            df = load_status_df()
-            event_df = load_event_df()
-            source_df = load_source_df()
-            timeline_df = load_timeline_df()
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                f_status = pool.submit(load_status_df)
+                f_event = pool.submit(load_event_df)
+                f_source = pool.submit(load_source_df)
+                f_timeline = pool.submit(load_timeline_df)
+                df = f_status.result()
+                event_df = f_event.result()
+                source_df = f_source.result()
+                timeline_df = f_timeline.result()
             if df.empty:
                 return JsonResponse({'status': True, 'data': {}}, safe=False)
             df['entity_key'] = df['entity_key'].astype(str).map(lambda x: x.strip().upper())
@@ -4315,18 +4355,21 @@ class DashboardScoringDataView(View):
                 current_snapshot = summarize_status_snapshot(part_eval)
                 historical_windows = {}
                 available_hist_dates = []
-                if target_date_obj is not None and 'scoring_date' in part.columns:
-                    scoring_dates_all = pd.to_datetime(part['scoring_date'], errors='coerce').dt.date
-                    for d in sorted([x for x in scoring_dates_all.dropna().tolist() if x < target_date_obj]):
-                        if d not in available_hist_dates:
-                            available_hist_dates.append(d)
-                    for days_back, key in [(1, 'h1'), (3, 'h3'), (7, 'h7'), (14, 'h14'), (28, 'h28'), (35, 'h35')]:
-                        start_d = target_date_obj - timedelta(days=days_back)
-                        hist_slice = part[(part['scoring_date'] >= start_d) & (part['scoring_date'] < target_date_obj)].copy()
-                        window_snapshot = summarize_status_snapshot(hist_slice)
-                        if window_snapshot:
-                            historical_windows[key] = window_snapshot
-                blended_snapshot = blend_snapshot_metrics(current_snapshot, historical_windows)
+                if history_lookback_days <= 0:
+                    blended_snapshot = current_snapshot if current_snapshot else {}
+                else:
+                    if target_date_obj is not None and 'scoring_date' in part.columns:
+                        scoring_dates_all = pd.to_datetime(part['scoring_date'], errors='coerce').dt.date
+                        for d in sorted([x for x in scoring_dates_all.dropna().tolist() if x < target_date_obj]):
+                            if d not in available_hist_dates:
+                                available_hist_dates.append(d)
+                        for days_back, key in [(1, 'h1'), (3, 'h3'), (7, 'h7'), (14, 'h14'), (28, 'h28'), (35, 'h35')]:
+                            start_d = target_date_obj - timedelta(days=days_back)
+                            hist_slice = part[(part['scoring_date'] >= start_d) & (part['scoring_date'] < target_date_obj)].copy()
+                            window_snapshot = summarize_status_snapshot(hist_slice)
+                            if window_snapshot:
+                                historical_windows[key] = window_snapshot
+                    blended_snapshot = blend_snapshot_metrics(current_snapshot, historical_windows)
 
                 join_status_series = snap['join_status'] if 'join_status' in snap.columns else pd.Series('', index=snap.index)
                 join_status_clean = join_status_series.astype(str).str.upper().str.strip()
@@ -4370,7 +4413,7 @@ class DashboardScoringDataView(View):
                 days_hist = int(pd.to_datetime(days_series, errors='coerce').dropna().dt.date.nunique())
                 days_flag = int(pd.to_numeric(part_eval.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in part_eval.columns else 0
                 active_days_effective = max(days_hist, days_flag)
-                maturity_profile = campaign_maturity_profile(part)
+                maturity_profile = campaign_maturity_profile(part_eval if fast_mode else part)
                 mature_campaign_ratio = float(maturity_profile.get('mature_campaign_ratio', 0.0))
                 mature_spend_share = float(maturity_profile.get('mature_spend_share', 0.0))
                 mature_campaign_count = int(maturity_profile.get('mature_campaign_count', 0))
@@ -4399,39 +4442,40 @@ class DashboardScoringDataView(View):
                 reason_summary = str(blended_snapshot.get('reason_summary') or ' | '.join(list(dict.fromkeys(reason_parts))[:3]))
 
                 scoring_timeline = []
-                def _hour_key(v):
-                    s = str(v or '').strip()
-                    if not s or s.lower() == 'nan':
+                if include_timeline:
+                    def _hour_key(v):
+                        s = str(v or '').strip()
+                        if not s or s.lower() == 'nan':
+                            return None
+                        try:
+                            h = int(float(s))
+                            if 0 <= h <= 23:
+                                return f"{h:02d}"
+                        except Exception:
+                            pass
+                        dt = pd.to_datetime(s, errors='coerce')
+                        if pd.notna(dt):
+                            return f"{int(dt.hour):02d}"
                         return None
-                    try:
-                        h = int(float(s))
-                        if 0 <= h <= 23:
-                            return f"{h:02d}"
-                    except Exception:
-                        pass
-                    dt = pd.to_datetime(s, errors='coerce')
-                    if pd.notna(dt):
-                        return f"{int(dt.hour):02d}"
-                    return None
-                def _fmt_run_hour_label(v):
-                    k = _hour_key(v)
-                    return f"{k}:00" if k else ''
+                    def _fmt_run_hour_label(v):
+                        k = _hour_key(v)
+                        return f"{k}:00" if k else ''
 
-                base_hour_series = part['run_hour_raw'] if 'run_hour_raw' in part.columns else part.get('run_hour')
-                part_hour_key = pd.Series([None] * len(part), index=part.index, dtype=object)
-                if base_hour_series is not None:
-                    part_hour_key = base_hour_series.map(_hour_key)
-                if 'run_time' in part.columns:
-                    rt_key = part['run_time'].map(_hour_key)
-                    part_hour_key = part_hour_key.where(part_hour_key.notna(), rt_key)
+                    base_hour_series = part['run_hour_raw'] if 'run_hour_raw' in part.columns else part.get('run_hour')
+                    part_hour_key = pd.Series([None] * len(part), index=part.index, dtype=object)
+                    if base_hour_series is not None:
+                        part_hour_key = base_hour_series.map(_hour_key)
+                    if 'run_time' in part.columns:
+                        rt_key = part['run_time'].map(_hour_key)
+                        part_hour_key = part_hour_key.where(part_hour_key.notna(), rt_key)
 
-                run_hours = []
-                map_hours = list(timeline_map.get(str(entity_key).strip().upper(), []) or [])
-                run_hours.extend([_hour_key(x) for x in map_hours if _hour_key(x) is not None])
-                run_hours.extend([x for x in part_hour_key.dropna().astype(str).tolist() if x])
-                run_hours = sorted(list(dict.fromkeys(run_hours)), reverse=True)
+                    run_hours = []
+                    map_hours = list(timeline_map.get(str(entity_key).strip().upper(), []) or [])
+                    run_hours.extend([_hour_key(x) for x in map_hours if _hour_key(x) is not None])
+                    run_hours.extend([x for x in part_hour_key.dropna().astype(str).tolist() if x])
+                    run_hours = sorted(list(dict.fromkeys(run_hours)), reverse=True)
 
-                if run_hours:
+                if include_timeline and run_hours:
                     for rh in run_hours[:8]:
                         snap_h = part.loc[part_hour_key.astype(str).eq(str(rh))].copy()
                         if target_date_obj is not None and 'scoring_date' in snap_h.columns:
@@ -4567,7 +4611,15 @@ class DashboardScoringDataView(View):
                 run_hour = pd.to_datetime(latest_run_hour, errors='coerce').strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest_run_hour) else ''
                 update_score_time = pd.to_datetime(latest_snapshot, errors='coerce').strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest_snapshot) else ''
 
-                ev = event_df[event_df['entity_key'].eq(entity_key)].copy() if (include_events and not event_df.empty and 'entity_key' in event_df.columns) else pd.DataFrame()
+                ev = event_df[event_df['entity_key'].eq(entity_key)].copy() if (events_enabled and not event_df.empty and 'entity_key' in event_df.columns) else pd.DataFrame()
+                if is_country_dim and ev.empty and events_enabled and not event_df.empty and 'country_code' in event_df.columns:
+                    cc = str(entity_key or '').strip().upper()
+                    cc_list = [cc]
+                    if cc == 'TR':
+                        cc_list.append('TU')
+                    elif cc == 'TU':
+                        cc_list.append('TR')
+                    ev = event_df[event_df['country_code'].astype(str).str.strip().str.upper().isin(cc_list)].copy()
                 if (risk <= 0.0) and (not ev.empty) and ('ivt_component' in ev.columns) and ('ivt_capacity' in ev.columns):
                     ivt_num = pd.to_numeric(ev['ivt_component'], errors='coerce').fillna(0.0).sum()
                     ivt_den = pd.to_numeric(ev['ivt_capacity'], errors='coerce').fillna(0.0).sum()
@@ -4591,12 +4643,14 @@ class DashboardScoringDataView(View):
                         dominant_event_label = s.value_counts().index[0]
                 
                 country_details = []
-                detail_snap = part.copy()
-                if target_date_obj is not None and 'scoring_date' in detail_snap.columns:
+                detail_snap = pd.DataFrame()
+                if include_details:
+                    detail_snap = part.copy()
+                if include_details and target_date_obj is not None and 'scoring_date' in detail_snap.columns:
                     detail_target = detail_snap[detail_snap['scoring_date'].eq(target_date_obj)].copy()
                     if not detail_target.empty:
                         detail_snap = detail_target
-                if 'country_code' in detail_snap.columns and 'run_hour' in detail_snap.columns:
+                if include_details and 'country_code' in detail_snap.columns and 'run_hour' in detail_snap.columns:
                     detail_keys = ['country_code']
                     if 'meta_campaign' in detail_snap.columns:
                         detail_keys.append('meta_campaign')
@@ -4847,7 +4901,7 @@ class DashboardScoringDataView(View):
                         'scoring_source_label': 'Agregasi historical fact_site_country_status_history + fact_change_event_long'
                     }}
                 }
-                if include_events:
+                if events_enabled:
                     def _json_scalar(v):
                         try:
                             if pd.isna(v):
@@ -4899,7 +4953,19 @@ class DashboardScoringDataView(View):
                             'statuses_raw_count': len(status_records_raw)
                         }
                     }
-            return JsonResponse({'status': True, 'data': out, 'debug': {'target_date': target_date, 'requested_entities': entities, 'returned_entity_keys': list(out.keys())}}, safe=False)
+            response_payload = {
+                'status': True,
+                'data': out,
+                'debug': {
+                    'target_date': target_date,
+                    'requested_entities': entities,
+                    'returned_entity_keys': list(out.keys()),
+                    'fast_mode': fast_mode,
+                    'lookback_days': history_lookback_days,
+                },
+            }
+            set_cached_data(cache_key, response_payload, timeout=900 if fast_mode else 300)
+            return JsonResponse(response_payload, safe=False)
         except Exception as e:
             logger.exception('DashboardScoringDataView failed')
             return JsonResponse({
