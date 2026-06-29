@@ -1061,6 +1061,31 @@ html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
     background: rgba(99, 102, 241, 0.1);
     color: var(--db-primary-dark);
 }
+.detail-scoring-status-banner {
+    margin: 0 22px 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.detail-scoring-status-banner.is-loading {
+    color: #1d4ed8;
+    background: rgba(59, 130, 246, .08);
+    border: 1px solid rgba(59, 130, 246, .18);
+}
+.detail-scoring-status-banner.is-warn {
+    color: #92400e;
+    background: rgba(245, 158, 11, .1);
+    border: 1px solid rgba(245, 158, 11, .22);
+}
+.detail-scoring-status-banner.is-error {
+    color: #991b1b;
+    background: rgba(239, 68, 68, .08);
+    border: 1px solid rgba(239, 68, 68, .18);
+}
 .detail-scoring-table-wrap {
     margin: 14px 16px 18px;
     border-radius: 14px;
@@ -4971,6 +4996,7 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
                                     <strong>Catatan:</strong> Scoring mengedepankan <strong>profit-first</strong> (spend, revenue, ROI) sebagai prioritas keputusan, dengan validasi penuh dari metrik di <code>scoring_concept</code> untuk kualitas traffic, risk, dan stabilitas performa.
                                 </div>
                             </div>
+                            <div id="dashboardScoringStatusBanner" class="detail-scoring-status-banner" style="display:none;" role="status" aria-live="polite"></div>
                             <div class="detail-scoring-table-wrap table-responsive">
                                 <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardRecapTable">
                                     <thead>
@@ -8943,48 +8969,160 @@ function initDashboardRecap() {
         return uniqKeepOrder(out.filter(Boolean));
     }
 
+    function scoringFetchEntities(rows, dim) {
+        const d = String(dim || '').toLowerCase();
+        if (d === 'country') {
+            return uniqKeepOrder((rows || []).map(function(r){
+                const code = String(r?.code || r?.country_cd || r?.country_code || '').trim().toUpperCase();
+                if (!code) return '';
+                return code === 'TU' ? 'TR' : code;
+            }).filter(Boolean));
+        }
+        return uniqKeepOrder((rows || []).flatMap(function(r){
+            return scoringLookupCandidates(d, r);
+        }));
+    }
+
+    function chunkArray(arr, size) {
+        const out = [];
+        const n = Math.max(1, Number(size) || 1);
+        for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+        return out;
+    }
+
+    function setDashboardScoringStatus(kind, message) {
+        const el = document.getElementById('dashboardScoringStatusBanner');
+        if (!el) return;
+        const msg = String(message || '').trim();
+        el.classList.remove('is-loading', 'is-warn', 'is-error');
+        if (!msg) {
+            el.style.display = 'none';
+            el.innerHTML = '';
+            return;
+        }
+        const k = String(kind || 'loading').toLowerCase();
+        if (k === 'error') el.classList.add('is-error');
+        else if (k === 'warn') el.classList.add('is-warn');
+        else el.classList.add('is-loading');
+        const icon = k === 'error' ? 'exclamation-octagon' : (k === 'warn' ? 'exclamation-triangle' : 'arrow-repeat');
+        el.style.display = 'flex';
+        el.innerHTML = `<i class="bi bi-${icon}" aria-hidden="true"></i><span>${esc(msg)}</span>`;
+    }
+
+    async function fetchDashboardScoringBatch(entities, state, opts) {
+        const res = await fetch('/management/admin/dashboard_scoring_data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({
+                date: String(state?.date || '').trim(),
+                dim: String(state?.dim || 'domain').trim(),
+                source: String(state?.source || 'all').trim(),
+                entities,
+                include_source: false,
+                include_timeline: false,
+                include_events: false,
+                light: !(opts && opts.include_events)
+            }),
+            credentials: 'same-origin'
+        });
+        let json = {};
+        try { json = await res.json(); } catch (_e) { json = {}; }
+        if (res.status === 504) {
+            throw new Error('Gateway timeout (504) saat memuat scoring');
+        }
+        if (!res.ok || !json || !json.status) {
+            throw new Error(String(json?.error || `Gagal memuat scoring (HTTP ${res.status})`));
+        }
+        if (json?.scoring_ready === false) {
+            throw new Error(String(json?.reason || 'Tabel scoring belum tersedia'));
+        }
+        return (json?.data && typeof json.data === 'object') ? json.data : {};
+    }
+
+    async function fetchDashboardScoringBatchWithRetry(entities, state, opts) {
+        let lastErr = null;
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+            try {
+                return await fetchDashboardScoringBatch(entities, state, opts);
+            } catch (e) {
+                lastErr = e;
+                const msg = String(e?.message || e || '');
+                if (attempt >= 1 || !/504|timeout/i.test(msg)) throw e;
+                await new Promise(function(r){ setTimeout(r, 600); });
+            }
+        }
+        throw lastErr;
+    }
+
+    async function runScoringFetchPool(tasks, concurrency) {
+        const results = new Array(tasks.length);
+        let cursor = 0;
+        const workers = Math.max(1, Math.min(Number(concurrency) || 1, tasks.length));
+        async function worker() {
+            while (cursor < tasks.length) {
+                const idx = cursor;
+                cursor += 1;
+                results[idx] = await tasks[idx]();
+            }
+        }
+        await Promise.all(Array.from({ length: workers }, worker));
+        return results;
+    }
+
     async function fetchDashboardScoring(rows, state) {
         const dim = String(state?.dim || '').toLowerCase();
         window.dashboardRecapScoringReady = true;
         window.dashboardRecapScoringReason = '';
-        const entities = uniqKeepOrder((rows || []).flatMap(function(r){
-            return scoringLookupCandidates(dim, r);
-        }));
-        if (!entities.length || !state?.date) return {};
-        try {
-            const res = await fetch('/management/admin/dashboard_scoring_data', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify({
-                    date: String(state.date || '').trim(),
-                    dim: String(state.dim || 'domain').trim(),
-                    source: String(state.source || 'all').trim(),
-                    entities,
-                    include_source: false,
-                    include_timeline: false,
-                    include_events: dim === 'country'
-                }),
-                credentials: 'same-origin'
-            });
-            const json = await res.json();
-            if (!res.ok || !json || !json.status) {
-                window.dashboardRecapScoringReady = false;
-                window.dashboardRecapScoringReason = String(json?.error || `Gagal memuat scoring (HTTP ${res.status})`);
-                return {};
-            }
-            if (json?.scoring_ready === false) {
-                window.dashboardRecapScoringReady = false;
-                window.dashboardRecapScoringReason = String(json?.reason || 'Tabel scoring belum tersedia');
-                return {};
-            }
-            window.dashboardRecapScoringReady = true;
-            window.dashboardRecapScoringReason = '';
-            return (json?.data && typeof json.data === 'object') ? json.data : {};
-        } catch (e) {
-            window.dashboardRecapScoringReady = false;
-            window.dashboardRecapScoringReason = String(e?.message || 'Gagal memuat scoring');
+        window.dashboardRecapScoringPartial = false;
+        const entities = scoringFetchEntities(rows, dim);
+        if (!entities.length || !state?.date) {
+            setDashboardScoringStatus('', '');
             return {};
         }
+
+        const chunkSize = dim === 'country' ? 1 : 6;
+        const batches = chunkArray(entities, chunkSize);
+        const merged = {};
+        const errors = [];
+        const concurrency = dim === 'country' ? 4 : 2;
+
+        setDashboardScoringStatus('loading', batches.length > 1
+            ? `Memuat scoring (${entities.length} entitas, ${batches.length} request)...`
+            : `Memuat scoring (${entities.length} entitas)...`);
+
+        let doneCount = 0;
+        const tasks = batches.map(function(batch, batchIdx){
+            return async function(){
+                try {
+                    const part = await fetchDashboardScoringBatchWithRetry(batch, state, { include_events: false });
+                    Object.assign(merged, part);
+                } catch (e) {
+                    errors.push(String(e?.message || e || 'Gagal memuat scoring'));
+                } finally {
+                    doneCount += 1;
+                    if (batches.length > 1) {
+                        setDashboardScoringStatus('loading', `Memuat scoring ${doneCount}/${batches.length}...`);
+                    }
+                }
+            };
+        });
+        await runScoringFetchPool(tasks, concurrency);
+
+        if (!Object.keys(merged).length && errors.length) {
+            window.dashboardRecapScoringReady = false;
+            window.dashboardRecapScoringReason = errors[0];
+            setDashboardScoringStatus('error', window.dashboardRecapScoringReason);
+            return {};
+        }
+        if (errors.length) {
+            window.dashboardRecapScoringPartial = true;
+            window.dashboardRecapScoringReason = `Sebagian scoring gagal dimuat (${errors.length}/${batches.length} batch). ${errors[0]}`;
+            setDashboardScoringStatus('warn', window.dashboardRecapScoringReason);
+        } else {
+            setDashboardScoringStatus('', '');
+        }
+        window.dashboardRecapScoringReady = true;
+        return merged;
     }
 
     function buildCreateScoringPayload(row, state) {
@@ -17143,11 +17281,13 @@ function initDashboardRecap() {
         const rawStore = (backendScores && typeof backendScores === 'object') ? backendScores : {};
         const normalizedStore = Object.assign({}, rawStore);
         Object.keys(rawStore).forEach(function(k){
+            const raw = rawStore[k];
             const nk = String(k || '').trim().toLowerCase();
-            if (!nk) return;
-            normalizedStore[nk] = normalizedStore[nk] || rawStore[k];
+            const uk = String(k || '').trim().toUpperCase();
+            if (nk) normalizedStore[nk] = normalizedStore[nk] || raw;
+            if (uk) normalizedStore[uk] = normalizedStore[uk] || raw;
             const wk = nk.replace(/^www\./i, '');
-            if (wk) normalizedStore[wk] = normalizedStore[wk] || rawStore[k];
+            if (wk) normalizedStore[wk] = normalizedStore[wk] || raw;
         });
         window.dashboardRecapStoredScoring = normalizedStore;
         window.dashboardRecapCampaignAccountMap = buildCampaignAccountLookup(window.dashboardRecapSiteAccountMap || {});
@@ -17195,7 +17335,7 @@ function initDashboardRecap() {
                     score: null,
                     decision: '',
                     label: 'BELUM ADA HASIL',
-                    reasons: ['Data scoring backend belum tersedia'],
+                    reasons: [window.dashboardRecapScoringReason || 'Data scoring backend belum tersedia'],
                     breakdown: { meta: { scoring_source: 'backend_required', scoring_source_label: 'Menunggu data backend' } }
                 };
             }
@@ -18005,6 +18145,7 @@ function initDashboardRecap() {
         if (window.HrisLoader) window.HrisLoader.show('Memuat Data...');
         else if (loading) loading.style.display = 'flex';
         setRecapTableLoading('Memuat detail rekap...');
+        setDashboardScoringStatus('', '');
         try {
             let rows = [];
             let summary = null;

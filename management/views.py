@@ -3689,15 +3689,16 @@ class DashboardScoringDataView(View):
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
             target_date = str(payload.get('date') or '').strip()
             target_date_obj = pd.to_datetime(target_date, errors='coerce').date() if str(target_date).strip() else None
-            history_lookback_days = 35
+            dim = str(payload.get('dim') or 'domain').strip().lower()
+            raw_entities = payload.get('entities') or []
+            light = bool(payload.get('light'))
+            include_events = bool(payload.get('include_events')) and (not light)
+            include_source = bool(payload.get('include_source', True))
+            include_timeline = bool(payload.get('include_timeline', True)) and (not light)
+            history_lookback_days = 3 if light else 35
             history_start_obj = (target_date_obj - timedelta(days=history_lookback_days)) if target_date_obj else None
             history_start_sql = history_start_obj.isoformat() if history_start_obj else target_date
             target_date_sql = target_date_obj.isoformat() if target_date_obj else target_date
-            dim = str(payload.get('dim') or 'domain').strip().lower()
-            raw_entities = payload.get('entities') or []
-            include_events = bool(payload.get('include_events'))
-            include_source = bool(payload.get('include_source', True))
-            include_timeline = bool(payload.get('include_timeline', True))
             def normalize_site_entity(v):
                 s = str(v or '').strip().lower()
                 s = re.sub(r'^https?://', '', s)
@@ -4315,18 +4316,21 @@ class DashboardScoringDataView(View):
                 current_snapshot = summarize_status_snapshot(part_eval)
                 historical_windows = {}
                 available_hist_dates = []
-                if target_date_obj is not None and 'scoring_date' in part.columns:
-                    scoring_dates_all = pd.to_datetime(part['scoring_date'], errors='coerce').dt.date
-                    for d in sorted([x for x in scoring_dates_all.dropna().tolist() if x < target_date_obj]):
-                        if d not in available_hist_dates:
-                            available_hist_dates.append(d)
-                    for days_back, key in [(1, 'h1'), (3, 'h3'), (7, 'h7'), (14, 'h14'), (28, 'h28'), (35, 'h35')]:
-                        start_d = target_date_obj - timedelta(days=days_back)
-                        hist_slice = part[(part['scoring_date'] >= start_d) & (part['scoring_date'] < target_date_obj)].copy()
-                        window_snapshot = summarize_status_snapshot(hist_slice)
-                        if window_snapshot:
-                            historical_windows[key] = window_snapshot
-                blended_snapshot = blend_snapshot_metrics(current_snapshot, historical_windows)
+                if light:
+                    blended_snapshot = current_snapshot if current_snapshot else {}
+                else:
+                    if target_date_obj is not None and 'scoring_date' in part.columns:
+                        scoring_dates_all = pd.to_datetime(part['scoring_date'], errors='coerce').dt.date
+                        for d in sorted([x for x in scoring_dates_all.dropna().tolist() if x < target_date_obj]):
+                            if d not in available_hist_dates:
+                                available_hist_dates.append(d)
+                        for days_back, key in [(1, 'h1'), (3, 'h3'), (7, 'h7'), (14, 'h14'), (28, 'h28'), (35, 'h35')]:
+                            start_d = target_date_obj - timedelta(days=days_back)
+                            hist_slice = part[(part['scoring_date'] >= start_d) & (part['scoring_date'] < target_date_obj)].copy()
+                            window_snapshot = summarize_status_snapshot(hist_slice)
+                            if window_snapshot:
+                                historical_windows[key] = window_snapshot
+                    blended_snapshot = blend_snapshot_metrics(current_snapshot, historical_windows)
 
                 join_status_series = snap['join_status'] if 'join_status' in snap.columns else pd.Series('', index=snap.index)
                 join_status_clean = join_status_series.astype(str).str.upper().str.strip()
@@ -4370,7 +4374,7 @@ class DashboardScoringDataView(View):
                 days_hist = int(pd.to_datetime(days_series, errors='coerce').dropna().dt.date.nunique())
                 days_flag = int(pd.to_numeric(part_eval.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in part_eval.columns else 0
                 active_days_effective = max(days_hist, days_flag)
-                maturity_profile = campaign_maturity_profile(part)
+                maturity_profile = campaign_maturity_profile(part_eval if light else part)
                 mature_campaign_ratio = float(maturity_profile.get('mature_campaign_ratio', 0.0))
                 mature_spend_share = float(maturity_profile.get('mature_spend_share', 0.0))
                 mature_campaign_count = int(maturity_profile.get('mature_campaign_count', 0))
@@ -4431,8 +4435,9 @@ class DashboardScoringDataView(View):
                 run_hours.extend([x for x in part_hour_key.dropna().astype(str).tolist() if x])
                 run_hours = sorted(list(dict.fromkeys(run_hours)), reverse=True)
 
-                if run_hours:
-                    for rh in run_hours[:8]:
+                timeline_hours_limit = 1 if light else (8 if include_timeline else 0)
+                if timeline_hours_limit > 0 and run_hours:
+                    for rh in run_hours[:timeline_hours_limit]:
                         snap_h = part.loc[part_hour_key.astype(str).eq(str(rh))].copy()
                         if target_date_obj is not None and 'scoring_date' in snap_h.columns:
                             snap_h_target = snap_h[snap_h['scoring_date'].eq(target_date_obj)].copy()
@@ -4476,7 +4481,7 @@ class DashboardScoringDataView(View):
                         days_hist_h = int(pd.to_datetime(days_series_h, errors='coerce').dropna().dt.date.nunique())
                         days_flag_h = int(pd.to_numeric(snap_h.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in snap_h.columns else 0
                         active_days_effective_h = max(days_hist_h, days_flag_h)
-                        maturity_profile_h = campaign_maturity_profile(part)
+                        maturity_profile_h = campaign_maturity_profile(part_eval if light else part)
                         mature_campaign_ratio_h = float(maturity_profile_h.get('mature_campaign_ratio', 0.0))
                         mature_spend_share_h = float(maturity_profile_h.get('mature_spend_share', 0.0))
                         mature_campaign_count_h = int(maturity_profile_h.get('mature_campaign_count', 0))
@@ -4561,6 +4566,18 @@ class DashboardScoringDataView(View):
                             'campaign_majority_action': str(campaign_guard_h.get('majority_action', 'HOLD')),
                         })
 
+                if light and scoring_timeline:
+                    tl_head = scoring_timeline[0] or {}
+                    tl_score = tl_head.get('score')
+                    tl_decision = str(tl_head.get('decision') or '').strip().upper()
+                    tl_label = str(tl_head.get('label') or '').strip().upper()
+                    if tl_score is not None:
+                        score = tl_score
+                    if tl_decision:
+                        decision = tl_decision
+                    if tl_label:
+                        label = tl_label
+
                 latest_run_time = snap['run_time'].dropna().max() if 'run_time' in snap.columns else None
                 latest_run_hour = snap['run_hour'].dropna().max() if 'run_hour' in snap.columns else None
                 latest_snapshot = latest_run_time if pd.notna(latest_run_time) else latest_run_hour
@@ -4591,7 +4608,7 @@ class DashboardScoringDataView(View):
                         dominant_event_label = s.value_counts().index[0]
                 
                 country_details = []
-                detail_snap = part.copy()
+                detail_snap = part_eval.copy() if light else part.copy()
                 if target_date_obj is not None and 'scoring_date' in detail_snap.columns:
                     detail_target = detail_snap[detail_snap['scoring_date'].eq(target_date_obj)].copy()
                     if not detail_target.empty:
@@ -4607,142 +4624,159 @@ class DashboardScoringDataView(View):
                         detail_sort.append('run_time')
                     detail_sort.append('run_hour')
                     detail_snap = detail_snap.sort_values(detail_sort).drop_duplicates(subset=detail_keys, keep='last')
+                if light and len(detail_snap.index) > 120:
+                    detail_snap = detail_snap.head(120)
                 for _, row in detail_snap.iterrows():
                     row_entity_key = str(row.get('status_entity_key') or row.get('site') or row.get('entity_key') or '').strip()
                     row_site_key = str(row.get('site') or '').strip()
                     row_meta_campaign = str(row.get('meta_campaign') or '').strip().upper()
-                    src = {}
-                    matched_cand = ''
-                    row_country = str(row.get('country_code') or '').strip().upper()
-                    for cand in site_country_candidates(row_entity_key, row_site_key, row_country):
-                        if cand in source_lookup:
-                            src = dict(source_lookup[cand])
-                            matched_cand = cand
-                            break
-                    row_norm_site = normalize_site_entity(row_site_key)
-                    row_country = str(row.get('country_code') or '').strip().upper()
-                    campaign_src_applied = False
-                    row_entity_upper = str(row_entity_key or '').strip().upper()
+                    if light:
+                        src = {}
+                        matched_cand = ''
+                        meta_spend_v = safe_float(row.get('spend'))
+                        spend_source = 'status_spend'
+                        status_spend_v = meta_spend_v
+                        status_meta_spend_v = meta_spend_v
+                        source_spend_v = 0.0
+                        adx_revenue_v = safe_float(row.get('adx_revenue'))
+                        adsense_estimated_earnings_v = safe_float(row.get('adsense_estimated_earnings'))
+                        mapped_revenue_source_v = str(row.get('mapped_revenue_source') or '').strip().upper()
+                        revenue_v = safe_float(row.get('revenue_value'))
+                        roi_v = ((revenue_v - meta_spend_v) / meta_spend_v * 100.0) if meta_spend_v > 0 else 0.0
+                    else:
+                        src = {}
+                        matched_cand = ''
+                        row_country = str(row.get('country_code') or '').strip().upper()
+                        for cand in site_country_candidates(row_entity_key, row_site_key, row_country):
+                            if cand in source_lookup:
+                                src = dict(source_lookup[cand])
+                                matched_cand = cand
+                                break
+                        row_norm_site = normalize_site_entity(row_site_key)
+                        row_country = str(row.get('country_code') or '').strip().upper()
+                        campaign_src_applied = False
+                        row_entity_upper = str(row_entity_key or '').strip().upper()
 
-                    # Prioritas 1: site+country+campaign (paling spesifik)
-                    if row_norm_site and row_country and row_meta_campaign:
-                        scc_key = f"{row_norm_site}|{row_country}|{row_meta_campaign}"
-                        scc_src = source_site_country_campaign_lookup.get(scc_key)
-                        if scc_src:
-                            src['meta_spend'] = scc_src.get('meta_spend', src.get('meta_spend'))
-                            src['adx_revenue'] = scc_src.get('adx_revenue', src.get('adx_revenue'))
-                            src['adsense_estimated_earnings'] = scc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
-                            src['mapped_revenue_source'] = scc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
-                            campaign_src_applied = True
+                        # Prioritas 1: site+country+campaign (paling spesifik)
+                        if row_norm_site and row_country and row_meta_campaign:
+                            scc_key = f"{row_norm_site}|{row_country}|{row_meta_campaign}"
+                            scc_src = source_site_country_campaign_lookup.get(scc_key)
+                            if scc_src:
+                                src['meta_spend'] = scc_src.get('meta_spend', src.get('meta_spend'))
+                                src['adx_revenue'] = scc_src.get('adx_revenue', src.get('adx_revenue'))
+                                src['adsense_estimated_earnings'] = scc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                                src['mapped_revenue_source'] = scc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                                campaign_src_applied = True
 
-                    # Prioritas 2: site+country
-                    if (not campaign_src_applied) and row_norm_site and row_country:
-                        sc_key = f"{row_norm_site}|{row_country}"
-                        sc_src = source_site_country_lookup.get(sc_key)
-                        if sc_src:
-                            src['meta_spend'] = sc_src.get('meta_spend', src.get('meta_spend'))
-                            src['adx_revenue'] = sc_src.get('adx_revenue', src.get('adx_revenue'))
-                            src['adsense_estimated_earnings'] = sc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                        # Prioritas 2: site+country
+                        if (not campaign_src_applied) and row_norm_site and row_country:
+                            sc_key = f"{row_norm_site}|{row_country}"
+                            sc_src = source_site_country_lookup.get(sc_key)
+                            if sc_src:
+                                src['meta_spend'] = sc_src.get('meta_spend', src.get('meta_spend'))
+                                src['adx_revenue'] = sc_src.get('adx_revenue', src.get('adx_revenue'))
+                                src['adsense_estimated_earnings'] = sc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                                if not str(src.get('mapped_revenue_source') or '').strip():
+                                    src['mapped_revenue_source'] = sc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                                campaign_src_applied = True
+
+                        # Prioritas 3: entity+country (lebih agregat)
+                        if (not campaign_src_applied) and row_entity_upper and row_country:
+                            sec_key = f"{row_entity_upper}|{row_country}"
+                            sec_src = source_entity_country_lookup.get(sec_key)
+                            if sec_src:
+                                src['meta_spend'] = sec_src.get('meta_spend', src.get('meta_spend'))
+                                src['adx_revenue'] = sec_src.get('adx_revenue', src.get('adx_revenue'))
+                                src['adsense_estimated_earnings'] = sec_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                                src['mapped_revenue_source'] = sec_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                                campaign_src_applied = True
+
+                        # Prioritas 4: fallback agregat kandidat
+                        if (not campaign_src_applied) and matched_cand and matched_cand in source_agg_lookup:
+                            agg_src = source_agg_lookup.get(matched_cand) or {}
+                            src['meta_spend'] = agg_src.get('meta_spend', src.get('meta_spend'))
+                            src['adx_revenue'] = agg_src.get('adx_revenue', src.get('adx_revenue'))
+                            src['adsense_estimated_earnings'] = agg_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
                             if not str(src.get('mapped_revenue_source') or '').strip():
-                                src['mapped_revenue_source'] = sc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
-                            campaign_src_applied = True
-
-                    # Prioritas 3: entity+country (lebih agregat)
-                    if (not campaign_src_applied) and row_entity_upper and row_country:
-                        sec_key = f"{row_entity_upper}|{row_country}"
-                        sec_src = source_entity_country_lookup.get(sec_key)
-                        if sec_src:
-                            src['meta_spend'] = sec_src.get('meta_spend', src.get('meta_spend'))
-                            src['adx_revenue'] = sec_src.get('adx_revenue', src.get('adx_revenue'))
-                            src['adsense_estimated_earnings'] = sec_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
-                            src['mapped_revenue_source'] = sec_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
-                            campaign_src_applied = True
-
-                    # Prioritas 4: fallback agregat kandidat
-                    if (not campaign_src_applied) and matched_cand and matched_cand in source_agg_lookup:
-                        agg_src = source_agg_lookup.get(matched_cand) or {}
-                        src['meta_spend'] = agg_src.get('meta_spend', src.get('meta_spend'))
-                        src['adx_revenue'] = agg_src.get('adx_revenue', src.get('adx_revenue'))
-                        src['adsense_estimated_earnings'] = agg_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
-                        if not str(src.get('mapped_revenue_source') or '').strip():
-                            src['mapped_revenue_source'] = agg_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
-                    def nullable_float(v):
-                        if v is None:
-                            return None
-                        if isinstance(v, str):
-                            s = v.strip()
-                            if s == '':
+                                src['mapped_revenue_source'] = agg_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                        def nullable_float(v):
+                            if v is None:
                                 return None
-                            s = s.replace('%', '')
-                            if s.count(',') == 1 and s.count('.') == 0:
-                                s = s.replace(',', '.')
-                            else:
-                                s = s.replace(',', '')
+                            if isinstance(v, str):
+                                s = v.strip()
+                                if s == '':
+                                    return None
+                                s = s.replace('%', '')
+                                if s.count(',') == 1 and s.count('.') == 0:
+                                    s = s.replace(',', '.')
+                                else:
+                                    s = s.replace(',', '')
+                                try:
+                                    return float(s)
+                                except Exception:
+                                    return None
                             try:
-                                return float(s)
+                                if pd.isna(v):
+                                    return None
+                            except Exception:
+                                pass
+                            try:
+                                return float(v)
                             except Exception:
                                 return None
-                        try:
-                            if pd.isna(v):
-                                return None
-                        except Exception:
-                            pass
-                        try:
-                            return float(v)
-                        except Exception:
-                            return None
 
-                    # Prioritaskan spend dari source table agar tidak undercount saat status row masih parsial
-                    status_spend_opt = nullable_float(row.get('spend'))
-                    status_meta_spend_opt = nullable_float(row.get('meta_spend'))
-                    source_spend_opt = nullable_float(src.get('meta_spend'))
+                        # Prioritaskan spend dari source table agar tidak undercount saat status row masih parsial
+                        status_spend_opt = nullable_float(row.get('spend'))
+                        status_meta_spend_opt = nullable_float(row.get('meta_spend'))
+                        source_spend_opt = nullable_float(src.get('meta_spend'))
 
-                    if source_spend_opt is not None:
-                        meta_spend_opt = source_spend_opt
-                        spend_source = 'source_meta_spend'
-                    elif status_spend_opt is not None:
-                        meta_spend_opt = status_spend_opt
-                        spend_source = 'status_spend'
-                    elif status_meta_spend_opt is not None:
-                        meta_spend_opt = status_meta_spend_opt
-                        spend_source = 'status_meta_spend'
-                    else:
-                        meta_spend_opt = None
-                        spend_source = 'none'
+                        if source_spend_opt is not None:
+                            meta_spend_opt = source_spend_opt
+                            spend_source = 'source_meta_spend'
+                        elif status_spend_opt is not None:
+                            meta_spend_opt = status_spend_opt
+                            spend_source = 'status_spend'
+                        elif status_meta_spend_opt is not None:
+                            meta_spend_opt = status_meta_spend_opt
+                            spend_source = 'status_meta_spend'
+                        else:
+                            meta_spend_opt = None
+                            spend_source = 'none'
 
-                    meta_spend_v = safe_float(meta_spend_opt)
-                    status_spend_v = safe_float(status_spend_opt)
-                    status_meta_spend_v = safe_float(status_meta_spend_opt)
-                    source_spend_v = safe_float(source_spend_opt)
+                        meta_spend_v = safe_float(meta_spend_opt)
+                        status_spend_v = safe_float(status_spend_opt)
+                        status_meta_spend_v = safe_float(status_meta_spend_opt)
+                        source_spend_v = safe_float(source_spend_opt)
 
-                    adx_revenue_opt = nullable_float(src.get('adx_revenue'))
-                    if adx_revenue_opt is None:
-                        adx_revenue_opt = nullable_float(row.get('adx_revenue'))
-                    adsense_revenue_opt = nullable_float(src.get('adsense_estimated_earnings'))
-                    if adsense_revenue_opt is None:
-                        adsense_revenue_opt = nullable_float(row.get('adsense_estimated_earnings'))
+                        adx_revenue_opt = nullable_float(src.get('adx_revenue'))
+                        if adx_revenue_opt is None:
+                            adx_revenue_opt = nullable_float(row.get('adx_revenue'))
+                        adsense_revenue_opt = nullable_float(src.get('adsense_estimated_earnings'))
+                        if adsense_revenue_opt is None:
+                            adsense_revenue_opt = nullable_float(row.get('adsense_estimated_earnings'))
 
-                    adx_revenue_v = safe_float(adx_revenue_opt)
-                    adsense_estimated_earnings_v = safe_float(adsense_revenue_opt)
-                    mapped_revenue_source_v = str(src.get('mapped_revenue_source') or row.get('mapped_revenue_source') or '').strip().upper()
-                    row_revenue_opt = nullable_float(row.get('revenue_value'))
-                    if row_revenue_opt is None:
-                        row_revenue_opt = nullable_float(row.get('revenue'))
-                    sum_channel_revenue_v = safe_float(adx_revenue_opt) + safe_float(adsense_revenue_opt)
-                    row_revenue_v = safe_float(row_revenue_opt)
-                    if mapped_revenue_source_v == 'ADX_ONLY':
-                        adx_v = safe_float(adx_revenue_opt)
-                        revenue_v = adx_v if adx_v > 0 else row_revenue_v
-                    elif mapped_revenue_source_v == 'ADSENSE_ONLY':
-                        ads_v = safe_float(adsense_revenue_opt)
-                        revenue_v = ads_v if ads_v > 0 else row_revenue_v
-                    else:
-                        revenue_v = sum_channel_revenue_v if sum_channel_revenue_v > 0 else row_revenue_v
-                    roi_v = ((revenue_v - meta_spend_v) / meta_spend_v * 100.0) if meta_spend_v > 0 else 0.0
+                        adx_revenue_v = safe_float(adx_revenue_opt)
+                        adsense_estimated_earnings_v = safe_float(adsense_revenue_opt)
+                        mapped_revenue_source_v = str(src.get('mapped_revenue_source') or row.get('mapped_revenue_source') or '').strip().upper()
+                        row_revenue_opt = nullable_float(row.get('revenue_value'))
+                        if row_revenue_opt is None:
+                            row_revenue_opt = nullable_float(row.get('revenue'))
+                        sum_channel_revenue_v = safe_float(adx_revenue_opt) + safe_float(adsense_revenue_opt)
+                        row_revenue_v = safe_float(row_revenue_opt)
+                        if mapped_revenue_source_v == 'ADX_ONLY':
+                            adx_v = safe_float(adx_revenue_opt)
+                            revenue_v = adx_v if adx_v > 0 else row_revenue_v
+                        elif mapped_revenue_source_v == 'ADSENSE_ONLY':
+                            ads_v = safe_float(adsense_revenue_opt)
+                            revenue_v = ads_v if ads_v > 0 else row_revenue_v
+                        else:
+                            revenue_v = sum_channel_revenue_v if sum_channel_revenue_v > 0 else row_revenue_v
+                        roi_v = ((revenue_v - meta_spend_v) / meta_spend_v * 100.0) if meta_spend_v > 0 else 0.0
                     country_details.append({
                         'country_code': str(row.get('country_code') or ''),
                         'country_name': str(row.get('country_name') or ''),
                         'meta_campaign': row_meta_campaign,
+                        'site': str(row.get('site') or ''),
                         'score': safe_float(row.get('score')),
                         'days_active': int(safe_float(row.get('days_active'))),
                         'health_score': safe_float(row.get('health_score')),
@@ -4824,7 +4858,7 @@ class DashboardScoringDataView(View):
                         'dominant_event_label': dominant_event_label,
                         'country_details': country_details,
                         'scoring_timeline': scoring_timeline,
-                        'historical_blend': {
+                        'historical_blend': None if light else {
                             'window_mode': 'trailing_days_excluding_today',
                             'lookback_days': int(history_lookback_days),
                             'available_history_dates': [d.isoformat() for d in available_hist_dates],
@@ -4843,8 +4877,8 @@ class DashboardScoringDataView(View):
                                 'decision': decision_final,
                             },
                         },
-                        'scoring_source': 'status_event_aggregate',
-                        'scoring_source_label': 'Agregasi historical fact_site_country_status_history + fact_change_event_long'
+                        'scoring_source': 'status_light_aggregate' if light else 'status_event_aggregate',
+                        'scoring_source_label': 'Scoring ringan (dashboard recap)' if light else 'Agregasi historical fact_site_country_status_history + fact_change_event_long'
                     }}
                 }
                 if include_events:
