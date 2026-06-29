@@ -8943,93 +8943,43 @@ function initDashboardRecap() {
         return uniqKeepOrder(out.filter(Boolean));
     }
 
-    function scoringCountryCodes(rows) {
-        return uniqKeepOrder((rows || []).map(function(r) {
-            const code = String(r?.code || r?.country_cd || r?.country_code || '').trim().toUpperCase();
-            if (!code) return '';
-            const out = [code];
-            if (code === 'TU') out.push('TR');
-            if (code === 'TR') out.push('TU');
-            return out;
-        }).flat().filter(Boolean));
-    }
-
-    async function fetchDashboardScoring(rows, state, options) {
-        options = options || {};
-        const fullMode = options.full === true;
+    async function fetchDashboardScoring(rows, state) {
         const dim = String(state?.dim || '').toLowerCase();
         window.dashboardRecapScoringReady = true;
         window.dashboardRecapScoringReason = '';
-        const entities = dim === 'country'
-            ? (fullMode
-                ? uniqKeepOrder((rows || []).flatMap(function(r) { return scoringLookupCandidates(dim, r); }))
-                : scoringCountryCodes(rows))
-            : uniqKeepOrder((rows || []).flatMap(function(r) {
-                return scoringLookupCandidates(dim, r);
-            }));
+        const entities = uniqKeepOrder((rows || []).flatMap(function(r){
+            return scoringLookupCandidates(dim, r);
+        }));
         if (!entities.length || !state?.date) return {};
-
-        const buildPayload = function(batch) {
-            return {
-                date: String(state.date || '').trim(),
-                dim: String(state.dim || 'domain').trim(),
-                source: String(state.source || 'all').trim(),
-                entities: batch,
-                include_source: fullMode,
-                include_timeline: fullMode,
-                include_events: fullMode,
-                include_details: fullMode,
-                lookback_days: fullMode ? 35 : 0
-            };
-        };
-
-        const requestBatch = async function(batch) {
+        try {
             const res = await fetch('/management/admin/dashboard_scoring_data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify(buildPayload(batch)),
+                body: JSON.stringify({
+                    date: String(state.date || '').trim(),
+                    dim: String(state.dim || 'domain').trim(),
+                    source: String(state.source || 'all').trim(),
+                    entities,
+                    include_source: false,
+                    include_timeline: false,
+                    include_events: dim === 'country'
+                }),
                 credentials: 'same-origin'
             });
-            let json = null;
-            try { json = await res.json(); } catch (_) { json = null; }
+            const json = await res.json();
             if (!res.ok || !json || !json.status) {
-                const msg = res.status === 504
-                    ? 'Gateway timeout — scoring terlalu berat'
-                    : String(json?.error || `Gagal memuat scoring (HTTP ${res.status})`);
-                return { ok: false, data: {}, error: msg };
+                window.dashboardRecapScoringReady = false;
+                window.dashboardRecapScoringReason = String(json?.error || `Gagal memuat scoring (HTTP ${res.status})`);
+                return {};
             }
             if (json?.scoring_ready === false) {
-                return { ok: false, data: {}, scoringNotReady: true, error: String(json?.reason || 'Tabel scoring belum tersedia') };
-            }
-            return { ok: true, data: (json?.data && typeof json.data === 'object') ? json.data : {} };
-        };
-
-        try {
-            const batchSize = (!fullMode && dim === 'country') ? 8 : entities.length;
-            const merged = {};
-            let failReason = '';
-            for (let i = 0; i < entities.length; i += batchSize) {
-                const batch = entities.slice(i, i + batchSize);
-                const part = await requestBatch(batch);
-                if (!part.ok) {
-                    if (part.scoringNotReady) {
-                        window.dashboardRecapScoringReady = false;
-                        window.dashboardRecapScoringReason = String(part.error || 'Tabel scoring belum tersedia');
-                    } else if (!failReason) {
-                        failReason = String(part.error || 'Gagal memuat scoring');
-                    }
-                    continue;
-                }
-                Object.assign(merged, part.data || {});
-            }
-            if (!Object.keys(merged).length && failReason) {
                 window.dashboardRecapScoringReady = false;
-                window.dashboardRecapScoringReason = failReason;
+                window.dashboardRecapScoringReason = String(json?.reason || 'Tabel scoring belum tersedia');
                 return {};
             }
             window.dashboardRecapScoringReady = true;
-            window.dashboardRecapScoringReason = failReason && Object.keys(merged).length ? failReason : '';
-            return merged;
+            window.dashboardRecapScoringReason = '';
+            return (json?.data && typeof json.data === 'object') ? json.data : {};
         } catch (e) {
             window.dashboardRecapScoringReady = false;
             window.dashboardRecapScoringReason = String(e?.message || 'Gagal memuat scoring');
@@ -9220,44 +9170,14 @@ function initDashboardRecap() {
             merged.score = null;
             merged.decision = '';
             merged.label = 'BELUM ADA HASIL';
-        } else if (merged.score == null && dimNow === 'country' && hasAnyMetric) {
-            const computed = scxComputeScoreFromMetrics(info);
-            if (computed != null) {
-                merged.score = computed;
-                const spendAgg = Number(row?.spend || info.spend || 0);
-                const revenueAgg = Number(row?.revenue || info.revenue_value || 0);
-                const roiAgg = spendAgg > 0 ? ((revenueAgg - spendAgg) / spendAgg) : 0;
-                const profitStrong = revenueAgg > spendAgg && roiAgg >= 0.30;
-                const labelNow = String(merged.label || info.final_label || info.root_cause_label || 'STABLE').trim();
-                if (!merged.decision) {
-                    const decMeta = scxDeriveDecision(
-                        merged.score,
-                        labelNow,
-                        Number(health || 0),
-                        Number(risk || 0),
-                        Number(adj || 0),
-                        Number(conf || 0),
-                        Number(dm || 0),
-                        profitStrong,
-                        String(info.mapped_revenue_source || info.source_mode || 'BLENDED')
-                    );
-                    merged.decision = String(decMeta?.decision || '').trim().toUpperCase();
-                }
-                if (!merged.label || merged.label === 'BELUM ADA HASIL') {
-                    merged.label = labelNow || 'STABLE';
-                }
-            } else {
-                merged.decision = '';
-                if (!merged.label) merged.label = 'BELUM ADA HASIL';
-            }
         } else if (merged.score == null) {
+            merged.score = null;
             merged.decision = '';
             if (!merged.label) merged.label = 'BELUM ADA HASIL';
         } else if (!merged.decision) {
-            merged.decision = String(meta?.decision || '').trim().toUpperCase();
+            merged.decision = '';
         }
         if (!merged.label) merged.label = String(info.final_label || info.root_cause_label || '').trim();
-        merged.decision = scxNormalizeDecisionForDisplay(merged.decision || '', merged.label || info.final_label || info.root_cause_label || '');
         return merged;
     }
 
@@ -16303,7 +16223,7 @@ function initDashboardRecap() {
                 const vals = Object.values(store || {}).filter(function(v){ return v && typeof v === 'object'; });
                 return vals.length === 1 ? vals[0] : null;
             };
-            const payloadBase = { dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: entities.length ? entities : (strictEntities.length ? strictEntities : (key ? [key] : [])), include_events: true, include_timeline: true, include_source: true, include_details: true, lookback_days: 35 };
+            const payloadBase = { dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: entities.length ? entities : (strictEntities.length ? strictEntities : (key ? [key] : [])), include_events: true, include_timeline: true };
             const loadCountryCompareSeries = async function(countryCode) {
                 let cc = String(countryCode || '').trim().toUpperCase();
                 if (cc === 'TU') cc = 'TR';
@@ -16463,7 +16383,7 @@ function initDashboardRecap() {
 
             effectiveMeta = detailMeta || effectiveMeta;
             if (!scoringMetaHasCountryDetails(effectiveMeta)) {
-                const freshStore = await fetchDashboardScoring([row], state, { full: true });
+                const freshStore = await fetchDashboardScoring([row], state);
                 const freshRaw = lookupStoredMetaRaw(row, state, freshStore);
                 if (freshRaw) effectiveMeta = summarizeDashboardScoringMeta(freshRaw, row, state);
             }
