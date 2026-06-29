@@ -3133,6 +3133,10 @@ html[data-theme="dark"] .score-detail-modal__body .scx-analytic-hourly-scroll .s
     margin-top: 8px;
     margin-bottom: 0;
 }
+.score-detail-modal__body .scx-monitoring-subdomain-filter-top {
+    flex: 1 1 360px;
+    min-width: min(100%, 320px);
+}
 html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-country-filter {
     background: rgba(15, 23, 42, 0.55);
     border-color: rgba(148, 163, 184, 0.18);
@@ -11614,9 +11618,54 @@ function initDashboardRecap() {
         }).sort(function(a, b) { return Number(b.roi || 0) - Number(a.roi || 0); });
     }
 
-    function scxRenderMonitoringBreakdownTable(rows) {
+    function scxMonitoringBreakdownSubdomainKey(row) {
+        return String(row?.subdomain || row?.domain || '').trim().toLowerCase();
+    }
+
+    function scxMonitoringBreakdownSubdomainOptions(rows) {
+        const map = new Map();
+        (rows || []).forEach(function(r) {
+            const key = scxMonitoringBreakdownSubdomainKey(r);
+            if (!key) return;
+            if (!map.has(key)) map.set(key, String(r.subdomain || r.domain || key));
+        });
+        return Array.from(map.entries()).map(function(entry) {
+            return { key: entry[0], label: entry[1] };
+        }).sort(function(a, b) { return String(a.label).localeCompare(String(b.label)); });
+    }
+
+    function scxFilterMonitoringBreakdownRows(rows, cache) {
+        const list = Array.isArray(rows) ? rows : [];
+        const selected = Array.isArray(cache?.selectedSubdomains)
+            ? cache.selectedSubdomains.map(function(s) { return String(s).trim().toLowerCase(); }).filter(Boolean)
+            : [];
+        const q = String(cache?.subdomainSearch || '').trim().toLowerCase();
+        return list.filter(function(r) {
+            const sub = scxMonitoringBreakdownSubdomainKey(r);
+            if (selected.length && !selected.includes(sub)) return false;
+            if (q && !sub.includes(q)) return false;
+            return true;
+        });
+    }
+
+    function scxSummarizeMonitoringBreakdownRows(rows) {
+        const list = Array.isArray(rows) ? rows : [];
+        const spend = list.reduce(function(s, r) { return s + Number(r.spend || 0); }, 0);
+        const revenue = list.reduce(function(s, r) { return s + Number(r.revenue || 0); }, 0);
+        const roi = spend > 0 ? ((revenue - spend) / spend * 100) : 0;
+        return { spend: spend, revenue: revenue, roi: roi };
+    }
+
+    function scxMonitoringBreakdownFilterActive(cache) {
+        return !!(String(cache?.subdomainSearch || '').trim() || (Array.isArray(cache?.selectedSubdomains) && cache.selectedSubdomains.length));
+    }
+
+    function scxRenderMonitoringBreakdownTable(rows, opts) {
+        const hasFilter = !!(opts && opts.hasFilter);
         if (!Array.isArray(rows) || !rows.length) {
-            return '<div class="scx-sub" style="padding:14px;">Tidak ada data subdomain/campaign untuk negara ini.</div>';
+            return hasFilter
+                ? '<div class="scx-sub" style="padding:14px;">Tidak ada subdomain/campaign yang cocok dengan filter.</div>'
+                : '<div class="scx-sub" style="padding:14px;">Tidak ada data subdomain/campaign untuk negara ini.</div>';
         }
         const sorted = rows.slice().sort(function(a, b) { return Number(b.spend || 0) - Number(a.spend || 0); });
         let html = '<table class="scx-data-table scx-analytic-table"><thead><tr>';
@@ -11948,6 +11997,20 @@ function initDashboardRecap() {
                             </div>
                             <div class="scx-monitoring-country-chips" id="scxMonitoringCountryChips"></div>
                             <div class="scx-sub scx-monitoring-country-filter-meta" id="scxMonitoringCountryFilterMeta"></div>
+                        </div>
+                    </div>
+                    <div id="scxMonitoringSubdomainFilterWrap" class="scx-monitoring-subdomain-filter-top" hidden>
+                        <div class="scx-monitoring-country-filter">
+                            <div class="scx-monitoring-country-filter-label">Filter Subdomain</div>
+                            <div class="scx-monitoring-country-filter-head">
+                                <input type="text" class="form-control scx-monitoring-subdomain-search" placeholder="Cari subdomain..." autocomplete="off" />
+                                <div class="scx-monitoring-country-filter-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-primary scx-monitoring-subdomain-all">Pilih Semua</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary scx-monitoring-subdomain-reset">Reset</button>
+                                </div>
+                            </div>
+                            <div class="scx-monitoring-country-chips" id="scxMonitoringSubdomainChips"></div>
+                            <div class="scx-sub scx-monitoring-country-filter-meta" id="scxMonitoringSubdomainFilterMeta"></div>
                         </div>
                     </div>
                     <span class="scx-sub scx-monitoring-status" style="margin:0;align-self:center;"></span>
@@ -12568,17 +12631,26 @@ function initDashboardRecap() {
         const tableWrap = document.getElementById('scxMonitoringTableWrap');
         if (!cache || !tableWrap) return;
         if (cache.isCountryBreakdownMode) {
-            tableWrap.innerHTML = scxRenderMonitoringBreakdownTable(cache.breakdownRows || []);
-            const chartItems = scxAggregateBreakdownForChart(cache.breakdownRows || []);
+            scxPopulateMonitoringSubdomainFilter(cache);
+            const filterActive = scxMonitoringBreakdownFilterActive(cache);
+            const filteredRows = scxFilterMonitoringBreakdownRows(cache.breakdownRows || [], cache);
+            tableWrap.innerHTML = scxRenderMonitoringBreakdownTable(filteredRows, { hasFilter: filterActive });
+            const chartItems = scxAggregateBreakdownForChart(filteredRows);
             requestAnimationFrame(function() {
                 requestAnimationFrame(function() { scxBindMonitoringRoiChart(chartItems); });
             });
             const summaryEl = document.getElementById('scxMonitoringSummary');
-            if (summaryEl && cache.baseSummary) {
-                summaryEl.innerHTML = scxRenderMetricSummaryBoxes(cache.baseSummary.spend, cache.baseSummary.revenue, cache.baseSummary.roi);
+            if (summaryEl) {
+                if (filterActive) {
+                    const totals = scxSummarizeMonitoringBreakdownRows(filteredRows);
+                    summaryEl.innerHTML = scxRenderMetricSummaryBoxes(totals.spend, totals.revenue, totals.roi);
+                } else if (cache.baseSummary) {
+                    summaryEl.innerHTML = scxRenderMetricSummaryBoxes(cache.baseSummary.spend, cache.baseSummary.revenue, cache.baseSummary.roi);
+                }
             }
             return;
         }
+        scxHideMonitoringSubdomainFilter();
         scxRenderMonitoringCountryFilterChips(cache, document.querySelector('.scx-monitoring-country-search')?.value || '');
         if (cache.countriesByDate && Object.keys(cache.countriesByDate).length) {
             tableWrap.innerHTML = scxRenderMonitoringCountrySection(
@@ -12647,6 +12719,69 @@ function initDashboardRecap() {
         if (searchEl) searchEl.value = '';
     }
 
+    function scxHideMonitoringSubdomainFilter() {
+        const wrap = document.getElementById('scxMonitoringSubdomainFilterWrap');
+        const chipsEl = document.getElementById('scxMonitoringSubdomainChips');
+        const metaEl = document.getElementById('scxMonitoringSubdomainFilterMeta');
+        const searchEl = document.querySelector('.scx-monitoring-subdomain-search');
+        if (wrap) wrap.hidden = true;
+        if (chipsEl) chipsEl.innerHTML = '';
+        if (metaEl) metaEl.textContent = '';
+        if (searchEl) searchEl.value = '';
+    }
+
+    function scxShowMonitoringSubdomainFilter() {
+        const wrap = document.getElementById('scxMonitoringSubdomainFilterWrap');
+        if (wrap) wrap.hidden = false;
+    }
+
+    function scxRenderMonitoringSubdomainFilterChips(cache, searchText) {
+        const chipsEl = document.getElementById('scxMonitoringSubdomainChips');
+        const metaEl = document.getElementById('scxMonitoringSubdomainFilterMeta');
+        if (!chipsEl || !cache) return;
+        const options = scxMonitoringBreakdownSubdomainOptions(cache.breakdownRows || []);
+        const selected = new Set((cache.selectedSubdomains || []).map(function(s) { return String(s).trim().toLowerCase(); }));
+        const q = String(searchText || '').trim().toLowerCase();
+        const filteredOptions = options.filter(function(opt) {
+            if (!q) return true;
+            return String(opt.label).toLowerCase().includes(q) || String(opt.key).toLowerCase().includes(q);
+        });
+        if (!options.length) {
+            chipsEl.innerHTML = '<span class="scx-sub">Belum ada subdomain yang bisa difilter.</span>';
+            if (metaEl) metaEl.textContent = '';
+            return;
+        }
+        chipsEl.innerHTML = filteredOptions.map(function(opt) {
+            const on = selected.has(opt.key);
+            return `<button type="button" class="btn btn-sm scx-monitoring-country-chip ${on ? 'btn-primary' : 'btn-outline-primary'}" data-monitoring-subdomain="${esc(opt.key)}" title="${esc(opt.label)}">${esc(opt.label)}</button>`;
+        }).join('');
+        const allRows = cache.breakdownRows || [];
+        const visibleRows = scxFilterMonitoringBreakdownRows(allRows, cache);
+        let meta = `Total ${options.length} subdomain tersedia`;
+        if (selected.size) meta += ` • ${selected.size} dipilih`;
+        if (scxMonitoringBreakdownFilterActive(cache)) {
+            meta += ` • menampilkan ${visibleRows.length} dari ${allRows.length} baris`;
+        } else {
+            meta += ` • menampilkan ${allRows.length} baris`;
+        }
+        if (metaEl) metaEl.textContent = meta;
+    }
+
+    function scxPopulateMonitoringSubdomainFilter(cache) {
+        if (!cache?.isCountryBreakdownMode) {
+            scxHideMonitoringSubdomainFilter();
+            return;
+        }
+        scxShowMonitoringSubdomainFilter();
+        const searchEl = document.querySelector('.scx-monitoring-subdomain-search');
+        if (searchEl) searchEl.value = String(cache.subdomainSearch || '');
+        const validKeys = new Set(scxMonitoringBreakdownSubdomainOptions(cache.breakdownRows || []).map(function(o) { return o.key; }));
+        cache.selectedSubdomains = (cache.selectedSubdomains || []).filter(function(s) {
+            return validKeys.has(String(s).trim().toLowerCase());
+        });
+        scxRenderMonitoringSubdomainFilterChips(cache, searchEl ? searchEl.value : (cache.subdomainSearch || ''));
+    }
+
     function scxInitMonitoringCountryFilterCache(baseCache, opts) {
         const prev = window.scxMonitoringCache || {};
         const prevSelected = Array.isArray(prev.selectedCountries) ? prev.selectedCountries.slice() : [];
@@ -12656,8 +12791,19 @@ function initDashboardRecap() {
             cache.lockCountryCode = lockCountryCode;
             cache.selectedCountries = [lockCountryCode];
         }
+        if (cache.isCountryBreakdownMode) {
+            cache.subdomainSearch = prev.isCountryBreakdownMode ? String(prev.subdomainSearch || '') : '';
+            cache.selectedSubdomains = prev.isCountryBreakdownMode && Array.isArray(prev.selectedSubdomains)
+                ? prev.selectedSubdomains.slice()
+                : [];
+        } else {
+            cache.subdomainSearch = '';
+            cache.selectedSubdomains = [];
+        }
         window.scxMonitoringCache = cache;
         scxPopulateMonitoringCountryFilter(cache);
+        if (cache.isCountryBreakdownMode) scxPopulateMonitoringSubdomainFilter(cache);
+        else scxHideMonitoringSubdomainFilter();
         return cache;
     }
 
@@ -12919,7 +13065,10 @@ function initDashboardRecap() {
                 return;
             }
 
-            if (!scope.isCountryDim) scxHideMonitoringCountryFilter();
+            if (!scope.isCountryDim) {
+                scxHideMonitoringCountryFilter();
+                scxHideMonitoringSubdomainFilter();
+            }
             window.scxMonitoringCache = null;
             if (dailySection) dailySection.hidden = true;
             if (dailyWrap) dailyWrap.innerHTML = '';
@@ -12981,6 +13130,7 @@ function initDashboardRecap() {
         } catch (e) {
             if (dailySection) dailySection.hidden = true;
             scxHideMonitoringCountryFilter();
+            scxHideMonitoringSubdomainFilter();
             window.scxMonitoringCache = null;
             if (tableWrap) tableWrap.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat monitoring'))}</div>`;
             scxDestroyChartInstance('scxMonitoringRoiChartInstance');
@@ -13028,6 +13178,33 @@ function initDashboardRecap() {
             if (e.target.closest('.scx-monitoring-country-all')) {
                 cache.selectedCountries = scxMonitoringCountryOptionsFromCache(cache).map(function(o) { return o.code; });
                 scxRefreshMonitoringView();
+                return;
+            }
+
+            const subdomainBtn = e.target.closest('[data-monitoring-subdomain]');
+            if (subdomainBtn) {
+                const key = String(subdomainBtn.getAttribute('data-monitoring-subdomain') || '').trim().toLowerCase();
+                if (!key) return;
+                const selected = new Set((cache.selectedSubdomains || []).map(function(s) { return String(s).trim().toLowerCase(); }));
+                if (selected.has(key)) selected.delete(key);
+                else selected.add(key);
+                cache.selectedSubdomains = Array.from(selected);
+                scxRefreshMonitoringView();
+                return;
+            }
+
+            if (e.target.closest('.scx-monitoring-subdomain-reset')) {
+                cache.subdomainSearch = '';
+                cache.selectedSubdomains = [];
+                const subSearchEl = pane.querySelector('.scx-monitoring-subdomain-search');
+                if (subSearchEl) subSearchEl.value = '';
+                scxRefreshMonitoringView();
+                return;
+            }
+
+            if (e.target.closest('.scx-monitoring-subdomain-all')) {
+                cache.selectedSubdomains = scxMonitoringBreakdownSubdomainOptions(cache.breakdownRows || []).map(function(o) { return o.key; });
+                scxRefreshMonitoringView();
             }
         });
         const searchEl = pane.querySelector('.scx-monitoring-country-search');
@@ -13040,6 +13217,20 @@ function initDashboardRecap() {
                     const cache = window.scxMonitoringCache;
                     if (!cache) return;
                     scxRenderMonitoringCountryFilterChips(cache, searchEl.value);
+                }, 180);
+            });
+        }
+        const subSearchEl = pane.querySelector('.scx-monitoring-subdomain-search');
+        if (subSearchEl && !subSearchEl.dataset.bound) {
+            subSearchEl.dataset.bound = '1';
+            let subSearchTimer = null;
+            subSearchEl.addEventListener('input', function() {
+                if (subSearchTimer) clearTimeout(subSearchTimer);
+                subSearchTimer = setTimeout(function() {
+                    const cache = window.scxMonitoringCache;
+                    if (!cache || !cache.isCountryBreakdownMode) return;
+                    cache.subdomainSearch = String(subSearchEl.value || '');
+                    scxRefreshMonitoringView();
                 }, 180);
             });
         }
