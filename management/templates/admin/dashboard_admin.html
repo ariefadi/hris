@@ -1215,6 +1215,29 @@ html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
     font-size: 13px;
     line-height: 1.3;
 }
+button.ds-domain-name-btn {
+    display: inline;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    font-weight: 800;
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.3;
+    cursor: pointer;
+    text-align: left;
+}
+button.ds-domain-name-btn:hover {
+    color: #4f46e5;
+    text-decoration: underline;
+}
+button.ds-domain-name-btn:focus-visible {
+    outline: 2px solid rgba(99, 102, 241, 0.45);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
 .ds-domain-badges {
     display: flex;
     flex-wrap: wrap;
@@ -1558,6 +1581,8 @@ html[data-theme="dark"] .detail-scoring-table-wrap {
     border-color: rgba(148, 163, 184, 0.15);
 }
 html[data-theme="dark"] .ds-domain-name { color: #f1f5f9; }
+html[data-theme="dark"] button.ds-domain-name-btn { color: #f1f5f9; }
+html[data-theme="dark"] button.ds-domain-name-btn:hover { color: #a5b4fc; }
 html[data-theme="dark"] .ds-money { color: #e2e8f0; }
 html[data-theme="dark"] .ds-score-head { color: #f1f5f9; }
 html[data-theme="dark"] .ds-score-meta { color: #94a3b8; }
@@ -6606,6 +6631,22 @@ function scxAnomalyExplain(card) {
     return map[key] || String(card || '').replaceAll('_', ' ');
 }
 
+function scxShouldSkipKeputusanTooltipExtraLine(text, labelKey) {
+    const x = String(text || '').trim();
+    if (!x) return true;
+    if (x.startsWith('Dasar keputusan:')) return true;
+    if (/^health=/i.test(x)) return true;
+    if (x.startsWith('Coverage:')) return true;
+    if (/^hist_blend=/i.test(x)) return true;
+    if (/^CURRENT=/i.test(x)) return true;
+    if (/\|\s*H\d+=/i.test(x)) return true;
+    if (/health=.*ivt=.*adjust=/i.test(x)) return true;
+    const lk = String(labelKey || '').trim().toUpperCase();
+    if (lk && x.toUpperCase() === lk) return true;
+    if (/^[A-Z][A-Z0-9_]+$/.test(x)) return true;
+    return false;
+}
+
 function buildKeputusanTooltipHtml(meta, ctx) {
     const info = meta?.breakdown?.meta || {};
     const row = (ctx && ctx.row) ? ctx.row : {};
@@ -6660,7 +6701,7 @@ function buildKeputusanTooltipHtml(meta, ctx) {
     const extra = (Array.isArray(meta?.reasons) ? meta.reasons : [])
         .map(function(x){ return String(x || '').trim(); })
         .filter(function(x){
-            return x && !x.startsWith('Dasar keputusan:') && !/^health=/i.test(x) && !x.startsWith('Coverage:');
+            return x && !scxShouldSkipKeputusanTooltipExtraLine(x, labelKey);
         })
         .slice(0, 2);
     extra.forEach(function(x){ if (!lines.includes(x)) lines.push(x); });
@@ -16271,12 +16312,15 @@ function initDashboardRecap() {
             return `<span class="ds-update-badge${m}"><i class="bi bi-clock" aria-hidden="true"></i>${esc(tt)}</span>`;
         }
 
-        function domainCell(r) {
+        function domainCell(r, scoreKey, canOpenDetail) {
             const name = esc(r?.name);
+            const nameHtml = canOpenDetail
+                ? `<button type="button" class="ds-domain-name-btn dashboard-open-score-detail-btn" data-score-key="${esc(scoreKey || '')}" title="Buka detail scoring">${name}</button>`
+                : `<div class="ds-domain-name">${name}</div>`;
             if (recapDim === 'country') {
                 const cc = String(r?.code || '').trim().toUpperCase();
                 const badge = cc ? `<span class="ds-tag ds-tag--country">${esc(cc)}</span>` : '';
-                return `<div class="ds-domain-cell"><div class="ds-domain-name">${name}</div>${badge ? `<div class="ds-domain-badges">${badge}</div>` : ''}</div>`;
+                return `<div class="ds-domain-cell">${nameHtml}${badge ? `<div class="ds-domain-badges">${badge}</div>` : ''}</div>`;
             }
 
             const srcs = r && r.sources;
@@ -16296,8 +16340,8 @@ function initDashboardRecap() {
             }
 
             if (dayBadge) badges.push(dayBadge);
-            if (!badges.length) return `<div class="ds-domain-cell"><div class="ds-domain-name">${name}</div></div>`;
-            return `<div class="ds-domain-cell"><div class="ds-domain-name">${name}</div><div class="ds-domain-badges">${badges.join('')}</div></div>`;
+            if (!badges.length) return `<div class="ds-domain-cell">${nameHtml}</div>`;
+            return `<div class="ds-domain-cell">${nameHtml}<div class="ds-domain-badges">${badges.join('')}</div></div>`;
         }
 
         function updatedCell(r, meta) {
@@ -16831,7 +16875,7 @@ function initDashboardRecap() {
 
             return [
                 i + 1,
-                domainCell(r),
+                domainCell(r, k, !!meta),
                 esc(r.account_ads || '-'),
                 Number(r.spend) || 0,
                 Number(r.revenue) || 0,
