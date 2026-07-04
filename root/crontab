@@ -18,10 +18,10 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 # Ads Campaign Load: setiap 35 menit
 35 * * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign_load.lock -c "$DJANGO_MANAGE cron_ads_campaign_load >> /var/log/hris/cron_ads_campaign_load.log 2>&1"
 
-# Ads Rekap Bulanan: tanggal 1-10 setiap bulan (rekap bulan sebelumnya, contoh Juni -> Mei)
-15 3 1-10 * * cd $APPDIR && flock -n /var/run/hris_ads_rekap_load.lock -c "$DJANGO_MANAGE cron_ads_rekap_load >> /var/log/hris/cron_ads_rekap_load.log 2>&1"
-20 3 1-10 * * cd $APPDIR && flock -n /var/run/hris_adsense_rekap_load.lock -c "$DJANGO_MANAGE cron_adsense_rekap_load >> /var/log/hris/cron_adsense_rekap_load.log 2>&1"
-25 3 1-10 * * cd $APPDIR && flock -n /var/run/hris_adx_rekap_load.lock -c "$DJANGO_MANAGE cron_adx_rekap_load >> /var/log/hris/cron_adx_rekap_load.log 2>&1"
+# Ads Rekap Bulanan: tanggal 1-10 setiap bulan jam 21:00 WIB (rekap bulan sebelumnya, contoh Juni -> Mei)
+0 21 1-10 * * cd $APPDIR && flock -n /var/run/hris_ads_rekap_load.lock -c "$DJANGO_MANAGE cron_ads_rekap_load >> /var/log/hris/cron_ads_rekap_load.log 2>&1"
+5 21 1-10 * * cd $APPDIR && flock -n /var/run/hris_adsense_rekap_load.lock -c "$DJANGO_MANAGE cron_adsense_rekap_load >> /var/log/hris/cron_adsense_rekap_load.log 2>&1"
+10 21 1-10 * * cd $APPDIR && flock -n /var/run/hris_adx_rekap_load.lock -c "$DJANGO_MANAGE cron_adx_rekap_load >> /var/log/hris/cron_adx_rekap_load.log 2>&1"
 
 # Ads Country Load: setiap 35 menit
 35 * * * * cd $APPDIR && flock -n /var/run/hris_ads_country_load.lock -c "$DJANGO_MANAGE cron_ads_country_load >> /var/log/hris/cron_ads_country_load.log 2>&1"
