@@ -5399,6 +5399,39 @@ class DashboardScoringCompareView(View):
             logger.exception('DashboardScoringCompareView failed')
             return JsonResponse({'status': False, 'error': str(e), 'traceback': traceback.format_exc()}, status=500)
 
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DashboardScoringRekapCompareView(View):
+    """Compare monthly recap pulls vs aggregated daily data for Detail Scoring Invalid data tab."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            payload = json.loads((req.body or b'').decode('utf-8') or '{}')
+            domain = str(payload.get('domain') or payload.get('site') or '').strip()
+            year = payload.get('year') or payload.get('tahun')
+            month = payload.get('month') or payload.get('bulan')
+            tanggal_tarik = payload.get('tanggal_tarik') or payload.get('tanggal')
+
+            if not domain:
+                return JsonResponse({'status': False, 'error': 'domain wajib diisi'}, status=400)
+            if not year or not month:
+                return JsonResponse({'status': False, 'error': 'year dan month wajib diisi'}, status=400)
+
+            db = data_mysql()
+            result = db.get_rekap_vs_daily_compare(domain, year, month, tanggal_tarik)
+            if not result.get('status'):
+                return JsonResponse({'status': False, 'error': result.get('data') or 'Gagal memuat perbandingan'}, status=400)
+            return JsonResponse({'status': True, 'data': result.get('data')}, safe=False)
+        except Exception as e:
+            logger.exception('DashboardScoringRekapCompareView failed')
+            return JsonResponse({'status': False, 'error': str(e), 'traceback': traceback.format_exc()}, status=500)
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class DashboardCreateScoringView(View):
     def dispatch(self, request, *args, **kwargs):

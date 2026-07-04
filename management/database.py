@@ -296,9 +296,12 @@ class data_mysql:
         return [
             'data_adsense_country',
             'data_adsense_domain',
+            'data_adsense_rekap',
             'data_adx_country',
             'data_adx_domain',
+            'data_adx_rekap',
             'data_ads_campaign',
+            'data_ads_rekap',
             'data_ads_country',
             'log_ads_country',
             'log_adsense_country',
@@ -3106,6 +3109,737 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+
+    def delete_data_ads_rekap(self, account, domain, tahun, bulan, tanggal_tarik):
+        try:
+            sql_delete = """
+                        DELETE FROM data_ads_rekap
+                        WHERE account_ads_id = %s
+                        AND data_ads_domain = %s
+                        AND data_ads_rekap_tahun = %s
+                        AND data_ads_rekap_bulan = %s
+                        AND data_ads_rekap_tanggal = %s
+                """
+            if not self.execute_query(sql_delete, (account, domain, tahun, bulan, tanggal_tarik)):
+                raise pymysql.Error("Failed to delete data ads rekap")
+
+            affected = self.cur_hris.rowcount if self.cur_hris else 0
+
+            if not self.commit():
+                raise pymysql.Error("Failed to commit delete data ads rekap")
+
+            hasil = {
+                "status": True,
+                "message": f"Berhasil menghapus {affected} baris rekap",
+                "affected": affected
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0] if e.args else e)
+            }
+        return {'hasil': hasil}
+
+    def insert_data_ads_rekap(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO data_ads_rekap
+                        (
+                            data_ads_rekap.data_ads_rekap_id,
+                            data_ads_rekap.account_ads_id,
+                            data_ads_rekap.data_ads_domain,
+                            data_ads_rekap.data_ads_rekap_tahun,
+                            data_ads_rekap.data_ads_rekap_bulan,
+                            data_ads_rekap.data_ads_rekap_tanggal,
+                            data_ads_rekap.data_ads_rekap_spend,
+                            data_ads_rekap.data_ads_rekap_impresi,
+                            data_ads_rekap.data_ads_rekap_click,
+                            data_ads_rekap.data_ads_rekap_reach,
+                            data_ads_rekap.data_ads_rekap_cpr,
+                            data_ads_rekap.data_ads_rekap_cpc,
+                            data_ads_rekap.data_ads_rekap_frekuensi,
+                            data_ads_rekap.data_ads_rekap_lpv,
+                            data_ads_rekap.data_ads_rekap_lpv_rate,
+                            data_ads_rekap.mdb,
+                            data_ads_rekap.mdb_name,
+                            data_ads_rekap.mdd
+                        )
+                    VALUES
+                        (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s, %s, %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['data_ads_rekap_id'],
+                data['account_ads_id'],
+                data['data_ads_domain'],
+                data['data_ads_rekap_tahun'],
+                data['data_ads_rekap_bulan'],
+                data['data_ads_rekap_tanggal'],
+                data['data_ads_rekap_spend'],
+                data['data_ads_rekap_impresi'],
+                data['data_ads_rekap_click'],
+                data['data_ads_rekap_reach'],
+                data['data_ads_rekap_cpr'],
+                data['data_ads_rekap_cpc'],
+                data['data_ads_rekap_frekuensi'],
+                data['data_ads_rekap_lpv'],
+                data['data_ads_rekap_lpv_rate'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data ads rekap")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data ads rekap insert")
+
+            hasil = {
+                "status": True,
+                "message": "Data ads rekap berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0] if e.args else e)
+            }
+        return {'hasil': hasil}
+
+    def delete_data_adsense_rekap(self, account_id, domain, tahun, bulan, tanggal_tarik):
+        try:
+            sql_delete = """
+                        DELETE FROM data_adsense_rekap
+                        WHERE account_id = %s
+                        AND data_adsense_rekap_domain = %s
+                        AND data_adsense_rekap_tahun = %s
+                        AND data_adsense_rekap_bulan = %s
+                        AND data_adsense_rekap_tanggal = %s
+                """
+            if not self.execute_query(sql_delete, (account_id, domain, tahun, bulan, tanggal_tarik)):
+                raise pymysql.Error("Failed to delete data adsense rekap")
+            affected = self.cur_hris.rowcount if self.cur_hris else 0
+            if not self.commit():
+                raise pymysql.Error("Failed to commit delete data adsense rekap")
+            hasil = {
+                "status": True,
+                "message": f"Berhasil menghapus {affected} baris rekap AdSense",
+                "affected": affected
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0] if e.args else e)
+            }
+        return {'hasil': hasil}
+
+    def insert_data_adsense_rekap(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO data_adsense_rekap
+                        (
+                            data_adsense_rekap_id,
+                            account_id,
+                            data_adsense_rekap_tahun,
+                            data_adsense_rekap_bulan,
+                            data_adsense_rekap_tanggal,
+                            data_adsense_rekap_domain,
+                            data_adsense_rekap_impresi,
+                            data_adsense_rekap_click,
+                            data_adsense_rekap_cpc,
+                            data_adsense_rekap_ctr,
+                            data_adsense_rekap_cpm,
+                            data_adsense_rekap_page_views,
+                            data_adsense_rekap_page_views_rpm,
+                            data_adsense_rekap_ad_requests,
+                            data_adsense_rekap_ad_requests_coverage,
+                            data_adsense_rekap_active_view_viewability,
+                            data_adsense_rekap_active_view_measurability,
+                            data_adsense_rekap_active_view_time,
+                            data_adsense_rekap_revenue,
+                            mdb,
+                            mdb_name,
+                            mdd
+                        )
+                    VALUES
+                        (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['data_adsense_rekap_id'],
+                data['account_id'],
+                data['data_adsense_rekap_tahun'],
+                data['data_adsense_rekap_bulan'],
+                data['data_adsense_rekap_tanggal'],
+                data['data_adsense_rekap_domain'],
+                data['data_adsense_rekap_impresi'],
+                data['data_adsense_rekap_click'],
+                data['data_adsense_rekap_cpc'],
+                data['data_adsense_rekap_ctr'],
+                data['data_adsense_rekap_cpm'],
+                data['data_adsense_rekap_page_views'],
+                data['data_adsense_rekap_page_views_rpm'],
+                data['data_adsense_rekap_ad_requests'],
+                data['data_adsense_rekap_ad_requests_coverage'],
+                data['data_adsense_rekap_active_view_viewability'],
+                data['data_adsense_rekap_active_view_measurability'],
+                data['data_adsense_rekap_active_view_time'],
+                data['data_adsense_rekap_revenue'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data adsense rekap")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adsense rekap insert")
+            hasil = {
+                "status": True,
+                "message": "Data adsense rekap berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0] if e.args else e)
+            }
+        return {'hasil': hasil}
+
+    def delete_data_adx_rekap(self, account_id, domain, tahun, bulan, tanggal_tarik):
+        try:
+            sql_delete = """
+                        DELETE FROM data_adx_rekap
+                        WHERE account_id = %s
+                        AND data_adx_rekap_domain = %s
+                        AND data_adx_rekap_tahun = %s
+                        AND data_adx_rekap_bulan = %s
+                        AND data_adx_rekap_tanggal = %s
+                """
+            if not self.execute_query(sql_delete, (account_id, domain, tahun, bulan, tanggal_tarik)):
+                raise pymysql.Error("Failed to delete data adx rekap")
+            affected = self.cur_hris.rowcount if self.cur_hris else 0
+            if not self.commit():
+                raise pymysql.Error("Failed to commit delete data adx rekap")
+            hasil = {
+                "status": True,
+                "message": f"Berhasil menghapus {affected} baris rekap AdX",
+                "affected": affected
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0] if e.args else e)
+            }
+        return {'hasil': hasil}
+
+    def insert_data_adx_rekap(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO data_adx_rekap
+                        (
+                            data_adx_rekap_id,
+                            account_id,
+                            data_adx_rekap_tahun,
+                            data_adx_rekap_bulan,
+                            data_adx_rekap_tanggal,
+                            data_adx_rekap_domain,
+                            data_adx_rekap_impresi,
+                            data_adx_rekap_click,
+                            data_adx_rekap_cpc,
+                            data_adx_rekap_ctr,
+                            data_adx_rekap_cpm,
+                            data_adx_rekap_ecpm,
+                            data_adx_rekap_total_requests,
+                            data_adx_rekap_responses_served,
+                            data_adx_rekap_match_rate,
+                            data_adx_rekap_fill_rate,
+                            data_adx_rekap_active_view_pct_viewable,
+                            data_adx_rekap_active_view_avg_time_sec,
+                            data_adx_rekap_revenue,
+                            mdb,
+                            mdb_name,
+                            mdd
+                        )
+                    VALUES
+                        (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['data_adx_rekap_id'],
+                data['account_id'],
+                data['data_adx_rekap_tahun'],
+                data['data_adx_rekap_bulan'],
+                data['data_adx_rekap_tanggal'],
+                data['data_adx_rekap_domain'],
+                data['data_adx_rekap_impresi'],
+                data['data_adx_rekap_click'],
+                data['data_adx_rekap_cpc'],
+                data['data_adx_rekap_ctr'],
+                data['data_adx_rekap_cpm'],
+                data['data_adx_rekap_ecpm'],
+                data['data_adx_rekap_total_requests'],
+                data['data_adx_rekap_responses_served'],
+                data['data_adx_rekap_match_rate'],
+                data['data_adx_rekap_fill_rate'],
+                data['data_adx_rekap_active_view_pct_viewable'],
+                data['data_adx_rekap_active_view_avg_time_sec'],
+                data['data_adx_rekap_revenue'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data adx rekap")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adx rekap insert")
+            hasil = {
+                "status": True,
+                "message": "Data adx rekap berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0] if e.args else e)
+            }
+        return {'hasil': hasil}
+
+    def _normalize_domain_full(self, raw_value):
+        s = str(raw_value or '').strip().lower()
+        if not s:
+            return ''
+        s = re.sub(r'^https?://', '', s)
+        s = s.split('/')[0].split('?')[0].split('#')[0]
+        s = re.sub(r'^www\.', '', s)
+        return s
+
+    def _normalize_domain_match_key(self, raw_value):
+        s = self._normalize_domain_full(raw_value)
+        if not s:
+            return ''
+        parts = [p for p in s.split('.') if p]
+        if len(parts) >= 2:
+            return parts[0] + '.' + parts[1]
+        return s
+
+    def _domain_match_sql(self, column_expr):
+        return (
+            f"LOWER(SUBSTRING_INDEX(REPLACE(REPLACE(LOWER(TRIM({column_expr})), 'www.', ''), 'https://', ''), '.', 2)) = %s"
+        )
+
+    def _domain_filter_sql(self, column_expr, domain):
+        full = self._normalize_domain_full(domain)
+        parts = [p for p in full.split('.') if p]
+        if len(parts) > 2:
+            return (
+                f"LOWER(TRIM(REPLACE(REPLACE(LOWER(TRIM({column_expr})), 'www.', ''), 'https://', ''))) = %s",
+                [full],
+            )
+        key = self._normalize_domain_match_key(full)
+        return self._domain_match_sql(column_expr), [key]
+
+    def _compare_rekap_metric(self, daily_val, rekap_val):
+        daily = float(daily_val or 0)
+        rekap = float(rekap_val or 0)
+        delta = rekap - daily
+        if daily == 0 and rekap == 0:
+            return {
+                'daily': daily,
+                'rekap': rekap,
+                'delta': delta,
+                'delta_pct': 0.0,
+                'status': 'ok',
+            }
+        if daily == 0:
+            return {
+                'daily': daily,
+                'rekap': rekap,
+                'delta': delta,
+                'delta_pct': 100.0 if rekap else 0.0,
+                'status': 'invalid' if rekap else 'ok',
+            }
+        delta_pct = (delta / daily) * 100.0
+        ad = abs(delta_pct)
+        if ad <= 1.0:
+            status = 'ok'
+        elif ad <= 5.0:
+            status = 'warn'
+        else:
+            status = 'invalid'
+        return {
+            'daily': daily,
+            'rekap': rekap,
+            'delta': delta,
+            'delta_pct': delta_pct,
+            'status': status,
+        }
+
+    def _fetch_sum_row(self, sql, params):
+        self.cur_hris.execute(sql, tuple(params))
+        row = self.cur_hris.fetchone() or {}
+        return {k: float(row.get(k) or 0) for k in row.keys()}
+
+    def _resolve_rekap_tarik_date(self, table, date_col, year_col, month_col, domain_col, domain, year, month, tanggal_tarik=None):
+        if tanggal_tarik:
+            return str(tanggal_tarik).strip()
+        clause, domain_params = self._domain_filter_sql(domain_col, domain)
+        sql = f"""
+            SELECT MAX({date_col}) AS tanggal_tarik
+            FROM {table}
+            WHERE {year_col} = %s
+              AND {month_col} = %s
+              AND {clause}
+        """
+        self.cur_hris.execute(sql, (year, month, *domain_params))
+        row = self.cur_hris.fetchone() or {}
+        val = row.get('tanggal_tarik')
+        if hasattr(val, 'isoformat'):
+            return val.isoformat()
+        return str(val or '').strip()
+
+    def _list_rekap_tarik_dates(self, table, date_col, year_col, month_col, domain_col, domain, year, month):
+        clause, domain_params = self._domain_filter_sql(domain_col, domain)
+        sql = f"""
+            SELECT DISTINCT {date_col} AS tanggal_tarik
+            FROM {table}
+            WHERE {year_col} = %s
+              AND {month_col} = %s
+              AND {clause}
+            ORDER BY {date_col} DESC
+        """
+        self.cur_hris.execute(sql, (year, month, *domain_params))
+        rows = self.cur_hris.fetchall() or []
+        out = []
+        for row in rows:
+            val = row.get('tanggal_tarik')
+            if hasattr(val, 'isoformat'):
+                out.append(val.isoformat())
+            elif val:
+                out.append(str(val).strip())
+        return out
+
+    def get_rekap_vs_daily_compare(self, domain, year, month, tanggal_tarik=None):
+        """Compare monthly recap pulls vs summed daily tables for a domain."""
+        import calendar
+
+        try:
+            domain_full = self._normalize_domain_full(domain)
+            domain_key = self._normalize_domain_match_key(domain)
+            if not domain_key:
+                return {'status': False, 'data': 'Domain wajib diisi'}
+
+            year = str(year or '').strip()
+            month = str(month or '').strip().zfill(2)
+            if not year.isdigit() or not month.isdigit():
+                return {'status': False, 'data': 'Tahun/bulan tidak valid'}
+            month_int = int(month)
+            if month_int < 1 or month_int > 12:
+                return {'status': False, 'data': 'Bulan tidak valid'}
+
+            last_day = calendar.monthrange(int(year), month_int)[1]
+            start_date = f"{year}-{month}-01"
+            end_date = f"{year}-{month}-{last_day:02d}"
+            ads_clause, ads_params = self._domain_filter_sql('data_ads_domain', domain)
+            adsense_daily_clause, adsense_daily_params = self._domain_filter_sql('data_adsense_domain', domain)
+            adsense_rekap_clause, adsense_rekap_params = self._domain_filter_sql('data_adsense_rekap_domain', domain)
+            adx_daily_clause, adx_daily_params = self._domain_filter_sql('data_adx_domain', domain)
+            adx_rekap_clause, adx_rekap_params = self._domain_filter_sql('data_adx_rekap_domain', domain)
+            # Legacy names kept for hot-reload safety during partial refactors.
+            domain_clause_ads = ads_clause
+            domain_clause_adsense_daily = adsense_daily_clause
+            domain_clause_adsense_rekap = adsense_rekap_clause
+            domain_clause_adx_daily = adx_daily_clause
+            domain_clause_adx_rekap = adx_rekap_clause
+
+            def build_metrics(metric_defs, daily_row, rekap_row):
+                metrics = []
+                summary = {'ok': 0, 'warn': 0, 'invalid': 0, 'missing': 0}
+                for item in metric_defs:
+                    key = item['key']
+                    daily_val = daily_row.get(key, 0)
+                    rekap_val = rekap_row.get(key, 0)
+                    if not daily_row.get('_has_data') and not rekap_row.get('_has_data'):
+                        row = {
+                            'key': key,
+                            'label': item['label'],
+                            'kind': item.get('kind', 'number'),
+                            'daily': 0,
+                            'rekap': 0,
+                            'delta': 0,
+                            'delta_pct': 0,
+                            'status': 'missing',
+                        }
+                        summary['missing'] += 1
+                    else:
+                        row = self._compare_rekap_metric(daily_val, rekap_val)
+                        row['key'] = key
+                        row['label'] = item['label']
+                        row['kind'] = item.get('kind', 'number')
+                        summary[row['status']] = summary.get(row['status'], 0) + 1
+                    metrics.append(row)
+                return metrics, summary
+
+            sections = []
+            all_tarik_dates = set()
+
+            # Facebook Ads
+            fb_tarik = self._resolve_rekap_tarik_date(
+                'data_ads_rekap',
+                'data_ads_rekap_tanggal',
+                'data_ads_rekap_tahun',
+                'data_ads_rekap_bulan',
+                'data_ads_domain',
+                domain,
+                year,
+                month,
+                tanggal_tarik,
+            )
+            for d in self._list_rekap_tarik_dates(
+                'data_ads_rekap',
+                'data_ads_rekap_tanggal',
+                'data_ads_rekap_tahun',
+                'data_ads_rekap_bulan',
+                'data_ads_domain',
+                domain,
+                year,
+                month,
+            ):
+                all_tarik_dates.add(d)
+
+            fb_daily = {'_has_data': False}
+            sql_fb_daily = f"""
+                    SELECT
+                        COALESCE(SUM(CAST(data_ads_spend AS DECIMAL(18,4))), 0) AS spend,
+                        COALESCE(SUM(CAST(data_ads_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                        COALESCE(SUM(CAST(data_ads_click AS DECIMAL(18,4))), 0) AS click,
+                        COALESCE(SUM(CAST(data_ads_reach AS DECIMAL(18,4))), 0) AS reach,
+                        COALESCE(SUM(CAST(data_ads_lpv AS DECIMAL(18,4))), 0) AS lpv
+                    FROM data_ads_campaign
+                    WHERE DATE(data_ads_tanggal) BETWEEN %s AND %s
+                      AND {ads_clause}
+                """
+            fb_daily = self._fetch_sum_row(sql_fb_daily, [start_date, end_date, *ads_params])
+            fb_daily['_has_data'] = any(fb_daily.get(k, 0) for k in ['spend', 'impresi', 'click', 'reach', 'lpv'])
+
+            fb_rekap = {'_has_data': False}
+            if fb_tarik:
+                sql_fb_rekap = f"""
+                    SELECT
+                        COALESCE(SUM(CAST(data_ads_rekap_spend AS DECIMAL(18,4))), 0) AS spend,
+                        COALESCE(SUM(CAST(data_ads_rekap_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                        COALESCE(SUM(CAST(data_ads_rekap_click AS DECIMAL(18,4))), 0) AS click,
+                        COALESCE(SUM(CAST(data_ads_rekap_reach AS DECIMAL(18,4))), 0) AS reach,
+                        COALESCE(SUM(CAST(data_ads_rekap_lpv AS DECIMAL(18,4))), 0) AS lpv
+                    FROM data_ads_rekap
+                    WHERE data_ads_rekap_tahun = %s
+                      AND data_ads_rekap_bulan = %s
+                      AND data_ads_rekap_tanggal = %s
+                      AND {ads_clause}
+                """
+                fb_rekap = self._fetch_sum_row(sql_fb_rekap, [year, month, fb_tarik, *ads_params])
+                fb_rekap['_has_data'] = any(fb_rekap.get(k, 0) for k in ['spend', 'impresi', 'click', 'reach', 'lpv'])
+
+            fb_defs = [
+                {'key': 'spend', 'label': 'Spend', 'kind': 'money'},
+                {'key': 'impresi', 'label': 'Impresi', 'kind': 'number'},
+                {'key': 'click', 'label': 'Click', 'kind': 'number'},
+                {'key': 'reach', 'label': 'Reach', 'kind': 'number'},
+                {'key': 'lpv', 'label': 'LPV', 'kind': 'number'},
+            ]
+            fb_metrics, fb_summary = build_metrics(fb_defs, fb_daily, fb_rekap)
+            sections.append({
+                'key': 'facebook_ads',
+                'label': 'Facebook Ads',
+                'tanggal_tarik': fb_tarik or None,
+                'has_daily': bool(fb_daily.get('_has_data')),
+                'has_rekap': bool(fb_rekap.get('_has_data')),
+                'metrics': fb_metrics,
+                'summary': fb_summary,
+            })
+
+            # AdSense
+            adsense_tarik = self._resolve_rekap_tarik_date(
+                'data_adsense_rekap',
+                'data_adsense_rekap_tanggal',
+                'data_adsense_rekap_tahun',
+                'data_adsense_rekap_bulan',
+                'data_adsense_rekap_domain',
+                domain,
+                year,
+                month,
+                tanggal_tarik,
+            )
+            for d in self._list_rekap_tarik_dates(
+                'data_adsense_rekap',
+                'data_adsense_rekap_tanggal',
+                'data_adsense_rekap_tahun',
+                'data_adsense_rekap_bulan',
+                'data_adsense_rekap_domain',
+                domain,
+                year,
+                month,
+            ):
+                all_tarik_dates.add(d)
+
+            sql_adsense_daily = f"""
+                SELECT
+                    COALESCE(SUM(CAST(data_adsense_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_adsense_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_adsense_revenue AS DECIMAL(18,4))), 0) AS revenue,
+                    COALESCE(SUM(CAST(data_adsense_page_views AS DECIMAL(18,4))), 0) AS page_views,
+                    COALESCE(SUM(CAST(data_adsense_ad_requests AS DECIMAL(18,4))), 0) AS ad_requests
+                FROM data_adsense_domain
+                WHERE DATE(data_adsense_tanggal) BETWEEN %s AND %s
+                  AND {adsense_daily_clause}
+            """
+            adsense_daily = self._fetch_sum_row(sql_adsense_daily, [start_date, end_date, *adsense_daily_params])
+            adsense_daily['_has_data'] = any(
+                adsense_daily.get(k, 0) for k in ['impresi', 'click', 'revenue', 'page_views', 'ad_requests']
+            )
+
+            adsense_rekap = {'_has_data': False}
+            if adsense_tarik:
+                sql_adsense_rekap = f"""
+                    SELECT
+                        COALESCE(SUM(CAST(data_adsense_rekap_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                        COALESCE(SUM(CAST(data_adsense_rekap_click AS DECIMAL(18,4))), 0) AS click,
+                        COALESCE(SUM(CAST(data_adsense_rekap_revenue AS DECIMAL(18,4))), 0) AS revenue,
+                        COALESCE(SUM(CAST(data_adsense_rekap_page_views AS DECIMAL(18,4))), 0) AS page_views,
+                        COALESCE(SUM(CAST(data_adsense_rekap_ad_requests AS DECIMAL(18,4))), 0) AS ad_requests
+                    FROM data_adsense_rekap
+                    WHERE data_adsense_rekap_tahun = %s
+                      AND data_adsense_rekap_bulan = %s
+                      AND data_adsense_rekap_tanggal = %s
+                      AND {adsense_rekap_clause}
+                """
+                adsense_rekap = self._fetch_sum_row(sql_adsense_rekap, [year, month, adsense_tarik, *adsense_rekap_params])
+                adsense_rekap['_has_data'] = any(
+                    adsense_rekap.get(k, 0) for k in ['impresi', 'click', 'revenue', 'page_views', 'ad_requests']
+                )
+
+            adsense_defs = [
+                {'key': 'revenue', 'label': 'Revenue', 'kind': 'money'},
+                {'key': 'impresi', 'label': 'Impresi', 'kind': 'number'},
+                {'key': 'click', 'label': 'Click', 'kind': 'number'},
+                {'key': 'page_views', 'label': 'Page Views', 'kind': 'number'},
+                {'key': 'ad_requests', 'label': 'Ad Requests', 'kind': 'number'},
+            ]
+            adsense_metrics, adsense_summary = build_metrics(adsense_defs, adsense_daily, adsense_rekap)
+            sections.append({
+                'key': 'adsense',
+                'label': 'AdSense',
+                'tanggal_tarik': adsense_tarik or None,
+                'has_daily': bool(adsense_daily.get('_has_data')),
+                'has_rekap': bool(adsense_rekap.get('_has_data')),
+                'metrics': adsense_metrics,
+                'summary': adsense_summary,
+            })
+
+            # AdX
+            adx_tarik = self._resolve_rekap_tarik_date(
+                'data_adx_rekap',
+                'data_adx_rekap_tanggal',
+                'data_adx_rekap_tahun',
+                'data_adx_rekap_bulan',
+                'data_adx_rekap_domain',
+                domain,
+                year,
+                month,
+                tanggal_tarik,
+            )
+            for d in self._list_rekap_tarik_dates(
+                'data_adx_rekap',
+                'data_adx_rekap_tanggal',
+                'data_adx_rekap_tahun',
+                'data_adx_rekap_bulan',
+                'data_adx_rekap_domain',
+                domain,
+                year,
+                month,
+            ):
+                all_tarik_dates.add(d)
+
+            sql_adx_daily = f"""
+                SELECT
+                    COALESCE(SUM(CAST(data_adx_domain_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_adx_domain_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_adx_domain_revenue AS DECIMAL(18,4))), 0) AS revenue,
+                    COALESCE(SUM(CAST(data_adx_domain_total_requests AS DECIMAL(18,4))), 0) AS total_requests,
+                    COALESCE(SUM(CAST(data_adx_domain_responses_served AS DECIMAL(18,4))), 0) AS responses_served
+                FROM data_adx_domain
+                WHERE DATE(data_adx_domain_tanggal) BETWEEN %s AND %s
+                  AND {adx_daily_clause}
+            """
+            adx_daily = self._fetch_sum_row(sql_adx_daily, [start_date, end_date, *adx_daily_params])
+            adx_daily['_has_data'] = any(
+                adx_daily.get(k, 0) for k in ['impresi', 'click', 'revenue', 'total_requests', 'responses_served']
+            )
+
+            adx_rekap = {'_has_data': False}
+            if adx_tarik:
+                sql_adx_rekap = (
+                    "SELECT"
+                    " COALESCE(SUM(CAST(data_adx_rekap_impresi AS DECIMAL(18,4))), 0) AS impresi,"
+                    " COALESCE(SUM(CAST(data_adx_rekap_click AS DECIMAL(18,4))), 0) AS click,"
+                    " COALESCE(SUM(CAST(data_adx_rekap_revenue AS DECIMAL(18,4))), 0) AS revenue,"
+                    " COALESCE(SUM(CAST(data_adx_rekap_total_requests AS DECIMAL(18,4))), 0) AS total_requests,"
+                    " COALESCE(SUM(CAST(data_adx_rekap_responses_served AS DECIMAL(18,4))), 0) AS responses_served"
+                    " FROM data_adx_rekap"
+                    " WHERE data_adx_rekap_tahun = %s"
+                    " AND data_adx_rekap_bulan = %s"
+                    " AND data_adx_rekap_tanggal = %s"
+                    " AND " + adx_rekap_clause
+                )
+                adx_rekap = self._fetch_sum_row(sql_adx_rekap, [year, month, adx_tarik, *adx_rekap_params])
+                adx_rekap['_has_data'] = any(
+                    adx_rekap.get(k, 0) for k in ['impresi', 'click', 'revenue', 'total_requests', 'responses_served']
+                )
+
+            adx_defs = [
+                {'key': 'revenue', 'label': 'Revenue', 'kind': 'money'},
+                {'key': 'impresi', 'label': 'Impresi', 'kind': 'number'},
+                {'key': 'click', 'label': 'Click', 'kind': 'number'},
+                {'key': 'total_requests', 'label': 'Requests', 'kind': 'number'},
+                {'key': 'responses_served', 'label': 'Responses', 'kind': 'number'},
+            ]
+            adx_metrics, adx_summary = build_metrics(adx_defs, adx_daily, adx_rekap)
+            sections.append({
+                'key': 'adx',
+                'label': 'AdX',
+                'tanggal_tarik': adx_tarik or None,
+                'has_daily': bool(adx_daily.get('_has_data')),
+                'has_rekap': bool(adx_rekap.get('_has_data')),
+                'metrics': adx_metrics,
+                'summary': adx_summary,
+            })
+
+            overall = {'ok': 0, 'warn': 0, 'invalid': 0, 'missing': 0}
+            for sec in sections:
+                for k in overall.keys():
+                    overall[k] += int((sec.get('summary') or {}).get(k, 0))
+
+            resolved_tarik = str(tanggal_tarik or '').strip() or fb_tarik or adsense_tarik or adx_tarik or ''
+            available_tarik = sorted(list(all_tarik_dates), reverse=True)
+
+            return {
+                'status': True,
+                'data': {
+                    'domain': str(domain or '').strip(),
+                    'domain_key': domain_key,
+                    'domain_full': domain_full,
+                    'year': year,
+                    'month': month,
+                    'period': {'start': start_date, 'end': end_date},
+                    'tanggal_tarik': resolved_tarik or None,
+                    'available_tarik_dates': available_tarik,
+                    'summary': overall,
+                    'sections': sections,
+                },
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0] if e.args else e}',
+            }
 
     def insert_data_ads_country(self, data):
         try:

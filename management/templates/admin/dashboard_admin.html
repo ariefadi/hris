@@ -3018,6 +3018,52 @@ html[data-theme="dark"] .score-detail-modal__body .scx-modal-nav-label {
 }
 .score-detail-modal__body .scx-val-up { color: #047857; font-weight: 800; }
 .score-detail-modal__body .scx-val-down { color: #dc2626; font-weight: 800; }
+.score-detail-modal__body .scx-invalid-shell .scx-invalid-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.score-detail-modal__body .scx-invalid-summary-box {
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: rgba(248, 250, 252, 0.72);
+}
+.score-detail-modal__body .scx-invalid-summary-box .k { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
+.score-detail-modal__body .scx-invalid-summary-box .v { font-size: 20px; font-weight: 800; margin-top: 2px; }
+.score-detail-modal__body .scx-invalid-status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+.score-detail-modal__body .scx-invalid-status-pill.is-ok { background: rgba(16, 185, 129, 0.14); color: #047857; }
+.score-detail-modal__body .scx-invalid-status-pill.is-warn { background: rgba(245, 158, 11, 0.16); color: #b45309; }
+.score-detail-modal__body .scx-invalid-status-pill.is-invalid { background: rgba(239, 68, 68, 0.14); color: #b91c1c; }
+.score-detail-modal__body .scx-invalid-status-pill.is-missing { background: rgba(148, 163, 184, 0.18); color: #475569; }
+.score-detail-modal__body .scx-invalid-section { margin-top: 16px; }
+.score-detail-modal__body .scx-invalid-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-invalid-summary-box {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-invalid-status-pill.is-ok { color: #6ee7b7; }
+html[data-theme="dark"] .score-detail-modal__body .scx-invalid-status-pill.is-warn { color: #fcd34d; }
+html[data-theme="dark"] .score-detail-modal__body .scx-invalid-status-pill.is-invalid { color: #fca5a5; }
+html[data-theme="dark"] .score-detail-modal__body .scx-invalid-status-pill.is-missing { color: #cbd5e1; }
 .score-detail-modal__body .scx-chart-box {
     position: relative;
     height: 300px;
@@ -3089,13 +3135,694 @@ html[data-theme="dark"] .score-detail-modal__body .scx-analytic-hourly-scroll {
 html[data-theme="dark"] .score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead th {
     box-shadow: 0 1px 0 rgba(148, 163, 184, 0.18);
 }
+.score-detail-modal__body .scx-analytic-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.score-detail-modal__body .scx-analytic-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.score-detail-modal__body .scx-analytic-lead {
+    max-width: 620px;
+    margin-top: 4px;
+}
+.score-detail-modal__body .scx-analytic-toolbar {
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+}
+.score-detail-modal__body .scx-analytic-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.score-detail-modal__body .scx-analytic-shell #scxAnalyticSummary .scx-metric-summary-grid {
+    margin-bottom: 0;
+}
+.score-detail-modal__body #scxAnalyticOverview {
+    margin-top: 10px;
+}
+.score-detail-modal__body .scx-analytic-insights {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+@media (max-width: 991.98px) {
+    .score-detail-modal__body .scx-analytic-insights { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 575.98px) {
+    .score-detail-modal__body .scx-analytic-insights { grid-template-columns: 1fr; }
+}
+.score-detail-modal__body .scx-analytic-insight {
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.92);
+}
+.score-detail-modal__body .scx-analytic-insight .k {
+    display: block;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+.score-detail-modal__body .scx-analytic-insight .v {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #0f172a;
+}
+.score-detail-modal__body .scx-analytic-insight-hint {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+}
+.score-detail-modal__body .scx-analytic-block-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #0f172a;
+}
+.score-detail-modal__body .scx-analytic-block-sub {
+    margin-top: 2px;
+    margin-bottom: 8px;
+}
+.score-detail-modal__body .scx-analytic-day-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+    gap: 12px;
+}
+.score-detail-modal__body .scx-analytic-day-card {
+    position: relative;
+    width: 100%;
+    text-align: left;
+    border: 1px solid rgba(99, 102, 241, 0.14);
+    border-radius: 15px;
+    padding: 14px 13px 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+    cursor: pointer;
+}
+.score-detail-modal__body .scx-analytic-day-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(99, 102, 241, 0.28);
+    box-shadow: 0 14px 28px rgba(99, 102, 241, 0.12);
+}
+.score-detail-modal__body .scx-analytic-day-card.is-up { border-left: 4px solid #10b981; }
+.score-detail-modal__body .scx-analytic-day-card.is-down { border-left: 4px solid #ef4444; }
+.score-detail-modal__body .scx-analytic-day-card__rank {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #94a3b8;
+    letter-spacing: 0.02em;
+}
+.score-detail-modal__body .scx-analytic-day-card__top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 28px;
+}
+.score-detail-modal__body .scx-analytic-day-card__icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+.score-detail-modal__body .scx-analytic-day-card__date {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.3;
+}
+.score-detail-modal__body .scx-analytic-day-card__ymd {
+    font-size: 10px;
+    color: #6366f1;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.1);
+    flex-shrink: 0;
+}
+.score-detail-modal__body .scx-analytic-day-card__roi {
+    margin-top: 10px;
+    font-size: 1.18rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+.score-detail-modal__body .scx-analytic-day-card.is-up .scx-analytic-day-card__roi { color: #047857; }
+.score-detail-modal__body .scx-analytic-day-card.is-down .scx-analytic-day-card__roi { color: #dc2626; }
+.score-detail-modal__body .scx-analytic-day-card__metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(148, 163, 184, 0.35);
+}
+.score-detail-modal__body .scx-analytic-day-card__metric .k {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #94a3b8;
+}
+.score-detail-modal__body .scx-analytic-day-card__metric .v {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #334155;
+}
+.score-detail-modal__body .scx-analytic-day-card__foot {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: #475569;
+    font-weight: 600;
+}
+.score-detail-modal__body .scx-analytic-day-card__foot em {
+    font-style: normal;
+    color: #94a3b8;
+    font-weight: 700;
+    margin-right: 4px;
+}
+.score-detail-modal__body .scx-analytic-chart-block {
+    padding: 12px 14px 8px;
+    border-radius: 14px;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    background: linear-gradient(180deg, rgba(238,242,255,0.45), rgba(255,255,255,0.96));
+}
+.score-detail-modal__body .scx-analytic-chart-box {
+    height: 240px;
+}
+.score-detail-modal__body .scx-analytic-detail-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.score-detail-modal__body .scx-analytic-detail-panel {
+    border: 1px solid rgba(99, 102, 241, 0.14);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.94);
+    overflow: hidden;
+}
+.score-detail-modal__body .scx-analytic-detail-panel[open] {
+    box-shadow: 0 12px 28px rgba(99, 102, 241, 0.10);
+}
+.score-detail-modal__body .scx-analytic-detail-summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+    background: linear-gradient(180deg, rgba(248,250,252,0.98), rgba(255,255,255,0.98));
+}
+.score-detail-modal__body .scx-analytic-detail-summary::-webkit-details-marker { display: none; }
+.score-detail-modal__body .scx-analytic-detail-summary__main {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #312e81;
+}
+.score-detail-modal__body .scx-analytic-detail-summary__main i {
+    color: #6366f1;
+}
+.score-detail-modal__body .scx-analytic-detail-summary__hint {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.08);
+}
+.score-detail-modal__body .scx-analytic-detail-panel[open] .scx-analytic-detail-summary {
+    border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+}
+.score-detail-modal__body .scx-analytic-detail-body {
+    padding: 12px 14px 14px;
+}
+.score-detail-modal__body .scx-analytic-lazy-hint {
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px dashed rgba(99, 102, 241, 0.22);
+    background: linear-gradient(135deg, rgba(248,250,252,0.96), rgba(238,242,255,0.92));
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-toolbar,
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-chart-block,
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-detail-panel,
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-insight,
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-day-card {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-insight .v,
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-block-title,
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-day-card__date {
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-day-card__foot { color: #cbd5e1; }
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-day-card__metric .v { color: #cbd5e1; }
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-day-card__metrics { border-top-color: rgba(148, 163, 184, 0.22); }
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-day-card.is-up .scx-analytic-day-card__roi { color: #6ee7b7; }
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-day-card.is-down .scx-analytic-day-card__roi { color: #fca5a5; }
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-detail-summary {
+    background: rgba(30, 41, 59, 0.72);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-detail-summary__main { color: #c7d2fe; }
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-lazy-hint {
+    background: rgba(30, 41, 59, 0.55);
+    color: #94a3b8;
+}
+.score-detail-modal__body .scx-analytic-daily-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    background: rgba(248, 250, 252, 0.72);
+}
+.score-detail-modal__body .scx-analytic-daily-focus-note {
+    font-size: 12px;
+    color: #475569;
+    font-weight: 600;
+}
+.score-detail-modal__body .scx-analytic-toggle-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    cursor: pointer;
+    user-select: none;
+}
+.score-detail-modal__body .scx-analytic-toggle-row input {
+    width: 15px;
+    height: 15px;
+    accent-color: #6366f1;
+}
+.score-detail-modal__body .scx-analytic-compare-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+}
+.score-detail-modal__body .scx-analytic-compare-bar__label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+.score-detail-modal__body .scx-analytic-compare-bar__chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.score-detail-modal__body .scx-analytic-compare-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(99, 102, 241, 0.18);
+    background: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    color: #4338ca;
+    cursor: pointer;
+    user-select: none;
+    transition: all .15s ease;
+}
+.score-detail-modal__body .scx-analytic-compare-chip.is-on {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(129, 140, 248, 0.18));
+    border-color: rgba(99, 102, 241, 0.34);
+    color: #312e81;
+}
+.score-detail-modal__body .scx-analytic-compare-chip input {
+    width: 14px;
+    height: 14px;
+    accent-color: #6366f1;
+}
+.score-detail-modal__body .scx-analytic-table tbody tr.scx-analytic-row-focus td {
+    background: rgba(99, 102, 241, 0.08);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-daily-controls,
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-compare-chip {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-daily-focus-note,
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-toggle-row {
+    color: #cbd5e1;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-compare-chip.is-on {
+    background: rgba(99, 102, 241, 0.22);
+    color: #c7d2fe;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-table tbody tr.scx-analytic-row-focus td {
+    background: rgba(99, 102, 241, 0.16);
+}
+.score-detail-modal__body .scx-monitoring-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.score-detail-modal__body .scx-monitoring-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.score-detail-modal__body .scx-monitoring-lead {
+    max-width: 640px;
+    margin-top: 4px;
+}
 .score-detail-modal__body .scx-monitoring-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 12px 14px;
-    margin-bottom: 14px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
 }
+.score-detail-modal__body .scx-monitoring-toolbar .scx-monitoring-range-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+    flex: 0 0 auto;
+}
+.score-detail-modal__body .scx-monitoring-shell #scxMonitoringSummary .scx-metric-summary-grid {
+    margin-bottom: 0;
+}
+.score-detail-modal__body #scxMonitoringOverview {
+    margin-top: 10px;
+}
+.score-detail-modal__body .scx-monitoring-overview-section {
+    padding: 18px 16px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(99, 102, 241, 0.14);
+    background: linear-gradient(180deg, rgba(238, 242, 255, 0.42), rgba(255, 255, 255, 0.98));
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+}
+.score-detail-modal__body .scx-monitoring-overview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+}
+.score-detail-modal__body .scx-monitoring-overview-head__main {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+}
+.score-detail-modal__body .scx-monitoring-overview-head__icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    font-size: 17px;
+    flex-shrink: 0;
+    box-shadow: 0 8px 18px rgba(99, 102, 241, 0.28);
+}
+.score-detail-modal__body .scx-monitoring-overview-head__title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+}
+.score-detail-modal__body .scx-monitoring-overview-head__sub {
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    line-height: 1.45;
+}
+.score-detail-modal__body .scx-monitoring-overview-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex: 0 0 auto;
+}
+.score-detail-modal__body .scx-monitoring-insights {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+@media (max-width: 991.98px) {
+    .score-detail-modal__body .scx-monitoring-insights { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 575.98px) {
+    .score-detail-modal__body .scx-monitoring-insights { grid-template-columns: 1fr; }
+}
+.score-detail-modal__body .scx-monitoring-insight {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    border-radius: 13px;
+    padding: 11px 12px 10px 14px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+}
+.score-detail-modal__body .scx-monitoring-insight::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+}
+.score-detail-modal__body .scx-monitoring-insight.is-best::before { background: linear-gradient(180deg, #10b981, #34d399); }
+.score-detail-modal__body .scx-monitoring-insight.is-worst::before { background: linear-gradient(180deg, #ef4444, #f87171); }
+.score-detail-modal__body .scx-monitoring-insight.is-avg::before { background: linear-gradient(180deg, #6366f1, #818cf8); }
+.score-detail-modal__body .scx-monitoring-insight.is-count::before { background: linear-gradient(180deg, #64748b, #94a3b8); }
+.score-detail-modal__body .scx-monitoring-insight__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
+}
+.score-detail-modal__body .scx-monitoring-insight.is-best .scx-monitoring-insight__icon { color: #047857; background: rgba(16, 185, 129, 0.12); }
+.score-detail-modal__body .scx-monitoring-insight.is-worst .scx-monitoring-insight__icon { color: #dc2626; background: rgba(239, 68, 68, 0.1); }
+.score-detail-modal__body .scx-monitoring-insight .k {
+    display: block;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+.score-detail-modal__body .scx-monitoring-insight .v {
+    display: block;
+    margin-top: 3px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.35;
+}
+.score-detail-modal__body .scx-monitoring-insight__meta {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6366f1;
+}
+.score-detail-modal__body .scx-monitoring-insight.is-best .scx-monitoring-insight__meta { color: #047857; }
+.score-detail-modal__body .scx-monitoring-insight.is-worst .scx-monitoring-insight__meta { color: #dc2626; }
+.score-detail-modal__body .scx-monitoring-insight-hint {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+}
+.score-detail-modal__body .scx-monitoring-country-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+    gap: 12px;
+}
+.score-detail-modal__body .scx-monitoring-country-card {
+    position: relative;
+    width: 100%;
+    text-align: left;
+    border: 1px solid rgba(99, 102, 241, 0.14);
+    border-radius: 15px;
+    padding: 14px 13px 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+    cursor: pointer;
+}
+.score-detail-modal__body .scx-monitoring-country-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(99, 102, 241, 0.28);
+    box-shadow: 0 14px 28px rgba(99, 102, 241, 0.12);
+}
+.score-detail-modal__body .scx-monitoring-country-card.is-selected {
+    border-color: rgba(99, 102, 241, 0.45);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.16), 0 12px 24px rgba(99, 102, 241, 0.1);
+}
+.score-detail-modal__body .scx-monitoring-country-card.is-up { border-left: 4px solid #10b981; }
+.score-detail-modal__body .scx-monitoring-country-card.is-down { border-left: 4px solid #ef4444; }
+.score-detail-modal__body .scx-monitoring-country-card__rank {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #94a3b8;
+    letter-spacing: 0.02em;
+}
+.score-detail-modal__body .scx-monitoring-country-card__top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 28px;
+}
+.score-detail-modal__body .scx-monitoring-country-card__flag {
+    font-size: 20px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.score-detail-modal__body .scx-monitoring-country-card__name {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.3;
+}
+.score-detail-modal__body .scx-monitoring-country-card__code {
+    font-size: 10px;
+    font-weight: 800;
+    color: #6366f1;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.1);
+    flex-shrink: 0;
+}
+.score-detail-modal__body .scx-monitoring-country-card__roi {
+    margin-top: 10px;
+    font-size: 1.18rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+.score-detail-modal__body .scx-monitoring-country-card.is-up .scx-monitoring-country-card__roi { color: #047857; }
+.score-detail-modal__body .scx-monitoring-country-card.is-down .scx-monitoring-country-card__roi { color: #dc2626; }
+.score-detail-modal__body .scx-monitoring-country-card__metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(148, 163, 184, 0.35);
+}
+.score-detail-modal__body .scx-monitoring-country-card__metric .k {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #94a3b8;
+}
+.score-detail-modal__body .scx-monitoring-country-card__metric .v {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #334155;
+}
+.score-detail-modal__body .scx-monitoring-country-card__foot {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: #475569;
+    font-weight: 600;
+}
+.score-detail-modal__body .scx-monitoring-chart-block {
+    padding: 12px 14px 8px;
+    border-radius: 14px;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    background: linear-gradient(180deg, rgba(238,242,255,0.45), rgba(255,255,255,0.96));
+}
+.score-detail-modal__body .scx-monitoring-chart-box {
+    height: 220px;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-toolbar,
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-chart-block,
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-overview-section,
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-country-card,
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-insight {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-overview-head {
+    border-bottom-color: rgba(148, 163, 184, 0.14);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-overview-head__title { color: #e2e8f0; }
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-overview-head__sub { color: #94a3b8; }
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-insight .v { color: #e2e8f0; }
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-country-card__name { color: #e2e8f0; }
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-country-card__foot { color: #cbd5e1; }
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-country-card__metric .v { color: #cbd5e1; }
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-country-card__metrics { border-top-color: rgba(148, 163, 184, 0.22); }
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-country-card.is-up .scx-monitoring-country-card__roi { color: #6ee7b7; }
+html[data-theme="dark"] .score-detail-modal__body .scx-monitoring-country-card.is-down .scx-monitoring-country-card__roi { color: #fca5a5; }
 .score-detail-modal__body .scx-monitoring-range-filters {
     display: flex;
     flex-wrap: wrap;
@@ -11831,8 +12558,184 @@ function initDashboardRecap() {
         const label = String(dateLabelText || '').trim();
         const labelHtml = label ? ` <span id="scxMonitoringChartDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;">${esc(label)}</span>` : ' <span id="scxMonitoringChartDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span>';
         const tableLabelHtml = label ? ` <span id="scxMonitoringCountryDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;">${esc(label)}</span>` : ' <span id="scxMonitoringCountryDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span>';
-        if (chartTitle) chartTitle.innerHTML = (isCountryDim ? 'Grafik ROI per Subdomain' : 'Grafik ROI per Negara') + labelHtml;
-        if (tableTitle) tableTitle.innerHTML = (isCountryDim ? 'Subdomain & Campaign' : 'Tabel Monitoring Negara') + tableLabelHtml;
+        if (chartTitle) chartTitle.textContent = (isCountryDim ? 'Grafik ROI Subdomain' : 'Grafik ROI Negara') + (label ? ` ${label.replace(/^•\s*/, '')}` : '');
+        if (tableTitle) tableTitle.textContent = (isCountryDim ? 'Subdomain & Campaign' : 'Tabel Negara') + (label ? ` ${label.replace(/^•\s*/, '')}` : '');
+    }
+
+    function scxRenderMonitoringInsightsStrip(rows) {
+        if (!Array.isArray(rows) || !rows.length) return '';
+        const sorted = rows.slice().sort(function(a, b) { return Number(b.roi || 0) - Number(a.roi || 0); });
+        const best = sorted[0];
+        const worst = sorted[sorted.length - 1];
+        const avgRoi = rows.reduce(function(s, r) {
+            const m = scxMonitoringCountryRowMetrics(r);
+            return s + Number(m.roi || 0);
+        }, 0) / rows.length;
+        const bestM = scxMonitoringCountryRowMetrics(best);
+        const worstM = scxMonitoringCountryRowMetrics(worst);
+        return `<div class="scx-monitoring-insights">
+            <div class="scx-monitoring-insight is-best">
+                <span class="scx-monitoring-insight__icon"><i class="bi bi-trophy"></i></span>
+                <span class="k">Negara terbaik</span>
+                <span class="v">${esc(scxMonitoringCountryName(best))}</span>
+                <span class="scx-monitoring-insight__meta">${esc(fmtPct(bestM.roi))} ROI</span>
+            </div>
+            <div class="scx-monitoring-insight is-worst">
+                <span class="scx-monitoring-insight__icon"><i class="bi bi-arrow-down-circle"></i></span>
+                <span class="k">Negara terendah</span>
+                <span class="v">${esc(scxMonitoringCountryName(worst))}</span>
+                <span class="scx-monitoring-insight__meta">${esc(fmtPct(worstM.roi))} ROI</span>
+            </div>
+            <div class="scx-monitoring-insight is-avg">
+                <span class="scx-monitoring-insight__icon"><i class="bi bi-graph-up"></i></span>
+                <span class="k">Rata-rata ROI</span>
+                <span class="v">${esc(fmtPct(avgRoi))}</span>
+                <span class="scx-monitoring-insight__meta">Semua negara aktif</span>
+            </div>
+            <div class="scx-monitoring-insight is-count">
+                <span class="scx-monitoring-insight__icon"><i class="bi bi-hand-index"></i></span>
+                <span class="k">${rows.length} negara</span>
+                <span class="v scx-monitoring-insight-hint">Klik kartu di bawah</span>
+                <span class="scx-monitoring-insight__meta">Untuk fokus cepat</span>
+            </div>
+        </div>`;
+    }
+
+    function scxRenderMonitoringCountryCards(rows, selectedCountries) {
+        if (!Array.isArray(rows) || !rows.length) {
+            return '<div class="scx-sub" style="padding:10px 0;">Belum ada data negara untuk tanggal ini.</div>';
+        }
+        const selected = new Set((selectedCountries || []).map(function(c) { return String(c).trim().toUpperCase(); }));
+        const hasFilter = selected.size > 0;
+        const sorted = rows.slice().sort(function(a, b) { return Number(b.roi || 0) - Number(a.roi || 0); });
+        const cards = sorted.map(function(r, idx) {
+            const code = scxMonitoringCountryCode(r);
+            const m = scxMonitoringCountryRowMetrics(r);
+            const roiCls = m.roi >= 0 ? 'is-up' : 'is-down';
+            const isSelected = hasFilter && selected.has(code);
+            const rank = idx + 1;
+            return `<button type="button" class="scx-monitoring-country-card ${roiCls}${isSelected ? ' is-selected' : ''}" data-monitoring-focus-country="${esc(code)}" title="Fokus ke ${esc(scxMonitoringCountryName(r))}">
+                <span class="scx-monitoring-country-card__rank">#${rank}</span>
+                <div class="scx-monitoring-country-card__top">
+                    <span class="scx-monitoring-country-card__flag" aria-hidden="true">${esc(scxCountryFlagEmoji(code))}</span>
+                    <span class="scx-monitoring-country-card__name">${esc(scxMonitoringCountryName(r))}</span>
+                    <span class="scx-monitoring-country-card__code">${esc(code)}</span>
+                </div>
+                <div class="scx-monitoring-country-card__roi">${esc(fmtPct(m.roi))}</div>
+                <div class="scx-monitoring-country-card__metrics">
+                    <div class="scx-monitoring-country-card__metric"><span class="k">Spend</span><span class="v">${esc(fmtIdr(m.spend))}</span></div>
+                    <div class="scx-monitoring-country-card__metric"><span class="k">Revenue</span><span class="v">${esc(fmtIdr(m.revenue))}</span></div>
+                </div>
+            </button>`;
+        }).join('');
+        return `<div class="scx-monitoring-country-grid">${cards}</div>`;
+    }
+
+    function scxRenderMonitoringOverviewHeader(title, subtitle, resetBtnHtml, iconClass) {
+        const icon = String(iconClass || 'bi-globe-americas').trim() || 'bi-globe-americas';
+        return `<div class="scx-monitoring-overview-head">
+            <div class="scx-monitoring-overview-head__main">
+                <div class="scx-monitoring-overview-head__icon"><i class="bi ${esc(icon)}"></i></div>
+                <div>
+                    <div class="scx-monitoring-overview-head__title">${esc(title)}</div>
+                    <div class="scx-monitoring-overview-head__sub">${esc(subtitle)}</div>
+                </div>
+            </div>
+            ${resetBtnHtml ? `<div class="scx-monitoring-overview-actions">${resetBtnHtml}</div>` : ''}
+        </div>`;
+    }
+
+    function scxRenderMonitoringOverview(cache) {
+        if (!cache) return '';
+        if (cache.isCountryBreakdownMode) {
+            const rows = cache.breakdownRows || [];
+            return `<div class="scx-monitoring-overview-section">
+                ${scxRenderMonitoringOverviewHeader('Top Subdomain / Campaign', 'Performa subdomain dengan spend tertinggi untuk negara ini.', '')}
+                ${scxRenderMonitoringBreakdownOverview(rows, { skipTitle: true })}
+            </div>`;
+        }
+        const rows = scxGetMonitoringActiveRows(cache);
+        const selected = Array.isArray(cache.selectedCountries) ? cache.selectedCountries : [];
+        const hasFilter = selected.length > 0;
+        const resetBtn = hasFilter
+            ? '<button type="button" class="btn btn-sm btn-outline-secondary" data-monitoring-show-all><i class="bi bi-x-circle"></i> Lihat semua negara</button>'
+            : '';
+        return `<div class="scx-monitoring-overview-section">
+            ${scxRenderMonitoringOverviewHeader('Ringkasan Negara', 'Performa per negara · klik kartu untuk fokus cepat', resetBtn)}
+            ${scxRenderMonitoringInsightsStrip(rows)}
+            ${scxRenderMonitoringCountryCards(rows, cache.selectedCountries)}
+        </div>`;
+    }
+
+    function scxRenderMonitoringBreakdownOverview(rows, opts) {
+        opts = opts || {};
+        if (!Array.isArray(rows) || !rows.length) {
+            return '<div class="scx-sub" style="padding:10px 0;">Belum ada data subdomain/campaign.</div>';
+        }
+        const top = rows.slice().sort(function(a, b) { return Number(b.spend || 0) - Number(a.spend || 0); }).slice(0, 6);
+        const cards = top.map(function(r, idx) {
+            const spend = Number(r.spend || 0);
+            const revenue = Number(r.revenue || 0);
+            const roi = Number(r.roi != null ? r.roi : (spend > 0 ? ((revenue - spend) / spend * 100) : 0));
+            const roiCls = roi >= 0 ? 'is-up' : 'is-down';
+            const label = String(r.subdomain || r.domain || '-');
+            return `<div class="scx-monitoring-country-card ${roiCls}" style="cursor:default;">
+                <span class="scx-monitoring-country-card__rank">#${idx + 1}</span>
+                <div class="scx-monitoring-country-card__top">
+                    <span class="scx-monitoring-country-card__name">${esc(label)}</span>
+                </div>
+                <div class="scx-monitoring-country-card__roi">${esc(fmtPct(roi))}</div>
+                <div class="scx-monitoring-country-card__metrics">
+                    <div class="scx-monitoring-country-card__metric"><span class="k">Campaign</span><span class="v">${esc(String(r.campaign || r.campaign_name || '-'))}</span></div>
+                    <div class="scx-monitoring-country-card__metric"><span class="k">Spend</span><span class="v">${esc(fmtIdr(spend))}</span></div>
+                </div>
+            </div>`;
+        }).join('');
+        const titleHtml = opts.skipTitle ? '' : '<div class="scx-analytic-block-title">Top Subdomain / Campaign</div>';
+        return `${titleHtml}<div class="scx-monitoring-country-grid">${cards}</div>`;
+    }
+
+    function scxRenderMonitoringTableControls(cache) {
+        if (!cache || cache.isCountryBreakdownMode) return '';
+        return `<div class="scx-analytic-daily-controls">
+            <div class="scx-analytic-daily-focus-note">Tabel default menampilkan performa negara saat ini. Aktifkan H-1 jika perlu melihat perubahan dari hari sebelumnya.</div>
+            <label class="scx-analytic-toggle-row">
+                <input type="checkbox" id="scxMonitoringShowH1Compare" ${cache.showH1Compare ? 'checked' : ''} />
+                <span>Tampilkan perbandingan H-1 (Δ pendapatan & ROI)</span>
+            </label>
+        </div>`;
+    }
+
+    function scxRenderMonitoringDailyControls(cache) {
+        if (!cache) return '';
+        const focusDate = String(cache.focusDate || '').trim();
+        const focusLabel = focusDate
+            ? `${scxFormatAnalyticDayShort(focusDate)} (${focusDate})`
+            : 'tanggal terakhir';
+        const note = cache.showAllDays
+            ? 'Menampilkan semua hari dalam range. Centang H-x untuk kolom perbandingan historis.'
+            : `Menampilkan data <strong>${esc(focusLabel)}</strong> terlebih dulu.`;
+        return `<div class="scx-analytic-daily-controls">
+            <div class="scx-analytic-daily-focus-note">${note}</div>
+            <label class="scx-analytic-toggle-row">
+                <input type="checkbox" id="scxMonitoringShowAllDays" ${cache.showAllDays ? 'checked' : ''} />
+                <span>Tampilkan semua hari dalam range</span>
+            </label>
+            ${scxRenderAnalyticCompareToggles('monitoring-daily', cache.compareOffsets, SCX_ANALYTIC_COMPARE_OFFSETS)}
+        </div>`;
+    }
+
+    function scxRefreshMonitoringDailyTable() {
+        const controlsEl = document.getElementById('scxMonitoringDailyControls');
+        const dailyWrap = document.getElementById('scxMonitoringDailyWrap');
+        const cache = window.scxMonitoringDailyCache;
+        if (!dailyWrap || !cache) return;
+        if (controlsEl) controlsEl.innerHTML = scxRenderMonitoringDailyControls(cache);
+        dailyWrap.innerHTML = scxRenderAnalyticDailyTable(cache.rows, cache.historyMap, {
+            compareOffsets: cache.compareOffsets,
+            showAllDays: !!cache.showAllDays,
+            focusDate: cache.focusDate
+        });
     }
 
     function scxDeltaCellHtml(delta, isPct) {
@@ -11850,6 +12753,212 @@ function initDashboardRecap() {
             <div class="scx-metric-summary-box revenue"><div class="k">Total Revenue</div><div class="v">${esc(fmtIdr(revenue))}</div></div>
             <div class="scx-metric-summary-box roi"><div class="k">ROI Nett</div><div class="v">${esc(fmtPct(roi))}</div></div>
         </div>`;
+    }
+
+    function scxFormatAnalyticDayShort(ymd) {
+        const s = String(ymd || '').trim();
+        if (!s) return '-';
+        const dt = new Date(`${s}T00:00:00`);
+        if (!isFinite(dt.getTime())) return s;
+        return dt.toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short' });
+    }
+
+    function scxRenderAnalyticInsightsStrip(rows) {
+        if (!Array.isArray(rows) || !rows.length) return '';
+        let best = rows[0];
+        let worst = rows[0];
+        rows.forEach(function(r) {
+            if (Number(r.roi) > Number(best.roi)) best = r;
+            if (Number(r.roi) < Number(worst.roi)) worst = r;
+        });
+        const avgRoi = rows.reduce(function(s, r) { return s + Number(r.roi || 0); }, 0) / rows.length;
+        return `<div class="scx-monitoring-insights">
+            <div class="scx-monitoring-insight is-best">
+                <span class="scx-monitoring-insight__icon"><i class="bi bi-trophy"></i></span>
+                <span class="k">Hari terbaik</span>
+                <span class="v">${esc(scxFormatAnalyticDayShort(best.date))}</span>
+                <span class="scx-monitoring-insight__meta">${esc(fmtPct(best.roi))} ROI</span>
+            </div>
+            <div class="scx-monitoring-insight is-worst">
+                <span class="scx-monitoring-insight__icon"><i class="bi bi-arrow-down-circle"></i></span>
+                <span class="k">Hari terendah</span>
+                <span class="v">${esc(scxFormatAnalyticDayShort(worst.date))}</span>
+                <span class="scx-monitoring-insight__meta">${esc(fmtPct(worst.roi))} ROI</span>
+            </div>
+            <div class="scx-monitoring-insight is-avg">
+                <span class="scx-monitoring-insight__icon"><i class="bi bi-graph-up"></i></span>
+                <span class="k">Rata-rata ROI</span>
+                <span class="v">${esc(fmtPct(avgRoi))}</span>
+                <span class="scx-monitoring-insight__meta">Semua hari dalam range</span>
+            </div>
+            <div class="scx-monitoring-insight is-count">
+                <span class="scx-monitoring-insight__icon"><i class="bi bi-hand-index"></i></span>
+                <span class="k">${rows.length} hari</span>
+                <span class="v scx-monitoring-insight-hint">Klik kartu di bawah</span>
+                <span class="scx-monitoring-insight__meta">Untuk detail per jam</span>
+            </div>
+        </div>`;
+    }
+
+    function scxRenderAnalyticDailyCards(rows) {
+        if (!Array.isArray(rows) || !rows.length) {
+            return '<div class="scx-sub" style="padding:10px 0;">Tidak ada data harian untuk rentang ini.</div>';
+        }
+        const sorted = rows.slice().sort(function(a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+        const cards = sorted.map(function(r, idx) {
+            const roi = Number(r.roi || 0);
+            const roiCls = roi >= 0 ? 'is-up' : 'is-down';
+            const dateYmd = String(r.date || '');
+            const rank = idx + 1;
+            return `<button type="button" class="scx-analytic-day-card ${roiCls}" data-analytic-day="${esc(dateYmd)}" title="Lihat detail per jam ${esc(dateYmd)}">
+                <span class="scx-analytic-day-card__rank">#${rank}</span>
+                <div class="scx-analytic-day-card__top">
+                    <span class="scx-analytic-day-card__icon" aria-hidden="true"><i class="bi bi-calendar-event"></i></span>
+                    <span class="scx-analytic-day-card__date">${esc(scxFormatAnalyticDayShort(dateYmd))}</span>
+                </div>
+                <div class="scx-analytic-day-card__roi">${esc(fmtPct(roi))}</div>
+                <div class="scx-analytic-day-card__metrics">
+                    <div class="scx-analytic-day-card__metric"><span class="k">Spend</span><span class="v">${esc(fmtIdr(r.spend))}</span></div>
+                    <div class="scx-analytic-day-card__metric"><span class="k">Revenue</span><span class="v">${esc(fmtIdr(r.revenue))}</span></div>
+                </div>
+            </button>`;
+        }).join('');
+        return `<div class="scx-analytic-day-grid">${cards}</div>`;
+    }
+
+    function scxRenderAnalyticOverview(rows) {
+        return `<div class="scx-monitoring-overview-section">
+            ${scxRenderMonitoringOverviewHeader('Ringkasan Harian', 'Performa per hari · klik kartu untuk detail per jam', '', 'bi-calendar3')}
+            ${scxRenderAnalyticInsightsStrip(rows)}
+            ${scxRenderAnalyticDailyCards(rows)}
+        </div>`;
+    }
+
+    function scxUpdateAnalyticHourlyDateLabel() {
+        const hourlyDateLabel = document.getElementById('scxAnalyticHourlyDateLabel');
+        const cache = window.scxAnalyticHourlyCache;
+        if (!hourlyDateLabel || !cache) return;
+        const dates = scxDatesWithHourlyData(cache.hourlyByDate, cache.rangeDates);
+        hourlyDateLabel.textContent = dates.length > 1
+            ? `${cache.selectedDate || dates[dates.length - 1]} • ${dates.length} hari`
+            : String(cache.selectedDate || dates[0] || 'Detail per jam');
+    }
+
+    function scxEnsureAnalyticHourlyRendered() {
+        const hourlyWrap = document.getElementById('scxAnalyticHourlyWrap');
+        const cache = window.scxAnalyticHourlyCache;
+        if (!hourlyWrap || !cache) return;
+        hourlyWrap.innerHTML = scxRenderAnalyticHourlySection(
+            cache.hourlyByDate,
+            cache.rangeDates,
+            cache.selectedDate,
+            cache.compact,
+            cache.compareOffsets
+        );
+        hourlyWrap.dataset.rendered = '1';
+        scxUpdateAnalyticHourlyDateLabel();
+    }
+
+    function scxOpenAnalyticHourlyForDate(dateYmd, pane) {
+        const cache = window.scxAnalyticHourlyCache;
+        if (!cache) return;
+        cache.selectedDate = String(dateYmd || cache.selectedDate || '').trim();
+        const root = pane || document;
+        const hourlyPanel = root.querySelector('[data-analytic-panel="hourly"]');
+        if (hourlyPanel) hourlyPanel.open = true;
+        scxEnsureAnalyticHourlyRendered();
+        if (hourlyPanel) {
+            requestAnimationFrame(function() {
+                hourlyPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        }
+    }
+
+    function scxNormalizeAnalyticCompareOffsets(rawOffsets, allowedOffsets) {
+        const allowed = Array.isArray(allowedOffsets) ? allowedOffsets : [];
+        const picked = new Set((Array.isArray(rawOffsets) ? rawOffsets : []).map(function(v) { return Number(v); }));
+        return allowed.filter(function(off) { return picked.has(off); });
+    }
+
+    function scxRenderAnalyticCompareToggles(kind, activeOffsets, allOffsets) {
+        const label = kind === 'daily'
+            ? 'Perbandingan historis'
+            : 'Perbandingan jam sama';
+        const active = new Set(scxNormalizeAnalyticCompareOffsets(activeOffsets, allOffsets));
+        const chips = (allOffsets || []).map(function(off) {
+            const on = active.has(off);
+            return `<label class="scx-analytic-compare-chip ${on ? 'is-on' : ''}">
+                <input type="checkbox" class="scx-analytic-compare-input" data-compare-kind="${esc(kind)}" data-compare-offset="${off}" ${on ? 'checked' : ''} />
+                <span>H-${off}</span>
+            </label>`;
+        }).join('');
+        return `<div class="scx-analytic-compare-bar" data-compare-bar="${esc(kind)}">
+            <span class="scx-analytic-compare-bar__label">${label}</span>
+            <div class="scx-analytic-compare-bar__chips">${chips}</div>
+        </div>`;
+    }
+
+    function scxRenderAnalyticDailyControls(cache) {
+        if (!cache) return '';
+        const focusDate = String(cache.focusDate || '').trim();
+        const focusLabel = focusDate
+            ? `${scxFormatAnalyticDayShort(focusDate)} (${focusDate})`
+            : 'tanggal terakhir';
+        const note = cache.showAllDays
+            ? 'Menampilkan semua hari dalam range. Centang H-x di bawah untuk menambah kolom perbandingan.'
+            : `Menampilkan data <strong>${esc(focusLabel)}</strong> terlebih dulu. Aktifkan perbandingan H-x jika diperlukan.`;
+        return `<div class="scx-analytic-daily-controls">
+            <div class="scx-analytic-daily-focus-note">${note}</div>
+            <label class="scx-analytic-toggle-row">
+                <input type="checkbox" id="scxAnalyticShowAllDays" ${cache.showAllDays ? 'checked' : ''} />
+                <span>Tampilkan semua hari dalam range</span>
+            </label>
+            ${scxRenderAnalyticCompareToggles('daily', cache.compareOffsets, SCX_ANALYTIC_COMPARE_OFFSETS)}
+        </div>`;
+    }
+
+    function scxRefreshAnalyticDailyTable() {
+        const controlsEl = document.getElementById('scxAnalyticDailyControls');
+        const dailyWrap = document.getElementById('scxAnalyticDailyWrap');
+        const cache = window.scxAnalyticDailyCache;
+        if (!dailyWrap || !cache) return;
+        if (controlsEl) controlsEl.innerHTML = scxRenderAnalyticDailyControls(cache);
+        dailyWrap.innerHTML = scxRenderAnalyticDailyTable(cache.rows, cache.historyMap, {
+            compareOffsets: cache.compareOffsets,
+            showAllDays: !!cache.showAllDays,
+            focusDate: cache.focusDate
+        });
+    }
+
+    function scxToggleAnalyticCompareOffset(kind, offset, enabled) {
+        const off = Number(offset);
+        if (!Number.isFinite(off)) return;
+        if (kind === 'daily') {
+            const cache = window.scxAnalyticDailyCache;
+            if (!cache) return;
+            const set = new Set(scxNormalizeAnalyticCompareOffsets(cache.compareOffsets, SCX_ANALYTIC_COMPARE_OFFSETS));
+            if (enabled) set.add(off); else set.delete(off);
+            cache.compareOffsets = SCX_ANALYTIC_COMPARE_OFFSETS.filter(function(v) { return set.has(v); });
+            scxRefreshAnalyticDailyTable();
+            return;
+        }
+        if (kind === 'hourly') {
+            const cache = window.scxAnalyticHourlyCache;
+            if (!cache) return;
+            const set = new Set(scxNormalizeAnalyticCompareOffsets(cache.compareOffsets, SCX_ANALYTIC_HOURLY_COMPARE_OFFSETS));
+            if (enabled) set.add(off); else set.delete(off);
+            cache.compareOffsets = SCX_ANALYTIC_HOURLY_COMPARE_OFFSETS.filter(function(v) { return set.has(v); });
+            scxRefreshAnalyticHourlySection();
+            return;
+        }
+        if (kind === 'monitoring-daily') {
+            const cache = window.scxMonitoringDailyCache;
+            if (!cache) return;
+            const set = new Set(scxNormalizeAnalyticCompareOffsets(cache.compareOffsets, SCX_ANALYTIC_COMPARE_OFFSETS));
+            if (enabled) set.add(off); else set.delete(off);
+            cache.compareOffsets = SCX_ANALYTIC_COMPARE_OFFSETS.filter(function(v) { return set.has(v); });
+            scxRefreshMonitoringDailyTable();
+        }
     }
 
     function scxAggregateHourlyFromPayload(payload) {
@@ -12083,41 +13192,283 @@ function initDashboardRecap() {
     function scxRenderAnalyticPane(defaultDate) {
         const d = esc(String(defaultDate || ''));
         return `<div data-scx-tab-pane="analytic" hidden>
-            <div class="scx-card">
-                <div class="scx-title">Analytic Performa Domain</div>
-                <div class="scx-sub" style="margin-bottom:12px;">Ringkasan spend, revenue, dan ROI per jam serta perbandingan harian dalam rentang tanggal yang dipilih.</div>
-                <div class="scx-range-filters">
-                    <div class="scx-range-field"><label>Dari</label><input type="text" class="form-control scx-analytic-start" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
-                    <div class="scx-range-field"><label>Sampai</label><input type="text" class="form-control scx-analytic-end" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
+            <div class="scx-card scx-analytic-shell">
+                <div class="scx-analytic-head">
+                    <div>
+                        <div class="scx-title">Analytic Performa</div>
+                        <div class="scx-sub scx-analytic-lead">Ringkasan performa dalam rentang tanggal. Detail tabel dan per jam tersedia saat Anda membuka panel di bawah.</div>
+                    </div>
                     <span class="scx-sub scx-analytic-status" style="margin:0;"></span>
                 </div>
+                <div class="scx-analytic-toolbar">
+                    <div class="scx-range-filters">
+                        <div class="scx-range-field"><label>Dari</label><input type="text" class="form-control scx-analytic-start" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
+                        <div class="scx-range-field"><label>Sampai</label><input type="text" class="form-control scx-analytic-end" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
+                    </div>
+                </div>
                 <div id="scxAnalyticSummary">${scxRenderMetricSummaryBoxes(0, 0, 0)}</div>
-                <div class="scx-sub" style="margin-bottom:10px;">Total spend/revenue dihitung dari snapshot jam terakhir yang tercatat (bukan penjumlahan semua jam).</div>
-                <div class="scx-section-gap">
-                    <div class="scx-title">Perbandingan Harian (Range Tanggal)</div>
-                    <div class="scx-sub" style="margin-bottom:8px;">Performa harian dalam rentang yang dipilih, dibandingkan dengan H-1, H-3, H-7, dan H-14 dari tanggal yang sama.</div>
-                    <div id="scxAnalyticDailyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data...</div></div>
+                <div id="scxAnalyticOverview" class="scx-analytic-overview"><div class="scx-sub" style="padding:14px;">Memuat ringkasan...</div></div>
+                <div class="scx-analytic-chart-block">
+                    <div class="scx-analytic-block-title">Trend ROI Per Jam</div>
+                    <div class="scx-sub scx-analytic-block-sub">Perbandingan visual antar tanggal dalam range.</div>
+                    <div class="scx-chart-box scx-analytic-chart-box"><canvas id="scxAnalyticRoiChart"></canvas></div>
                 </div>
-                <div class="scx-section-gap">
-                    <div class="scx-title">Data Per Jam — <span id="scxAnalyticHourlyDateLabel">Range Tanggal</span></div>
-                    <div class="scx-sub" style="margin-bottom:8px;">Detail per jam (01:00–23:00). Pilih tanggal jika rentang lebih dari satu hari. Mode <em>Ringkas</em> hanya menampilkan perubahan (Δ), mode <em>Lengkap</em> menampilkan nilai referensi + perubahan.</div>
-                    <div id="scxAnalyticHourlyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data per jam...</div></div>
-                </div>
-                <div class="scx-section-gap">
-                    <div class="scx-title">Grafik ROI Per Jam (Range Tanggal)</div>
-                    <div class="scx-sub" style="margin-bottom:8px;">Sumbu X menampilkan jam (00:00 s/d jam terakhir). Setiap garis mewakili satu tanggal dalam range untuk perbandingan ROI per jam.</div>
-                    <div class="scx-chart-box"><canvas id="scxAnalyticRoiChart"></canvas></div>
+                <div class="scx-analytic-detail-stack">
+                    <details class="scx-analytic-detail-panel" data-analytic-panel="daily-compare">
+                        <summary class="scx-analytic-detail-summary">
+                            <span class="scx-analytic-detail-summary__main"><i class="bi bi-table"></i> Perbandingan Harian Lengkap</span>
+                            <span class="scx-analytic-detail-summary__hint">Data harian + perbandingan opsional</span>
+                        </summary>
+                        <div class="scx-analytic-detail-body">
+                            <div class="scx-sub" style="margin-bottom:8px;">Fokus ke tanggal terakhir range. Aktifkan checkbox H-x jika perlu melihat perbandingan historis.</div>
+                            <div id="scxAnalyticDailyControls"></div>
+                            <div id="scxAnalyticDailyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data...</div></div>
+                        </div>
+                    </details>
+                    <details class="scx-analytic-detail-panel" data-analytic-panel="hourly">
+                        <summary class="scx-analytic-detail-summary">
+                            <span class="scx-analytic-detail-summary__main"><i class="bi bi-clock-history"></i> Data Per Jam</span>
+                            <span class="scx-analytic-detail-summary__hint" id="scxAnalyticHourlyDateLabel">Detail 01:00-23:00</span>
+                        </summary>
+                        <div class="scx-analytic-detail-body">
+                            <div class="scx-sub" style="margin-bottom:8px;">Default menampilkan jam berjalan + perbandingan Jam Lalu. Centang H-x untuk perbandingan jam sama historis.</div>
+                            <div id="scxAnalyticHourlyWrap" class="scx-data-table-wrap"><div class="scx-analytic-lazy-hint">Panel ini akan dimuat saat dibuka atau saat Anda memilih tanggal.</div></div>
+                        </div>
+                    </details>
                 </div>
             </div>
         </div>`;
     }
 
+    function scxDefaultRekapMonthFromDate(ymd) {
+        const d = String(ymd || '').trim();
+        if (!d) return { year: '', month: '', label: '' };
+        const parts = d.split('-');
+        let y = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        if (!y || !m) return { year: '', month: '', label: '' };
+        m -= 1;
+        if (m < 1) { m = 12; y -= 1; }
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        return {
+            year: String(y),
+            month: String(m).padStart(2, '0'),
+            label: monthNames[m - 1] + ' ' + y
+        };
+    }
+
+    function scxFormatRekapMetricValue(kind, value) {
+        const n = Number(value || 0);
+        if (kind === 'money') return fmtIdr(n);
+        if (kind === 'pct') return fmtPct(n);
+        return scxNum(n, n >= 1000 ? 0 : 2);
+    }
+
+    function scxRenderInvalidStatusPill(status) {
+        const st = String(status || 'missing').toLowerCase();
+        const labelMap = { ok: 'OK', warn: 'WARN', invalid: 'INVALID', missing: 'MISSING' };
+        return `<span class="scx-invalid-status-pill is-${esc(st)}">${esc(labelMap[st] || st.toUpperCase())}</span>`;
+    }
+
+    function scxRenderRekapCompareTable(section) {
+        const metrics = Array.isArray(section?.metrics) ? section.metrics : [];
+        if (!metrics.length) {
+            return '<div class="scx-sub" style="padding:12px;">Tidak ada metrik untuk dibandingkan.</div>';
+        }
+        let html = '<div class="scx-data-table-wrap"><table class="scx-data-table scx-analytic-table"><thead><tr>';
+        html += '<th>Metrik</th><th class="text-end">Harian (Σ)</th><th class="text-end">Rekap Bulanan</th><th class="text-end">Delta</th><th class="text-end">Delta %</th><th class="text-end">Status</th>';
+        html += '</tr></thead><tbody>';
+        metrics.forEach(function(m) {
+            const kind = String(m.kind || 'number');
+            const deltaCls = Number(m.delta || 0) >= 0 ? 'scx-val-up' : 'scx-val-down';
+            html += '<tr>';
+            html += `<td>${esc(String(m.label || m.key || '-'))}</td>`;
+            html += `<td class="text-end">${esc(scxFormatRekapMetricValue(kind, m.daily))}</td>`;
+            html += `<td class="text-end">${esc(scxFormatRekapMetricValue(kind, m.rekap))}</td>`;
+            html += `<td class="text-end"><span class="${deltaCls}">${esc(scxFormatRekapMetricValue(kind, m.delta))}</span></td>`;
+            html += `<td class="text-end"><span class="${deltaCls}">${esc(fmtPct(Number(m.delta_pct || 0)))}</span></td>`;
+            html += `<td class="text-end">${scxRenderInvalidStatusPill(m.status)}</td>`;
+            html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+        return html;
+    }
+
+    function scxRenderInvalidDataSummary(summary) {
+        const s = summary || {};
+        const items = [
+            { key: 'invalid', label: 'Invalid', tone: '#b91c1c' },
+            { key: 'warn', label: 'Warn', tone: '#b45309' },
+            { key: 'ok', label: 'OK', tone: '#047857' },
+            { key: 'missing', label: 'Missing', tone: '#64748b' }
+        ];
+        return `<div class="scx-invalid-summary-grid">${items.map(function(it) {
+            return `<div class="scx-invalid-summary-box"><div class="k">${esc(it.label)}</div><div class="v" style="color:${it.tone};">${esc(scxNum(Number(s[it.key] || 0), 0))}</div></div>`;
+        }).join('')}</div>`;
+    }
+
+    function scxRenderInvalidDataSections(sections) {
+        const list = Array.isArray(sections) ? sections : [];
+        if (!list.length) {
+            return '<div class="scx-sub" style="padding:14px;">Belum ada data rekap atau harian untuk periode ini.</div>';
+        }
+        return list.map(function(sec) {
+            const summary = sec.summary || {};
+            const badge = Number(summary.invalid || 0) > 0
+                ? `<span class="scx-invalid-status-pill is-invalid">${esc(scxNum(summary.invalid, 0))} invalid</span>`
+                : (Number(summary.warn || 0) > 0
+                    ? `<span class="scx-invalid-status-pill is-warn">${esc(scxNum(summary.warn, 0))} warn</span>`
+                    : `<span class="scx-invalid-status-pill is-ok">Selaras</span>`);
+            const meta = [];
+            if (sec.has_daily === false) meta.push('Harian kosong');
+            if (sec.has_rekap === false) meta.push('Rekap kosong');
+            if (sec.tanggal_tarik) meta.push('Tarik ' + String(sec.tanggal_tarik));
+            return `<div class="scx-invalid-section">
+                <div class="scx-invalid-section-head">
+                    <div class="scx-title">${esc(String(sec.label || sec.key || '-'))}</div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${badge}${meta.length ? `<span class="scx-sub">${esc(meta.join(' • '))}</span>` : ''}</div>
+                </div>
+                ${scxRenderRekapCompareTable(sec)}
+            </div>`;
+        }).join('');
+    }
+
+    function scxRenderInvalidDataPane(defaultDate) {
+        const monthInfo = scxDefaultRekapMonthFromDate(defaultDate);
+        const monthOptions = ['01','02','03','04','05','06','07','08','09','10','11','12'].map(function(mm) {
+            const names = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+            const selected = mm === monthInfo.month ? ' selected' : '';
+            return `<option value="${mm}"${selected}>${names[parseInt(mm, 10) - 1]}</option>`;
+        }).join('');
+        return `<div data-scx-tab-pane="invalid_data" hidden>
+            <div class="scx-card scx-invalid-shell">
+                <div class="scx-analytic-head">
+                    <div>
+                        <div class="scx-title">Invalid Data</div>
+                        <div class="scx-sub scx-analytic-lead">Perbandingan agregat harian vs rekap bulanan (AdSense, AdX, Facebook Ads). Selisih &gt;5% ditandai invalid, 1–5% warn, ≤1% OK.</div>
+                    </div>
+                    <span class="scx-sub scx-invalid-status" style="margin:0;"></span>
+                </div>
+                <div class="scx-analytic-toolbar">
+                    <div class="scx-range-filters">
+                        <div class="scx-range-field"><label>Tahun</label><input type="number" class="form-control scx-invalid-year" value="${esc(monthInfo.year)}" min="2020" max="2099"></div>
+                        <div class="scx-range-field"><label>Bulan</label><select class="form-control scx-invalid-month">${monthOptions}</select></div>
+                        <div class="scx-range-field"><label>Tanggal Tarik</label><select class="form-control scx-invalid-tarik"><option value="">Terbaru</option></select></div>
+                        <div class="scx-range-field scx-invalid-actions"><label>&nbsp;</label><button type="button" class="btn btn-sm btn-primary scx-invalid-reload">Muat Ulang</button></div>
+                    </div>
+                </div>
+                <div id="scxInvalidSummary"></div>
+                <div id="scxInvalidSections"><div class="scx-sub" style="padding:14px;">Memuat perbandingan rekap...</div></div>
+            </div>
+        </div>`;
+    }
+
+    async function fetchScoreDetailRekapCompare(domain, year, month, tanggalTarik) {
+        const payload = {
+            domain: String(domain || '').trim(),
+            year: String(year || '').trim(),
+            month: String(month || '').trim(),
+        };
+        if (tanggalTarik) payload.tanggal_tarik = String(tanggalTarik).trim();
+        const res = await fetch('/management/admin/dashboard_scoring_rekap_compare', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (!json || !json.status) {
+            throw new Error(json?.error || 'Gagal memuat perbandingan rekap');
+        }
+        return json.data || {};
+    }
+
+    function scxPopulateInvalidTarikSelect(selectEl, dates, selectedValue) {
+        if (!selectEl) return;
+        const list = Array.isArray(dates) ? dates.slice() : [];
+        const selected = String(selectedValue || '').trim();
+        let html = '<option value="">Terbaru</option>';
+        list.forEach(function(d) {
+            const val = String(d || '').trim();
+            if (!val) return;
+            html += `<option value="${esc(val)}"${val === selected ? ' selected' : ''}>${esc(val)}</option>`;
+        });
+        selectEl.innerHTML = html;
+        if (selected && !list.includes(selected)) {
+            selectEl.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
+        }
+    }
+
+    async function loadScoreDetailInvalidDataTab(row, state) {
+        const pane = document.querySelector('[data-scx-tab-pane="invalid_data"]');
+        if (!pane) return;
+        const scope = resolveScoreDetailScope(row, state);
+        const domain = scope.domain;
+        const statusEl = pane.querySelector('.scx-invalid-status');
+        const summaryEl = document.getElementById('scxInvalidSummary');
+        const sectionsEl = document.getElementById('scxInvalidSections');
+        const yearEl = pane.querySelector('.scx-invalid-year');
+        const monthEl = pane.querySelector('.scx-invalid-month');
+        const tarikEl = pane.querySelector('.scx-invalid-tarik');
+        if (!yearEl || !monthEl) return;
+        if (!domain) {
+            if (sectionsEl) sectionsEl.innerHTML = '<div class="scx-sub" style="padding:14px;">Domain tidak ditemukan.</div>';
+            return;
+        }
+        const year = String(yearEl.value || '').trim();
+        const month = String(monthEl.value || '').trim();
+        const tanggalTarik = tarikEl ? String(tarikEl.value || '').trim() : '';
+        if (statusEl) statusEl.textContent = 'Memuat...';
+        try {
+            const data = await fetchScoreDetailRekapCompare(domain, year, month, tanggalTarik);
+            scxPopulateInvalidTarikSelect(tarikEl, data.available_tarik_dates, data.tanggal_tarik);
+            if (summaryEl) {
+                const period = data.period || {};
+                const lead = period.start && period.end
+                    ? `Periode harian ${esc(String(period.start))} s/d ${esc(String(period.end))} • Domain ${esc(String(data.domain || domain))}`
+                    : `Domain ${esc(String(data.domain || domain))}`;
+                summaryEl.innerHTML = `<div class="scx-sub" style="margin-bottom:10px;">${lead}</div>${scxRenderInvalidDataSummary(data.summary)}`;
+            }
+            if (sectionsEl) sectionsEl.innerHTML = scxRenderInvalidDataSections(data.sections);
+            if (statusEl) {
+                const invalidCount = Number((data.summary || {}).invalid || 0);
+                statusEl.textContent = invalidCount > 0
+                    ? `${invalidCount} metrik invalid`
+                    : 'Perbandingan selesai';
+            }
+        } catch (e) {
+            if (summaryEl) summaryEl.innerHTML = '';
+            if (sectionsEl) sectionsEl.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat invalid data'))}</div>`;
+            if (statusEl) statusEl.textContent = 'Gagal memuat';
+        }
+    }
+
+    function bindScoreDetailInvalidDataTab(row, state) {
+        const pane = document.querySelector('[data-scx-tab-pane="invalid_data"]');
+        if (!pane || pane.dataset.bound === '1') return;
+        pane.dataset.bound = '1';
+        const yearEl = pane.querySelector('.scx-invalid-year');
+        const monthEl = pane.querySelector('.scx-invalid-month');
+        const tarikEl = pane.querySelector('.scx-invalid-tarik');
+        const reloadBtn = pane.querySelector('.scx-invalid-reload');
+        const run = function() { loadScoreDetailInvalidDataTab(row, state).catch(function(){}); };
+        if (reloadBtn) reloadBtn.addEventListener('click', run);
+        [yearEl, monthEl, tarikEl].forEach(function(el) {
+            if (!el) return;
+            el.addEventListener('change', run);
+        });
+    }
+
     function scxRenderMonitoringPane(defaultDate, sourceLabel) {
         const d = esc(String(defaultDate || ''));
         return `<div data-scx-tab-pane="monitoring" hidden>
-            <div class="scx-card">
-                <div class="scx-title">Monitoring Negara</div>
-                <div class="scx-sub" style="margin-bottom:12px;">Performa per negara untuk domain ini (${esc(sourceLabel)}). Urutan grafik dari ROI tertinggi ke terendah.</div>
+            <div class="scx-card scx-monitoring-shell">
+                <div class="scx-monitoring-head">
+                    <div>
+                        <div class="scx-title">Monitoring Negara</div>
+                        <div class="scx-sub scx-monitoring-lead">Ringkasan performa per negara untuk domain ini (${esc(sourceLabel)}). Gunakan filter tanggal dan negara di toolbar, lalu lihat ringkasan dan grafik di bawah.</div>
+                    </div>
+                    <span class="scx-sub scx-monitoring-status" style="margin:0;"></span>
+                </div>
                 <div class="scx-monitoring-toolbar">
                     <div class="scx-monitoring-range-filters">
                         <div class="scx-range-field"><label>Dari</label><input type="text" class="form-control scx-monitoring-start" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
@@ -12151,22 +13502,37 @@ function initDashboardRecap() {
                             <div class="scx-sub scx-monitoring-country-filter-meta" id="scxMonitoringSubdomainFilterMeta"></div>
                         </div>
                     </div>
-                    <span class="scx-sub scx-monitoring-status" style="margin:0;align-self:center;"></span>
                 </div>
                 <div id="scxMonitoringSummary">${scxRenderMetricSummaryBoxes(0, 0, 0)}</div>
-                <div class="scx-section-gap" id="scxMonitoringDailySection" hidden>
-                    <div class="scx-title">Perbandingan Harian (Range Tanggal)</div>
-                    <div class="scx-sub" style="margin-bottom:8px;">Total performa domain per hari dalam rentang yang dipilih, dibandingkan dengan H-1, H-3, H-7, dan H-14.</div>
-                    <div id="scxMonitoringDailyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat perbandingan harian...</div></div>
+                <div id="scxMonitoringOverview" class="scx-analytic-overview"><div class="scx-sub" style="padding:14px;">Memuat ringkasan...</div></div>
+                <div class="scx-monitoring-chart-block">
+                    <div class="scx-analytic-block-title" id="scxMonitoringChartTitle">Grafik ROI Negara</div>
+                    <div class="scx-sub scx-analytic-block-sub" id="scxMonitoringChartDateLabel"></div>
+                    <div class="scx-chart-box scx-monitoring-chart-box"><canvas id="scxMonitoringRoiChart"></canvas></div>
                 </div>
-                <div class="scx-section-gap">
-                    <div class="scx-title" id="scxMonitoringChartTitle">Grafik ROI per Negara <span id="scxMonitoringChartDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span></div>
-                    <div class="scx-chart-box"><canvas id="scxMonitoringRoiChart"></canvas></div>
-                </div>
-                <div class="scx-section-gap">
-                    <div class="scx-title" id="scxMonitoringTableTitle">Tabel Monitoring Negara <span id="scxMonitoringCountryDateLabel" class="scx-sub" style="font-weight:600;margin-left:6px;"></span></div>
-                    <div class="scx-sub" style="margin-bottom:8px;" id="scxMonitoringCountryHint">Performa per negara untuk rentang tanggal yang dipilih. Kolom H-1 membandingkan dengan hari sebelumnya.</div>
-                    <div id="scxMonitoringTableWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data monitoring...</div></div>
+                <div class="scx-analytic-detail-stack">
+                    <details class="scx-analytic-detail-panel" data-monitoring-panel="table">
+                        <summary class="scx-analytic-detail-summary">
+                            <span class="scx-analytic-detail-summary__main"><i class="bi bi-table"></i> <span id="scxMonitoringTableTitle">Tabel Negara</span></span>
+                            <span class="scx-analytic-detail-summary__hint" id="scxMonitoringCountryDateLabel">Detail lengkap</span>
+                        </summary>
+                        <div class="scx-analytic-detail-body">
+                            <div class="scx-sub" style="margin-bottom:8px;" id="scxMonitoringCountryHint">Performa per negara untuk tanggal yang dipilih.</div>
+                            <div id="scxMonitoringTableControls"></div>
+                            <div id="scxMonitoringTableWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data monitoring...</div></div>
+                        </div>
+                    </details>
+                    <details class="scx-analytic-detail-panel" id="scxMonitoringDailySection" data-monitoring-panel="daily">
+                        <summary class="scx-analytic-detail-summary">
+                            <span class="scx-analytic-detail-summary__main"><i class="bi bi-calendar3"></i> Perbandingan Harian</span>
+                            <span class="scx-analytic-detail-summary__hint">Multi hari • H-x opsional</span>
+                        </summary>
+                        <div class="scx-analytic-detail-body">
+                            <div class="scx-sub" style="margin-bottom:8px;">Fokus ke tanggal terakhir range. Aktifkan H-x jika perlu perbandingan historis.</div>
+                            <div id="scxMonitoringDailyControls"></div>
+                            <div id="scxMonitoringDailyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat perbandingan harian...</div></div>
+                        </div>
+                    </details>
                 </div>
             </div>
         </div>`;
@@ -12180,35 +13546,57 @@ function initDashboardRecap() {
         window[key] = null;
     }
 
-    function scxRenderAnalyticDailyTable(rows, historyMap) {
+    function scxRenderAnalyticDailyTable(rows, historyMap, opts) {
+        const options = opts || {};
+        const compareOffsets = Array.isArray(options.compareOffsets)
+            ? scxNormalizeAnalyticCompareOffsets(options.compareOffsets, SCX_ANALYTIC_COMPARE_OFFSETS)
+            : (options.showAllCompare === true ? SCX_ANALYTIC_COMPARE_OFFSETS.slice() : []);
+        const showAllDays = options.showAllDays === true;
+        const focusDate = String(options.focusDate || '').trim();
         if (!Array.isArray(rows) || !rows.length) {
             return '<div class="scx-sub" style="padding:14px;">Tidak ada data harian untuk rentang tanggal ini.</div>';
         }
-        const offsets = SCX_ANALYTIC_COMPARE_OFFSETS;
+        let displayRows = rows.slice();
+        if (!showAllDays) {
+            const focusRows = focusDate
+                ? displayRows.filter(function(r) { return String(r.date || '') === focusDate; })
+                : [];
+            displayRows = focusRows.length ? focusRows : [displayRows[displayRows.length - 1]];
+        }
         const map = historyMap || {};
+        const hasCompare = compareOffsets.length > 0;
         let html = '<table class="scx-data-table scx-analytic-table"><thead>';
-        html += '<tr><th rowspan="2">Tanggal</th><th rowspan="2" class="text-end">Spend</th><th rowspan="2" class="text-end">Revenue</th><th rowspan="2" class="text-end">ROI</th>';
-        offsets.forEach(function(off) {
-            html += `<th colspan="4" class="scx-compare-head">H-${off}</th>`;
-        });
-        html += '</tr><tr>';
-        offsets.forEach(function() {
-            html += '<th class="text-end scx-compare-sub">Revenue</th><th class="text-end scx-compare-sub">ROI</th><th class="text-end scx-compare-sub">Δ Revenue</th><th class="text-end scx-compare-sub">Δ ROI</th>';
-        });
-        html += '</tr></thead><tbody>';
-        rows.forEach(function(r) {
+        if (hasCompare) {
+            html += '<tr><th rowspan="2">Tanggal</th><th rowspan="2" class="text-end">Spend</th><th rowspan="2" class="text-end">Revenue</th><th rowspan="2" class="text-end">ROI</th>';
+            compareOffsets.forEach(function(off) {
+                html += `<th colspan="4" class="scx-compare-head">H-${off}</th>`;
+            });
+            html += '</tr><tr>';
+            compareOffsets.forEach(function() {
+                html += '<th class="text-end scx-compare-sub">Revenue</th><th class="text-end scx-compare-sub">ROI</th><th class="text-end scx-compare-sub">Δ Revenue</th><th class="text-end scx-compare-sub">Δ ROI</th>';
+            });
+            html += '</tr>';
+        } else {
+            html += '<tr><th>Tanggal</th><th class="text-end">Spend</th><th class="text-end">Revenue</th><th class="text-end">ROI</th></tr>';
+        }
+        html += '</thead><tbody>';
+        displayRows.forEach(function(r) {
             const roiCls = Number(r.roi) >= 0 ? 'scx-val-up' : 'scx-val-down';
-            html += `<tr><td>${esc(String(r.date || '-'))}</td>`;
+            const rowDate = String(r.date || '-');
+            const rowCls = (focusDate && rowDate === focusDate) ? ' class="scx-analytic-row-focus"' : '';
+            html += `<tr${rowCls}><td>${esc(rowDate)}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(r.spend))}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(r.revenue))}</td>`;
             html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(r.roi))}</span></td>`;
-            offsets.forEach(function(off) {
-                const ref = map[ymdShift(String(r.date || ''), -off)];
-                html += `<td class="text-end">${scxCompareAbsCell(ref, 'revenue', false)}</td>`;
-                html += `<td class="text-end">${scxCompareAbsCell(ref, 'roi', true)}</td>`;
-                html += `<td class="text-end">${scxCompareDeltaCell(r.revenue, ref, 'revenue', false)}</td>`;
-                html += `<td class="text-end">${scxCompareDeltaCell(r.roi, ref, 'roi', true)}</td>`;
-            });
+            if (hasCompare) {
+                compareOffsets.forEach(function(off) {
+                    const ref = map[ymdShift(rowDate, -off)];
+                    html += `<td class="text-end">${scxCompareAbsCell(ref, 'revenue', false)}</td>`;
+                    html += `<td class="text-end">${scxCompareAbsCell(ref, 'roi', true)}</td>`;
+                    html += `<td class="text-end">${scxCompareDeltaCell(r.revenue, ref, 'revenue', false)}</td>`;
+                    html += `<td class="text-end">${scxCompareDeltaCell(r.roi, ref, 'roi', true)}</td>`;
+                });
+            }
             html += '</tr>';
         });
         html += '</tbody></table>';
@@ -12267,8 +13655,10 @@ function initDashboardRecap() {
     function scxRenderAnalyticHourlyDayTable(hourlyByDate, dateYmd, opts) {
         const options = opts || {};
         const compact = !!options.compact;
+        const compareOffsets = Array.isArray(options.compareOffsets)
+            ? scxNormalizeAnalyticCompareOffsets(options.compareOffsets, SCX_ANALYTIC_HOURLY_COMPARE_OFFSETS)
+            : (options.showAllCompare === true ? SCX_ANALYTIC_HOURLY_COMPARE_OFFSETS.slice() : []);
         const byDate = hourlyByDate || {};
-        const offsets = SCX_ANALYTIC_HOURLY_COMPARE_OFFSETS;
         const snap = byDate[dateYmd];
         if (!snap || !Array.isArray(snap.hours) || !snap.hours.length) {
             return '<div class="scx-sub" style="padding:14px;">Tidak ada data per jam untuk tanggal ini.</div>';
@@ -12278,17 +13668,27 @@ function initDashboardRecap() {
             return '<div class="scx-sub" style="padding:14px;">Tidak ada data per jam untuk tanggal ini.</div>';
         }
         const compareSpan = scxAnalyticHourlyCompareColspan(compact, 1);
-        const offsetSpan = scxAnalyticHourlyCompareColspan(compact, offsets.length);
+        const offsetSpan = compareOffsets.length ? scxAnalyticHourlyCompareColspan(compact, compareOffsets.length) : 0;
         let html = '<table class="scx-data-table scx-analytic-table"><thead>';
-        html += '<tr><th rowspan="2">Jam</th><th rowspan="2" class="text-end">Spend</th><th rowspan="2" class="text-end">Revenue</th><th rowspan="2" class="text-end">ROI</th>';
-        html += `<th colspan="${compareSpan}" class="scx-compare-head">Jam Lalu</th>`;
-        offsets.forEach(function(off) {
-            html += `<th colspan="${compareSpan}" class="scx-compare-head">Jam sama H-${off}</th>`;
-        });
-        html += '</tr><tr>';
-        html += scxAnalyticHourlyCompareSubHeaders(compact, 1);
-        html += scxAnalyticHourlyCompareSubHeaders(compact, offsets.length);
-        html += '</tr></thead><tbody>';
+        if (compareOffsets.length) {
+            html += '<tr><th rowspan="2">Jam</th><th rowspan="2" class="text-end">Spend</th><th rowspan="2" class="text-end">Revenue</th><th rowspan="2" class="text-end">ROI</th>';
+            html += `<th colspan="${compareSpan}" class="scx-compare-head">Jam Lalu</th>`;
+            compareOffsets.forEach(function(off) {
+                html += `<th colspan="${compareSpan}" class="scx-compare-head">Jam sama H-${off}</th>`;
+            });
+            html += '</tr><tr>';
+            html += scxAnalyticHourlyCompareSubHeaders(compact, 1);
+            html += scxAnalyticHourlyCompareSubHeaders(compact, compareOffsets.length);
+            html += '</tr>';
+        } else {
+            html += '<tr><th>Jam</th><th class="text-end">Spend</th><th class="text-end">Revenue</th><th class="text-end">ROI</th>';
+            if (compact) {
+                html += '<th class="text-end scx-compare-sub">Δ Rev (JL)</th><th class="text-end scx-compare-sub">Δ ROI (JL)</th></tr>';
+            } else {
+                html += '<th class="text-end scx-compare-sub">Rev JL</th><th class="text-end scx-compare-sub">ROI JL</th><th class="text-end scx-compare-sub">Δ Rev</th><th class="text-end scx-compare-sub">Δ ROI</th></tr>';
+            }
+        }
+        html += '</thead><tbody>';
         visibleIdx.forEach(function(idx) {
             const h = snap.hours[idx];
             const spend = Number(snap.spend[idx] || 0);
@@ -12303,7 +13703,7 @@ function initDashboardRecap() {
                 `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(roi))}</span></td>`
             ];
             scxAppendHourlyJamLaluCells(cells, revenue, roi, prevPt, compact);
-            offsets.forEach(function(off) {
+            compareOffsets.forEach(function(off) {
                 scxAppendHourlyRefCells(cells, revenue, roi, scxSameHourPoint(byDate, dateYmd, h, off), compact);
             });
             html += `<tr>${cells.join('')}</tr>`;
@@ -12312,13 +13712,14 @@ function initDashboardRecap() {
         return html;
     }
 
-    function scxRenderAnalyticHourlySection(hourlyByDate, rangeDates, selectedDate, compact) {
+    function scxRenderAnalyticHourlySection(hourlyByDate, rangeDates, selectedDate, compact, compareOffsets) {
         const dates = scxDatesWithHourlyData(hourlyByDate, rangeDates);
         if (!dates.length) {
             return '<div class="scx-sub" style="padding:14px;">Tidak ada data per jam untuk rentang tanggal ini.</div>';
         }
         const activeDate = dates.includes(selectedDate) ? selectedDate : dates[dates.length - 1];
         const isCompact = compact !== false;
+        const activeCompare = scxNormalizeAnalyticCompareOffsets(compareOffsets, SCX_ANALYTIC_HOURLY_COMPARE_OFFSETS);
         let html = '<div class="scx-analytic-hourly-shell">';
         html += '<div class="scx-analytic-hourly-toolbar">';
         if (dates.length > 1) {
@@ -12335,7 +13736,8 @@ function initDashboardRecap() {
         html += `<button type="button" class="btn btn-sm ${isCompact ? 'btn-primary' : 'btn-outline-primary'}" data-hourly-view="compact">Ringkas</button>`;
         html += `<button type="button" class="btn btn-sm ${!isCompact ? 'btn-primary' : 'btn-outline-primary'}" data-hourly-view="full">Lengkap</button>`;
         html += '</div></div>';
-        html += `<div class="scx-analytic-hourly-scroll">${scxRenderAnalyticHourlyDayTable(hourlyByDate, activeDate, { compact: isCompact })}</div>`;
+        html += scxRenderAnalyticCompareToggles('hourly', activeCompare, SCX_ANALYTIC_HOURLY_COMPARE_OFFSETS);
+        html += `<div class="scx-analytic-hourly-scroll">${scxRenderAnalyticHourlyDayTable(hourlyByDate, activeDate, { compact: isCompact, compareOffsets: activeCompare })}</div>`;
         html += '</div>';
         return html;
     }
@@ -12344,18 +13746,13 @@ function initDashboardRecap() {
         const hourlyWrap = document.getElementById('scxAnalyticHourlyWrap');
         const cache = window.scxAnalyticHourlyCache;
         if (!hourlyWrap || !cache) return;
-        hourlyWrap.innerHTML = scxRenderAnalyticHourlySection(
-            cache.hourlyByDate,
-            cache.rangeDates,
-            cache.selectedDate,
-            cache.compact
-        );
+        scxEnsureAnalyticHourlyRendered();
     }
 
     function scxRenderAnalyticHourlyRangeTable(hourlyByDate, rangeDates) {
         const dates = scxDatesWithHourlyData(hourlyByDate, rangeDates);
         const selectedDate = dates.length ? dates[dates.length - 1] : '';
-        return scxRenderAnalyticHourlySection(hourlyByDate, rangeDates, selectedDate, true);
+        return scxRenderAnalyticHourlySection(hourlyByDate, rangeDates, selectedDate, true, []);
     }
 
     function scxRenderAnalyticHourlyTable(hours, spend, revenue, roi) {
@@ -12641,6 +14038,12 @@ function initDashboardRecap() {
         return name || code || '-';
     }
 
+    function scxCountryFlagEmoji(code) {
+        const c = String(code || '').trim().toUpperCase();
+        if (!/^[A-Z]{2}$/.test(c)) return '🌐';
+        return String.fromCodePoint.apply(String, c.split('').map(function(ch) { return 127397 + ch.charCodeAt(0); }));
+    }
+
     function scxMonitoringCountryRowMetrics(row) {
         const spend = Number(row?.spend || 0);
         const revenue = Number(row?.revenue || 0);
@@ -12767,7 +14170,12 @@ function initDashboardRecap() {
     function scxRefreshMonitoringView() {
         const cache = window.scxMonitoringCache;
         const tableWrap = document.getElementById('scxMonitoringTableWrap');
+        const overviewEl = document.getElementById('scxMonitoringOverview');
+        const controlsEl = document.getElementById('scxMonitoringTableControls');
         if (!cache || !tableWrap) return;
+        if (overviewEl) overviewEl.innerHTML = scxRenderMonitoringOverview(cache);
+        if (controlsEl) controlsEl.innerHTML = scxRenderMonitoringTableControls(cache);
+        const tableOpts = { showH1Compare: !!cache.showH1Compare };
         if (cache.isCountryBreakdownMode) {
             scxPopulateMonitoringSubdomainFilter(cache);
             const filterActive = scxMonitoringBreakdownFilterActive(cache);
@@ -12795,11 +14203,12 @@ function initDashboardRecap() {
                 cache.countriesByDate,
                 cache.rangeDates,
                 cache.selectedDate,
-                cache.selectedCountries
+                cache.selectedCountries,
+                tableOpts
             );
         } else {
             const rows = scxFilterMonitoringRows(cache.singleDayRows || [], cache.selectedCountries);
-            tableWrap.innerHTML = scxRenderMonitoringCountryTable(rows, scxMonitoringPrevDayRows(cache));
+            tableWrap.innerHTML = scxRenderMonitoringCountryTable(rows, scxMonitoringPrevDayRows(cache), tableOpts);
         }
         const activeRows = scxGetMonitoringActiveRows(cache);
         const filteredRows = scxFilterMonitoringRows(activeRows, cache.selectedCountries);
@@ -12809,9 +14218,9 @@ function initDashboardRecap() {
         const chartLabel = document.getElementById('scxMonitoringChartDateLabel');
         const countryLabel = document.getElementById('scxMonitoringCountryDateLabel');
         const dates = cache.rangeDates || [];
-        const labelText = (cache.countriesByDate && dates.length > 1) ? `• ${cache.selectedDate}` : '';
-        if (chartLabel) chartLabel.textContent = labelText;
-        if (countryLabel) countryLabel.textContent = labelText;
+        const labelText = (cache.countriesByDate && dates.length > 1) ? `${cache.selectedDate}` : '';
+        if (chartLabel) chartLabel.textContent = labelText ? `Tanggal ${labelText}` : 'Urutan dari ROI tertinggi ke terendah';
+        if (countryLabel) countryLabel.textContent = labelText ? labelText : 'Detail lengkap';
         const summaryEl = document.getElementById('scxMonitoringSummary');
         if (summaryEl && cache.selectedCountries && cache.selectedCountries.length) {
             const totals = scxSummarizeMonitoringRows(filteredRows);
@@ -12821,7 +14230,8 @@ function initDashboardRecap() {
         }
     }
 
-    function scxRenderMonitoringCountrySection(countriesByDate, rangeDates, selectedDate, selectedCountries) {
+    function scxRenderMonitoringCountrySection(countriesByDate, rangeDates, selectedDate, selectedCountries, opts) {
+        const options = opts || {};
         const dates = scxDatesWithMonitoringData(countriesByDate, rangeDates);
         if (!dates.length) {
             return '<div class="scx-sub" style="padding:14px;">Tidak ada data monitoring negara untuk rentang tanggal ini.</div>';
@@ -12837,7 +14247,7 @@ function initDashboardRecap() {
             });
             html += '</div></div>';
         }
-        html += `<div class="scx-data-table-wrap">${scxRenderMonitoringCountryTable(rows, scxMonitoringPrevDayRows({ countriesByDate: countriesByDate, selectedDate: activeDate }))}</div>`;
+        html += `<div class="scx-data-table-wrap">${scxRenderMonitoringCountryTable(rows, scxMonitoringPrevDayRows({ countriesByDate: countriesByDate, selectedDate: activeDate }), options)}</div>`;
         html += '</div>';
         return html;
     }
@@ -12924,6 +14334,7 @@ function initDashboardRecap() {
         const prev = window.scxMonitoringCache || {};
         const prevSelected = Array.isArray(prev.selectedCountries) ? prev.selectedCountries.slice() : [];
         const cache = Object.assign({}, baseCache, { selectedCountries: prevSelected });
+        cache.showH1Compare = prev.showH1Compare === true;
         const lockCountryCode = String(opts?.lockCountryCode || '').trim().toUpperCase();
         if (lockCountryCode) {
             cache.lockCountryCode = lockCountryCode;
@@ -12945,7 +14356,9 @@ function initDashboardRecap() {
         return cache;
     }
 
-    function scxRenderMonitoringCountryTable(rows, prevRows) {
+    function scxRenderMonitoringCountryTable(rows, prevRows, opts) {
+        const options = opts || {};
+        const showH1 = !!options.showH1Compare;
         if (!Array.isArray(rows) || !rows.length) {
             return '<div class="scx-sub" style="padding:14px;">Tidak ada data monitoring negara untuk filter ini.</div>';
         }
@@ -12953,7 +14366,9 @@ function initDashboardRecap() {
         const sorted = rows.slice().sort(function(a, b) { return Number(b.roi || 0) - Number(a.roi || 0); });
         let html = '<table class="scx-data-table scx-analytic-table"><thead><tr>';
         html += '<th>Negara</th><th>Kode</th><th class="text-end">Spend</th><th class="text-end">Pendapatan</th><th class="text-end">Pendapatan Bersih</th><th class="text-end">ROI</th>';
-        html += '<th class="text-end scx-compare-sub">Δ Pendapatan (H-1)</th><th class="text-end scx-compare-sub">Δ ROI (H-1)</th>';
+        if (showH1) {
+            html += '<th class="text-end scx-compare-sub">Δ Pendapatan (H-1)</th><th class="text-end scx-compare-sub">Δ ROI (H-1)</th>';
+        }
         html += '</tr></thead><tbody>';
         sorted.forEach(function(r) {
             const cur = scxMonitoringCountryRowMetrics(r);
@@ -12967,8 +14382,11 @@ function initDashboardRecap() {
             html += `<td class="text-end">${esc(fmtIdr(cur.revenue))}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(cur.net))}</td>`;
             html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(cur.roi))}</span></td>`;
-            html += `<td class="text-end">${prevMetrics ? scxDeltaCellHtml(cur.revenue - prevMetrics.revenue, false) : '<span class="text-muted">—</span>'}</td>`;
-            html += `<td class="text-end">${prevMetrics ? scxDeltaCellHtml(cur.roi - prevMetrics.roi, true) : '<span class="text-muted">—</span>'}</td></tr>`;
+            if (showH1) {
+                html += `<td class="text-end">${prevMetrics ? scxDeltaCellHtml(cur.revenue - prevMetrics.revenue, false) : '<span class="text-muted">—</span>'}</td>`;
+                html += `<td class="text-end">${prevMetrics ? scxDeltaCellHtml(cur.roi - prevMetrics.roi, true) : '<span class="text-muted">—</span>'}</td>`;
+            }
+            html += '</tr>';
         });
         html += '</tbody></table>';
         return html;
@@ -12984,10 +14402,10 @@ function initDashboardRecap() {
         const endEl = pane.querySelector('.scx-analytic-end');
         const statusEl = pane.querySelector('.scx-analytic-status');
         const summaryEl = document.getElementById('scxAnalyticSummary');
+        const overviewEl = document.getElementById('scxAnalyticOverview');
         const dailyWrap = document.getElementById('scxAnalyticDailyWrap');
         const hourlyWrap = document.getElementById('scxAnalyticHourlyWrap');
-        const hourlyDateLabel = document.getElementById('scxAnalyticHourlyDateLabel');
-        const titleEl = pane.querySelector('.scx-title');
+        const titleEl = pane.querySelector('.scx-analytic-head .scx-title');
         if (titleEl) {
             titleEl.textContent = scope.isCountryDim
                 ? `Analytic Performa Negara${countryCode ? `: ${String(row?.name || countryCode).trim()}` : ''}`
@@ -13021,7 +14439,18 @@ function initDashboardRecap() {
             const totalRevenue = dailyRows.reduce(function(s, r) { return s + Number(r.revenue || 0); }, 0);
             const totalRoi = totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend * 100) : 0;
             if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(totalSpend, totalRevenue, totalRoi);
-            if (dailyWrap) dailyWrap.innerHTML = scxRenderAnalyticDailyTable(dailyRows, historyMap);
+            if (overviewEl) overviewEl.innerHTML = scxRenderAnalyticOverview(dailyRows);
+            window.scxAnalyticDailyCache = {
+                rows: dailyRows,
+                historyMap: historyMap,
+                focusDate: endYmd,
+                showAllDays: window.scxAnalyticDailyCache ? !!window.scxAnalyticDailyCache.showAllDays : false,
+                compareOffsets: scxNormalizeAnalyticCompareOffsets(
+                    window.scxAnalyticDailyCache && window.scxAnalyticDailyCache.compareOffsets,
+                    SCX_ANALYTIC_COMPARE_OFFSETS
+                )
+            };
+            scxRefreshAnalyticDailyTable();
             const hourlyDates = scxDatesWithHourlyData(hourlyByDate, rangeDates);
             window.scxAnalyticHourlyCache = {
                 hourlyByDate: hourlyByDate,
@@ -13029,21 +14458,19 @@ function initDashboardRecap() {
                 selectedDate: hourlyDates.length ? hourlyDates[hourlyDates.length - 1] : endYmd,
                 compact: (window.scxAnalyticHourlyCache && typeof window.scxAnalyticHourlyCache.compact === 'boolean')
                     ? window.scxAnalyticHourlyCache.compact
-                    : true
+                    : true,
+                compareOffsets: scxNormalizeAnalyticCompareOffsets(
+                    window.scxAnalyticHourlyCache && window.scxAnalyticHourlyCache.compareOffsets,
+                    SCX_ANALYTIC_HOURLY_COMPARE_OFFSETS
+                )
             };
-            if (hourlyDateLabel) {
-                hourlyDateLabel.textContent = hourlyDates.length > 1
-                    ? `${startYmd} s/d ${endYmd} • ${hourlyDates.length} hari`
-                    : String(hourlyDates[0] || startYmd);
-            }
             if (hourlyWrap) {
-                hourlyWrap.innerHTML = scxRenderAnalyticHourlySection(
-                    hourlyByDate,
-                    rangeDates,
-                    window.scxAnalyticHourlyCache.selectedDate,
-                    window.scxAnalyticHourlyCache.compact
-                );
+                hourlyWrap.innerHTML = '<div class="scx-analytic-lazy-hint">Panel ini akan dimuat saat dibuka atau saat Anda memilih tanggal.</div>';
+                hourlyWrap.dataset.rendered = '0';
             }
+            const hourlyPanel = pane.querySelector('[data-analytic-panel="hourly"]');
+            if (hourlyPanel) hourlyPanel.open = false;
+            scxUpdateAnalyticHourlyDateLabel();
             const chartSeries = scxBuildAnalyticRangeCompareChart(hourlyByDate, rangeDates);
             if (chartSeries.hourLabels.length && chartSeries.datasets.length) {
                 requestAnimationFrame(function() {
@@ -13061,6 +14488,7 @@ function initDashboardRecap() {
                 statusEl.textContent = `${dailyRows.length} hari • ${scopeLabel}`;
             }
         } catch (e) {
+            if (overviewEl) overviewEl.innerHTML = '';
             if (dailyWrap) dailyWrap.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat analytic'))}</div>`;
             if (statusEl) statusEl.textContent = 'Gagal memuat';
         }
@@ -13092,7 +14520,35 @@ function initDashboardRecap() {
         const endEl = pane.querySelector('.scx-analytic-end');
         const run = function() { loadScoreDetailAnalyticTab(row, state).catch(function(){}); };
         scxBindScoreDetailDateRange(startEl, endEl, run);
+        const hourlyPanel = pane.querySelector('[data-analytic-panel="hourly"]');
+        if (hourlyPanel) {
+            hourlyPanel.addEventListener('toggle', function() {
+                if (hourlyPanel.open) scxEnsureAnalyticHourlyRendered();
+            });
+        }
+        pane.addEventListener('change', function(e) {
+            const compareInput = e.target.closest('.scx-analytic-compare-input');
+            if (compareInput) {
+                scxToggleAnalyticCompareOffset(
+                    compareInput.getAttribute('data-compare-kind'),
+                    compareInput.getAttribute('data-compare-offset'),
+                    compareInput.checked
+                );
+                return;
+            }
+            if (e.target && e.target.id === 'scxAnalyticShowAllDays') {
+                const cache = window.scxAnalyticDailyCache;
+                if (!cache) return;
+                cache.showAllDays = !!e.target.checked;
+                scxRefreshAnalyticDailyTable();
+            }
+        });
         pane.addEventListener('click', function(e) {
+            const dayBtn = e.target.closest('[data-analytic-day]');
+            if (dayBtn) {
+                scxOpenAnalyticHourlyForDate(dayBtn.getAttribute('data-analytic-day'), pane);
+                return;
+            }
             const hourlyWrap = document.getElementById('scxAnalyticHourlyWrap');
             if (!hourlyWrap || !hourlyWrap.contains(e.target)) return;
             const cache = window.scxAnalyticHourlyCache;
@@ -13128,8 +14584,8 @@ function initDashboardRecap() {
         const countryHint = document.getElementById('scxMonitoringCountryHint');
         const chartDateLabel = document.getElementById('scxMonitoringChartDateLabel');
         const countryDateLabel = document.getElementById('scxMonitoringCountryDateLabel');
-        const titleEl = pane.querySelector('.scx-title');
-        const subEl = pane.querySelector('.scx-card > .scx-sub');
+        const titleEl = pane.querySelector('.scx-monitoring-head .scx-title');
+        const subEl = pane.querySelector('.scx-monitoring-lead');
         if (titleEl) {
             titleEl.textContent = scope.isCountryDim
                 ? `Monitoring Negara${countryCode ? `: ${String(row?.name || countryCode).trim()}` : ''}`
@@ -13137,8 +14593,8 @@ function initDashboardRecap() {
         }
         if (subEl) {
             subEl.textContent = scope.isCountryDim
-                ? `Performa negara ini${domain ? ` untuk domain ${domain}` : ' (semua domain)'} (${source.toUpperCase()}). Tabel di bawah menampilkan subdomain dan campaign aktif.`
-                : `Performa per negara untuk domain ini (${source.toUpperCase()}). Urutan grafik dari ROI tertinggi ke terendah.`;
+                ? `Ringkasan performa negara ini${domain ? ` untuk domain ${domain}` : ''} (${source.toUpperCase()}). Filter subdomain ada di toolbar jika diperlukan.`
+                : `Ringkasan performa per negara (${source.toUpperCase()}). Filter tanggal dan negara ada di toolbar; klik kartu untuk fokus cepat.`;
         }
         scxSetMonitoringSectionTitles(scope.isCountryDim, '');
         if (!startEl || !endEl) return;
@@ -13185,12 +14641,22 @@ function initDashboardRecap() {
                     breakdownRows: scope.isCountryDim ? breakdownRows : []
                 }, monitorOpts);
                 if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(totalSpend, totalRevenue, totalRoi);
-                if (dailySection) dailySection.hidden = false;
-                if (dailyWrap) dailyWrap.innerHTML = scxRenderAnalyticDailyTable(dailyRows, historyMap);
+                window.scxMonitoringDailyCache = {
+                    rows: dailyRows,
+                    historyMap: historyMap,
+                    focusDate: endYmd,
+                    showAllDays: window.scxMonitoringDailyCache ? !!window.scxMonitoringDailyCache.showAllDays : false,
+                    compareOffsets: scxNormalizeAnalyticCompareOffsets(
+                        window.scxMonitoringDailyCache && window.scxMonitoringDailyCache.compareOffsets,
+                        SCX_ANALYTIC_COMPARE_OFFSETS
+                    )
+                };
+                scxRefreshMonitoringDailyTable();
+                if (dailySection) dailySection.open = false;
                 if (countryHint) {
                     countryHint.textContent = scope.isCountryDim
-                        ? 'Perbandingan harian agregat negara ini. Tabel subdomain & campaign menggunakan total rentang tanggal yang dipilih.'
-                        : 'Pilih tanggal untuk melihat performa per negara. Filter negara berlaku untuk tabel dan grafik.';
+                        ? 'Rincian subdomain & campaign per rentang tanggal.'
+                        : 'Klik tanggal jika range multi-hari. Centang H-1 di panel ini jika perlu perbandingan.';
                 }
                 const dateLabel = scope.isCountryDim && startYmd !== endYmd ? `• ${startYmd} s/d ${endYmd}` : `• ${selectedDate}`;
                 scxSetMonitoringSectionTitles(scope.isCountryDim, dateLabel);
@@ -13208,8 +14674,9 @@ function initDashboardRecap() {
                 scxHideMonitoringSubdomainFilter();
             }
             window.scxMonitoringCache = null;
-            if (dailySection) dailySection.hidden = true;
-            if (dailyWrap) dailyWrap.innerHTML = '';
+            window.scxMonitoringDailyCache = null;
+            if (dailySection) dailySection.open = false;
+            if (dailyWrap) dailyWrap.innerHTML = '<div class="scx-sub" style="padding:14px;">Perbandingan harian tersedia jika range lebih dari 1 hari.</div>';
             if (chartDateLabel) chartDateLabel.textContent = '';
             if (countryDateLabel) countryDateLabel.textContent = '';
             if (countryHint) {
@@ -13266,7 +14733,7 @@ function initDashboardRecap() {
             const scopeLabel = domain;
             if (statusEl) statusEl.textContent = `${visibleRows.length} negara • ${source.toUpperCase()} • ${scopeLabel}`;
         } catch (e) {
-            if (dailySection) dailySection.hidden = true;
+            if (dailySection) dailySection.open = false;
             scxHideMonitoringCountryFilter();
             scxHideMonitoringSubdomainFilter();
             window.scxMonitoringCache = null;
@@ -13284,9 +14751,61 @@ function initDashboardRecap() {
         const endEl = pane.querySelector('.scx-monitoring-end');
         const run = function() { loadScoreDetailMonitoringTab(row, state).catch(function(){}); };
         scxBindScoreDetailDateRange(startEl, endEl, run);
+        const dailyPanel = pane.querySelector('[data-monitoring-panel="daily"]');
+        if (dailyPanel) {
+            dailyPanel.addEventListener('toggle', function() {
+                if (dailyPanel.open && window.scxMonitoringDailyCache) scxRefreshMonitoringDailyTable();
+            });
+        }
+        pane.addEventListener('change', function(e) {
+            if (e.target && e.target.id === 'scxMonitoringShowH1Compare') {
+                const cache = window.scxMonitoringCache;
+                if (!cache) return;
+                cache.showH1Compare = !!e.target.checked;
+                scxRefreshMonitoringView();
+                return;
+            }
+            if (e.target && e.target.id === 'scxMonitoringShowAllDays') {
+                const cache = window.scxMonitoringDailyCache;
+                if (!cache) return;
+                cache.showAllDays = !!e.target.checked;
+                scxRefreshMonitoringDailyTable();
+                return;
+            }
+            const compareInput = e.target.closest('.scx-analytic-compare-input');
+            if (compareInput && compareInput.getAttribute('data-compare-kind') === 'monitoring-daily') {
+                scxToggleAnalyticCompareOffset(
+                    'monitoring-daily',
+                    compareInput.getAttribute('data-compare-offset'),
+                    compareInput.checked
+                );
+            }
+        });
         pane.addEventListener('click', function(e) {
             const cache = window.scxMonitoringCache;
             if (!cache) return;
+
+            if (e.target.closest('[data-monitoring-show-all]')) {
+                cache.selectedCountries = [];
+                scxRefreshMonitoringView();
+                return;
+            }
+
+            const focusBtn = e.target.closest('[data-monitoring-focus-country]');
+            if (focusBtn) {
+                const code = String(focusBtn.getAttribute('data-monitoring-focus-country') || '').trim().toUpperCase();
+                if (!code) return;
+                const selected = new Set((cache.selectedCountries || []).map(function(c) { return String(c).trim().toUpperCase(); }));
+                if (selected.size === 1 && selected.has(code)) {
+                    cache.selectedCountries = [];
+                } else {
+                    cache.selectedCountries = [code];
+                }
+                const tablePanel = pane.querySelector('[data-monitoring-panel="table"]');
+                if (tablePanel) tablePanel.open = true;
+                scxRefreshMonitoringView();
+                return;
+            }
 
             const dateBtn = e.target.closest('[data-monitoring-date]');
             if (dateBtn) {
@@ -16081,7 +17600,7 @@ function initDashboardRecap() {
             const monitoringSource = resolveScoreDetailMonitoringSource(row, state);
             const monitoringSourceLabel = monitoringSource === 'adsense' ? 'AdSense' : 'ADX';
             const defaultScxDate = String(state?.date || '').trim();
-            const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">Navigasi hasil scoring</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="decision">Hasil Keputusan</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="analytic">Analytic</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="monitoring">Monitoring</button></div></div>`;
+            const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">Navigasi hasil scoring</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="decision">Hasil Keputusan</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="analytic">Analytic</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="invalid_data">Invalid data</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="monitoring">Monitoring</button></div></div>`;
             const actionPanel = canAct ? `<div class="scx-section-gap scx-action-panel"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
 
             let html = '';
@@ -16210,6 +17729,7 @@ function initDashboardRecap() {
             html += `</div>`;
             html += `<div data-scx-tab-pane="decision" hidden><div id="scoreDetailDecisionBody"><div class="score-loading-state"><div class="score-loading-card"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div class="score-loading-title">Memuat Hasil Keputusan</div></div></div></div></div>`;
             html += scxRenderAnalyticPane(defaultScxDate);
+            html += scxRenderInvalidDataPane(defaultScxDate);
             html += scxRenderMonitoringPane(defaultScxDate, monitoringSourceLabel);
     
             return html;
@@ -16667,6 +18187,11 @@ function initDashboardRecap() {
                         if (tabKey === 'analytic') {
                             bindScoreDetailAnalyticTab(row, state);
                             await loadScoreDetailAnalyticTab(row, state);
+                            return;
+                        }
+                        if (tabKey === 'invalid_data') {
+                            bindScoreDetailInvalidDataTab(row, state);
+                            await loadScoreDetailInvalidDataTab(row, state);
                             return;
                         }
                         if (tabKey === 'monitoring') {

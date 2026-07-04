@@ -27,9 +27,12 @@ class Command(BaseCommand):
         return [
             'data_adsense_country',
             'data_adsense_domain',
+            'data_adsense_rekap',
             'data_adx_country',
             'data_adx_domain',
+            'data_adx_rekap',
             'data_ads_campaign',
+            'data_ads_rekap',
             'data_ads_country',
             'log_ads_country',
             'log_adsense_country',
