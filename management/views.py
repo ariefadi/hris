@@ -9767,6 +9767,82 @@ class AdxSummaryView(View):
         }
         return render(req, 'admin/adx_manager/summary/index.html', data)
 
+
+class InvalidReportAdxView(View):
+    """Halaman laporan perbandingan rekap bulanan vs harian AdX."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        today = datetime.now().date()
+        prev_month = today.replace(day=1) - timedelta(days=1)
+        month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+        months = [(f'{i:02d}', month_names[i - 1]) for i in range(1, 13)]
+        data = {
+            'title': 'Invalid Report AdX',
+            'user': req.session['hris_admin'],
+            'default_year': prev_month.year,
+            'default_month': f'{prev_month.month:02d}',
+            'months': months,
+        }
+        return render(req, 'admin/adx_manager/invalid_report/index.html', data)
+
+
+class InvalidReportAdxDataView(View):
+    """API data laporan invalid AdX."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            result = data_mysql().list_adx_rekap_invalid_report(
+                year=req.GET.get('year'),
+                month=req.GET.get('month'),
+                tanggal_tarik=req.GET.get('tanggal_tarik'),
+                status_filter=req.GET.get('status') or 'all',
+                domain_q=req.GET.get('q') or '',
+            )
+            if not result.get('status'):
+                return JsonResponse({'status': False, 'error': result.get('data') or 'Gagal memuat data'}, status=400)
+            return JsonResponse({'status': True, 'data': result.get('data')}, safe=False)
+        except Exception as e:
+            logger.exception('InvalidReportAdxDataView failed')
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+
+
+class InvalidReportAdxDetailView(View):
+    """Detail harian per domain untuk laporan invalid AdX."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        domain = str(req.GET.get('domain') or '').strip()
+        if not domain:
+            return JsonResponse({'status': False, 'error': 'domain wajib diisi'}, status=400)
+        try:
+            result = data_mysql().get_adx_invalid_report_domain_detail(
+                domain=domain,
+                year=req.GET.get('year'),
+                month=req.GET.get('month'),
+                tanggal_tarik=req.GET.get('tanggal_tarik'),
+            )
+            if not result.get('status'):
+                return JsonResponse({'status': False, 'error': result.get('data') or 'Gagal memuat detail'}, status=400)
+            return JsonResponse({'status': True, 'data': result.get('data')}, safe=False)
+        except Exception as e:
+            logger.exception('InvalidReportAdxDetailView failed')
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+
+
 class AdxDomainSuggestView(View):
     """AJAX endpoint suggest subdomain AdX (Select2)"""
     def dispatch(self, request, *args, **kwargs):

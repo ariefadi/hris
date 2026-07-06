@@ -3841,6 +3841,589 @@ class data_mysql:
                 'data': f'Terjadi error {e!r}, error nya {e.args[0] if e.args else e}',
             }
 
+    def _domain_sql_key_expr(self, column_expr):
+        return (
+            "LOWER(TRIM(REPLACE(REPLACE(LOWER(TRIM("
+            + column_expr
+            + ")), 'www.', ''), 'https://', '')))"
+        )
+
+    def _build_adx_invalid_metric_rows(self, daily_row, rekap_row):
+        defs = [
+            {'key': 'revenue', 'label': 'Revenue'},
+            {'key': 'impresi', 'label': 'Impresi'},
+            {'key': 'click', 'label': 'Click'},
+            {'key': 'requests', 'label': 'Requests', 'daily_key': 'total_requests', 'rekap_key': 'total_requests'},
+            {'key': 'responses', 'label': 'Responses', 'daily_key': 'responses_served', 'rekap_key': 'responses_served'},
+        ]
+        metrics = []
+        summary = {'ok': 0, 'warn': 0, 'invalid': 0, 'missing': 0}
+        has_daily = bool(daily_row and daily_row.get('_has_data'))
+        has_rekap = bool(rekap_row and rekap_row.get('_has_data'))
+        for item in defs:
+            daily_key = item.get('daily_key') or item['key']
+            rekap_key = item.get('rekap_key') or item['key']
+            daily_val = float((daily_row or {}).get(daily_key) or 0)
+            rekap_val = float((rekap_row or {}).get(rekap_key) or 0)
+            if not has_daily and not has_rekap:
+                row = {
+                    'key': item['key'],
+                    'label': item['label'],
+                    'daily': 0,
+                    'rekap': 0,
+                    'delta': 0,
+                    'delta_pct': 0,
+                    'status': 'missing',
+                }
+                summary['missing'] += 1
+            else:
+                row = self._compare_rekap_metric(daily_val, rekap_val)
+                row['key'] = item['key']
+                row['label'] = item['label']
+                summary[row['status']] = summary.get(row['status'], 0) + 1
+            metrics.append(row)
+        return metrics, summary
+
+    def _worst_invalid_status(self, summary):
+        if int((summary or {}).get('invalid') or 0) > 0:
+            return 'invalid'
+        if int((summary or {}).get('warn') or 0) > 0:
+            return 'warn'
+        if int((summary or {}).get('ok') or 0) > 0:
+            return 'ok'
+        return 'missing'
+
+    def list_adx_rekap_invalid_report(self, year, month, tanggal_tarik=None, status_filter=None, domain_q=None):
+        """List AdX monthly recap vs daily aggregates for all domains."""
+        import calendar
+
+        try:
+            year = str(year or '').strip()
+            month = str(month or '').strip().zfill(2)
+            if not year.isdigit() or not month.isdigit():
+                return {'status': False, 'data': 'Tahun/bulan tidak valid'}
+            month_int = int(month)
+            if month_int < 1 or month_int > 12:
+                return {'status': False, 'data': 'Bulan tidak valid'}
+
+            last_day = calendar.monthrange(int(year), month_int)[1]
+            start_date = f"{year}-{month}-01"
+            end_date = f"{year}-{month}-{last_day:02d}"
+            status_filter = str(status_filter or 'all').strip().lower()
+            domain_q = str(domain_q or '').strip().lower()
+
+            self.cur_hris.execute(
+                """
+                SELECT DISTINCT data_adx_rekap_tanggal AS tanggal_tarik
+                FROM data_adx_rekap
+                WHERE data_adx_rekap_tahun = %s AND data_adx_rekap_bulan = %s
+                ORDER BY data_adx_rekap_tanggal DESC
+                """,
+                (year, month),
+            )
+            available_tarik = []
+            for row in (self.cur_hris.fetchall() or []):
+                val = row.get('tanggal_tarik')
+                if hasattr(val, 'isoformat'):
+                    available_tarik.append(val.isoformat())
+                elif val:
+                    available_tarik.append(str(val).strip())
+
+            resolved_tarik = str(tanggal_tarik or '').strip()
+            if not resolved_tarik:
+                resolved_tarik = available_tarik[0] if available_tarik else ''
+            if not resolved_tarik:
+                return {
+                    'status': True,
+                    'data': {
+                        'year': year,
+                        'month': month,
+                        'period': {'start': start_date, 'end': end_date},
+                        'tanggal_tarik': None,
+                        'available_tarik_dates': available_tarik,
+                        'summary': {'total': 0, 'invalid': 0, 'warn': 0, 'ok': 0, 'missing': 0},
+                        'rows': [],
+                    },
+                }
+
+            rekap_key_expr = self._domain_sql_key_expr('data_adx_rekap_domain')
+            rekap_sql = f"""
+                SELECT
+                    {rekap_key_expr} AS domain_key,
+                    MIN(data_adx_rekap_domain) AS domain,
+                    COALESCE(SUM(CAST(data_adx_rekap_revenue AS DECIMAL(18,4))), 0) AS revenue,
+                    COALESCE(SUM(CAST(data_adx_rekap_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_adx_rekap_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_adx_rekap_total_requests AS DECIMAL(18,4))), 0) AS total_requests,
+                    COALESCE(SUM(CAST(data_adx_rekap_responses_served AS DECIMAL(18,4))), 0) AS responses_served
+                FROM data_adx_rekap
+                WHERE data_adx_rekap_tahun = %s
+                  AND data_adx_rekap_bulan = %s
+                  AND data_adx_rekap_tanggal = %s
+                GROUP BY domain_key
+            """
+            self.cur_hris.execute(rekap_sql, (year, month, resolved_tarik))
+            rekap_rows = self.cur_hris.fetchall() or []
+            rekap_map = {}
+            for row in rekap_rows:
+                key = str(row.get('domain_key') or '').strip()
+                if not key:
+                    continue
+                rekap_map[key] = {
+                    'domain': str(row.get('domain') or key),
+                    'revenue': float(row.get('revenue') or 0),
+                    'impresi': float(row.get('impresi') or 0),
+                    'click': float(row.get('click') or 0),
+                    'total_requests': float(row.get('total_requests') or 0),
+                    'responses_served': float(row.get('responses_served') or 0),
+                    '_has_data': True,
+                }
+
+            daily_key_expr = self._domain_sql_key_expr('data_adx_domain')
+            daily_sql = f"""
+                SELECT
+                    {daily_key_expr} AS domain_key,
+                    MIN(data_adx_domain) AS domain,
+                    COALESCE(SUM(CAST(data_adx_domain_revenue AS DECIMAL(18,4))), 0) AS revenue,
+                    COALESCE(SUM(CAST(data_adx_domain_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_adx_domain_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_adx_domain_total_requests AS DECIMAL(18,4))), 0) AS total_requests,
+                    COALESCE(SUM(CAST(data_adx_domain_responses_served AS DECIMAL(18,4))), 0) AS responses_served
+                FROM data_adx_domain
+                WHERE DATE(data_adx_domain_tanggal) BETWEEN %s AND %s
+                GROUP BY domain_key
+            """
+            self.cur_hris.execute(daily_sql, (start_date, end_date))
+            daily_rows = self.cur_hris.fetchall() or []
+            daily_map = {}
+            for row in daily_rows:
+                key = str(row.get('domain_key') or '').strip()
+                if not key:
+                    continue
+                vals = {
+                    'domain': str(row.get('domain') or key),
+                    'revenue': float(row.get('revenue') or 0),
+                    'impresi': float(row.get('impresi') or 0),
+                    'click': float(row.get('click') or 0),
+                    'total_requests': float(row.get('total_requests') or 0),
+                    'responses_served': float(row.get('responses_served') or 0),
+                }
+                vals['_has_data'] = any(vals[k] for k in ['revenue', 'impresi', 'click', 'total_requests', 'responses_served'])
+                daily_map[key] = vals
+
+            all_keys = sorted(set(list(rekap_map.keys()) + list(daily_map.keys())))
+            rows_out = []
+            summary = {'total': 0, 'invalid': 0, 'warn': 0, 'ok': 0, 'missing': 0}
+
+            for key in all_keys:
+                rekap_row = rekap_map.get(key)
+                daily_row = daily_map.get(key)
+                if not rekap_row and not daily_row:
+                    continue
+                domain_name = (rekap_row or daily_row or {}).get('domain') or key
+                if domain_q and domain_q not in str(domain_name).lower() and domain_q not in key:
+                    continue
+                metrics, metric_summary = self._build_adx_invalid_metric_rows(
+                    daily_row or {'_has_data': False},
+                    rekap_row or {'_has_data': False},
+                )
+                row_status = self._worst_invalid_status(metric_summary)
+                if status_filter not in ('', 'all') and row_status != status_filter:
+                    continue
+                revenue_metric = next((m for m in metrics if m.get('key') == 'revenue'), metrics[0] if metrics else {})
+                rows_out.append({
+                    'domain': domain_name,
+                    'domain_key': key,
+                    'status': row_status,
+                    'has_daily': bool(daily_row and daily_row.get('_has_data')),
+                    'has_rekap': bool(rekap_row and rekap_row.get('_has_data')),
+                    'daily_revenue': float((daily_row or {}).get('revenue') or 0),
+                    'rekap_revenue': float((rekap_row or {}).get('revenue') or 0),
+                    'revenue_delta_pct': float(revenue_metric.get('delta_pct') or 0),
+                    'daily_impresi': float((daily_row or {}).get('impresi') or 0),
+                    'rekap_impresi': float((rekap_row or {}).get('impresi') or 0),
+                    'daily_click': float((daily_row or {}).get('click') or 0),
+                    'rekap_click': float((rekap_row or {}).get('click') or 0),
+                    'metrics': metrics,
+                    'summary': metric_summary,
+                })
+                summary['total'] += 1
+                summary[row_status] = summary.get(row_status, 0) + 1
+
+            status_order = {'invalid': 0, 'warn': 1, 'ok': 2, 'missing': 3}
+            rows_out.sort(key=lambda r: (status_order.get(r.get('status'), 9), -abs(float(r.get('revenue_delta_pct') or 0))))
+
+            return {
+                'status': True,
+                'data': {
+                    'year': year,
+                    'month': month,
+                    'period': {'start': start_date, 'end': end_date},
+                    'tanggal_tarik': resolved_tarik,
+                    'available_tarik_dates': available_tarik,
+                    'summary': summary,
+                    'rows': rows_out,
+                },
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0] if e.args else e}',
+            }
+
+    def get_adx_invalid_report_domain_detail(self, domain, year, month, tanggal_tarik=None):
+        """Daily breakdown for one domain in invalid AdX report."""
+        import calendar
+
+        try:
+            year = str(year or '').strip()
+            month = str(month or '').strip().zfill(2)
+            month_int = int(month)
+            last_day = calendar.monthrange(int(year), month_int)[1]
+            start_date = f"{year}-{month}-01"
+            end_date = f"{year}-{month}-{last_day:02d}"
+
+            compare = self.get_rekap_vs_daily_compare(domain, year, month, tanggal_tarik)
+            if not compare.get('status'):
+                return compare
+
+            adx_section = None
+            for sec in (compare.get('data') or {}).get('sections') or []:
+                if sec.get('key') == 'adx':
+                    adx_section = sec
+                    break
+
+            clause, params = self._domain_filter_sql('data_adx_domain', domain)
+            daily_sql = f"""
+                SELECT
+                    DATE(data_adx_domain_tanggal) AS tanggal,
+                    COALESCE(SUM(CAST(data_adx_domain_revenue AS DECIMAL(18,4))), 0) AS revenue,
+                    COALESCE(SUM(CAST(data_adx_domain_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_adx_domain_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_adx_domain_total_requests AS DECIMAL(18,4))), 0) AS total_requests,
+                    COALESCE(SUM(CAST(data_adx_domain_responses_served AS DECIMAL(18,4))), 0) AS responses_served
+                FROM data_adx_domain
+                WHERE DATE(data_adx_domain_tanggal) BETWEEN %s AND %s
+                  AND {clause}
+                GROUP BY DATE(data_adx_domain_tanggal)
+                ORDER BY DATE(data_adx_domain_tanggal) ASC
+            """
+            self.cur_hris.execute(daily_sql, [start_date, end_date, *params])
+            daily_breakdown = []
+            for row in (self.cur_hris.fetchall() or []):
+                tanggal = row.get('tanggal')
+                if hasattr(tanggal, 'isoformat'):
+                    tanggal = tanggal.isoformat()
+                daily_breakdown.append({
+                    'date': str(tanggal or ''),
+                    'revenue': float(row.get('revenue') or 0),
+                    'impresi': float(row.get('impresi') or 0),
+                    'click': float(row.get('click') or 0),
+                    'total_requests': float(row.get('total_requests') or 0),
+                    'responses_served': float(row.get('responses_served') or 0),
+                })
+
+            return {
+                'status': True,
+                'data': {
+                    'domain': str(domain or '').strip(),
+                    'year': year,
+                    'month': month,
+                    'period': {'start': start_date, 'end': end_date},
+                    'tanggal_tarik': (compare.get('data') or {}).get('tanggal_tarik'),
+                    'adx': adx_section or {},
+                    'daily_breakdown': daily_breakdown,
+                },
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0] if e.args else e}',
+            }
+
+    def _build_adsense_invalid_metric_rows(self, daily_row, rekap_row):
+        defs = [
+            {'key': 'revenue', 'label': 'Revenue'},
+            {'key': 'impresi', 'label': 'Impresi'},
+            {'key': 'click', 'label': 'Click'},
+            {'key': 'page_views', 'label': 'Page Views'},
+            {'key': 'ad_requests', 'label': 'Ad Requests'},
+        ]
+        metrics = []
+        summary = {'ok': 0, 'warn': 0, 'invalid': 0, 'missing': 0}
+        has_daily = bool(daily_row and daily_row.get('_has_data'))
+        has_rekap = bool(rekap_row and rekap_row.get('_has_data'))
+        for item in defs:
+            key = item['key']
+            daily_val = float((daily_row or {}).get(key) or 0)
+            rekap_val = float((rekap_row or {}).get(key) or 0)
+            if not has_daily and not has_rekap:
+                row = {
+                    'key': key,
+                    'label': item['label'],
+                    'daily': 0,
+                    'rekap': 0,
+                    'delta': 0,
+                    'delta_pct': 0,
+                    'status': 'missing',
+                }
+                summary['missing'] += 1
+            else:
+                row = self._compare_rekap_metric(daily_val, rekap_val)
+                row['key'] = key
+                row['label'] = item['label']
+                summary[row['status']] = summary.get(row['status'], 0) + 1
+            metrics.append(row)
+        return metrics, summary
+
+    def list_adsense_rekap_invalid_report(self, year, month, tanggal_tarik=None, status_filter=None, domain_q=None):
+        """List AdSense monthly recap vs daily aggregates for all domains."""
+        import calendar
+
+        try:
+            year = str(year or '').strip()
+            month = str(month or '').strip().zfill(2)
+            if not year.isdigit() or not month.isdigit():
+                return {'status': False, 'data': 'Tahun/bulan tidak valid'}
+            month_int = int(month)
+            if month_int < 1 or month_int > 12:
+                return {'status': False, 'data': 'Bulan tidak valid'}
+
+            last_day = calendar.monthrange(int(year), month_int)[1]
+            start_date = f"{year}-{month}-01"
+            end_date = f"{year}-{month}-{last_day:02d}"
+            status_filter = str(status_filter or 'all').strip().lower()
+            domain_q = str(domain_q or '').strip().lower()
+
+            self.cur_hris.execute(
+                """
+                SELECT DISTINCT data_adsense_rekap_tanggal AS tanggal_tarik
+                FROM data_adsense_rekap
+                WHERE data_adsense_rekap_tahun = %s AND data_adsense_rekap_bulan = %s
+                ORDER BY data_adsense_rekap_tanggal DESC
+                """,
+                (year, month),
+            )
+            available_tarik = []
+            for row in (self.cur_hris.fetchall() or []):
+                val = row.get('tanggal_tarik')
+                if hasattr(val, 'isoformat'):
+                    available_tarik.append(val.isoformat())
+                elif val:
+                    available_tarik.append(str(val).strip())
+
+            resolved_tarik = str(tanggal_tarik or '').strip()
+            if not resolved_tarik:
+                resolved_tarik = available_tarik[0] if available_tarik else ''
+            if not resolved_tarik:
+                return {
+                    'status': True,
+                    'data': {
+                        'year': year,
+                        'month': month,
+                        'period': {'start': start_date, 'end': end_date},
+                        'tanggal_tarik': None,
+                        'available_tarik_dates': available_tarik,
+                        'summary': {'total': 0, 'invalid': 0, 'warn': 0, 'ok': 0, 'missing': 0},
+                        'rows': [],
+                    },
+                }
+
+            rekap_key_expr = self._domain_sql_key_expr('data_adsense_rekap_domain')
+            rekap_sql = f"""
+                SELECT
+                    {rekap_key_expr} AS domain_key,
+                    MIN(data_adsense_rekap_domain) AS domain,
+                    COALESCE(SUM(CAST(data_adsense_rekap_revenue AS DECIMAL(18,4))), 0) AS revenue,
+                    COALESCE(SUM(CAST(data_adsense_rekap_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_adsense_rekap_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_adsense_rekap_page_views AS DECIMAL(18,4))), 0) AS page_views,
+                    COALESCE(SUM(CAST(data_adsense_rekap_ad_requests AS DECIMAL(18,4))), 0) AS ad_requests
+                FROM data_adsense_rekap
+                WHERE data_adsense_rekap_tahun = %s
+                  AND data_adsense_rekap_bulan = %s
+                  AND data_adsense_rekap_tanggal = %s
+                GROUP BY domain_key
+            """
+            self.cur_hris.execute(rekap_sql, (year, month, resolved_tarik))
+            rekap_map = {}
+            for row in (self.cur_hris.fetchall() or []):
+                key = str(row.get('domain_key') or '').strip()
+                if not key:
+                    continue
+                rekap_map[key] = {
+                    'domain': str(row.get('domain') or key),
+                    'revenue': float(row.get('revenue') or 0),
+                    'impresi': float(row.get('impresi') or 0),
+                    'click': float(row.get('click') or 0),
+                    'page_views': float(row.get('page_views') or 0),
+                    'ad_requests': float(row.get('ad_requests') or 0),
+                    '_has_data': True,
+                }
+
+            daily_key_expr = self._domain_sql_key_expr('data_adsense_domain')
+            daily_sql = f"""
+                SELECT
+                    {daily_key_expr} AS domain_key,
+                    MIN(data_adsense_domain) AS domain,
+                    COALESCE(SUM(CAST(data_adsense_revenue AS DECIMAL(18,4))), 0) AS revenue,
+                    COALESCE(SUM(CAST(data_adsense_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_adsense_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_adsense_page_views AS DECIMAL(18,4))), 0) AS page_views,
+                    COALESCE(SUM(CAST(data_adsense_ad_requests AS DECIMAL(18,4))), 0) AS ad_requests
+                FROM data_adsense_domain
+                WHERE DATE(data_adsense_tanggal) BETWEEN %s AND %s
+                GROUP BY domain_key
+            """
+            self.cur_hris.execute(daily_sql, (start_date, end_date))
+            daily_map = {}
+            for row in (self.cur_hris.fetchall() or []):
+                key = str(row.get('domain_key') or '').strip()
+                if not key:
+                    continue
+                vals = {
+                    'domain': str(row.get('domain') or key),
+                    'revenue': float(row.get('revenue') or 0),
+                    'impresi': float(row.get('impresi') or 0),
+                    'click': float(row.get('click') or 0),
+                    'page_views': float(row.get('page_views') or 0),
+                    'ad_requests': float(row.get('ad_requests') or 0),
+                }
+                vals['_has_data'] = any(vals[k] for k in ['revenue', 'impresi', 'click', 'page_views', 'ad_requests'])
+                daily_map[key] = vals
+
+            all_keys = sorted(set(list(rekap_map.keys()) + list(daily_map.keys())))
+            rows_out = []
+            summary = {'total': 0, 'invalid': 0, 'warn': 0, 'ok': 0, 'missing': 0}
+
+            for key in all_keys:
+                rekap_row = rekap_map.get(key)
+                daily_row = daily_map.get(key)
+                if not rekap_row and not daily_row:
+                    continue
+                domain_name = (rekap_row or daily_row or {}).get('domain') or key
+                if domain_q and domain_q not in str(domain_name).lower() and domain_q not in key:
+                    continue
+                metrics, metric_summary = self._build_adsense_invalid_metric_rows(
+                    daily_row or {'_has_data': False},
+                    rekap_row or {'_has_data': False},
+                )
+                row_status = self._worst_invalid_status(metric_summary)
+                if status_filter not in ('', 'all') and row_status != status_filter:
+                    continue
+                revenue_metric = next((m for m in metrics if m.get('key') == 'revenue'), metrics[0] if metrics else {})
+                rows_out.append({
+                    'domain': domain_name,
+                    'domain_key': key,
+                    'status': row_status,
+                    'has_daily': bool(daily_row and daily_row.get('_has_data')),
+                    'has_rekap': bool(rekap_row and rekap_row.get('_has_data')),
+                    'daily_revenue': float((daily_row or {}).get('revenue') or 0),
+                    'rekap_revenue': float((rekap_row or {}).get('revenue') or 0),
+                    'revenue_delta_pct': float(revenue_metric.get('delta_pct') or 0),
+                    'daily_impresi': float((daily_row or {}).get('impresi') or 0),
+                    'rekap_impresi': float((rekap_row or {}).get('impresi') or 0),
+                    'daily_click': float((daily_row or {}).get('click') or 0),
+                    'rekap_click': float((rekap_row or {}).get('click') or 0),
+                    'daily_page_views': float((daily_row or {}).get('page_views') or 0),
+                    'rekap_page_views': float((rekap_row or {}).get('page_views') or 0),
+                    'metrics': metrics,
+                    'summary': metric_summary,
+                })
+                summary['total'] += 1
+                summary[row_status] = summary.get(row_status, 0) + 1
+
+            status_order = {'invalid': 0, 'warn': 1, 'ok': 2, 'missing': 3}
+            rows_out.sort(key=lambda r: (status_order.get(r.get('status'), 9), -abs(float(r.get('revenue_delta_pct') or 0))))
+
+            return {
+                'status': True,
+                'data': {
+                    'year': year,
+                    'month': month,
+                    'period': {'start': start_date, 'end': end_date},
+                    'tanggal_tarik': resolved_tarik,
+                    'available_tarik_dates': available_tarik,
+                    'summary': summary,
+                    'rows': rows_out,
+                },
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0] if e.args else e}',
+            }
+
+    def get_adsense_invalid_report_domain_detail(self, domain, year, month, tanggal_tarik=None):
+        """Daily breakdown for one domain in invalid AdSense report."""
+        import calendar
+
+        try:
+            year = str(year or '').strip()
+            month = str(month or '').strip().zfill(2)
+            month_int = int(month)
+            last_day = calendar.monthrange(int(year), month_int)[1]
+            start_date = f"{year}-{month}-01"
+            end_date = f"{year}-{month}-{last_day:02d}"
+
+            compare = self.get_rekap_vs_daily_compare(domain, year, month, tanggal_tarik)
+            if not compare.get('status'):
+                return compare
+
+            adsense_section = None
+            for sec in (compare.get('data') or {}).get('sections') or []:
+                if sec.get('key') == 'adsense':
+                    adsense_section = sec
+                    break
+
+            clause, params = self._domain_filter_sql('data_adsense_domain', domain)
+            daily_sql = f"""
+                SELECT
+                    DATE(data_adsense_tanggal) AS tanggal,
+                    COALESCE(SUM(CAST(data_adsense_revenue AS DECIMAL(18,4))), 0) AS revenue,
+                    COALESCE(SUM(CAST(data_adsense_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_adsense_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_adsense_page_views AS DECIMAL(18,4))), 0) AS page_views,
+                    COALESCE(SUM(CAST(data_adsense_ad_requests AS DECIMAL(18,4))), 0) AS ad_requests
+                FROM data_adsense_domain
+                WHERE DATE(data_adsense_tanggal) BETWEEN %s AND %s
+                  AND {clause}
+                GROUP BY DATE(data_adsense_tanggal)
+                ORDER BY DATE(data_adsense_tanggal) ASC
+            """
+            self.cur_hris.execute(daily_sql, [start_date, end_date, *params])
+            daily_breakdown = []
+            for row in (self.cur_hris.fetchall() or []):
+                tanggal = row.get('tanggal')
+                if hasattr(tanggal, 'isoformat'):
+                    tanggal = tanggal.isoformat()
+                daily_breakdown.append({
+                    'date': str(tanggal or ''),
+                    'revenue': float(row.get('revenue') or 0),
+                    'impresi': float(row.get('impresi') or 0),
+                    'click': float(row.get('click') or 0),
+                    'page_views': float(row.get('page_views') or 0),
+                    'ad_requests': float(row.get('ad_requests') or 0),
+                })
+
+            return {
+                'status': True,
+                'data': {
+                    'domain': str(domain or '').strip(),
+                    'year': year,
+                    'month': month,
+                    'period': {'start': start_date, 'end': end_date},
+                    'tanggal_tarik': (compare.get('data') or {}).get('tanggal_tarik'),
+                    'adsense': adsense_section or {},
+                    'daily_breakdown': daily_breakdown,
+                },
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0] if e.args else e}',
+            }
+
     def insert_data_ads_country(self, data):
         try:
             sql_insert = """

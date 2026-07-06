@@ -1,0 +1,368 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Invalid Report AdSense{% endblock %}
+{% block page_heading %}Invalid Report AdSense{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'adsense_summary' %}">AdSense Manager</a></li>
+    <li class="breadcrumb-item active">Invalid Report AdSense</li>
+{% endblock %}
+{% block more_stylesheet %}
+<style>
+:root {
+    --irs-accent: #34a853;
+    --irs-border: rgba(15, 23, 42, 0.08);
+    --irs-text: #0f172a;
+    --irs-muted: #64748b;
+    --irs-surface: #ffffff;
+    --irs-radius: 14px;
+}
+html[data-theme="dark"] {
+    --irs-border: rgba(255,255,255,0.08);
+    --irs-text: #e2e8f0;
+    --irs-muted: #94a3b8;
+    --irs-surface: #1e293b;
+}
+.irs-page .card { border-radius: var(--irs-radius); border: 1px solid var(--irs-border); }
+.irs-page .card-title { font-weight: 800; color: var(--irs-text); }
+.irs-filter-row { align-items: flex-end; gap: 10px 0; }
+.irs-filter-row label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--irs-muted); }
+.irs-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+@media (max-width: 991px) { .irs-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.irs-summary-box { border: 1px solid var(--irs-border); border-radius: 12px; padding: 12px; background: var(--irs-surface); }
+.irs-summary-box .k { font-size: 11px; color: var(--irs-muted); text-transform: uppercase; font-weight: 700; }
+.irs-summary-box .v { font-size: 22px; font-weight: 800; margin-top: 2px; color: var(--irs-text); }
+.irs-summary-box.is-invalid .v { color: #dc2626; }
+.irs-summary-box.is-warn .v { color: #d97706; }
+.irs-summary-box.is-ok .v { color: #059669; }
+.irs-table-wrap { overflow: auto; border: 1px solid var(--irs-border); border-radius: 12px; }
+.irs-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.irs-table thead th { position: sticky; top: 0; z-index: 1; background: rgba(52,168,83,.10); color: var(--irs-text); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 8px; border-bottom: 1px solid var(--irs-border); white-space: nowrap; }
+.irs-table tbody td { padding: 10px 8px; border-bottom: 1px solid var(--irs-border); vertical-align: middle; color: var(--irs-text); }
+.irs-table tbody tr:hover td { background: rgba(52,168,83,.04); }
+.irs-pill { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.irs-pill.is-invalid { background: rgba(239,68,68,.14); color: #b91c1c; }
+.irs-pill.is-warn { background: rgba(245,158,11,.16); color: #b45309; }
+.irs-pill.is-ok { background: rgba(16,185,129,.14); color: #047857; }
+.irs-pill.is-missing { background: rgba(148,163,184,.18); color: #475569; }
+.irs-num-up { color: #059669; font-weight: 700; }
+.irs-num-down { color: #dc2626; font-weight: 700; }
+.irs-detail-row td { background: rgba(248,250,252,.92); padding: 0 !important; }
+html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
+.irs-detail-panel { padding: 14px 16px; }
+.irs-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 767px) { .irs-detail-grid { grid-template-columns: 1fr; } }
+.irs-detail-block { border: 1px solid var(--irs-border); border-radius: 10px; padding: 10px; background: var(--irs-surface); }
+.irs-detail-block h6 { font-size: 12px; font-weight: 800; margin: 0 0 8px; color: var(--irs-text); }
+.irs-mini-table { width: 100%; font-size: 11px; }
+.irs-mini-table th, .irs-mini-table td { padding: 6px 4px; border-bottom: 1px solid var(--irs-border); }
+.irs-empty { text-align: center; padding: 36px 16px; color: var(--irs-muted); }
+.irs-lead { font-size: 13px; color: var(--irs-muted); margin-bottom: 0; }
+.irs-page .irs-filter-row .select2-container .select2-selection--single { min-height: 38px; }
+.irs-filter-note { margin-top: 8px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="irs-page">
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title mb-0">Invalid Report AdSense</h3>
+        <small class="text-muted d-block mt-1">Bandingkan agregat harian vs rekap bulanan per domain — selisih &gt;5% = tidak selaras</small>
+    </div>
+    <div class="card-body">
+        <div class="form-row irs-filter-row">
+            <div class="col-md-1 col-6 mb-2 mb-md-0">
+                <label>Tahun</label>
+                <input type="number" class="form-control" id="irsYear" value="{{ default_year }}" min="2020" max="2099">
+            </div>
+            <div class="col-md-1 col-6 mb-2 mb-md-0">
+                <label>Bulan</label>
+                <select class="form-control" id="irsMonth">
+                    {% for m, name in months %}
+                    <option value="{{ m }}"{% if m == default_month %} selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Tanggal Tarik</label>
+                <select class="form-control" id="irsTarik"><option value="">Terbaru</option></select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Status</label>
+                <select class="form-control" id="irsStatus">
+                    <option value="all">Semua</option>
+                    <option value="invalid">Tidak selaras</option>
+                    <option value="warn">Perlu dicek</option>
+                    <option value="ok">Selaras</option>
+                    <option value="missing">Kosong</option>
+                </select>
+            </div>
+            <div class="col-md-3 col-12 mb-2 mb-md-0">
+                <label>Cari Domain</label>
+                <select class="form-control" id="irsDomain">
+                    <option value=""></option>
+                </select>
+            </div>
+            <div class="col-md-2 col-12 mb-2 mb-md-0">
+                <label class="d-none d-md-block">&nbsp;</label>
+                <button type="button" class="btn btn-success btn-block" id="irsLoadBtn"><i class="fas fa-sync-alt mr-1"></i> Muat Data</button>
+            </div>
+        </div>
+        <p class="irs-filter-note mb-0">
+            <small class="text-muted"><i class="bi bi-info-circle mr-1"></i>Cari Domain: ketik nama domain untuk melihat referensi dari data yang tersedia.</small>
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body position-relative">
+        <div id="irsOverlay" class="hris-loader-stub" style="display:none" data-loader-message="Memuat laporan invalid AdSense..." aria-hidden="true"></div>
+        <div id="irsSummary"></div>
+        <div id="irsMeta" class="irs-lead mb-3"></div>
+        <div id="irsTableWrap" class="irs-table-wrap">
+            <div class="irs-empty">Pilih periode lalu klik <strong>Muat Data</strong>.</div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script>
+(function() {
+    const monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    const statusLabel = { invalid: 'Tidak selaras', warn: 'Perlu dicek', ok: 'Selaras', missing: 'Kosong' };
+
+    function fmtIdr(v) {
+        return 'Rp ' + (Number(v) || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
+    }
+    function fmtNum(v) {
+        const n = Number(v) || 0;
+        return n.toLocaleString('id-ID', { maximumFractionDigits: n >= 1000 ? 0 : 2 });
+    }
+    function fmtPct(v) { return (Number(v) || 0).toFixed(2) + '%'; }
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    function pill(status) {
+        const st = String(status || 'missing').toLowerCase();
+        return `<span class="irs-pill is-${esc(st)}">${esc(statusLabel[st] || st)}</span>`;
+    }
+
+    function getMonthDateRange() {
+        const year = String(document.getElementById('irsYear').value || '').trim();
+        const month = String(document.getElementById('irsMonth').value || '').trim();
+        const monthNum = parseInt(month, 10) || 1;
+        const lastDay = new Date(parseInt(year, 10) || 2000, monthNum, 0).getDate();
+        const mm = month.padStart(2, '0');
+        return {
+            start_date: year + '-' + mm + '-01',
+            end_date: year + '-' + mm + '-' + String(lastDay).padStart(2, '0')
+        };
+    }
+
+    function getSelectedDomain() {
+        if (window.jQuery && jQuery.fn.select2) {
+            const val = jQuery('#irsDomain').val();
+            if (Array.isArray(val)) return String(val[0] || '').trim();
+            return String(val || '').trim();
+        }
+        const el = document.getElementById('irsDomain');
+        return el ? String(el.value || '').trim() : '';
+    }
+
+    function initDomainFilter() {
+        if (!window.jQuery || !jQuery.fn.select2) return;
+        const $domain = jQuery('#irsDomain');
+        if (!$domain.length) return;
+        if ($domain.data('select2')) {
+            $domain.select2('destroy');
+        }
+        $domain.select2({
+            placeholder: 'Ketik nama domain...',
+            allowClear: true,
+            width: '100%',
+            theme: 'bootstrap4',
+            tags: true,
+            minimumInputLength: 1,
+            ajax: {
+                url: '/management/admin/adsense_domain_suggest',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    const range = getMonthDateRange();
+                    return {
+                        q: params.term || '',
+                        start_date: range.start_date,
+                        end_date: range.end_date,
+                        selected_account: ''
+                    };
+                },
+                processResults: function(data) {
+                    return { results: (data && data.results) ? data.results : [] };
+                },
+                cache: true
+            },
+            createTag: function(params) {
+                const term = String(params.term || '').trim();
+                if (!term) return null;
+                return { id: term, text: term, newTag: true };
+            }
+        });
+    }
+
+    function renderSummary(summary) {
+        const s = summary || {};
+        const items = [
+            { key: 'total', label: 'Total Domain', cls: '' },
+            { key: 'invalid', label: 'Tidak Selaras', cls: 'is-invalid' },
+            { key: 'warn', label: 'Perlu Dicek', cls: 'is-warn' },
+            { key: 'ok', label: 'Selaras', cls: 'is-ok' },
+            { key: 'missing', label: 'Kosong', cls: '' },
+        ];
+        return `<div class="irs-summary-grid">${items.map(function(it) {
+            return `<div class="irs-summary-box ${it.cls}"><div class="k">${esc(it.label)}</div><div class="v">${esc(fmtNum(s[it.key] || 0))}</div></div>`;
+        }).join('')}</div>`;
+    }
+
+    function renderMetricMiniTable(metrics) {
+        if (!metrics || !metrics.length) return '<div class="text-muted small">Tidak ada metrik.</div>';
+        let html = '<table class="irs-mini-table"><thead><tr><th>Metrik</th><th class="text-right">Harian</th><th class="text-right">Rekap</th><th class="text-right">Selisih</th><th></th></tr></thead><tbody>';
+        metrics.forEach(function(m) {
+            const daily = m.key === 'revenue' ? fmtIdr(m.daily) : fmtNum(m.daily);
+            const rekap = m.key === 'revenue' ? fmtIdr(m.rekap) : fmtNum(m.rekap);
+            html += `<tr><td>${esc(m.label)}</td><td class="text-right">${esc(daily)}</td><td class="text-right">${esc(rekap)}</td><td class="text-right">${esc(fmtPct(m.delta_pct))}</td><td>${pill(m.status)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function renderDailyTable(rows) {
+        if (!rows || !rows.length) return '<div class="text-muted small">Tidak ada data harian untuk bulan ini.</div>';
+        let html = '<table class="irs-mini-table"><thead><tr><th>Tanggal</th><th class="text-right">Revenue</th><th class="text-right">Impresi</th><th class="text-right">Click</th><th class="text-right">Page Views</th><th class="text-right">Ad Requests</th></tr></thead><tbody>';
+        rows.forEach(function(r) {
+            html += `<tr><td>${esc(r.date)}</td><td class="text-right">${esc(fmtIdr(r.revenue))}</td><td class="text-right">${esc(fmtNum(r.impresi))}</td><td class="text-right">${esc(fmtNum(r.click))}</td><td class="text-right">${esc(fmtNum(r.page_views))}</td><td class="text-right">${esc(fmtNum(r.ad_requests))}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function renderMainTable(rows) {
+        if (!rows.length) return '<div class="irs-empty">Tidak ada domain untuk filter ini.</div>';
+        let html = '<table class="irs-table"><thead><tr>';
+        html += '<th></th><th>Domain</th><th>Status</th><th class="text-right">Revenue H/R</th><th class="text-right">Selisih</th><th class="text-right">Impresi H/R</th><th class="text-right">Page Views H/R</th><th>Sumber</th>';
+        html += '</tr></thead><tbody>';
+        rows.forEach(function(row, idx) {
+            const deltaCls = Number(row.revenue_delta_pct || 0) >= 0 ? 'irs-num-up' : 'irs-num-down';
+            const src = [];
+            if (row.has_daily) src.push('Harian');
+            if (row.has_rekap) src.push('Rekap');
+            html += `<tr><td><button type="button" class="btn btn-xs btn-outline-success irs-toggle-detail" data-domain="${esc(row.domain)}" data-idx="${idx}"><i class="fas fa-chevron-down"></i></button></td>`;
+            html += `<td><strong>${esc(row.domain)}</strong></td><td>${pill(row.status)}</td>`;
+            html += `<td class="text-right">${esc(fmtIdr(row.daily_revenue))} / ${esc(fmtIdr(row.rekap_revenue))}</td>`;
+            html += `<td class="text-right"><span class="${deltaCls}">${esc(fmtPct(row.revenue_delta_pct))}</span></td>`;
+            html += `<td class="text-right">${esc(fmtNum(row.daily_impresi))} / ${esc(fmtNum(row.rekap_impresi))}</td>`;
+            html += `<td class="text-right">${esc(fmtNum(row.daily_page_views))} / ${esc(fmtNum(row.rekap_page_views))}</td>`;
+            html += `<td><small class="text-muted">${esc(src.join(' + ') || '-')}</small></td></tr>`;
+            html += `<tr class="irs-detail-row" id="irsDetail${idx}" style="display:none;"><td colspan="8"><div class="irs-detail-panel"><div class="text-center text-muted py-3">Memuat detail...</div></div></td></tr>`;
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function populateTarik(dates, selected) {
+        const el = document.getElementById('irsTarik');
+        if (!el) return;
+        let html = '<option value="">Terbaru</option>';
+        (dates || []).forEach(function(d) {
+            html += `<option value="${esc(d)}"${String(d) === String(selected || '') ? ' selected' : ''}>${esc(d)}</option>`;
+        });
+        el.innerHTML = html;
+    }
+
+    async function loadDetail(domain, idx) {
+        const panel = document.querySelector('#irsDetail' + idx + ' .irs-detail-panel');
+        if (!panel) return;
+        const params = new URLSearchParams({
+            domain: domain,
+            year: document.getElementById('irsYear').value,
+            month: document.getElementById('irsMonth').value,
+            tanggal_tarik: document.getElementById('irsTarik').value || ''
+        });
+        const res = await fetch('/management/admin/page_invalid_report_adsense_detail?' + params.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const json = await res.json();
+        if (!json || !json.status) {
+            panel.innerHTML = `<div class="text-danger small">${esc(json?.error || 'Gagal memuat detail')}</div>`;
+            return;
+        }
+        const data = json.data || {};
+        const metrics = (data.adsense && data.adsense.metrics) ? data.adsense.metrics : [];
+        panel.innerHTML = `<div class="irs-detail-grid">
+            <div class="irs-detail-block"><h6>Perbandingan Metrik</h6>${renderMetricMiniTable(metrics)}</div>
+            <div class="irs-detail-block"><h6>Rincian Harian (${esc((data.period || {}).start || '')} s/d ${esc((data.period || {}).end || '')})</h6>${renderDailyTable(data.daily_breakdown || [])}</div>
+        </div>`;
+    }
+
+    async function loadReport() {
+        const overlay = document.getElementById('irsOverlay');
+        const summaryEl = document.getElementById('irsSummary');
+        const metaEl = document.getElementById('irsMeta');
+        const tableWrap = document.getElementById('irsTableWrap');
+        if (overlay) overlay.style.display = 'block';
+        try {
+            const params = new URLSearchParams({
+                year: document.getElementById('irsYear').value,
+                month: document.getElementById('irsMonth').value,
+                tanggal_tarik: document.getElementById('irsTarik').value || '',
+                status: document.getElementById('irsStatus').value || 'all',
+                q: getSelectedDomain()
+            });
+            const res = await fetch('/management/admin/page_invalid_report_adsense?' + params.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const json = await res.json();
+            if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat data');
+            const data = json.data || {};
+            populateTarik(data.available_tarik_dates, data.tanggal_tarik);
+            if (summaryEl) summaryEl.innerHTML = renderSummary(data.summary);
+            const monthNum = parseInt(String(data.month || ''), 10);
+            const monthLabel = monthNames[(monthNum || 1) - 1] || data.month;
+            if (metaEl) metaEl.textContent = `${monthLabel} ${data.year} • periode harian ${(data.period || {}).start || '-'} s/d ${(data.period || {}).end || '-'} • tarik ${data.tanggal_tarik || '-'}`;
+            if (tableWrap) {
+                tableWrap.innerHTML = renderMainTable(data.rows || []);
+                tableWrap.querySelectorAll('.irs-toggle-detail').forEach(function(btn) {
+                    btn.addEventListener('click', async function() {
+                        const idx = btn.getAttribute('data-idx');
+                        const domain = btn.getAttribute('data-domain');
+                        const detailRow = document.getElementById('irsDetail' + idx);
+                        if (!detailRow) return;
+                        if (detailRow.style.display !== 'none') {
+                            detailRow.style.display = 'none';
+                            btn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                            return;
+                        }
+                        detailRow.style.display = '';
+                        btn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                        await loadDetail(domain, idx);
+                    });
+                });
+            }
+        } catch (e) {
+            if (tableWrap) tableWrap.innerHTML = `<div class="irs-empty text-danger">${esc(e.message || 'Gagal memuat')}</div>`;
+            if (summaryEl) summaryEl.innerHTML = '';
+            if (metaEl) metaEl.textContent = '';
+        } finally {
+            if (overlay) overlay.style.display = 'none';
+        }
+    }
+
+    document.getElementById('irsLoadBtn').addEventListener('click', loadReport);
+    if (window.jQuery) {
+        jQuery(function() { initDomainFilter(); });
+    } else {
+        document.addEventListener('DOMContentLoaded', initDomainFilter);
+    }
+})();
+</script>
+{% endblock %}

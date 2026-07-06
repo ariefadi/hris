@@ -91,6 +91,9 @@ urlpatterns = [
     # Menu AdX Summary
     path('admin/adx_summary', views.AdxSummaryView.as_view(), name='adx_summary'),
     path('admin/page_adx_summary', views.AdxSummaryDataView.as_view(), name='adx_summary_data'),
+    path('admin/invalid_report_adx', views.InvalidReportAdxView.as_view(), name='invalid_report_adx'),
+    path('admin/page_invalid_report_adx', views.InvalidReportAdxDataView.as_view(), name='invalid_report_adx_data'),
+    path('admin/page_invalid_report_adx_detail', views.InvalidReportAdxDetailView.as_view(), name='invalid_report_adx_detail'),
     path('admin/adx_domain_suggest', views.AdxDomainSuggestView.as_view(), name='adx_domain_suggest'),
     path('admin/page_adx_ad_change_data', views.AdxSummaryAdChangeDataView.as_view(), name='adx_ad_change_data'),
     path('admin/page_adx_active_sites', views.AdxActiveSitesView.as_view(), name='adx_active_sites'),
@@ -122,6 +125,9 @@ urlpatterns = [
     # Menu Adsense Summary
     path('admin/adsense_summary', views_adsense.AdsenseSummaryView.as_view(), name='adsense_summary'),
     path('admin/adsense_summary_data/', views_adsense.AdsenseSummaryDataView.as_view()),
+    path('admin/invalid_report_adsense', views_adsense.InvalidReportAdsenseView.as_view(), name='invalid_report_adsense'),
+    path('admin/page_invalid_report_adsense', views_adsense.InvalidReportAdsenseDataView.as_view(), name='invalid_report_adsense_data'),
+    path('admin/page_invalid_report_adsense_detail', views_adsense.InvalidReportAdsenseDetailView.as_view(), name='invalid_report_adsense_detail'),
     # Menu Adsense Account Data
     path('admin/adsense_account', views_adsense.AdsenseAccountView.as_view(), name='adsense_account'), 
     path('admin/page_adsense_account', views_adsense.AdsenseAccountDataView.as_view()),
