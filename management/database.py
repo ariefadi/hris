@@ -3478,10 +3478,22 @@ class data_mysql:
         row = self.cur_hris.fetchone() or {}
         return {k: float(row.get(k) or 0) for k in row.keys()}
 
+    def _domain_fb_filter_sql(self, column_expr, domain):
+        """Filter FB ads by 2-level join key — selaras ROI / invalid report list."""
+        key = self._normalize_domain_match_key(domain)
+        if not key:
+            return '1=0', []
+        return self._domain_match_sql(column_expr), [key]
+
+    def _domain_clause_for_column(self, column_expr, domain):
+        if column_expr == 'data_ads_domain':
+            return self._domain_fb_filter_sql(column_expr, domain)
+        return self._domain_filter_sql(column_expr, domain)
+
     def _resolve_rekap_tarik_date(self, table, date_col, year_col, month_col, domain_col, domain, year, month, tanggal_tarik=None):
         if tanggal_tarik:
             return str(tanggal_tarik).strip()
-        clause, domain_params = self._domain_filter_sql(domain_col, domain)
+        clause, domain_params = self._domain_clause_for_column(domain_col, domain)
         sql = f"""
             SELECT MAX({date_col}) AS tanggal_tarik
             FROM {table}
@@ -3497,7 +3509,7 @@ class data_mysql:
         return str(val or '').strip()
 
     def _list_rekap_tarik_dates(self, table, date_col, year_col, month_col, domain_col, domain, year, month):
-        clause, domain_params = self._domain_filter_sql(domain_col, domain)
+        clause, domain_params = self._domain_clause_for_column(domain_col, domain)
         sql = f"""
             SELECT DISTINCT {date_col} AS tanggal_tarik
             FROM {table}
@@ -3538,7 +3550,7 @@ class data_mysql:
             last_day = calendar.monthrange(int(year), month_int)[1]
             start_date = f"{year}-{month}-01"
             end_date = f"{year}-{month}-{last_day:02d}"
-            ads_clause, ads_params = self._domain_filter_sql('data_ads_domain', domain)
+            ads_clause, ads_params = self._domain_fb_filter_sql('data_ads_domain', domain)
             adsense_daily_clause, adsense_daily_params = self._domain_filter_sql('data_adsense_domain', domain)
             adsense_rekap_clause, adsense_rekap_params = self._domain_filter_sql('data_adsense_rekap_domain', domain)
             adx_daily_clause, adx_daily_params = self._domain_filter_sql('data_adx_domain', domain)
@@ -3848,6 +3860,17 @@ class data_mysql:
             + ")), 'www.', ''), 'https://', '')))"
         )
 
+    def _domain_join_sql_key_expr(self, column_expr):
+        """Join key 2-level domain — selaras dengan ROI / menu Tanpa Spends."""
+        inner = self._domain_sql_key_expr(column_expr)
+        return f"LOWER(SUBSTRING_INDEX({inner}, '.', 2))"
+
+    def _lookup_fb_invalid_row(self, fb_map, domain_name):
+        key = self._normalize_domain_match_key(domain_name)
+        if not key:
+            return None
+        return fb_map.get(key)
+
     def _derive_adx_business_metrics(self, adx_row, fb_row):
         adx_row = adx_row or {}
         fb_row = fb_row or {}
@@ -4089,7 +4112,7 @@ class data_mysql:
                 vals['_has_data'] = any(vals[k] for k in ['revenue', 'impresi', 'click', 'total_requests', 'responses_served'])
                 daily_map[key] = vals
 
-            fb_key_expr = self._domain_sql_key_expr('data_ads_domain')
+            fb_key_expr = self._domain_join_sql_key_expr('data_ads_domain')
             fb_daily_sql = f"""
                 SELECT
                     {fb_key_expr} AS domain_key,
@@ -4151,22 +4174,18 @@ class data_mysql:
                     vals['_has_data'] = any(vals[k] for k in ['spend', 'click', 'impresi', 'lpv'])
                     fb_rekap_map[key] = vals
 
-            all_keys = sorted(set(
-                list(rekap_map.keys()) + list(daily_map.keys()) + list(fb_daily_map.keys()) + list(fb_rekap_map.keys())
-            ))
+            all_keys = sorted(set(list(rekap_map.keys()) + list(daily_map.keys())))
             rows_out = []
             summary = {'total': 0, 'invalid': 0, 'warn': 0, 'ok': 0, 'missing': 0}
 
             for key in all_keys:
                 rekap_row = rekap_map.get(key)
                 daily_row = daily_map.get(key)
-                fb_daily_row = fb_daily_map.get(key)
-                fb_rekap_row = fb_rekap_map.get(key)
-                if not rekap_row and not daily_row and not fb_daily_row and not fb_rekap_row:
+                if not rekap_row and not daily_row:
                     continue
-                domain_name = (
-                    (rekap_row or daily_row or fb_daily_row or fb_rekap_row or {}).get('domain') or key
-                )
+                domain_name = (rekap_row or daily_row or {}).get('domain') or key
+                fb_daily_row = self._lookup_fb_invalid_row(fb_daily_map, domain_name)
+                fb_rekap_row = self._lookup_fb_invalid_row(fb_rekap_map, domain_name)
                 if domain_q and domain_q not in str(domain_name).lower() and domain_q not in key:
                     continue
                 metrics, metric_summary, daily_derived, rekap_derived = self._build_adx_invalid_metric_rows(
@@ -4291,7 +4310,7 @@ class data_mysql:
                 fb_rekap,
             )
 
-            clause, params = self._domain_filter_sql('data_ads_domain', domain)
+            clause, params = self._domain_fb_filter_sql('data_ads_domain', domain)
             adx_clause, adx_params = self._domain_filter_sql('data_adx_domain', domain)
             daily_sql = f"""
                 SELECT
@@ -4626,7 +4645,7 @@ class data_mysql:
                 vals['_has_data'] = any(vals[k] for k in ['revenue', 'impresi', 'click', 'page_views', 'ad_requests'])
                 daily_map[key] = vals
 
-            fb_key_expr = self._domain_sql_key_expr('data_ads_domain')
+            fb_key_expr = self._domain_join_sql_key_expr('data_ads_domain')
             fb_daily_sql = f"""
                 SELECT
                     {fb_key_expr} AS domain_key,
@@ -4686,22 +4705,18 @@ class data_mysql:
                     vals['_has_data'] = any(vals[k] for k in ['spend', 'click', 'impresi', 'lpv'])
                     fb_rekap_map[key] = vals
 
-            all_keys = sorted(set(
-                list(rekap_map.keys()) + list(daily_map.keys()) + list(fb_daily_map.keys()) + list(fb_rekap_map.keys())
-            ))
+            all_keys = sorted(set(list(rekap_map.keys()) + list(daily_map.keys())))
             rows_out = []
             summary = {'total': 0, 'invalid': 0, 'warn': 0, 'ok': 0, 'missing': 0}
 
             for key in all_keys:
                 rekap_row = rekap_map.get(key)
                 daily_row = daily_map.get(key)
-                fb_daily_row = fb_daily_map.get(key)
-                fb_rekap_row = fb_rekap_map.get(key)
-                if not rekap_row and not daily_row and not fb_daily_row and not fb_rekap_row:
+                if not rekap_row and not daily_row:
                     continue
-                domain_name = (
-                    (rekap_row or daily_row or fb_daily_row or fb_rekap_row or {}).get('domain') or key
-                )
+                domain_name = (rekap_row or daily_row or {}).get('domain') or key
+                fb_daily_row = self._lookup_fb_invalid_row(fb_daily_map, domain_name)
+                fb_rekap_row = self._lookup_fb_invalid_row(fb_rekap_map, domain_name)
                 if domain_q and domain_q not in str(domain_name).lower() and domain_q not in key:
                     continue
                 metrics, metric_summary, daily_derived, rekap_derived = self._build_adsense_invalid_metric_rows(
@@ -4831,7 +4846,7 @@ class data_mysql:
             )
 
             adsense_clause, adsense_params = self._domain_filter_sql('data_adsense_domain', domain)
-            fb_clause, fb_params = self._domain_filter_sql('data_ads_domain', domain)
+            fb_clause, fb_params = self._domain_fb_filter_sql('data_ads_domain', domain)
             daily_sql = f"""
                 SELECT
                     DATE(data_adsense_tanggal) AS tanggal,
