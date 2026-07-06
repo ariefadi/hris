@@ -38,7 +38,7 @@ html[data-theme="dark"] {
 .irs-table-wrap { overflow: auto; border: 1px solid var(--irs-border); border-radius: 12px; }
 .irs-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .irs-table thead th { position: sticky; top: 0; z-index: 1; background: rgba(52,168,83,.10); color: var(--irs-text); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 8px; border-bottom: 1px solid var(--irs-border); white-space: nowrap; }
-.irs-table tbody td { padding: 10px 8px; border-bottom: 1px solid var(--irs-border); vertical-align: middle; color: var(--irs-text); }
+.irs-table tbody td { padding: 10px 8px; border-bottom: 1px solid var(--irs-border); vertical-align: middle; color: var(--irs-text); white-space: nowrap; }
 .irs-table tbody tr:hover td { background: rgba(52,168,83,.04); }
 .irs-pill { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .irs-pill.is-invalid { background: rgba(239,68,68,.14); color: #b91c1c; }
@@ -67,7 +67,7 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
 <div class="card mb-3">
     <div class="card-header">
         <h3 class="card-title mb-0">Invalid Report AdSense</h3>
-        <small class="text-muted d-block mt-1">Bandingkan agregat harian vs rekap bulanan per domain — selisih &gt;5% = tidak selaras</small>
+        <small class="text-muted d-block mt-1">Bandingkan agregat harian vs rekap bulanan per domain — termasuk spend FB, profit, ROI, CPR, RPM, dan metrik AdSense lainnya</small>
     </div>
     <div class="card-body">
         <div class="form-row irs-filter-row">
@@ -140,6 +140,15 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
         return n.toLocaleString('id-ID', { maximumFractionDigits: n >= 1000 ? 0 : 2 });
     }
     function fmtPct(v) { return (Number(v) || 0).toFixed(2) + '%'; }
+    function fmtMetricValue(v, kind) {
+        const k = String(kind || 'number');
+        if (k === 'money') return fmtIdr(v);
+        if (k === 'percent') return fmtPct(v);
+        return fmtNum(v);
+    }
+    function fmtPair(daily, rekap, kind) {
+        return esc(fmtMetricValue(daily, kind)) + ' / ' + esc(fmtMetricValue(rekap, kind));
+    }
     function esc(s) {
         return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
@@ -228,8 +237,9 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
         if (!metrics || !metrics.length) return '<div class="text-muted small">Tidak ada metrik.</div>';
         let html = '<table class="irs-mini-table"><thead><tr><th>Metrik</th><th class="text-right">Harian</th><th class="text-right">Rekap</th><th class="text-right">Selisih</th><th></th></tr></thead><tbody>';
         metrics.forEach(function(m) {
-            const daily = m.key === 'revenue' ? fmtIdr(m.daily) : fmtNum(m.daily);
-            const rekap = m.key === 'revenue' ? fmtIdr(m.rekap) : fmtNum(m.rekap);
+            const kind = m.kind || (m.key === 'revenue' || m.key === 'spend' || m.key === 'profit' || m.key === 'cpr' || m.key === 'ecpm' || m.key === 'rpm' || m.key === 'cpc' ? 'money' : (m.key === 'roi' || m.key === 'ctr' || m.key === 'coverage' ? 'percent' : 'number'));
+            const daily = fmtMetricValue(m.daily, kind);
+            const rekap = fmtMetricValue(m.rekap, kind);
             html += `<tr><td>${esc(m.label)}</td><td class="text-right">${esc(daily)}</td><td class="text-right">${esc(rekap)}</td><td class="text-right">${esc(fmtPct(m.delta_pct))}</td><td>${pill(m.status)}</td></tr>`;
         });
         html += '</tbody></table>';
@@ -238,9 +248,9 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
 
     function renderDailyTable(rows) {
         if (!rows || !rows.length) return '<div class="text-muted small">Tidak ada data harian untuk bulan ini.</div>';
-        let html = '<table class="irs-mini-table"><thead><tr><th>Tanggal</th><th class="text-right">Revenue</th><th class="text-right">Impresi</th><th class="text-right">Click</th><th class="text-right">Page Views</th><th class="text-right">Ad Requests</th></tr></thead><tbody>';
+        let html = '<table class="irs-mini-table"><thead><tr><th>Tanggal</th><th class="text-right">Spend</th><th class="text-right">Revenue</th><th class="text-right">Profit</th><th class="text-right">ROI</th><th class="text-right">CPR</th><th class="text-right">RPM</th><th class="text-right">Impresi</th><th class="text-right">Page Views</th></tr></thead><tbody>';
         rows.forEach(function(r) {
-            html += `<tr><td>${esc(r.date)}</td><td class="text-right">${esc(fmtIdr(r.revenue))}</td><td class="text-right">${esc(fmtNum(r.impresi))}</td><td class="text-right">${esc(fmtNum(r.click))}</td><td class="text-right">${esc(fmtNum(r.page_views))}</td><td class="text-right">${esc(fmtNum(r.ad_requests))}</td></tr>`;
+            html += `<tr><td>${esc(r.date)}</td><td class="text-right">${esc(fmtIdr(r.spend))}</td><td class="text-right">${esc(fmtIdr(r.revenue))}</td><td class="text-right">${esc(fmtIdr(r.profit))}</td><td class="text-right">${esc(fmtPct(r.roi))}</td><td class="text-right">${esc(fmtIdr(r.cpr))}</td><td class="text-right">${esc(fmtIdr(r.rpm))}</td><td class="text-right">${esc(fmtNum(r.impresi))}</td><td class="text-right">${esc(fmtNum(r.page_views))}</td></tr>`;
         });
         html += '</tbody></table>';
         return html;
@@ -249,7 +259,7 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
     function renderMainTable(rows) {
         if (!rows.length) return '<div class="irs-empty">Tidak ada domain untuk filter ini.</div>';
         let html = '<table class="irs-table"><thead><tr>';
-        html += '<th></th><th>Domain</th><th>Status</th><th class="text-right">Revenue H/R</th><th class="text-right">Selisih</th><th class="text-right">Impresi H/R</th><th class="text-right">Page Views H/R</th><th>Sumber</th>';
+        html += '<th></th><th>Domain</th><th>Status</th><th class="text-right">Spend H/R</th><th class="text-right">Revenue H/R</th><th class="text-right">Profit H/R</th><th class="text-right">ROI H/R</th><th class="text-right">CPR H/R</th><th class="text-right">RPM H/R</th><th class="text-right">Δ Revenue</th><th>Sumber</th>';
         html += '</tr></thead><tbody>';
         rows.forEach(function(row, idx) {
             const deltaCls = Number(row.revenue_delta_pct || 0) >= 0 ? 'irs-num-up' : 'irs-num-down';
@@ -258,12 +268,15 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
             if (row.has_rekap) src.push('Rekap');
             html += `<tr><td><button type="button" class="btn btn-xs btn-outline-success irs-toggle-detail" data-domain="${esc(row.domain)}" data-idx="${idx}"><i class="fas fa-chevron-down"></i></button></td>`;
             html += `<td><strong>${esc(row.domain)}</strong></td><td>${pill(row.status)}</td>`;
-            html += `<td class="text-right">${esc(fmtIdr(row.daily_revenue))} / ${esc(fmtIdr(row.rekap_revenue))}</td>`;
+            html += `<td class="text-right">${fmtPair(row.daily_spend, row.rekap_spend, 'money')}</td>`;
+            html += `<td class="text-right">${fmtPair(row.daily_revenue, row.rekap_revenue, 'money')}</td>`;
+            html += `<td class="text-right">${fmtPair(row.daily_profit, row.rekap_profit, 'money')}</td>`;
+            html += `<td class="text-right">${fmtPair(row.daily_roi, row.rekap_roi, 'percent')}</td>`;
+            html += `<td class="text-right">${fmtPair(row.daily_cpr, row.rekap_cpr, 'money')}</td>`;
+            html += `<td class="text-right">${fmtPair(row.daily_rpm, row.rekap_rpm, 'money')}</td>`;
             html += `<td class="text-right"><span class="${deltaCls}">${esc(fmtPct(row.revenue_delta_pct))}</span></td>`;
-            html += `<td class="text-right">${esc(fmtNum(row.daily_impresi))} / ${esc(fmtNum(row.rekap_impresi))}</td>`;
-            html += `<td class="text-right">${esc(fmtNum(row.daily_page_views))} / ${esc(fmtNum(row.rekap_page_views))}</td>`;
             html += `<td><small class="text-muted">${esc(src.join(' + ') || '-')}</small></td></tr>`;
-            html += `<tr class="irs-detail-row" id="irsDetail${idx}" style="display:none;"><td colspan="8"><div class="irs-detail-panel"><div class="text-center text-muted py-3">Memuat detail...</div></div></td></tr>`;
+            html += `<tr class="irs-detail-row" id="irsDetail${idx}" style="display:none;"><td colspan="11"><div class="irs-detail-panel"><div class="text-center text-muted py-3">Memuat detail...</div></div></td></tr>`;
         });
         html += '</tbody></table>';
         return html;
@@ -297,9 +310,18 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
             return;
         }
         const data = json.data || {};
-        const metrics = (data.adsense && data.adsense.metrics) ? data.adsense.metrics : [];
-        panel.innerHTML = `<div class="irs-detail-grid">
-            <div class="irs-detail-block"><h6>Perbandingan Metrik</h6>${renderMetricMiniTable(metrics)}</div>
+        const adsenseData = data.adsense || {};
+        const metrics = adsenseData.metrics || [];
+        const derived = adsenseData.daily_derived || {};
+        const derivedRekap = adsenseData.rekap_derived || {};
+        const derivedSummary = `<div class="irs-detail-block mb-3"><h6>Ringkasan Bisnis (Harian vs Rekap)</h6><div class="row small">
+            <div class="col-md-3"><span class="text-muted">Spend</span><br><strong>${esc(fmtIdr(derived.spend))}</strong> / ${esc(fmtIdr(derivedRekap.spend))}</div>
+            <div class="col-md-3"><span class="text-muted">Profit</span><br><strong>${esc(fmtIdr(derived.profit))}</strong> / ${esc(fmtIdr(derivedRekap.profit))}</div>
+            <div class="col-md-3"><span class="text-muted">ROI</span><br><strong>${esc(fmtPct(derived.roi))}</strong> / ${esc(fmtPct(derivedRekap.roi))}</div>
+            <div class="col-md-3"><span class="text-muted">CPR</span><br><strong>${esc(fmtIdr(derived.cpr))}</strong> / ${esc(fmtIdr(derivedRekap.cpr))}</div>
+        </div></div>`;
+        panel.innerHTML = `${derivedSummary}<div class="irs-detail-grid">
+            <div class="irs-detail-block"><h6>Perbandingan Metrik Lengkap</h6>${renderMetricMiniTable(metrics)}</div>
             <div class="irs-detail-block"><h6>Rincian Harian (${esc((data.period || {}).start || '')} s/d ${esc((data.period || {}).end || '')})</h6>${renderDailyTable(data.daily_breakdown || [])}</div>
         </div>`;
     }

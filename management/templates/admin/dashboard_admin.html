@@ -3215,6 +3215,15 @@ html[data-theme="dark"] .score-detail-modal__body .scx-modal-nav-label {
 }
 .score-detail-modal__body .scx-invalid-metric-list .name { font-weight: 700; color: #334155; }
 .score-detail-modal__body .scx-invalid-metric-list .vals { text-align: right; white-space: nowrap; }
+.score-detail-modal__body .scx-invalid-metric-list .scx-invalid-metric-delta {
+    display: block;
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 2px;
+    font-weight: 600;
+}
+.score-detail-modal__body .scx-invalid-source-card__delta strong { font-weight: 800; }
+html[data-theme="dark"] .score-detail-modal__body .scx-invalid-metric-list .scx-invalid-metric-delta { color: #94a3b8; }
 .score-detail-modal__body .scx-invalid-status-pill {
     display: inline-flex;
     align-items: center;
@@ -13464,6 +13473,47 @@ function initDashboardRecap() {
         return map[st] || st.toUpperCase();
     }
 
+    function scxInvalidDeltaPctFromRekap(daily, rekap) {
+        const d = Number(daily || 0);
+        const r = Number(rekap || 0);
+        if (d === 0 && r === 0) return 0;
+        if (r === 0) return d === 0 ? 0 : 100;
+        return ((r - d) / r) * 100;
+    }
+
+    function scxInvalidDeltaPairText(m) {
+        const daily = Number(m?.daily || 0);
+        const rekap = Number(m?.rekap || 0);
+        const fromDaily = Number(m?.delta_pct || 0);
+        const fromRekap = scxInvalidDeltaPctFromRekap(daily, rekap);
+        if (Math.abs(fromDaily) <= 0.05 && Math.abs(fromRekap) <= 0.05) {
+            return '0% har • 0% rek';
+        }
+        return `${fmtPct(fromDaily)} har • ${fmtPct(fromRekap)} rek`;
+    }
+
+    function scxInvalidPrimaryDeltaHtml(metric) {
+        const fromDaily = Number(metric?.delta_pct || 0);
+        const fromRekap = scxInvalidDeltaPctFromRekap(metric?.daily, metric?.rekap);
+        if (Math.abs(fromDaily) <= 0.05 && Math.abs(fromRekap) <= 0.05) {
+            return 'Nilai harian dan rekap selaras (<strong>0%</strong>).';
+        }
+        return `Selisih <strong>${esc(fmtPct(fromDaily))}</strong> dari harian • <strong>${esc(fmtPct(fromRekap))}</strong> dari rekap bulanan.`;
+    }
+
+    function scxInvalidSectionMaxDelta(metrics) {
+        let worst = null;
+        let worstAbs = -1;
+        (metrics || []).forEach(function(m) {
+            const abs = Math.abs(Number(m?.delta_pct || 0));
+            if (abs > worstAbs) {
+                worstAbs = abs;
+                worst = m;
+            }
+        });
+        return worst;
+    }
+
     function scxRenderInvalidStatusPill(status) {
         const st = String(status || 'missing').toLowerCase();
         return `<span class="scx-invalid-status-pill is-${esc(st)}">${esc(scxInvalidStatusLabel(st))}</span>`;
@@ -13499,7 +13549,7 @@ function initDashboardRecap() {
         if (!others.length) return '';
         const items = others.map(function(m) {
             const kind = String(m.kind || 'number');
-            return `<li><span class="name">${esc(String(m.label || m.key || '-'))}</span><span class="vals">${esc(scxFormatRekapMetricValue(kind, m.daily))} → ${esc(scxFormatRekapMetricValue(kind, m.rekap))}</span>${scxRenderInvalidStatusPill(m.status)}</li>`;
+            return `<li><span class="name">${esc(String(m.label || m.key || '-'))}</span><span class="vals">${esc(scxFormatRekapMetricValue(kind, m.daily))} → ${esc(scxFormatRekapMetricValue(kind, m.rekap))}<span class="scx-invalid-metric-delta">Δ ${esc(scxInvalidDeltaPairText(m))}</span></span>${scxRenderInvalidStatusPill(m.status)}</li>`;
         }).join('');
         return `<details class="scx-invalid-source-card__more"><summary>${esc(String(others.length))} metrik lainnya</summary><ul class="scx-invalid-metric-list">${items}</ul></details>`;
     }
@@ -13515,11 +13565,8 @@ function initDashboardRecap() {
             body = `<p class="scx-invalid-source-card__empty">Tidak ada data harian maupun rekap untuk periode ini.</p>`;
         } else if (primary) {
             const kind = String(primary.kind || 'number');
-            const deltaPct = Number(primary.delta_pct || 0);
             const deltaCls = tone === 'invalid' ? 'is-invalid' : (tone === 'warn' ? 'is-warn' : 'is-ok');
-            const deltaText = Math.abs(deltaPct) <= 0.05
-                ? 'Nilai harian dan rekap sama.'
-                : `Selisih ${esc(fmtPct(deltaPct))} dari agregat harian.`;
+            const deltaText = scxInvalidPrimaryDeltaHtml(primary);
             body += `<div class="scx-invalid-source-card__metric-label">${esc(String(primary.label || primaryKey))}</div>`;
             body += `<div class="scx-invalid-compare-row">
                 <div class="scx-invalid-compare-col"><span class="k">Harian</span><span class="v">${esc(scxFormatRekapMetricValue(kind, primary.daily))}</span></div>
@@ -13534,6 +13581,10 @@ function initDashboardRecap() {
         if (sec?.tanggal_tarik) meta.push('Tarik ' + String(sec.tanggal_tarik));
         if (sec?.has_daily === false && tone !== 'missing') meta.push('Harian kosong');
         if (sec?.has_rekap === false && tone !== 'missing') meta.push('Rekap kosong');
+        const worstMetric = scxInvalidSectionMaxDelta(sec?.metrics);
+        if (worstMetric && (tone === 'invalid' || tone === 'warn')) {
+            meta.push(`Selisih terbesar: ${String(worstMetric.label || worstMetric.key || '-')} (Δ ${scxInvalidDeltaPairText(worstMetric)})`);
+        }
 
         return `<div class="scx-invalid-source-card is-${esc(tone)}">
             <div class="scx-invalid-source-card__head">
@@ -13574,6 +13625,24 @@ function initDashboardRecap() {
         ];
         if (period.start && period.end) subParts.push(`${period.start} s/d ${period.end}`);
         if (data?.tanggal_tarik) subParts.push('tarik ' + String(data.tanggal_tarik));
+        let globalWorst = null;
+        let globalWorstAbs = -1;
+        sections.forEach(function(sec) {
+            (sec?.metrics || []).forEach(function(m) {
+                const abs = Math.abs(Number(m?.delta_pct || 0));
+                if (abs > globalWorstAbs) {
+                    globalWorstAbs = abs;
+                    globalWorst = {
+                        section: String(sec?.label || sec?.key || '-'),
+                        metric: String(m?.label || m?.key || '-'),
+                        delta: m,
+                    };
+                }
+            });
+        });
+        if (globalWorst && globalWorstAbs > 0.05) {
+            subParts.push(`selisih terbesar ${globalWorst.metric} ${globalWorst.section}: Δ ${scxInvalidDeltaPairText(globalWorst.delta)}`);
+        }
         const chips = sections.map(function(sec) {
             const secTone = scxInvalidSectionTone(sec);
             return `<span class="scx-invalid-chip is-${esc(secTone)}">${esc(String(sec.label || sec.key || '-'))}: ${esc(scxInvalidStatusLabel(secTone === 'missing' ? 'missing' : secTone))}</span>`;
