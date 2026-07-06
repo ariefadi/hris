@@ -60,6 +60,13 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
 .irs-lead { font-size: 13px; color: var(--irs-muted); margin-bottom: 0; }
 .irs-page .irs-filter-row .select2-container .select2-selection--single { min-height: 38px; }
 .irs-filter-note { margin-top: 8px; }
+.irs-page .switch-toggle { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.irs-page .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
+.irs-page .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
+.irs-page .switch-toggle .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #cbd5e1; transition: .25s; border-radius: 999px; }
+.irs-page .switch-toggle .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.irs-page .switch-toggle input:checked + .slider { background: var(--irs-accent); }
+.irs-page .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
 </style>
 {% endblock %}
 {% block content %}
@@ -97,11 +104,20 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
                     <option value="missing">Kosong</option>
                 </select>
             </div>
-            <div class="col-md-3 col-12 mb-2 mb-md-0">
+            <div class="col-md-2 col-12 mb-2 mb-md-0">
                 <label>Cari Domain</label>
                 <select class="form-control" id="irsDomain">
                     <option value=""></option>
                 </select>
+            </div>
+            <div class="col-md-1 col-6 mb-2 mb-md-0">
+                <label>Tanpa Spends</label>
+                <div class="switch-toggle" title="Sembunyikan domain tanpa spend FB" id="irsSpendToggle">
+                    <label class="switch mb-0">
+                        <input type="checkbox" id="irsHideZeroSpend" aria-label="Sembunyikan domain tanpa spend FB">
+                        <span class="slider"></span>
+                    </label>
+                </div>
             </div>
             <div class="col-md-2 col-12 mb-2 mb-md-0">
                 <label class="d-none d-md-block">&nbsp;</label>
@@ -109,7 +125,7 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
             </div>
         </div>
         <p class="irs-filter-note mb-0">
-            <small class="text-muted"><i class="bi bi-info-circle mr-1"></i>Cari Domain: ketik nama domain untuk melihat referensi dari data yang tersedia.</small>
+            <small class="text-muted"><i class="bi bi-info-circle mr-1"></i>Cari Domain: ketik nama domain untuk melihat referensi dari data yang tersedia. Aktifkan <strong>Tanpa Spends</strong> untuk hanya menampilkan domain yang memiliki spend FB.</small>
         </p>
     </div>
 </div>
@@ -340,6 +356,10 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
                 status: document.getElementById('irsStatus').value || 'all',
                 q: getSelectedDomain()
             });
+            const hideSpendEl = document.getElementById('irsHideZeroSpend');
+            if (hideSpendEl && hideSpendEl.checked) {
+                params.set('hide_zero_spend', '1');
+            }
             const res = await fetch('/management/admin/page_invalid_report_adsense?' + params.toString(), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
@@ -347,10 +367,15 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
             if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat data');
             const data = json.data || {};
             populateTarik(data.available_tarik_dates, data.tanggal_tarik);
+            reportLoaded = true;
             if (summaryEl) summaryEl.innerHTML = renderSummary(data.summary);
             const monthNum = parseInt(String(data.month || ''), 10);
             const monthLabel = monthNames[(monthNum || 1) - 1] || data.month;
-            if (metaEl) metaEl.textContent = `${monthLabel} ${data.year} • periode harian ${(data.period || {}).start || '-'} s/d ${(data.period || {}).end || '-'} • tarik ${data.tanggal_tarik || '-'}`;
+            if (metaEl) {
+                let meta = `${monthLabel} ${data.year} • periode harian ${(data.period || {}).start || '-'} s/d ${(data.period || {}).end || '-'} • tarik ${data.tanggal_tarik || '-'}`;
+                if (data.hide_zero_spend) meta += ' • hanya domain dengan spend FB';
+                metaEl.textContent = meta;
+            }
             if (tableWrap) {
                 tableWrap.innerHTML = renderMainTable(data.rows || []);
                 tableWrap.querySelectorAll('.irs-toggle-detail').forEach(function(btn) {
@@ -379,7 +404,15 @@ html[data-theme="dark"] .irs-detail-row td { background: rgba(15,23,42,.72); }
         }
     }
 
+    let reportLoaded = false;
+
     document.getElementById('irsLoadBtn').addEventListener('click', loadReport);
+    const irsHideSpendEl = document.getElementById('irsHideZeroSpend');
+    if (irsHideSpendEl) {
+        irsHideSpendEl.addEventListener('change', function() {
+            if (reportLoaded) loadReport();
+        });
+    }
     if (window.jQuery) {
         jQuery(function() { initDomainFilter(); });
     } else {

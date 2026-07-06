@@ -3738,6 +3738,7 @@ class InvalidReportAdsenseDataView(View):
                 tanggal_tarik=req.GET.get('tanggal_tarik'),
                 status_filter=req.GET.get('status') or 'all',
                 domain_q=req.GET.get('q') or '',
+                hide_zero_spend=req.GET.get('hide_zero_spend'),
             )
             if not result.get('status'):
                 return JsonResponse({'status': False, 'error': result.get('data') or 'Gagal memuat data'}, status=400)

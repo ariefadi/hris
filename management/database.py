@@ -3970,13 +3970,14 @@ class data_mysql:
             return 'ok'
         return 'missing'
 
-    def list_adx_rekap_invalid_report(self, year, month, tanggal_tarik=None, status_filter=None, domain_q=None):
+    def list_adx_rekap_invalid_report(self, year, month, tanggal_tarik=None, status_filter=None, domain_q=None, hide_zero_spend=None):
         """List AdX monthly recap vs daily aggregates for all domains."""
         import calendar
 
         try:
             year = str(year or '').strip()
             month = str(month or '').strip().zfill(2)
+            hide_zero_spend = str(hide_zero_spend or '').strip().lower() in ('1', 'true', 'yes', 'on')
             if not year.isdigit() or not month.isdigit():
                 return {'status': False, 'data': 'Tahun/bulan tidak valid'}
             month_int = int(month)
@@ -4174,6 +4175,13 @@ class data_mysql:
                     fb_daily_row or {'_has_data': False},
                     fb_rekap_row or {'_has_data': False},
                 )
+                if hide_zero_spend:
+                    spend_val = max(
+                        float(daily_derived.get('spend') or 0),
+                        float(rekap_derived.get('spend') or 0),
+                    )
+                    if spend_val <= 0:
+                        continue
                 row_status = self._worst_invalid_status(metric_summary)
                 if status_filter not in ('', 'all') and row_status != status_filter:
                     continue
@@ -4207,6 +4215,7 @@ class data_mysql:
                     'rekap_impresi': float((rekap_row or {}).get('impresi') or 0),
                     'daily_click': float((daily_row or {}).get('click') or 0),
                     'rekap_click': float((rekap_row or {}).get('click') or 0),
+                    'has_spend': max(float(daily_derived.get('spend') or 0), float(rekap_derived.get('spend') or 0)) > 0,
                     'metrics': metrics,
                     'summary': metric_summary,
                 })
@@ -4224,6 +4233,7 @@ class data_mysql:
                     'period': {'start': start_date, 'end': end_date},
                     'tanggal_tarik': resolved_tarik,
                     'available_tarik_dates': available_tarik,
+                    'hide_zero_spend': hide_zero_spend,
                     'summary': summary,
                     'rows': rows_out,
                 },
@@ -4499,13 +4509,14 @@ class data_mysql:
             )
         return metrics, summary, daily_derived, rekap_derived
 
-    def list_adsense_rekap_invalid_report(self, year, month, tanggal_tarik=None, status_filter=None, domain_q=None):
+    def list_adsense_rekap_invalid_report(self, year, month, tanggal_tarik=None, status_filter=None, domain_q=None, hide_zero_spend=None):
         """List AdSense monthly recap vs daily aggregates for all domains."""
         import calendar
 
         try:
             year = str(year or '').strip()
             month = str(month or '').strip().zfill(2)
+            hide_zero_spend = str(hide_zero_spend or '').strip().lower() in ('1', 'true', 'yes', 'on')
             if not year.isdigit() or not month.isdigit():
                 return {'status': False, 'data': 'Tahun/bulan tidak valid'}
             month_int = int(month)
@@ -4699,6 +4710,13 @@ class data_mysql:
                     fb_daily_row or {'_has_data': False},
                     fb_rekap_row or {'_has_data': False},
                 )
+                if hide_zero_spend:
+                    spend_val = max(
+                        float(daily_derived.get('spend') or 0),
+                        float(rekap_derived.get('spend') or 0),
+                    )
+                    if spend_val <= 0:
+                        continue
                 row_status = self._worst_invalid_status(metric_summary)
                 if status_filter not in ('', 'all') and row_status != status_filter:
                     continue
@@ -4736,6 +4754,7 @@ class data_mysql:
                     'rekap_click': float((rekap_row or {}).get('click') or 0),
                     'daily_page_views': float((daily_row or {}).get('page_views') or 0),
                     'rekap_page_views': float((rekap_row or {}).get('page_views') or 0),
+                    'has_spend': max(float(daily_derived.get('spend') or 0), float(rekap_derived.get('spend') or 0)) > 0,
                     'metrics': metrics,
                     'summary': metric_summary,
                 })
@@ -4753,6 +4772,7 @@ class data_mysql:
                     'period': {'start': start_date, 'end': end_date},
                     'tanggal_tarik': resolved_tarik,
                     'available_tarik_dates': available_tarik,
+                    'hide_zero_spend': hide_zero_spend,
                     'summary': summary,
                     'rows': rows_out,
                 },
