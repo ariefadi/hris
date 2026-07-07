@@ -34,7 +34,7 @@ html[data-theme="dark"] {
 .irfb-summary-box .v { font-size: 22px; font-weight: 800; margin-top: 2px; color: var(--irfb-text); }
 .irfb-summary-box.is-invalid .v { color: #dc2626; }
 .irfb-summary-box.is-warn .v { color: #d97706; }
-.irfb-summary-box.is-ok .v { color: #059669; }
+.irfb-summary-box.is-ok .v { color: #1d4ed8; }
 .irfb-table-wrap { overflow: auto; border: 1px solid var(--irfb-border); border-radius: 12px; }
 .irfb-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .irfb-table thead th { position: sticky; top: 0; z-index: 1; background: rgba(24,119,242,.10); color: var(--irfb-text); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 8px; border-bottom: 1px solid var(--irfb-border); white-space: nowrap; }
@@ -43,7 +43,6 @@ html[data-theme="dark"] {
 .irfb-pill { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .irfb-pill.is-invalid { background: rgba(239,68,68,.14); color: #b91c1c; }
 .irfb-pill.is-warn { background: rgba(245,158,11,.16); color: #b45309; }
-.irfb-pill.is-ok { background: rgba(16,185,129,.14); color: #047857; }
 .irfb-pill.is-missing { background: rgba(148,163,184,.18); color: #475569; }
 .irfb-detail-row td { background: rgba(248,250,252,.92); padding: 0 !important; }
 html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
@@ -57,6 +56,13 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
 .irfb-lead { font-size: 13px; color: var(--irfb-muted); margin-bottom: 0; }
 .irfb-page .irfb-filter-row .select2-container .select2-selection--single { min-height: 38px; }
 .irfb-filter-note { margin-top: 8px; }
+.irfb-page .switch-toggle { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.irfb-page .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
+.irfb-page .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
+.irfb-page .switch-toggle .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #cbd5e1; transition: .25s; border-radius: 999px; }
+.irfb-page .switch-toggle .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.irfb-page .switch-toggle input:checked + .slider { background: var(--irfb-accent); }
+.irfb-page .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
 .irfb-compare-card { border: 1px solid var(--irfb-border); border-radius: 12px; padding: 14px; margin-bottom: 14px; background: var(--irfb-surface); }
 .irfb-compare-card h6 { font-size: 13px; font-weight: 800; margin: 0 0 10px; color: var(--irfb-text); }
 .irfb-compare-note { font-size: 11px; color: var(--irfb-muted); margin: 0 0 10px; }
@@ -66,10 +72,15 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
 .irfb-compare-table tbody tr:last-child td { border-bottom: none; }
 .irfb-compare-table .metric-name { font-weight: 700; white-space: nowrap; }
 .irfb-compare-table .metric-sub { display: block; font-size: 10px; color: var(--irfb-muted); font-weight: 500; margin-top: 2px; }
-.irfb-delta-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 999px; font-size: 10px; font-weight: 800; white-space: nowrap; }
-.irfb-delta-badge.is-up { background: rgba(16,185,129,.14); color: #047857; }
-.irfb-delta-badge.is-down { background: rgba(239,68,68,.14); color: #b91c1c; }
-.irfb-delta-badge.is-flat { background: rgba(148,163,184,.16); color: #475569; }
+.irfb-delta-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 900; white-space: nowrap; letter-spacing: .01em; border: 1px solid transparent; }
+.irfb-delta-badge.is-up { background: #16a34a; color: #ffffff; border-color: #15803d; box-shadow: 0 1px 3px rgba(22,163,74,.35); }
+.irfb-delta-badge.is-down { background: #dc2626; color: #ffffff; border-color: #b91c1c; box-shadow: 0 1px 3px rgba(220,38,38,.35); }
+.irfb-delta-badge.is-flat { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+html[data-theme="dark"] .irfb-delta-badge.is-up { background: #22c55e; color: #052e16; border-color: #16a34a; }
+html[data-theme="dark"] .irfb-delta-badge.is-down { background: #ef4444; color: #450a0a; border-color: #dc2626; }
+html[data-theme="dark"] .irfb-delta-badge.is-flat { background: rgba(59,130,246,.24); color: #bfdbfe; border-color: rgba(147,197,253,.55); }
+.irfb-pill.is-ok { background: #dbeafe; color: #1d4ed8; }
+html[data-theme="dark"] .irfb-pill.is-ok { background: rgba(59,130,246,.24); color: #bfdbfe; }
 .irfb-hr-pair { font-size: 11px; line-height: 1.35; }
 .irfb-hr-pair .sep { color: var(--irfb-muted); margin: 0 2px; }
 </style>
@@ -79,7 +90,7 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
 <div class="card mb-3">
     <div class="card-header">
         <h3 class="card-title mb-0">Invalid Report Facebook Ads</h3>
-        <small class="text-muted d-block mt-1">Bandingkan agregat harian vs rekap bulanan — semua komponen FB (spend, impresi, reach, klik, frequency, CPR, CPC, CTR, LPV, dll.) beserta % selisih</small>
+        <small class="text-muted d-block mt-1">Tampilkan rekap bulanan per domain. Aktifkan <strong>Bandingkan Data</strong> untuk melihat selisih dengan agregat harian.</small>
     </div>
     <div class="card-body">
         <div class="form-row irfb-filter-row">
@@ -109,11 +120,20 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
                     <option value="missing">Kosong</option>
                 </select>
             </div>
-            <div class="col-md-3 col-12 mb-2 mb-md-0">
+            <div class="col-md-2 col-12 mb-2 mb-md-0">
                 <label>Cari Domain</label>
                 <select class="form-control" id="irfbDomain">
                     <option value=""></option>
                 </select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Bandingkan Data</label>
+                <div class="switch-toggle" title="Aktifkan perbandingan rekap bulanan vs agregat harian" id="irfbCompareToggle">
+                    <label class="switch mb-0">
+                        <input type="checkbox" id="irfbCompareData" aria-label="Bandingkan data harian vs rekap">
+                        <span class="slider"></span>
+                    </label>
+                </div>
             </div>
             <div class="col-md-2 col-12 mb-2 mb-md-0">
                 <label class="d-none d-md-block">&nbsp;</label>
@@ -121,7 +141,7 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
             </div>
         </div>
         <p class="irfb-filter-note mb-0">
-            <small class="text-muted"><i class="bi bi-info-circle mr-1"></i>Cari Domain: ketik nama domain untuk melihat referensi dari data campaign Facebook Ads.</small>
+            <small class="text-muted"><i class="bi bi-info-circle mr-1"></i>Secara default hanya menampilkan <strong>rekap bulanan</strong>. Aktifkan <strong>Bandingkan Data</strong> untuk melihat perbandingan dengan agregat harian beserta % selisih dan status.</small>
         </p>
     </div>
 </div>
@@ -212,7 +232,32 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
         const kind = metricKind(m);
         return `${renderHrPair(m.daily, m.rekap, kind)}<div class="mt-1">${deltaBadge(m.delta_pct)}</div>`;
     }
-    function renderCompareTable(metrics, title, note) {
+    function renderMetricRekapCell(metrics, key) {
+        const m = findMetric(metrics, key);
+        if (!m) return '<span class="text-muted">-</span>';
+        return esc(fmtMetricValue(m.rekap, metricKind(m)));
+    }
+    function renderRekapOnlyTable(metrics, title, note) {
+        if (!metrics || !metrics.length) return '';
+        let html = `<div class="irfb-compare-card"><h6>${esc(title)}</h6>`;
+        if (note) html += `<p class="irfb-compare-note">${esc(note)}</p>`;
+        html += '<div class="irfb-table-wrap"><table class="irfb-compare-table"><thead><tr>';
+        html += '<th>Metrik</th><th class="text-right">Rekap Bulanan</th>';
+        html += '</tr></thead><tbody>';
+        metrics.forEach(function(m) {
+            const kind = metricKind(m);
+            html += '<tr>';
+            html += `<td class="metric-name">${esc(m.label)}</td>`;
+            html += `<td class="text-right">${esc(fmtMetricValue(m.rekap, kind))}</td>`;
+            html += '</tr>';
+        });
+        html += '</tbody></table></div></div>';
+        return html;
+    }
+    function renderCompareTable(metrics, title, note, compareMode) {
+        if (!compareMode) {
+            return renderRekapOnlyTable(metrics, title, note);
+        }
         if (!metrics || !metrics.length) return '';
         let html = `<div class="irfb-compare-card"><h6>${esc(title)}</h6>`;
         if (note) html += `<p class="irfb-compare-note">${esc(note)}</p>`;
@@ -234,11 +279,15 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
         html += '</tbody></table></div></div>';
         return html;
     }
-    function renderAggregateCompare(aggregate) {
+    function renderAggregateCompare(aggregate, compareMode) {
         const metrics = (aggregate || {}).metrics || [];
         if (!metrics.length) return '';
-        const note = 'Total dari domain yang tampil sesuai filter. % perubahan = (Rekap − Harian) / Harian × 100. Hijau = rekap lebih tinggi, merah = rekap lebih rendah.';
-        return renderCompareTable(metrics, 'Perbandingan Agregat — Harian vs Rekap Bulanan', note);
+        if (compareMode) {
+            const note = 'Total dari domain yang tampil sesuai filter. % perubahan = (Rekap − Harian) / Harian × 100. Hijau = rekap lebih tinggi, merah = rekap lebih rendah.';
+            return renderCompareTable(metrics, 'Perbandingan Agregat — Harian vs Rekap Bulanan', note, true);
+        }
+        const note = 'Nilai rekap bulanan dari tarik terpilih. Aktifkan Bandingkan Data untuk melihat selisih dengan agregat harian.';
+        return renderRekapOnlyTable(metrics, 'Rekap Bulanan — Agregat Semua Domain', note);
     }
 
     function getMonthDateRange() {
@@ -298,22 +347,27 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
             }
         });
     }
-    function renderSummary(summary) {
+    function renderSummary(summary, compareMode) {
         const s = summary || {};
-        const items = [
+        const items = compareMode ? [
             { key: 'total', label: 'Total Domain', cls: '' },
             { key: 'invalid', label: 'Tidak Selaras', cls: 'is-invalid' },
             { key: 'warn', label: 'Perlu Dicek', cls: 'is-warn' },
             { key: 'ok', label: 'Selaras', cls: 'is-ok' },
             { key: 'missing', label: 'Kosong', cls: '' },
+        ] : [
+            { key: 'total', label: 'Total Domain', cls: '' },
         ];
-        return `<div class="irfb-summary-grid">${items.map(function(it) {
+        return `<div class="irfb-summary-grid"${compareMode ? '' : ' style="grid-template-columns:minmax(0,1fr);"'}>${items.map(function(it) {
             return `<div class="irfb-summary-box ${it.cls}"><div class="k">${esc(it.label)}</div><div class="v">${esc(fmtNum(s[it.key] || 0))}</div></div>`;
         }).join('')}</div>`;
     }
-    function renderMetricMiniTable(metrics, note) {
+    function renderMetricMiniTable(metrics, note, compareMode) {
         if (!metrics || !metrics.length) return '<div class="text-muted small">Tidak ada metrik.</div>';
-        return renderCompareTable(metrics, 'Perbandingan Semua Komponen (Harian vs Rekap)', note || '');
+        if (compareMode) {
+            return renderCompareTable(metrics, 'Perbandingan Semua Komponen (Harian vs Rekap)', note || '', true);
+        }
+        return renderRekapOnlyTable(metrics, 'Rekap Bulanan — Semua Komponen', note || '');
     }
     function renderDailyTable(rows) {
         if (!rows || !rows.length) return '<div class="text-muted small">Tidak ada data harian untuk bulan ini.</div>';
@@ -324,11 +378,12 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
         html += '</tbody></table>';
         return html;
     }
-    function renderMainTable(rows) {
+    function renderMainTable(rows, compareMode) {
         if (!rows.length) return '<div class="irfb-empty">Tidak ada domain untuk filter ini.</div>';
-        let html = '<table class="irfb-table"><thead><tr><th></th><th>Domain</th><th>Status</th>';
+        let html = '<table class="irfb-table"><thead><tr><th></th><th>Domain</th>';
+        if (compareMode) html += '<th>Status</th>';
         mainTableMetrics.forEach(function(def) {
-            html += `<th class="text-right">${esc(def.label)}<span class="metric-sub"> H / R • Δ%</span></th>`;
+            html += `<th class="text-right">${esc(def.label)}<span class="metric-sub">${compareMode ? ' H / R • Δ%' : ' Rekap'}</span></th>`;
         });
         html += '<th>Sumber</th></tr></thead><tbody>';
         rows.forEach(function(row, idx) {
@@ -336,12 +391,13 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
             if (row.has_daily) src.push('Harian');
             if (row.has_rekap) src.push('Rekap');
             html += `<tr><td><button type="button" class="btn btn-xs btn-outline-primary irfb-toggle-detail" data-domain="${esc(row.domain)}" data-idx="${idx}"><i class="fas fa-chevron-down"></i></button></td>`;
-            html += `<td><strong>${esc(row.domain)}</strong></td><td>${pill(row.status)}</td>`;
+            html += `<td><strong>${esc(row.domain)}</strong></td>`;
+            if (compareMode) html += `<td>${pill(row.status)}</td>`;
             mainTableMetrics.forEach(function(def) {
-                html += `<td class="text-right">${renderMetricCompareCell(row.metrics, def.key)}</td>`;
+                html += `<td class="text-right">${compareMode ? renderMetricCompareCell(row.metrics, def.key) : renderMetricRekapCell(row.metrics, def.key)}</td>`;
             });
-            html += `<td><small class="text-muted">${esc(src.join(' + ') || '-')}</small></td></tr>`;
-            html += `<tr class="irfb-detail-row" id="irfbDetail${idx}" style="display:none;"><td colspan="${mainTableMetrics.length + 4}"><div class="irfb-detail-panel"><div class="text-center text-muted py-3">Memuat detail...</div></div></td></tr>`;
+            html += `<td><small class="text-muted">${esc(compareMode ? (src.join(' + ') || '-') : 'Rekap')}</small></td></tr>`;
+            html += `<tr class="irfb-detail-row" id="irfbDetail${idx}" style="display:none;"><td colspan="${mainTableMetrics.length + (compareMode ? 4 : 3)}"><div class="irfb-detail-panel"><div class="text-center text-muted py-3">Memuat detail...</div></div></td></tr>`;
         });
         html += '</tbody></table>';
         return html;
@@ -355,10 +411,14 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
         });
         el.innerHTML = html;
     }
-    async function loadDetail(domain, idx, row) {
+    async function loadDetail(domain, idx, row, compareMode) {
         const panel = document.querySelector('#irfbDetail' + idx + ' .irfb-detail-panel');
         if (!panel) return;
         const metrics = (row && row.metrics) ? row.metrics : [];
+        if (!compareMode) {
+            panel.innerHTML = `<div class="irfb-detail-block">${renderMetricMiniTable(metrics, 'Nilai rekap bulanan untuk domain ini.', false)}</div>`;
+            return;
+        }
         panel.innerHTML = `<div class="text-center text-muted py-2"><i class="fas fa-spinner fa-spin"></i> Memuat rincian harian...</div>`;
         const params = new URLSearchParams({
             domain: domain,
@@ -380,13 +440,74 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
             }
         } catch (e) { /* metrik dari cache baris tetap tampil */ }
         panel.innerHTML = `<div class="irfb-detail-grid">
-            <div class="irfb-detail-block">${renderMetricMiniTable(metrics, 'Metrik Facebook Ads — bandingkan agregat harian vs rekap bulanan per domain.')}</div>
+            <div class="irfb-detail-block">${renderMetricMiniTable(metrics, 'Metrik Facebook Ads — bandingkan agregat harian vs rekap bulanan per domain.', true)}</div>
             <div class="irfb-detail-block"><h6>Rincian Harian (${esc(period.start || '-')} s/d ${esc(period.end || '-')})</h6>${renderDailyTable(dailyBreakdown)}</div>
         </div>`;
     }
 
     let cachedRows = [];
+    let cachedAggregate = null;
+    let cachedSummary = null;
+    let cachedMeta = null;
     let reportLoaded = false;
+
+    function isCompareDataEnabled() {
+        const el = document.getElementById('irfbCompareData');
+        return !!(el && el.checked);
+    }
+
+    function updateStatusFilterState() {
+        const statusEl = document.getElementById('irfbStatus');
+        if (!statusEl) return;
+        const compareMode = isCompareDataEnabled();
+        statusEl.disabled = !compareMode;
+        if (!compareMode && statusEl.value !== 'all') {
+            statusEl.value = 'all';
+        }
+    }
+
+    function bindDetailHandlers(compareMode) {
+        const tableWrap = document.getElementById('irfbTableWrap');
+        if (!tableWrap) return;
+        tableWrap.querySelectorAll('.irfb-toggle-detail').forEach(function(btn) {
+            btn.addEventListener('click', async function() {
+                const idx = btn.getAttribute('data-idx');
+                const domain = btn.getAttribute('data-domain');
+                const detailRow = document.getElementById('irfbDetail' + idx);
+                if (!detailRow) return;
+                if (detailRow.style.display !== 'none') {
+                    detailRow.style.display = 'none';
+                    btn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                    return;
+                }
+                detailRow.style.display = '';
+                btn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                await loadDetail(domain, idx, cachedRows[idx], compareMode);
+            });
+        });
+    }
+
+    function renderReportFromCache() {
+        const compareMode = isCompareDataEnabled();
+        const summaryEl = document.getElementById('irfbSummary');
+        const aggregateEl = document.getElementById('irfbAggregate');
+        const metaEl = document.getElementById('irfbMeta');
+        const tableWrap = document.getElementById('irfbTableWrap');
+        if (!reportLoaded) return;
+        updateStatusFilterState();
+        if (summaryEl) summaryEl.innerHTML = renderSummary(cachedSummary, compareMode);
+        if (aggregateEl) aggregateEl.innerHTML = renderAggregateCompare(cachedAggregate, compareMode);
+        if (metaEl && cachedMeta) {
+            let meta = cachedMeta.base || '';
+            if (compareMode) meta += ' • mode perbandingan harian vs rekap';
+            else meta += ' • mode rekap bulanan';
+            metaEl.textContent = meta;
+        }
+        if (tableWrap) {
+            tableWrap.innerHTML = renderMainTable(cachedRows, compareMode);
+            bindDetailHandlers(compareMode);
+        }
+    }
 
     async function loadReport() {
         const overlay = document.getElementById('irfbOverlay');
@@ -396,11 +517,12 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
         const tableWrap = document.getElementById('irfbTableWrap');
         if (overlay) overlay.style.display = 'block';
         try {
+            const compareMode = isCompareDataEnabled();
             const params = new URLSearchParams({
                 year: document.getElementById('irfbYear').value,
                 month: document.getElementById('irfbMonth').value,
                 tanggal_tarik: document.getElementById('irfbTarik').value || '',
-                status: document.getElementById('irfbStatus').value || 'all',
+                status: compareMode ? (document.getElementById('irfbStatus').value || 'all') : 'all',
                 q: getSelectedDomain()
             });
             const res = await fetch('/management/admin/page_ads_invalid?' + params.toString(), {
@@ -411,33 +533,15 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
             const data = json.data || {};
             populateTarik(data.available_tarik_dates, data.tanggal_tarik);
             cachedRows = data.rows || [];
-            reportLoaded = true;
-            if (summaryEl) summaryEl.innerHTML = renderSummary(data.summary);
-            if (aggregateEl) aggregateEl.innerHTML = renderAggregateCompare(data.aggregate);
+            cachedAggregate = data.aggregate || null;
+            cachedSummary = data.summary || null;
             const monthNum = parseInt(String(data.month || ''), 10);
             const monthLabel = monthNames[(monthNum || 1) - 1] || data.month;
-            if (metaEl) {
-                metaEl.textContent = `${monthLabel} ${data.year} • periode harian ${(data.period || {}).start || '-'} s/d ${(data.period || {}).end || '-'} • tarik ${data.tanggal_tarik || '-'}`;
-            }
-            if (tableWrap) {
-                tableWrap.innerHTML = renderMainTable(cachedRows);
-                tableWrap.querySelectorAll('.irfb-toggle-detail').forEach(function(btn) {
-                    btn.addEventListener('click', async function() {
-                        const idx = btn.getAttribute('data-idx');
-                        const domain = btn.getAttribute('data-domain');
-                        const detailRow = document.getElementById('irfbDetail' + idx);
-                        if (!detailRow) return;
-                        if (detailRow.style.display !== 'none') {
-                            detailRow.style.display = 'none';
-                            btn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-                            return;
-                        }
-                        detailRow.style.display = '';
-                        btn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                        await loadDetail(domain, idx, cachedRows[idx]);
-                    });
-                });
-            }
+            cachedMeta = {
+                base: `${monthLabel} ${data.year} • periode harian ${(data.period || {}).start || '-'} s/d ${(data.period || {}).end || '-'} • tarik ${data.tanggal_tarik || '-'}`
+            };
+            reportLoaded = true;
+            renderReportFromCache();
         } catch (e) {
             if (tableWrap) tableWrap.innerHTML = `<div class="irfb-empty text-danger">${esc(e.message || 'Gagal memuat')}</div>`;
             if (summaryEl) summaryEl.innerHTML = '';
@@ -449,6 +553,17 @@ html[data-theme="dark"] .irfb-detail-row td { background: rgba(15,23,42,.72); }
     }
 
     document.getElementById('irfbLoadBtn').addEventListener('click', loadReport);
+    const irfbCompareEl = document.getElementById('irfbCompareData');
+    if (irfbCompareEl) {
+        irfbCompareEl.addEventListener('change', function() {
+            if (reportLoaded) {
+                renderReportFromCache();
+            } else {
+                updateStatusFilterState();
+            }
+        });
+    }
+    updateStatusFilterState();
     if (window.jQuery) {
         jQuery(function() { initDomainFilter(); });
     } else {

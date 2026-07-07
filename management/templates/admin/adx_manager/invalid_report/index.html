@@ -34,7 +34,7 @@ html[data-theme="dark"] {
 .irx-summary-box .v { font-size: 22px; font-weight: 800; margin-top: 2px; color: var(--irx-text); }
 .irx-summary-box.is-invalid .v { color: #dc2626; }
 .irx-summary-box.is-warn .v { color: #d97706; }
-.irx-summary-box.is-ok .v { color: #059669; }
+.irx-summary-box.is-ok .v { color: #1d4ed8; }
 .irx-table-wrap { overflow: auto; border: 1px solid var(--irx-border); border-radius: 12px; }
 .irx-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .irx-table thead th { position: sticky; top: 0; z-index: 1; background: rgba(99,102,241,.08); color: var(--irx-text); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 8px; border-bottom: 1px solid var(--irx-border); white-space: nowrap; }
@@ -43,7 +43,6 @@ html[data-theme="dark"] {
 .irx-pill { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .irx-pill.is-invalid { background: rgba(239,68,68,.14); color: #b91c1c; }
 .irx-pill.is-warn { background: rgba(245,158,11,.16); color: #b45309; }
-.irx-pill.is-ok { background: rgba(16,185,129,.14); color: #047857; }
 .irx-pill.is-missing { background: rgba(148,163,184,.18); color: #475569; }
 .irx-num-up { color: #059669; font-weight: 700; }
 .irx-num-down { color: #dc2626; font-weight: 700; }
@@ -76,10 +75,15 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
 .irx-compare-table tbody tr:last-child td { border-bottom: none; }
 .irx-compare-table .metric-name { font-weight: 700; white-space: nowrap; }
 .irx-compare-table .metric-sub { display: block; font-size: 10px; color: var(--irx-muted); font-weight: 500; margin-top: 2px; }
-.irx-delta-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 999px; font-size: 10px; font-weight: 800; white-space: nowrap; }
-.irx-delta-badge.is-up { background: rgba(16,185,129,.14); color: #047857; }
-.irx-delta-badge.is-down { background: rgba(239,68,68,.14); color: #b91c1c; }
-.irx-delta-badge.is-flat { background: rgba(148,163,184,.16); color: #475569; }
+.irx-delta-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 900; white-space: nowrap; letter-spacing: .01em; border: 1px solid transparent; }
+.irx-delta-badge.is-up { background: #16a34a; color: #ffffff; border-color: #15803d; box-shadow: 0 1px 3px rgba(22,163,74,.35); }
+.irx-delta-badge.is-down { background: #dc2626; color: #ffffff; border-color: #b91c1c; box-shadow: 0 1px 3px rgba(220,38,38,.35); }
+.irx-delta-badge.is-flat { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+html[data-theme="dark"] .irx-delta-badge.is-up { background: #22c55e; color: #052e16; border-color: #16a34a; }
+html[data-theme="dark"] .irx-delta-badge.is-down { background: #ef4444; color: #450a0a; border-color: #dc2626; }
+html[data-theme="dark"] .irx-delta-badge.is-flat { background: rgba(59,130,246,.24); color: #bfdbfe; border-color: rgba(147,197,253,.55); }
+.irx-pill.is-ok { background: #dbeafe; color: #1d4ed8; }
+html[data-theme="dark"] .irx-pill.is-ok { background: rgba(59,130,246,.24); color: #bfdbfe; }
 .irx-metric-group th { text-align: center; border-left: 1px solid var(--irx-border); }
 .irx-metric-group th:first-child { border-left: none; }
 .irx-hr-pair { font-size: 11px; line-height: 1.35; }
@@ -91,7 +95,7 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
 <div class="card mb-3">
     <div class="card-header">
         <h3 class="card-title mb-0">Invalid Report AdX</h3>
-        <small class="text-muted d-block mt-1">Bandingkan agregat harian vs rekap bulanan — semua komponen AdX & FB (impresi, klik, CTR, CPC, eCPM, revenue, spend, ROI, dll.) beserta % selisih</small>
+        <small class="text-muted d-block mt-1">Tampilkan rekap bulanan per domain. Aktifkan <strong>Bandingkan Data</strong> untuk melihat selisih dengan agregat harian.</small>
     </div>
     <div class="card-body">
         <div class="form-row irx-filter-row">
@@ -127,11 +131,11 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
                     <option value=""></option>
                 </select>
             </div>
-            <div class="col-md-1 col-6 mb-2 mb-md-0">
-                <label>Tanpa Spends</label>
-                <div class="switch-toggle" title="Sembunyikan domain tanpa spend FB" id="irxSpendToggle">
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Bandingkan Data</label>
+                <div class="switch-toggle" title="Aktifkan perbandingan rekap bulanan vs agregat harian" id="irxCompareToggle">
                     <label class="switch mb-0">
-                        <input type="checkbox" id="irxHideZeroSpend" aria-label="Sembunyikan domain tanpa spend FB">
+                        <input type="checkbox" id="irxCompareData" aria-label="Bandingkan data harian vs rekap">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -142,7 +146,7 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
             </div>
         </div>
         <p class="irx-filter-note mb-0">
-            <small class="text-muted"><i class="bi bi-info-circle mr-1"></i>Cari Domain: ketik nama domain untuk melihat referensi dari data yang tersedia. Aktifkan <strong>Tanpa Spends</strong> untuk hanya menampilkan domain yang memiliki spend FB.</small>
+            <small class="text-muted"><i class="bi bi-info-circle mr-1"></i>Secara default hanya menampilkan <strong>rekap bulanan</strong>. Aktifkan <strong>Bandingkan Data</strong> untuk melihat perbandingan dengan agregat harian beserta % selisih dan status.</small>
         </p>
     </div>
 </div>
@@ -228,7 +232,34 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
         return `${renderHrPair(m.daily, m.rekap, kind)}<div class="mt-1">${deltaBadge(m.delta_pct)}</div>`;
     }
 
-    function renderCompareTable(metrics, title, note) {
+    function renderMetricRekapCell(metrics, key) {
+        const m = findMetric(metrics, key);
+        if (!m) return '<span class="text-muted">-</span>';
+        return esc(fmtMetricValue(m.rekap, metricKind(m)));
+    }
+
+    function renderRekapOnlyTable(metrics, title, note) {
+        if (!metrics || !metrics.length) return '';
+        let html = `<div class="irx-compare-card"><h6>${esc(title)}</h6>`;
+        if (note) html += `<p class="irx-compare-note">${esc(note)}</p>`;
+        html += '<div class="irx-table-wrap"><table class="irx-compare-table"><thead><tr>';
+        html += '<th>Metrik</th><th class="text-right">Rekap Bulanan</th>';
+        html += '</tr></thead><tbody>';
+        metrics.forEach(function(m) {
+            const kind = metricKind(m);
+            html += '<tr>';
+            html += `<td class="metric-name">${esc(m.label)}</td>`;
+            html += `<td class="text-right">${esc(fmtMetricValue(m.rekap, kind))}</td>`;
+            html += '</tr>';
+        });
+        html += '</tbody></table></div></div>';
+        return html;
+    }
+
+    function renderCompareTable(metrics, title, note, compareMode) {
+        if (!compareMode) {
+            return renderRekapOnlyTable(metrics, title, note);
+        }
         if (!metrics || !metrics.length) {
             return '';
         }
@@ -253,12 +284,16 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
         return html;
     }
 
-    function renderAggregateCompare(aggregate) {
+    function renderAggregateCompare(aggregate, compareMode) {
         const agg = aggregate || {};
         const metrics = agg.metrics || [];
         if (!metrics.length) return '';
-        const note = 'Total dari domain yang tampil sesuai filter. % perubahan = (Rekap − Harian) / Harian × 100. Hijau = rekap lebih tinggi, merah = rekap lebih rendah.';
-        return renderCompareTable(metrics, 'Perbandingan Agregat — Harian vs Rekap Bulanan', note);
+        if (compareMode) {
+            const note = 'Total dari domain yang tampil sesuai filter. % perubahan = (Rekap − Harian) / Harian × 100. Hijau = rekap lebih tinggi, merah = rekap lebih rendah.';
+            return renderCompareTable(metrics, 'Perbandingan Agregat — Harian vs Rekap Bulanan', note, true);
+        }
+        const note = 'Nilai rekap bulanan dari tarik terpilih. Aktifkan Bandingkan Data untuk melihat selisih dengan agregat harian.';
+        return renderRekapOnlyTable(metrics, 'Rekap Bulanan — Agregat Semua Domain', note);
     }
     function fmtMetricValue(v, kind) {
         const k = String(kind || 'number');
@@ -341,23 +376,28 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
         });
     }
 
-    function renderSummary(summary) {
+    function renderSummary(summary, compareMode) {
         const s = summary || {};
-        const items = [
+        const items = compareMode ? [
             { key: 'total', label: 'Total Domain', cls: '' },
             { key: 'invalid', label: 'Tidak Selaras', cls: 'is-invalid' },
             { key: 'warn', label: 'Perlu Dicek', cls: 'is-warn' },
             { key: 'ok', label: 'Selaras', cls: 'is-ok' },
             { key: 'missing', label: 'Kosong', cls: '' },
+        ] : [
+            { key: 'total', label: 'Total Domain', cls: '' },
         ];
-        return `<div class="irx-summary-grid">${items.map(function(it) {
+        return `<div class="irx-summary-grid"${compareMode ? '' : ' style="grid-template-columns:minmax(0,1fr);"'}>${items.map(function(it) {
             return `<div class="irx-summary-box ${it.cls}"><div class="k">${esc(it.label)}</div><div class="v">${esc(fmtNum(s[it.key] || 0))}</div></div>`;
         }).join('')}</div>`;
     }
 
-    function renderMetricMiniTable(metrics, note) {
+    function renderMetricMiniTable(metrics, note, compareMode) {
         if (!metrics || !metrics.length) return '<div class="text-muted small">Tidak ada metrik.</div>';
-        return renderCompareTable(metrics, 'Perbandingan Semua Komponen (Harian vs Rekap)', note || '');
+        if (compareMode) {
+            return renderCompareTable(metrics, 'Perbandingan Semua Komponen (Harian vs Rekap)', note || '', true);
+        }
+        return renderRekapOnlyTable(metrics, 'Rekap Bulanan — Semua Komponen', note || '');
     }
 
     function renderDailyTable(rows) {
@@ -377,14 +417,15 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
         return html;
     }
 
-    function renderMainTable(rows) {
+    function renderMainTable(rows, compareMode) {
         if (!rows.length) {
             return '<div class="irx-empty">Tidak ada domain untuk filter ini.</div>';
         }
         let html = '<table class="irx-table"><thead><tr>';
-        html += '<th></th><th>Domain</th><th>Status</th>';
+        html += '<th></th><th>Domain</th>';
+        if (compareMode) html += '<th>Status</th>';
         mainTableMetrics.forEach(function(def) {
-            html += `<th class="text-right">${esc(def.label)}<span class="metric-sub"> H / R • Δ%</span></th>`;
+            html += `<th class="text-right">${esc(def.label)}<span class="metric-sub">${compareMode ? ' H / R • Δ%' : ' Rekap'}</span></th>`;
         });
         html += '<th>Sumber</th></tr></thead><tbody>';
         rows.forEach(function(row, idx) {
@@ -394,13 +435,13 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
             html += `<tr data-irx-row="${idx}">`;
             html += `<td><button type="button" class="btn btn-xs btn-outline-primary irx-toggle-detail" data-domain="${esc(row.domain)}" data-idx="${idx}"><i class="fas fa-chevron-down"></i></button></td>`;
             html += `<td><strong>${esc(row.domain)}</strong></td>`;
-            html += `<td>${pill(row.status)}</td>`;
+            if (compareMode) html += `<td>${pill(row.status)}</td>`;
             mainTableMetrics.forEach(function(def) {
-                html += `<td class="text-right">${renderMetricCompareCell(row.metrics, def.key)}</td>`;
+                html += `<td class="text-right">${compareMode ? renderMetricCompareCell(row.metrics, def.key) : renderMetricRekapCell(row.metrics, def.key)}</td>`;
             });
-            html += `<td><small class="text-muted">${esc(src.join(' + ') || '-')}</small></td>`;
+            html += `<td><small class="text-muted">${esc(compareMode ? (src.join(' + ') || '-') : 'Rekap')}</small></td>`;
             html += '</tr>';
-            html += `<tr class="irx-detail-row" id="irxDetail${idx}" style="display:none;"><td colspan="${mainTableMetrics.length + 4}"><div class="irx-detail-panel"><div class="text-center text-muted py-3">Memuat detail...</div></div></td></tr>`;
+            html += `<tr class="irx-detail-row" id="irxDetail${idx}" style="display:none;"><td colspan="${mainTableMetrics.length + (compareMode ? 4 : 3)}"><div class="irx-detail-panel"><div class="text-center text-muted py-3">Memuat detail...</div></div></td></tr>`;
         });
         html += '</tbody></table>';
         return html;
@@ -417,10 +458,14 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
         el.innerHTML = html;
     }
 
-    async function loadDetail(domain, idx, row) {
+    async function loadDetail(domain, idx, row, compareMode) {
         const panel = document.querySelector('#irxDetail' + idx + ' .irx-detail-panel');
         if (!panel) return;
         const metrics = (row && row.metrics) ? row.metrics : [];
+        if (!compareMode) {
+            panel.innerHTML = `<div class="irx-detail-block">${renderMetricMiniTable(metrics, 'Nilai rekap bulanan untuk domain ini.', false)}</div>`;
+            return;
+        }
         panel.innerHTML = `<div class="text-center text-muted py-2"><i class="fas fa-spinner fa-spin"></i> Memuat rincian harian...</div>`;
         const params = new URLSearchParams({
             domain: domain,
@@ -444,17 +489,74 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
             /* tabel metrik tetap tampil dari cache baris */
         }
         panel.innerHTML = `<div class="irx-detail-grid">
-            <div class="irx-detail-block" style="grid-column: 1 / -1;">${renderMetricMiniTable(metrics, 'Metrik AdX, FB, dan turunan bisnis — bandingkan agregat harian vs rekap bulanan.')}</div>
+            <div class="irx-detail-block" style="grid-column: 1 / -1;">${renderMetricMiniTable(metrics, 'Metrik AdX, FB, dan turunan bisnis — bandingkan agregat harian vs rekap bulanan.', true)}</div>
             <div class="irx-detail-block" style="grid-column: 1 / -1;"><h6>Rincian Harian (${esc(period.start || '-')} s/d ${esc(period.end || '-')})</h6>${renderDailyTable(dailyBreakdown)}</div>
         </div>`;
     }
 
     let cachedRows = [];
+    let cachedAggregate = null;
+    let cachedSummary = null;
+    let cachedMeta = null;
     let reportLoaded = false;
 
-    function isHideZeroSpendEnabled() {
-        const el = document.getElementById('irxHideZeroSpend');
+    function isCompareDataEnabled() {
+        const el = document.getElementById('irxCompareData');
         return !!(el && el.checked);
+    }
+
+    function updateStatusFilterState() {
+        const statusEl = document.getElementById('irxStatus');
+        if (!statusEl) return;
+        const compareMode = isCompareDataEnabled();
+        statusEl.disabled = !compareMode;
+        if (!compareMode && statusEl.value !== 'all') {
+            statusEl.value = 'all';
+        }
+    }
+
+    function bindDetailHandlers(compareMode) {
+        const tableWrap = document.getElementById('irxTableWrap');
+        if (!tableWrap) return;
+        tableWrap.querySelectorAll('.irx-toggle-detail').forEach(function(btn) {
+            btn.addEventListener('click', async function() {
+                const idx = btn.getAttribute('data-idx');
+                const domain = btn.getAttribute('data-domain');
+                const detailRow = document.getElementById('irxDetail' + idx);
+                if (!detailRow) return;
+                const open = detailRow.style.display !== 'none';
+                if (open) {
+                    detailRow.style.display = 'none';
+                    btn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                    return;
+                }
+                detailRow.style.display = '';
+                btn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                await loadDetail(domain, idx, cachedRows[idx], compareMode);
+            });
+        });
+    }
+
+    function renderReportFromCache() {
+        const compareMode = isCompareDataEnabled();
+        const summaryEl = document.getElementById('irxSummary');
+        const aggregateEl = document.getElementById('irxAggregate');
+        const metaEl = document.getElementById('irxMeta');
+        const tableWrap = document.getElementById('irxTableWrap');
+        if (!reportLoaded) return;
+        updateStatusFilterState();
+        if (summaryEl) summaryEl.innerHTML = renderSummary(cachedSummary, compareMode);
+        if (aggregateEl) aggregateEl.innerHTML = renderAggregateCompare(cachedAggregate, compareMode);
+        if (metaEl && cachedMeta) {
+            let meta = cachedMeta.base || '';
+            if (compareMode) meta += ' • mode perbandingan harian vs rekap';
+            else meta += ' • mode rekap bulanan';
+            metaEl.textContent = meta;
+        }
+        if (tableWrap) {
+            tableWrap.innerHTML = renderMainTable(cachedRows, compareMode);
+            bindDetailHandlers(compareMode);
+        }
     }
 
     async function loadReport() {
@@ -465,16 +567,14 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
         const tableWrap = document.getElementById('irxTableWrap');
         if (overlay) overlay.style.display = 'block';
         try {
+            const compareMode = isCompareDataEnabled();
             const params = new URLSearchParams({
                 year: document.getElementById('irxYear').value,
                 month: document.getElementById('irxMonth').value,
                 tanggal_tarik: document.getElementById('irxTarik').value || '',
-                status: document.getElementById('irxStatus').value || 'all',
+                status: compareMode ? (document.getElementById('irxStatus').value || 'all') : 'all',
                 q: getSelectedDomain()
             });
-            if (isHideZeroSpendEnabled()) {
-                params.set('hide_zero_spend', '1');
-            }
             const res = await fetch('/management/admin/page_invalid_report_adx?' + params.toString(), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
@@ -483,34 +583,15 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
             const data = json.data || {};
             populateTarik(data.available_tarik_dates, data.tanggal_tarik);
             cachedRows = data.rows || [];
-            reportLoaded = true;
-            if (summaryEl) summaryEl.innerHTML = renderSummary(data.summary);
-            if (aggregateEl) aggregateEl.innerHTML = renderAggregateCompare(data.aggregate);
+            cachedAggregate = data.aggregate || null;
+            cachedSummary = data.summary || null;
             const monthNum = parseInt(String(data.month || ''), 10);
             const monthLabel = monthNames[(monthNum || 1) - 1] || data.month;
-            if (metaEl) {
-                let meta = `${monthLabel} ${data.year} • periode harian ${(data.period || {}).start || '-'} s/d ${(data.period || {}).end || '-'} • tarik ${data.tanggal_tarik || '-'}`;
-                if (data.hide_zero_spend) meta += ' • hanya domain dengan spend FB';
-                metaEl.textContent = meta;
-            }
-            if (tableWrap) tableWrap.innerHTML = renderMainTable(cachedRows);
-            tableWrap.querySelectorAll('.irx-toggle-detail').forEach(function(btn) {
-                btn.addEventListener('click', async function() {
-                    const idx = btn.getAttribute('data-idx');
-                    const domain = btn.getAttribute('data-domain');
-                    const detailRow = document.getElementById('irxDetail' + idx);
-                    if (!detailRow) return;
-                    const open = detailRow.style.display !== 'none';
-                    if (open) {
-                        detailRow.style.display = 'none';
-                        btn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-                        return;
-                    }
-                    detailRow.style.display = '';
-                    btn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                    await loadDetail(domain, idx, cachedRows[idx]);
-                });
-            });
+            cachedMeta = {
+                base: `${monthLabel} ${data.year} • periode harian ${(data.period || {}).start || '-'} s/d ${(data.period || {}).end || '-'} • tarik ${data.tanggal_tarik || '-'}`
+            };
+            reportLoaded = true;
+            renderReportFromCache();
         } catch (e) {
             if (tableWrap) tableWrap.innerHTML = `<div class="irx-empty text-danger">${esc(e.message || 'Gagal memuat')}</div>`;
             if (summaryEl) summaryEl.innerHTML = '';
@@ -522,12 +603,17 @@ html[data-theme="dark"] .irx-detail-row td { background: rgba(15,23,42,.72); }
     }
 
     document.getElementById('irxLoadBtn').addEventListener('click', loadReport);
-    const hideSpendEl = document.getElementById('irxHideZeroSpend');
-    if (hideSpendEl) {
-        hideSpendEl.addEventListener('change', function() {
-            if (reportLoaded) loadReport();
+    const compareEl = document.getElementById('irxCompareData');
+    if (compareEl) {
+        compareEl.addEventListener('change', function() {
+            if (reportLoaded) {
+                renderReportFromCache();
+            } else {
+                updateStatusFilterState();
+            }
         });
     }
+    updateStatusFilterState();
     if (window.jQuery) {
         jQuery(function() { initDomainFilter(); });
     } else {
