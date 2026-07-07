@@ -4177,6 +4177,38 @@ class data_mysql:
             all_keys = sorted(set(list(rekap_map.keys()) + list(daily_map.keys())))
             rows_out = []
             summary = {'total': 0, 'invalid': 0, 'warn': 0, 'ok': 0, 'missing': 0}
+            totals_adx_daily = {
+                '_has_data': False,
+                'revenue': 0.0,
+                'impresi': 0.0,
+                'click': 0.0,
+                'total_requests': 0.0,
+                'responses_served': 0.0,
+            }
+            totals_adx_rekap = {
+                '_has_data': False,
+                'revenue': 0.0,
+                'impresi': 0.0,
+                'click': 0.0,
+                'total_requests': 0.0,
+                'responses_served': 0.0,
+            }
+            totals_fb_daily = {'_has_data': False, 'spend': 0.0, 'click': 0.0, 'impresi': 0.0, 'lpv': 0.0}
+            totals_fb_rekap = {'_has_data': False, 'spend': 0.0, 'click': 0.0, 'impresi': 0.0, 'lpv': 0.0}
+
+            def _acc_adx_total(total_row, src_row):
+                if not src_row or not src_row.get('_has_data'):
+                    return
+                total_row['_has_data'] = True
+                for metric_key in ['revenue', 'impresi', 'click', 'total_requests', 'responses_served']:
+                    total_row[metric_key] += float(src_row.get(metric_key) or 0)
+
+            def _acc_fb_total(total_row, src_row):
+                if not src_row or not src_row.get('_has_data'):
+                    return
+                total_row['_has_data'] = True
+                for metric_key in ['spend', 'click', 'impresi', 'lpv']:
+                    total_row[metric_key] += float(src_row.get(metric_key) or 0)
 
             for key in all_keys:
                 rekap_row = rekap_map.get(key)
@@ -4208,6 +4240,10 @@ class data_mysql:
                 profit_metric = next((m for m in metrics if m.get('key') == 'profit'), {})
                 roi_metric = next((m for m in metrics if m.get('key') == 'roi'), {})
                 cpr_metric = next((m for m in metrics if m.get('key') == 'cpr'), {})
+                _acc_adx_total(totals_adx_daily, daily_row)
+                _acc_adx_total(totals_adx_rekap, rekap_row)
+                _acc_fb_total(totals_fb_daily, fb_daily_row)
+                _acc_fb_total(totals_fb_rekap, fb_rekap_row)
                 rows_out.append({
                     'domain': domain_name,
                     'domain_key': key,
@@ -4244,6 +4280,13 @@ class data_mysql:
             status_order = {'invalid': 0, 'warn': 1, 'ok': 2, 'missing': 3}
             rows_out.sort(key=lambda r: (status_order.get(r.get('status'), 9), -abs(float(r.get('revenue_delta_pct') or 0))))
 
+            aggregate_metrics, aggregate_summary, aggregate_daily_derived, aggregate_rekap_derived = self._build_adx_invalid_metric_rows(
+                totals_adx_daily,
+                totals_adx_rekap,
+                totals_fb_daily,
+                totals_fb_rekap,
+            )
+
             return {
                 'status': True,
                 'data': {
@@ -4254,6 +4297,12 @@ class data_mysql:
                     'available_tarik_dates': available_tarik,
                     'hide_zero_spend': hide_zero_spend,
                     'summary': summary,
+                    'aggregate': {
+                        'metrics': aggregate_metrics,
+                        'summary': aggregate_summary,
+                        'daily_derived': aggregate_daily_derived,
+                        'rekap_derived': aggregate_rekap_derived,
+                    },
                     'rows': rows_out,
                 },
             }
@@ -4708,6 +4757,38 @@ class data_mysql:
             all_keys = sorted(set(list(rekap_map.keys()) + list(daily_map.keys())))
             rows_out = []
             summary = {'total': 0, 'invalid': 0, 'warn': 0, 'ok': 0, 'missing': 0}
+            totals_adsense_daily = {
+                '_has_data': False,
+                'revenue': 0.0,
+                'impresi': 0.0,
+                'click': 0.0,
+                'page_views': 0.0,
+                'ad_requests': 0.0,
+            }
+            totals_adsense_rekap = {
+                '_has_data': False,
+                'revenue': 0.0,
+                'impresi': 0.0,
+                'click': 0.0,
+                'page_views': 0.0,
+                'ad_requests': 0.0,
+            }
+            totals_fb_daily = {'_has_data': False, 'spend': 0.0, 'click': 0.0, 'impresi': 0.0, 'lpv': 0.0}
+            totals_fb_rekap = {'_has_data': False, 'spend': 0.0, 'click': 0.0, 'impresi': 0.0, 'lpv': 0.0}
+
+            def _acc_adsense_total(total_row, src_row):
+                if not src_row or not src_row.get('_has_data'):
+                    return
+                total_row['_has_data'] = True
+                for metric_key in ['revenue', 'impresi', 'click', 'page_views', 'ad_requests']:
+                    total_row[metric_key] += float(src_row.get(metric_key) or 0)
+
+            def _acc_fb_total_adsense(total_row, src_row):
+                if not src_row or not src_row.get('_has_data'):
+                    return
+                total_row['_has_data'] = True
+                for metric_key in ['spend', 'click', 'impresi', 'lpv']:
+                    total_row[metric_key] += float(src_row.get(metric_key) or 0)
 
             for key in all_keys:
                 rekap_row = rekap_map.get(key)
@@ -4739,6 +4820,10 @@ class data_mysql:
                 profit_metric = next((m for m in metrics if m.get('key') == 'profit'), {})
                 roi_metric = next((m for m in metrics if m.get('key') == 'roi'), {})
                 cpr_metric = next((m for m in metrics if m.get('key') == 'cpr'), {})
+                _acc_adsense_total(totals_adsense_daily, daily_row)
+                _acc_adsense_total(totals_adsense_rekap, rekap_row)
+                _acc_fb_total_adsense(totals_fb_daily, fb_daily_row)
+                _acc_fb_total_adsense(totals_fb_rekap, fb_rekap_row)
                 rows_out.append({
                     'domain': domain_name,
                     'domain_key': key,
@@ -4779,6 +4864,13 @@ class data_mysql:
             status_order = {'invalid': 0, 'warn': 1, 'ok': 2, 'missing': 3}
             rows_out.sort(key=lambda r: (status_order.get(r.get('status'), 9), -abs(float(r.get('revenue_delta_pct') or 0))))
 
+            aggregate_metrics, aggregate_summary, aggregate_daily_derived, aggregate_rekap_derived = self._build_adsense_invalid_metric_rows(
+                totals_adsense_daily,
+                totals_adsense_rekap,
+                totals_fb_daily,
+                totals_fb_rekap,
+            )
+
             return {
                 'status': True,
                 'data': {
@@ -4789,6 +4881,12 @@ class data_mysql:
                     'available_tarik_dates': available_tarik,
                     'hide_zero_spend': hide_zero_spend,
                     'summary': summary,
+                    'aggregate': {
+                        'metrics': aggregate_metrics,
+                        'summary': aggregate_summary,
+                        'daily_derived': aggregate_daily_derived,
+                        'rekap_derived': aggregate_rekap_derived,
+                    },
                     'rows': rows_out,
                 },
             }
@@ -4944,6 +5042,386 @@ class data_mysql:
                         'rekap_derived': rekap_derived,
                     },
                     'facebook_ads': fb_section or {},
+                    'daily_breakdown': daily_breakdown,
+                },
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0] if e.args else e}',
+            }
+
+    def _derive_fb_invalid_metrics(self, fb_row):
+        fb_row = fb_row or {}
+        spend = float(fb_row.get('spend') or 0)
+        impresi = float(fb_row.get('impresi') or 0)
+        click = float(fb_row.get('click') or 0)
+        reach = float(fb_row.get('reach') or 0)
+        lpv = float(fb_row.get('lpv') or 0)
+        ctr = (click / impresi * 100.0) if impresi > 0 else 0.0
+        cpc = (spend / click) if click > 0 else 0.0
+        cpr = (spend / lpv) if lpv > 0 else cpc
+        frekuensi = (impresi / reach) if reach > 0 else 0.0
+        lpv_rate = (lpv / click * 100.0) if click > 0 else 0.0
+        return {
+            'spend': spend,
+            'impresi': impresi,
+            'click': click,
+            'reach': reach,
+            'lpv': lpv,
+            'ctr': ctr,
+            'cpc': cpc,
+            'cpr': cpr,
+            'frekuensi': frekuensi,
+            'lpv_rate': lpv_rate,
+        }
+
+    def _build_ads_invalid_metric_rows(self, daily_row, rekap_row):
+        raw_defs = [
+            {'key': 'spend', 'label': 'Spend', 'kind': 'money'},
+            {'key': 'impresi', 'label': 'Impresi', 'kind': 'number'},
+            {'key': 'click', 'label': 'Click', 'kind': 'number'},
+            {'key': 'reach', 'label': 'Reach', 'kind': 'number'},
+            {'key': 'lpv', 'label': 'LPV', 'kind': 'number'},
+        ]
+        derived_defs = [
+            {'key': 'ctr', 'label': 'CTR', 'kind': 'percent'},
+            {'key': 'cpc', 'label': 'CPC', 'kind': 'money'},
+            {'key': 'cpr', 'label': 'CPR', 'kind': 'money'},
+            {'key': 'frekuensi', 'label': 'Frequency', 'kind': 'number'},
+            {'key': 'lpv_rate', 'label': 'LPV Rate', 'kind': 'percent'},
+        ]
+        metrics = []
+        summary = {'ok': 0, 'warn': 0, 'invalid': 0, 'missing': 0}
+        has_daily = bool(daily_row and daily_row.get('_has_data'))
+        has_rekap = bool(rekap_row and rekap_row.get('_has_data'))
+        daily_derived = self._derive_fb_invalid_metrics(daily_row)
+        rekap_derived = self._derive_fb_invalid_metrics(rekap_row)
+
+        def append_metric(item, daily_val, rekap_val):
+            if not has_daily and not has_rekap:
+                row = {
+                    'key': item['key'],
+                    'label': item['label'],
+                    'kind': item.get('kind', 'number'),
+                    'daily': 0,
+                    'rekap': 0,
+                    'delta': 0,
+                    'delta_pct': 0,
+                    'status': 'missing',
+                }
+                summary['missing'] += 1
+            else:
+                row = self._compare_rekap_metric(daily_val, rekap_val)
+                row['key'] = item['key']
+                row['label'] = item['label']
+                row['kind'] = item.get('kind', 'number')
+                summary[row['status']] = summary.get(row['status'], 0) + 1
+            metrics.append(row)
+
+        for item in raw_defs:
+            append_metric(
+                item,
+                float((daily_row or {}).get(item['key']) or 0),
+                float((rekap_row or {}).get(item['key']) or 0),
+            )
+        for item in derived_defs:
+            append_metric(
+                item,
+                float(daily_derived.get(item['key']) or 0),
+                float(rekap_derived.get(item['key']) or 0),
+            )
+        return metrics, summary, daily_derived, rekap_derived
+
+    def list_ads_rekap_invalid_report(self, year, month, tanggal_tarik=None, status_filter=None, domain_q=None):
+        """List Facebook Ads monthly recap vs daily aggregates for all domains."""
+        import calendar
+
+        try:
+            year = str(year or '').strip()
+            month = str(month or '').strip().zfill(2)
+            if not year.isdigit() or not month.isdigit():
+                return {'status': False, 'data': 'Tahun/bulan tidak valid'}
+            month_int = int(month)
+            if month_int < 1 or month_int > 12:
+                return {'status': False, 'data': 'Bulan tidak valid'}
+
+            last_day = calendar.monthrange(int(year), month_int)[1]
+            start_date = f"{year}-{month}-01"
+            end_date = f"{year}-{month}-{last_day:02d}"
+            status_filter = str(status_filter or 'all').strip().lower()
+            domain_q = str(domain_q or '').strip().lower()
+
+            self.cur_hris.execute(
+                """
+                SELECT DISTINCT data_ads_rekap_tanggal AS tanggal_tarik
+                FROM data_ads_rekap
+                WHERE data_ads_rekap_tahun = %s AND data_ads_rekap_bulan = %s
+                ORDER BY data_ads_rekap_tanggal DESC
+                """,
+                (year, month),
+            )
+            available_tarik = []
+            for row in (self.cur_hris.fetchall() or []):
+                val = row.get('tanggal_tarik')
+                if hasattr(val, 'isoformat'):
+                    available_tarik.append(val.isoformat())
+                elif val:
+                    available_tarik.append(str(val).strip())
+
+            resolved_tarik = str(tanggal_tarik or '').strip()
+            if not resolved_tarik:
+                resolved_tarik = available_tarik[0] if available_tarik else ''
+            if not resolved_tarik:
+                return {
+                    'status': True,
+                    'data': {
+                        'year': year,
+                        'month': month,
+                        'period': {'start': start_date, 'end': end_date},
+                        'tanggal_tarik': None,
+                        'available_tarik_dates': available_tarik,
+                        'summary': {'total': 0, 'invalid': 0, 'warn': 0, 'ok': 0, 'missing': 0},
+                        'aggregate': {'metrics': [], 'summary': {}, 'daily_derived': {}, 'rekap_derived': {}},
+                        'rows': [],
+                    },
+                }
+
+            domain_key_expr = self._domain_join_sql_key_expr('data_ads_domain')
+            rekap_sql = f"""
+                SELECT
+                    {domain_key_expr} AS domain_key,
+                    MIN(data_ads_domain) AS domain,
+                    COALESCE(SUM(CAST(data_ads_rekap_spend AS DECIMAL(18,4))), 0) AS spend,
+                    COALESCE(SUM(CAST(data_ads_rekap_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_ads_rekap_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_ads_rekap_reach AS DECIMAL(18,4))), 0) AS reach,
+                    COALESCE(SUM(CAST(data_ads_rekap_lpv AS DECIMAL(18,4))), 0) AS lpv
+                FROM data_ads_rekap
+                WHERE data_ads_rekap_tahun = %s
+                  AND data_ads_rekap_bulan = %s
+                  AND data_ads_rekap_tanggal = %s
+                GROUP BY domain_key
+            """
+            self.cur_hris.execute(rekap_sql, (year, month, resolved_tarik))
+            rekap_map = {}
+            for row in (self.cur_hris.fetchall() or []):
+                key = str(row.get('domain_key') or '').strip()
+                if not key:
+                    continue
+                vals = {
+                    'domain': str(row.get('domain') or key),
+                    'spend': float(row.get('spend') or 0),
+                    'impresi': float(row.get('impresi') or 0),
+                    'click': float(row.get('click') or 0),
+                    'reach': float(row.get('reach') or 0),
+                    'lpv': float(row.get('lpv') or 0),
+                }
+                vals['_has_data'] = any(vals[k] for k in ['spend', 'impresi', 'click', 'reach', 'lpv'])
+                rekap_map[key] = vals
+
+            daily_sql = f"""
+                SELECT
+                    {domain_key_expr} AS domain_key,
+                    MIN(data_ads_domain) AS domain,
+                    COALESCE(SUM(CAST(data_ads_spend AS DECIMAL(18,4))), 0) AS spend,
+                    COALESCE(SUM(CAST(data_ads_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_ads_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_ads_reach AS DECIMAL(18,4))), 0) AS reach,
+                    COALESCE(SUM(CAST(data_ads_lpv AS DECIMAL(18,4))), 0) AS lpv
+                FROM data_ads_campaign
+                WHERE DATE(data_ads_tanggal) BETWEEN %s AND %s
+                GROUP BY domain_key
+            """
+            self.cur_hris.execute(daily_sql, (start_date, end_date))
+            daily_map = {}
+            for row in (self.cur_hris.fetchall() or []):
+                key = str(row.get('domain_key') or '').strip()
+                if not key:
+                    continue
+                vals = {
+                    'domain': str(row.get('domain') or key),
+                    'spend': float(row.get('spend') or 0),
+                    'impresi': float(row.get('impresi') or 0),
+                    'click': float(row.get('click') or 0),
+                    'reach': float(row.get('reach') or 0),
+                    'lpv': float(row.get('lpv') or 0),
+                }
+                vals['_has_data'] = any(vals[k] for k in ['spend', 'impresi', 'click', 'reach', 'lpv'])
+                daily_map[key] = vals
+
+            all_keys = sorted(set(list(rekap_map.keys()) + list(daily_map.keys())))
+            rows_out = []
+            summary = {'total': 0, 'invalid': 0, 'warn': 0, 'ok': 0, 'missing': 0}
+            totals_daily = {'_has_data': False, 'spend': 0.0, 'impresi': 0.0, 'click': 0.0, 'reach': 0.0, 'lpv': 0.0}
+            totals_rekap = {'_has_data': False, 'spend': 0.0, 'impresi': 0.0, 'click': 0.0, 'reach': 0.0, 'lpv': 0.0}
+
+            def _acc_fb_total(total_row, src_row):
+                if not src_row or not src_row.get('_has_data'):
+                    return
+                total_row['_has_data'] = True
+                for metric_key in ['spend', 'impresi', 'click', 'reach', 'lpv']:
+                    total_row[metric_key] += float(src_row.get(metric_key) or 0)
+
+            for key in all_keys:
+                rekap_row = rekap_map.get(key)
+                daily_row = daily_map.get(key)
+                if not rekap_row and not daily_row:
+                    continue
+                domain_name = (rekap_row or daily_row or {}).get('domain') or key
+                if domain_q and domain_q not in str(domain_name).lower() and domain_q not in key:
+                    continue
+                metrics, metric_summary, daily_derived, rekap_derived = self._build_ads_invalid_metric_rows(
+                    daily_row or {'_has_data': False},
+                    rekap_row or {'_has_data': False},
+                )
+                row_status = self._worst_invalid_status(metric_summary)
+                if status_filter not in ('', 'all') and row_status != status_filter:
+                    continue
+                revenue_metric = next((m for m in metrics if m.get('key') == 'spend'), metrics[0] if metrics else {})
+                _acc_fb_total(totals_daily, daily_row)
+                _acc_fb_total(totals_rekap, rekap_row)
+                rows_out.append({
+                    'domain': domain_name,
+                    'domain_key': key,
+                    'status': row_status,
+                    'has_daily': bool(daily_row and daily_row.get('_has_data')),
+                    'has_rekap': bool(rekap_row and rekap_row.get('_has_data')),
+                    'daily_spend': float((daily_row or {}).get('spend') or 0),
+                    'rekap_spend': float((rekap_row or {}).get('spend') or 0),
+                    'spend_delta_pct': float(revenue_metric.get('delta_pct') or 0),
+                    'metrics': metrics,
+                    'summary': metric_summary,
+                })
+                summary['total'] += 1
+                summary[row_status] = summary.get(row_status, 0) + 1
+
+            status_order = {'invalid': 0, 'warn': 1, 'ok': 2, 'missing': 3}
+            rows_out.sort(key=lambda r: (status_order.get(r.get('status'), 9), -abs(float(r.get('spend_delta_pct') or 0))))
+
+            aggregate_metrics, aggregate_summary, aggregate_daily_derived, aggregate_rekap_derived = self._build_ads_invalid_metric_rows(
+                totals_daily,
+                totals_rekap,
+            )
+
+            return {
+                'status': True,
+                'data': {
+                    'year': year,
+                    'month': month,
+                    'period': {'start': start_date, 'end': end_date},
+                    'tanggal_tarik': resolved_tarik,
+                    'available_tarik_dates': available_tarik,
+                    'summary': summary,
+                    'aggregate': {
+                        'metrics': aggregate_metrics,
+                        'summary': aggregate_summary,
+                        'daily_derived': aggregate_daily_derived,
+                        'rekap_derived': aggregate_rekap_derived,
+                    },
+                    'rows': rows_out,
+                },
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0] if e.args else e}',
+            }
+
+    def get_ads_invalid_report_domain_detail(self, domain, year, month, tanggal_tarik=None):
+        """Daily breakdown for one domain in invalid Facebook Ads report."""
+        import calendar
+
+        try:
+            year = str(year or '').strip()
+            month = str(month or '').strip().zfill(2)
+            month_int = int(month)
+            last_day = calendar.monthrange(int(year), month_int)[1]
+            start_date = f"{year}-{month}-01"
+            end_date = f"{year}-{month}-{last_day:02d}"
+
+            compare = self.get_rekap_vs_daily_compare(domain, year, month, tanggal_tarik)
+            if not compare.get('status'):
+                return compare
+
+            compare_data = compare.get('data') or {}
+            fb_section = None
+            for sec in (compare_data.get('sections') or []):
+                if sec.get('key') == 'facebook_ads':
+                    fb_section = sec
+                    break
+
+            fb_daily = {'_has_data': bool(fb_section and fb_section.get('has_daily'))}
+            fb_rekap = {'_has_data': bool(fb_section and fb_section.get('has_rekap'))}
+            for metric in (fb_section or {}).get('metrics') or []:
+                key = metric.get('key')
+                if key:
+                    fb_daily[key] = float(metric.get('daily') or 0)
+                    fb_rekap[key] = float(metric.get('rekap') or 0)
+
+            metrics, metric_summary, daily_derived, rekap_derived = self._build_ads_invalid_metric_rows(
+                fb_daily,
+                fb_rekap,
+            )
+
+            clause, params = self._domain_fb_filter_sql('data_ads_domain', domain)
+            daily_sql = f"""
+                SELECT
+                    DATE(data_ads_tanggal) AS tanggal,
+                    COALESCE(SUM(CAST(data_ads_spend AS DECIMAL(18,4))), 0) AS spend,
+                    COALESCE(SUM(CAST(data_ads_impresi AS DECIMAL(18,4))), 0) AS impresi,
+                    COALESCE(SUM(CAST(data_ads_click AS DECIMAL(18,4))), 0) AS click,
+                    COALESCE(SUM(CAST(data_ads_reach AS DECIMAL(18,4))), 0) AS reach,
+                    COALESCE(SUM(CAST(data_ads_lpv AS DECIMAL(18,4))), 0) AS lpv
+                FROM data_ads_campaign
+                WHERE DATE(data_ads_tanggal) BETWEEN %s AND %s
+                  AND {clause}
+                GROUP BY DATE(data_ads_tanggal)
+                ORDER BY DATE(data_ads_tanggal) ASC
+            """
+            self.cur_hris.execute(daily_sql, [start_date, end_date, *params])
+            daily_breakdown = []
+            for row in (self.cur_hris.fetchall() or []):
+                tanggal = row.get('tanggal')
+                if hasattr(tanggal, 'isoformat'):
+                    tanggal = tanggal.isoformat()
+                date_key = str(tanggal or '')
+                vals = {
+                    'spend': float(row.get('spend') or 0),
+                    'impresi': float(row.get('impresi') or 0),
+                    'click': float(row.get('click') or 0),
+                    'reach': float(row.get('reach') or 0),
+                    'lpv': float(row.get('lpv') or 0),
+                }
+                derived = self._derive_fb_invalid_metrics(vals)
+                daily_breakdown.append({
+                    'date': date_key,
+                    'spend': vals['spend'],
+                    'impresi': vals['impresi'],
+                    'click': vals['click'],
+                    'reach': vals['reach'],
+                    'lpv': vals['lpv'],
+                    'ctr': float(derived.get('ctr') or 0),
+                    'cpc': float(derived.get('cpc') or 0),
+                    'cpr': float(derived.get('cpr') or 0),
+                    'frekuensi': float(derived.get('frekuensi') or 0),
+                    'lpv_rate': float(derived.get('lpv_rate') or 0),
+                })
+
+            return {
+                'status': True,
+                'data': {
+                    'domain': str(domain or '').strip(),
+                    'year': year,
+                    'month': month,
+                    'period': {'start': start_date, 'end': end_date},
+                    'tanggal_tarik': compare_data.get('tanggal_tarik'),
+                    'facebook_ads': {
+                        'metrics': metrics,
+                        'summary': metric_summary,
+                        'daily_derived': daily_derived,
+                        'rekap_derived': rekap_derived,
+                    },
                     'daily_breakdown': daily_breakdown,
                 },
             }
