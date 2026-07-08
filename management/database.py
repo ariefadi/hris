@@ -657,6 +657,38 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
+    def update_account_ads_access_token(self, account_ads_id, access_token, mdb=None, mdb_name=None):
+        try:
+            sql_update = """
+                UPDATE master_account_ads SET
+                    access_token = %s,
+                    mdb = COALESCE(%s, mdb),
+                    mdb_name = COALESCE(%s, mdb_name),
+                    mdd = %s
+                WHERE account_ads_id = %s
+            """
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            if not self.execute_query(sql_update, (
+                access_token,
+                mdb,
+                mdb_name,
+                now_str,
+                account_ads_id,
+            )):
+                raise pymysql.Error("Failed to update account ads access token")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit account ads access token update")
+            hasil = {
+                "status": True,
+                "message": "Access token berhasil diperbarui"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "message": 'Terjadi error {!r}, error nya {}'.format(e, e.args[0] if e.args else e)
+            }
+        return {'hasil': hasil}
+
     def delete_account_ads(self, account_ads_id):
         try:
             sql_delete = """

@@ -44,6 +44,11 @@ urlpatterns = [
     path('admin/edit_account_facebook/<str:account_ads_id>', views.EditAccountFacebookAds.as_view(), name='edit_account_facebook'),
     path('admin/update_account_facebook', views.UpdateAccountFacebookAds.as_view(), name='update_account_facebook'),
     path('admin/delete_account_facebook', views.DeleteAccountFacebookAds.as_view(), name='delete_account_facebook'),
+    path('admin/facebook_account_token_check', views.FacebookAccountTokenCheckView.as_view(), name='facebook_account_token_check'),
+    path('admin/facebook_account_token_check_all', views.FacebookAccountTokenCheckAllView.as_view(), name='facebook_account_token_check_all'),
+    path('admin/facebook_account_token_extend', views.FacebookAccountTokenExtendView.as_view(), name='facebook_account_token_extend'),
+    path('admin/facebook_account_oauth_start', views.FacebookAccountOAuthStartView.as_view(), name='facebook_account_oauth_start'),
+    path('admin/facebook_account_oauth_callback', views.FacebookAccountOAuthCallbackView.as_view(), name='facebook_account_oauth_callback'),
     # Menu Per Account Facebook Ads
     path('admin/per_account_facebook', views.PerAccountFacebookAds.as_view(), name='per_account_facebook'),
     path('admin/create_campaign', views.CreateCampaignFacebookAds.as_view(), name='create_campaign_facebook'),

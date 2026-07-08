@@ -79,6 +79,27 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 {% block content %}  
 {% csrf_token %}
 <style>
+  .fb-token-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:12px; }
+  .fb-token-note { font-size:12px; color:#64748b; margin:0; }
+  .fb-token-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:800; white-space:nowrap; }
+  .fb-token-badge.is-valid { background:#dcfce7; color:#166534; }
+  .fb-token-badge.is-expiring_soon { background:#fef3c7; color:#b45309; }
+  .fb-token-badge.is-expired { background:#fee2e2; color:#b91c1c; }
+  .fb-token-badge.is-missing { background:#e2e8f0; color:#475569; }
+  .fb-token-badge.is-error { background:#ffe4e6; color:#be123c; }
+  .fb-token-badge.is-unknown { background:#e0e7ff; color:#3730a3; }
+  .fb-token-meta { display:block; font-size:10px; font-weight:600; color:#64748b; margin-top:4px; }
+  .fb-token-cell { display:flex; flex-direction:column; align-items:center; gap:8px; min-width:118px; padding:4px 2px; }
+  .fb-token-cell__status { display:flex; flex-direction:column; align-items:center; width:100%; }
+  .fb-token-cell__actions { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; width:100%; }
+  .fb-token-cell__actions .btn { min-width:30px; padding:2px 7px; }
+  .fb-token-head { display:flex; flex-direction:column; align-items:center; gap:6px; line-height:1.2; }
+  .fb-token-head-btn { font-size:10px; font-weight:700; padding:3px 8px; line-height:1.2; border-radius:999px; white-space:nowrap; color:#1d4ed8 !important; border-color:rgba(255,255,255,.65) !important; background:rgba(255,255,255,.92) !important; }
+  .fb-token-head-btn:hover { background:#fff !important; }
+  html[data-theme="dark"] .fb-token-head-btn { color:#bfdbfe !important; background:rgba(15,23,42,.55) !important; border-color:rgba(148,163,184,.45) !important; }
+  html[data-theme="dark"] .fb-token-note { color:#94a3b8; }
+  html[data-theme="dark"] .fb-token-meta { color:#94a3b8; }
+  #table_data_account tbody td:nth-child(8) { white-space:normal; }
   .dt-buttons{margin-bottom:18px}.dt-buttons .btn{border-radius:10px!important;font-weight:700!important;border:none!important;box-shadow:0 6px 14px rgba(15,23,42,.10)}
   .dt-responsive-table{border:1px solid #dbe7ff;border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);box-shadow:0 10px 24px rgba(37,99,235,.08)}
   .dataTables_wrapper .dataTables_length,.dataTables_wrapper .dataTables_filter{margin-bottom:12px}.dataTables_wrapper .dataTables_filter input,.dataTables_wrapper .dataTables_length select{border-radius:10px!important;border:1px solid #cbd5e1!important}
@@ -101,6 +122,16 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         </div>
     </div>
     <div class="card-body">
+        {% if fb_oauth_flash_message %}
+        <div class="alert alert-{% if fb_oauth_flash_success %}success{% else %}danger{% endif %} mb-3" role="alert">
+            {{ fb_oauth_flash_message }}
+        </div>
+        {% endif %}
+        <p class="fb-token-note mb-3">
+            Kolom <strong>Token</strong> menampilkan status Access Token Facebook per account.
+            Token expired perlu <strong>Authorize Ulang</strong> (login Facebook).
+            Pastikan redirect URI <code>{{ request.scheme }}://{{ request.get_host }}/management/admin/facebook_account_oauth_callback</code> terdaftar di Facebook App.
+        </p>
         <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Menyiapkan Data ..." aria-hidden="true"></div>
         <div class="dt-responsive-table" id="facebookAccountTable" data-title="Tabel Account" data-intro="Daftar account Facebook Ads yang tersimpan. Kolom aksi (#) biasanya berisi tombol edit/hapus/aksi lain.">
             <table id="table_data_account" class="table table-bordered">
@@ -112,8 +143,16 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     <th class="text-center" width="15%">Account ID</th>
                     <th class="text-center" width="15%">App ID</th>
                     <th class="text-center" width="15%">Pemilik Account</th>
-                    <th class="text-center" width="5%">Status</th>
-                    <th class="text-center" width="5%">#</th>
+                    <th class="text-center" width="5%">Status Data</th>
+                    <th class="text-center" width="12%">
+                        <div class="fb-token-head">
+                            <span>Token</span>
+                            <button type="button" class="btn btn-light btn-sm fb-token-head-btn" id="btnCheckAllFacebookTokens" title="Cek semua token sekaligus">
+                                <i class="fas fa-sync-alt"></i> Cek Semua
+                            </button>
+                        </div>
+                    </th>
+                    <th class="text-center" width="8%">#</th>
                 </tr>
             </thead>
             <tbody>

@@ -6263,6 +6263,380 @@ class page_summary_facebook(View):
             response_data['error'] = payload.get('data') or payload.get('message') or 'Gagal mengambil data campaign'
         return JsonResponse(response_data)
 
+FB_GRAPH_API_VERSION = 'v22.0'
+FB_ACCOUNT_OAUTH_SCOPES = [
+    'ads_management',
+    'ads_read',
+    'business_management',
+    'pages_read_engagement',
+    'pages_show_list',
+    'read_insights',
+]
+
+
+def _facebook_graph_base():
+    return f'https://graph.facebook.com/{FB_GRAPH_API_VERSION}'
+
+
+def _facebook_app_access_token(app_id, app_secret):
+    return f"{str(app_id or '').strip()}|{str(app_secret or '').strip()}"
+
+
+def _facebook_format_expiry_ts(ts):
+    ts = int(ts or 0)
+    if ts <= 0:
+        return None, 'Tidak kedaluwarsa'
+    try:
+        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+        label = dt.astimezone().strftime('%d %b %Y %H:%M')
+        return dt, label
+    except Exception:
+        return None, '-'
+
+
+def _facebook_token_status_payload(access_token, app_id, app_secret):
+    token = str(access_token or '').strip()
+    app_id = str(app_id or '').strip()
+    app_secret = str(app_secret or '').strip()
+    if not token:
+        return {
+            'status': 'missing',
+            'label': 'Kosong',
+            'is_valid': False,
+            'message': 'Access token belum diisi',
+            'can_extend': False,
+            'can_reauthorize': True,
+        }
+    if not app_id or not app_secret:
+        return {
+            'status': 'error',
+            'label': 'Error',
+            'is_valid': False,
+            'message': 'App ID / App Secret belum lengkap',
+            'can_extend': False,
+            'can_reauthorize': False,
+        }
+    try:
+        resp = requests.get(
+            f"{_facebook_graph_base()}/debug_token",
+            params={
+                'input_token': token,
+                'access_token': _facebook_app_access_token(app_id, app_secret),
+            },
+            timeout=20,
+        )
+        body = resp.json() if resp.content else {}
+        if not resp.ok:
+            err = (body.get('error') or {}).get('message') or resp.text or 'Gagal memeriksa token'
+            return {
+                'status': 'error',
+                'label': 'Error',
+                'is_valid': False,
+                'message': err,
+                'can_extend': False,
+                'can_reauthorize': True,
+            }
+        data = body.get('data') or {}
+        is_valid = bool(data.get('is_valid'))
+        expires_at = int(data.get('expires_at') or 0)
+        data_access_expires_at = int(data.get('data_access_expires_at') or 0)
+        now_ts = int(datetime.now(tz=timezone.utc).timestamp())
+        _, exp_label = _facebook_format_expiry_ts(expires_at)
+        _, data_exp_label = _facebook_format_expiry_ts(data_access_expires_at)
+
+        status = 'valid'
+        label = 'Valid'
+        if not is_valid:
+            status = 'expired'
+            label = 'Expired'
+        elif expires_at > 0 and expires_at <= now_ts:
+            status = 'expired'
+            label = 'Expired'
+        elif expires_at > 0 and expires_at <= now_ts + (7 * 86400):
+            status = 'expiring_soon'
+            label = 'Segera expired'
+        elif data_access_expires_at > 0 and data_access_expires_at <= now_ts + (7 * 86400):
+            status = 'expiring_soon'
+            label = 'Akses data segera habis'
+
+        return {
+            'status': status,
+            'label': label,
+            'is_valid': is_valid and status not in ('expired',),
+            'expires_at': expires_at or None,
+            'expires_label': exp_label,
+            'data_access_expires_at': data_access_expires_at or None,
+            'data_access_expires_label': data_exp_label,
+            'scopes': data.get('scopes') or [],
+            'user_id': data.get('user_id'),
+            'app_id': data.get('app_id'),
+            'message': '',
+            'can_extend': is_valid and status in ('valid', 'expiring_soon'),
+            'can_reauthorize': status in ('expired', 'missing', 'error', 'expiring_soon'),
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'label': 'Error',
+            'is_valid': False,
+            'message': str(e),
+            'can_extend': False,
+            'can_reauthorize': True,
+        }
+
+
+def _facebook_extend_access_token(access_token, app_id, app_secret):
+    resp = requests.get(
+        f"{_facebook_graph_base()}/oauth/access_token",
+        params={
+            'grant_type': 'fb_exchange_token',
+            'client_id': str(app_id or '').strip(),
+            'client_secret': str(app_secret or '').strip(),
+            'fb_exchange_token': str(access_token or '').strip(),
+        },
+        timeout=20,
+    )
+    body = resp.json() if resp.content else {}
+    if not resp.ok or not body.get('access_token'):
+        err = (body.get('error') or {}).get('message') or body.get('error_description') or 'Gagal memperpanjang token'
+        raise ValueError(err)
+    return body
+
+
+def _facebook_exchange_code_for_token(code, app_id, app_secret, redirect_uri):
+    resp = requests.get(
+        f"{_facebook_graph_base()}/oauth/access_token",
+        params={
+            'client_id': str(app_id or '').strip(),
+            'client_secret': str(app_secret or '').strip(),
+            'redirect_uri': str(redirect_uri or '').strip(),
+            'code': str(code or '').strip(),
+        },
+        timeout=20,
+    )
+    body = resp.json() if resp.content else {}
+    if not resp.ok or not body.get('access_token'):
+        err = (body.get('error') or {}).get('message') or body.get('error_description') or 'Gagal menukar authorization code'
+        raise ValueError(err)
+    return body
+
+
+def _load_master_account_ads_row(account_ads_id):
+    rs = data_mysql().master_account_ads_by_params({'data_account': account_ads_id})
+    rows = rs.get('data') or []
+    return rows[0] if rows else None
+
+
+class FacebookAccountTokenCheckView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        account_ads_id = str(req.POST.get('account_ads_id') or '').strip()
+        if not account_ads_id:
+            return JsonResponse({'status': False, 'message': 'account_ads_id wajib diisi'}, status=400)
+        row = _load_master_account_ads_row(account_ads_id)
+        if not row:
+            return JsonResponse({'status': False, 'message': 'Account tidak ditemukan'}, status=404)
+        payload = _facebook_token_status_payload(row.get('access_token'), row.get('app_id'), row.get('app_secret'))
+        return JsonResponse({
+            'status': True,
+            'data': payload,
+            'account_ads_id': account_ads_id,
+            'account_name': row.get('account_name'),
+        })
+
+
+class FacebookAccountTokenCheckAllView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        now = (datetime.now().date() - timedelta(days=6)).strftime('%Y-%m-%d')
+        rows = data_mysql().data_account_ads_by_params(now).get('data') or []
+        items = []
+        summary = {'total': 0, 'valid': 0, 'expiring_soon': 0, 'expired': 0, 'missing': 0, 'error': 0}
+        for row in rows:
+            token_info = _facebook_token_status_payload(row.get('access_token'), row.get('app_id'), row.get('app_secret'))
+            st = str(token_info.get('status') or 'error')
+            if st not in summary:
+                st = 'error'
+            summary[st] = int(summary.get(st) or 0) + 1
+            summary['total'] += 1
+            items.append({
+                'account_ads_id': row.get('account_ads_id'),
+                'account_name': row.get('account_name'),
+                'account_id': row.get('account_id'),
+                'token': token_info,
+            })
+        return JsonResponse({'status': True, 'data': {'items': items, 'summary': summary}})
+
+
+class FacebookAccountTokenExtendView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        account_ads_id = str(req.POST.get('account_ads_id') or '').strip()
+        if not account_ads_id:
+            return JsonResponse({'status': False, 'message': 'account_ads_id wajib diisi'}, status=400)
+        row = _load_master_account_ads_row(account_ads_id)
+        if not row:
+            return JsonResponse({'status': False, 'message': 'Account tidak ditemukan'}, status=404)
+
+        token_info = _facebook_token_status_payload(row.get('access_token'), row.get('app_id'), row.get('app_secret'))
+        if not token_info.get('can_extend'):
+            return JsonResponse({
+                'status': False,
+                'message': token_info.get('message') or 'Token tidak bisa diperpanjang. Gunakan Authorize Ulang jika sudah expired.',
+                'data': token_info,
+            }, status=400)
+
+        try:
+            extended = _facebook_extend_access_token(row.get('access_token'), row.get('app_id'), row.get('app_secret'))
+            new_token = str(extended.get('access_token') or '').strip()
+            if not new_token:
+                raise ValueError('Facebook tidak mengembalikan access token baru')
+
+            admin = req.session.get('hris_admin') or {}
+            rs_update = data_mysql().update_account_ads_access_token(
+                account_ads_id,
+                new_token,
+                admin.get('user_id'),
+                admin.get('user_alias') or admin.get('user_name'),
+            )
+            hasil = rs_update.get('hasil') or {}
+            if not hasil.get('status'):
+                return JsonResponse({'status': False, 'message': hasil.get('message') or 'Gagal menyimpan token baru'}, status=500)
+
+            refreshed = _facebook_token_status_payload(new_token, row.get('app_id'), row.get('app_secret'))
+            return JsonResponse({
+                'status': True,
+                'message': 'Access token berhasil diperpanjang',
+                'data': refreshed,
+                'expires_in': extended.get('expires_in'),
+            })
+        except Exception as e:
+            return JsonResponse({'status': False, 'message': str(e)}, status=400)
+
+
+class FacebookAccountOAuthStartView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        account_ads_id = str(req.GET.get('account_ads_id') or '').strip()
+        if not account_ads_id:
+            req.session['fb_oauth_flash_success'] = False
+            req.session['fb_oauth_flash_message'] = 'Account tidak ditemukan.'
+            return redirect('account_facebook')
+
+        row = _load_master_account_ads_row(account_ads_id)
+        if not row:
+            req.session['fb_oauth_flash_success'] = False
+            req.session['fb_oauth_flash_message'] = 'Account tidak ditemukan.'
+            return redirect('account_facebook')
+
+        app_id = str(row.get('app_id') or '').strip()
+        app_secret = str(row.get('app_secret') or '').strip()
+        if not app_id or not app_secret:
+            req.session['fb_oauth_flash_success'] = False
+            req.session['fb_oauth_flash_message'] = 'App ID / App Secret belum lengkap untuk account ini.'
+            return redirect('account_facebook')
+
+        redirect_uri = req.build_absolute_uri(reverse('facebook_account_oauth_callback'))
+        state = f"fb:{account_ads_id}:{uuid.uuid4().hex}"
+        req.session['fb_oauth_account_ads_id'] = account_ads_id
+        req.session['fb_oauth_state'] = state
+        req.session['fb_oauth_redirect_uri'] = redirect_uri
+
+        params = {
+            'client_id': app_id,
+            'redirect_uri': redirect_uri,
+            'state': state,
+            'scope': ','.join(FB_ACCOUNT_OAUTH_SCOPES),
+            'response_type': 'code',
+            'auth_type': 'rerequest',
+        }
+        authorization_url = f"https://www.facebook.com/{FB_GRAPH_API_VERSION}/dialog/oauth?" + urllib.parse.urlencode(params)
+        return redirect(authorization_url)
+
+
+class FacebookAccountOAuthCallbackView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        def _flash(success, message):
+            req.session['fb_oauth_flash_success'] = bool(success)
+            req.session['fb_oauth_flash_message'] = str(message or '')
+
+        error = str(req.GET.get('error') or '').strip()
+        if error:
+            desc = str(req.GET.get('error_description') or error).strip()
+            _flash(False, f'OAuth Facebook dibatalkan/gagal: {desc}')
+            return redirect('account_facebook')
+
+        state = str(req.GET.get('state') or '').strip()
+        code = str(req.GET.get('code') or '').strip()
+        expected_state = str(req.session.get('fb_oauth_state') or '').strip()
+        account_ads_id = str(req.session.get('fb_oauth_account_ads_id') or '').strip()
+        redirect_uri = str(req.session.get('fb_oauth_redirect_uri') or req.build_absolute_uri(reverse('facebook_account_oauth_callback'))).strip()
+
+        if not code or not state or state != expected_state or not account_ads_id:
+            _flash(False, 'OAuth callback tidak valid atau session sudah kadaluarsa. Silakan coba lagi.')
+            return redirect('account_facebook')
+
+        row = _load_master_account_ads_row(account_ads_id)
+        if not row:
+            _flash(False, 'Account tidak ditemukan saat callback OAuth.')
+            return redirect('account_facebook')
+
+        app_id = str(row.get('app_id') or '').strip()
+        app_secret = str(row.get('app_secret') or '').strip()
+        try:
+            short_lived = _facebook_exchange_code_for_token(code, app_id, app_secret, redirect_uri)
+            short_token = str(short_lived.get('access_token') or '').strip()
+            if not short_token:
+                raise ValueError('Facebook tidak mengembalikan access token')
+
+            long_lived = _facebook_extend_access_token(short_token, app_id, app_secret)
+            new_token = str(long_lived.get('access_token') or short_token).strip()
+            admin = req.session.get('hris_admin') or {}
+            rs_update = data_mysql().update_account_ads_access_token(
+                account_ads_id,
+                new_token,
+                admin.get('user_id'),
+                admin.get('user_alias') or admin.get('user_name'),
+            )
+            hasil = rs_update.get('hasil') or {}
+            if not hasil.get('status'):
+                raise ValueError(hasil.get('message') or 'Gagal menyimpan access token baru')
+
+            token_info = _facebook_token_status_payload(new_token, app_id, app_secret)
+            exp_label = token_info.get('expires_label') or 'Tidak kedaluwarsa'
+            _flash(True, f'Access token untuk {row.get("account_name") or account_ads_id} berhasil diperbarui. Expired: {exp_label}.')
+        except Exception as e:
+            logger.exception('Facebook OAuth callback failed for account %s', account_ads_id)
+            _flash(False, f'Gagal memperbarui access token: {e}')
+        finally:
+            req.session.pop('fb_oauth_state', None)
+            req.session.pop('fb_oauth_account_ads_id', None)
+            req.session.pop('fb_oauth_redirect_uri', None)
+
+        return redirect('account_facebook')
+
+
 class AccountFacebookAds(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -6272,6 +6646,8 @@ class AccountFacebookAds(View):
         data = {
             'title': 'Data Account Facebook Ads',
             'user': req.session['hris_admin'],
+            'fb_oauth_flash_success': req.session.pop('fb_oauth_flash_success', None),
+            'fb_oauth_flash_message': req.session.pop('fb_oauth_flash_message', ''),
         }
         return render(req, 'admin/facebook_ads/account/index.html', data)
     

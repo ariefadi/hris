@@ -90,6 +90,32 @@ $().ready(function () {
             });
         });
     });
+
+    $(document).on('click', '.btn-fb-token-check', function(e) {
+        e.preventDefault();
+        var accountAdsId = $(this).data('accountAdsId');
+        if (!accountAdsId) return;
+        var btn = $(this);
+        btn.prop('disabled', true);
+        checkFacebookToken(accountAdsId, false).always(function() {
+            btn.prop('disabled', false);
+        });
+    });
+
+    $(document).on('click', '.btn-fb-token-extend', function(e) {
+        e.preventDefault();
+        extendFacebookToken($(this).data('accountAdsId'));
+    });
+
+    $(document).on('click', '.btn-fb-token-oauth', function(e) {
+        e.preventDefault();
+        reauthorizeFacebookToken($(this).data('accountAdsId'));
+    });
+
+    $('#btnCheckAllFacebookTokens').on('click', function(e) {
+        e.preventDefault();
+        checkAllFacebookTokens();
+    });
 });
 function table_data_account_ads() {
     $.ajax({
@@ -120,6 +146,7 @@ function table_data_account_ads() {
                                             : '<i class="bi bi-exclamation-octagon"></i>'}
                                     </td>
                                 `;
+                event_data += '<td class="text-center">' + renderTokenCell(value.account_ads_id, { status: 'unknown', label: 'Belum dicek', can_reauthorize: true }) + '</td>';
 
                 event_data += '<td class="text-center">'
                     + '<div class="btn-group" role="group">'
@@ -152,11 +179,10 @@ function table_data_account_ads() {
                                     +(tanggal.getMonth()+1)+"-"
                                     +tanggal.getFullYear(),
                         exportOptions: {
-                            columns: ':visible', 
-                            columns: [0, 1, 2, 3, 4, 5],      // hanya kolom yang terlihat
+                            columns: [0, 1, 2, 3, 4, 5, 6],
                             modifier: {
-                                search: 'applied',      // sesuai filter pencarian
-                                order: 'applied'        // sesuai urutan saat itu
+                                search: 'applied',
+                                order: 'applied'
                             }
                         },
                         customize: function (xlsx) {
@@ -164,7 +190,7 @@ function table_data_account_ads() {
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [5, 25, 15, 15, 15, 20]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [5, 25, 15, 15, 15, 20, 8];
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -219,11 +245,13 @@ function table_data_account_ads() {
                             doc.content[1].margin = [0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
 
                             // Manual width sesuai presentase kolom HTML (tanpa kolom terakhir)
-                            doc.content[1].table.widths = ['5%', '25%', '15%', '15%', '15%', '20%'];
+                            doc.content[1].table.widths = ['5%', '22%', '14%', '14%', '14%', '18%', '8%'];
                         }
                     }
                 ]
             });
+            try { $('#table_data_account').DataTable().columns.adjust(); } catch (e) {}
+            checkAllFacebookTokens(true);
         }
     });
 }
@@ -252,6 +280,192 @@ function getCsrfToken() {
 }
 
 const csrftoken = getCsrfToken();
+window.fbTokenCache = window.fbTokenCache || {};
+
+function escHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderTokenBadge(info) {
+    info = info || {};
+    var st = info.status || 'unknown';
+    var html = '<span class="fb-token-badge is-' + escHtml(st) + '">' + escHtml(info.label || 'Belum dicek') + '</span>';
+    if (info.expires_label) {
+        html += '<small class="fb-token-meta">Exp: ' + escHtml(info.expires_label) + '</small>';
+    }
+    if (info.data_access_expires_label && info.data_access_expires_label !== info.expires_label) {
+        html += '<small class="fb-token-meta">Data: ' + escHtml(info.data_access_expires_label) + '</small>';
+    }
+    if (info.message) {
+        html += '<small class="fb-token-meta">' + escHtml(info.message) + '</small>';
+    }
+    return html;
+}
+
+function renderTokenActions(accountAdsId, info) {
+    info = info || {};
+    var html = '';
+    html += '<button type="button" class="btn btn-outline-primary btn-xs btn-fb-token-check" data-account-ads-id="' + escHtml(accountAdsId) + '" title="Cek token"><i class="fas fa-sync-alt"></i></button>';
+    if (info.can_extend) {
+        html += '<button type="button" class="btn btn-outline-success btn-xs btn-fb-token-extend" data-account-ads-id="' + escHtml(accountAdsId) + '" title="Perpanjang token"><i class="fas fa-clock"></i></button>';
+    }
+    if (info.can_reauthorize !== false) {
+        html += '<button type="button" class="btn btn-outline-warning btn-xs btn-fb-token-oauth" data-account-ads-id="' + escHtml(accountAdsId) + '" title="Authorize ulang"><i class="fas fa-key"></i></button>';
+    }
+    return html;
+}
+
+function renderTokenCell(accountAdsId, info) {
+    info = info || { status: 'unknown', label: 'Belum dicek', can_reauthorize: true };
+    window.fbTokenCache[accountAdsId] = info;
+    return '<div class="fb-token-cell" data-account-ads-id="' + escHtml(accountAdsId) + '">'
+        + '<div class="fb-token-cell__status">' + renderTokenBadge(info) + '</div>'
+        + '<div class="fb-token-cell__actions">' + renderTokenActions(accountAdsId, info) + '</div>'
+        + '</div>';
+}
+
+function updateTokenCell(accountAdsId, info) {
+    window.fbTokenCache[accountAdsId] = info || {};
+    var cell = document.querySelector('.fb-token-cell[data-account-ads-id="' + accountAdsId + '"]');
+    if (!cell) return;
+    var statusEl = cell.querySelector('.fb-token-cell__status');
+    var actionsEl = cell.querySelector('.fb-token-cell__actions');
+    if (statusEl) statusEl.innerHTML = renderTokenBadge(info);
+    if (actionsEl) actionsEl.innerHTML = renderTokenActions(accountAdsId, info);
+}
+
+function checkFacebookToken(accountAdsId, silent) {
+    var formData = new FormData();
+    formData.append('account_ads_id', accountAdsId);
+    return $.ajax({
+        type: 'POST',
+        url: '/management/admin/facebook_account_token_check',
+        data: formData,
+        headers: { 'X-CSRFToken': csrftoken },
+        processData: false,
+        contentType: false,
+        dataType: 'json'
+    }).then(function(resp) {
+        if (!resp || !resp.status) {
+            throw new Error((resp && resp.message) ? resp.message : 'Gagal memeriksa token');
+        }
+        updateTokenCell(accountAdsId, resp.data || {});
+        if (!silent) {
+            Swal.fire({
+                icon: (resp.data && resp.data.is_valid) ? 'success' : 'warning',
+                title: 'Status Token',
+                text: (resp.data && resp.data.label) ? resp.data.label : 'Selesai'
+            });
+        }
+        return resp;
+    });
+}
+
+function extendFacebookToken(accountAdsId) {
+    Swal.fire({
+        icon: 'question',
+        title: 'Perpanjang Token?',
+        text: 'Token yang masih valid akan ditukar ke long-lived token.',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, perpanjang',
+        cancelButtonText: 'Batal'
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        var formData = new FormData();
+        formData.append('account_ads_id', accountAdsId);
+        $.ajax({
+            type: 'POST',
+            url: '/management/admin/facebook_account_token_extend',
+            data: formData,
+            headers: { 'X-CSRFToken': csrftoken },
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            beforeSend: function() { $('#overlay').fadeIn(200); },
+            success: function(resp) {
+                $('#overlay').fadeOut(200);
+                if (resp && resp.status) {
+                    updateTokenCell(accountAdsId, resp.data || {});
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: resp.message || 'Token diperpanjang' });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: (resp && resp.message) ? resp.message : 'Gagal memperpanjang token' });
+                }
+            },
+            error: function(xhr) {
+                $('#overlay').fadeOut(200);
+                var msg = 'Gagal memperpanjang token';
+                try {
+                    var json = xhr.responseJSON;
+                    if (json && json.message) msg = json.message;
+                } catch (e) {}
+                Swal.fire({ icon: 'error', title: 'Gagal', text: msg });
+            }
+        });
+    });
+}
+
+function reauthorizeFacebookToken(accountAdsId) {
+    window.location.href = '/management/admin/facebook_account_oauth_start?account_ads_id=' + encodeURIComponent(accountAdsId);
+}
+
+function checkAllFacebookTokens(silent) {
+    var formData = new FormData();
+    var btn = document.getElementById('btnCheckAllFacebookTokens');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat...';
+    }
+    $.ajax({
+        type: 'POST',
+        url: '/management/admin/facebook_account_token_check_all',
+        data: formData,
+        headers: { 'X-CSRFToken': csrftoken },
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        beforeSend: function() { if (!silent) $('#overlay').fadeIn(200); },
+        success: function(resp) {
+            if (!silent) $('#overlay').fadeOut(200);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Cek Semua';
+            }
+            if (!resp || !resp.status) {
+                if (!silent) {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: (resp && resp.message) ? resp.message : 'Gagal memeriksa token' });
+                }
+                return;
+            }
+            var items = (resp.data && resp.data.items) ? resp.data.items : [];
+            items.forEach(function(item) {
+                updateTokenCell(item.account_ads_id, item.token || {});
+            });
+            if (silent) return;
+            var summary = (resp.data && resp.data.summary) ? resp.data.summary : {};
+            Swal.fire({
+                icon: 'info',
+                title: 'Cek Token Selesai',
+                html: 'Valid: <b>' + (summary.valid || 0) + '</b><br>'
+                    + 'Segera expired: <b>' + (summary.expiring_soon || 0) + '</b><br>'
+                    + 'Expired: <b>' + (summary.expired || 0) + '</b><br>'
+                    + 'Kosong/Error: <b>' + ((summary.missing || 0) + (summary.error || 0)) + '</b>'
+            });
+        },
+        error: function(xhr, status, error) {
+            if (!silent) $('#overlay').fadeOut(200);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Cek Semua';
+            }
+            if (!silent) report_eror(xhr, status);
+        }
+    });
+}
 
 $('#simpan_data_account').on('click',function(e){
     var account_name = $("#account_name").val();
