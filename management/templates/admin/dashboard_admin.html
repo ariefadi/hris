@@ -332,6 +332,23 @@
     word-break: break-word;
 }
 
+.scx-tab-pane-loading {
+    min-height: 220px;
+    padding: 24px 16px;
+}
+
+.scx-tab-pane-loading .score-loading-title {
+    font-size: 1.05rem;
+}
+
+.scx-tab-pane-loading .score-loading-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+html[data-theme="dark"] .score-loading-title { color: #f1f5f9; }
+html[data-theme="dark"] .score-loading-name { color: #94a3b8; }
+
 .bi-spin {
     animation: bi-spin 1s linear infinite;
 }
@@ -13409,8 +13426,8 @@ function initDashboardRecap() {
                         <div class="scx-range-field"><label>Sampai</label><input type="text" class="form-control scx-analytic-end" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
                     </div>
                 </div>
-                <div id="scxAnalyticSummary">${scxRenderMetricSummaryBoxes(0, 0, 0)}</div>
-                <div id="scxAnalyticOverview" class="scx-analytic-overview"><div class="scx-sub" style="padding:14px;">Memuat ringkasan...</div></div>
+                <div id="scxAnalyticSummary"></div>
+                <div id="scxAnalyticOverview" class="scx-analytic-overview"></div>
                 <div class="scx-analytic-chart-block">
                     <div class="scx-analytic-block-title">Trend ROI Per Jam</div>
                     <div class="scx-sub scx-analytic-block-sub">Perbandingan visual antar tanggal dalam range.</div>
@@ -13425,7 +13442,7 @@ function initDashboardRecap() {
                         <div class="scx-analytic-detail-body">
                             <div class="scx-sub" style="margin-bottom:8px;">Fokus ke tanggal terakhir range. Aktifkan checkbox H-x jika perlu melihat perbandingan historis.</div>
                             <div id="scxAnalyticDailyControls"></div>
-                            <div id="scxAnalyticDailyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data...</div></div>
+                            <div id="scxAnalyticDailyWrap" class="scx-data-table-wrap"></div>
                         </div>
                     </details>
                     <details class="scx-analytic-detail-panel" data-analytic-panel="hourly">
@@ -13688,8 +13705,8 @@ function initDashboardRecap() {
                     </div>
                     <button type="button" class="btn btn-sm btn-primary scx-invalid-reload">Muat Ulang</button>
                 </div>
-                <div id="scxInvalidSummary"><div class="scx-sub" style="padding:8px 0;">Memuat ringkasan...</div></div>
-                <div id="scxInvalidSections"><div class="scx-sub" style="padding:8px 0;">Memuat perbandingan...</div></div>
+                <div id="scxInvalidSummary"></div>
+                <div id="scxInvalidSections"></div>
             </div>
         </div>`;
     }
@@ -13748,6 +13765,7 @@ function initDashboardRecap() {
         const year = String(yearEl.value || '').trim();
         const month = String(monthEl.value || '').trim();
         const tanggalTarik = tarikEl ? String(tarikEl.value || '').trim() : '';
+        scxSetInvalidDataTabLoading(true);
         if (statusEl) statusEl.textContent = 'Memuat...';
         try {
             const data = await fetchScoreDetailRekapCompare(domain, year, month, tanggalTarik);
@@ -13762,8 +13780,8 @@ function initDashboardRecap() {
                 else statusEl.textContent = 'Selesai';
             }
         } catch (e) {
-            if (summaryEl) summaryEl.innerHTML = '';
-            if (sectionsEl) sectionsEl.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat invalid data'))}</div>`;
+            if (summaryEl) summaryEl.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat invalid data'))}</div>`;
+            if (sectionsEl) sectionsEl.innerHTML = '';
             if (statusEl) statusEl.textContent = 'Gagal memuat';
         }
     }
@@ -13829,8 +13847,8 @@ function initDashboardRecap() {
                         </div>
                     </div>
                 </div>
-                <div id="scxMonitoringSummary">${scxRenderMetricSummaryBoxes(0, 0, 0)}</div>
-                <div id="scxMonitoringOverview" class="scx-analytic-overview"><div class="scx-sub" style="padding:14px;">Memuat ringkasan...</div></div>
+                <div id="scxMonitoringSummary"></div>
+                <div id="scxMonitoringOverview" class="scx-analytic-overview"></div>
                 <div class="scx-monitoring-chart-block">
                     <div class="scx-analytic-block-title" id="scxMonitoringChartTitle">Grafik ROI Negara</div>
                     <div class="scx-sub scx-analytic-block-sub" id="scxMonitoringChartDateLabel"></div>
@@ -13845,7 +13863,7 @@ function initDashboardRecap() {
                         <div class="scx-analytic-detail-body">
                             <div class="scx-sub" style="margin-bottom:8px;" id="scxMonitoringCountryHint">Performa per negara untuk tanggal yang dipilih.</div>
                             <div id="scxMonitoringTableControls"></div>
-                            <div id="scxMonitoringTableWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat data monitoring...</div></div>
+                            <div id="scxMonitoringTableWrap" class="scx-data-table-wrap"></div>
                         </div>
                     </details>
                     <details class="scx-analytic-detail-panel" id="scxMonitoringDailySection" data-monitoring-panel="daily">
@@ -13856,7 +13874,7 @@ function initDashboardRecap() {
                         <div class="scx-analytic-detail-body">
                             <div class="scx-sub" style="margin-bottom:8px;">Fokus ke tanggal terakhir range. Aktifkan H-x jika perlu perbandingan historis.</div>
                             <div id="scxMonitoringDailyControls"></div>
-                            <div id="scxMonitoringDailyWrap" class="scx-data-table-wrap"><div class="scx-sub" style="padding:14px;">Memuat perbandingan harian...</div></div>
+                            <div id="scxMonitoringDailyWrap" class="scx-data-table-wrap"></div>
                         </div>
                     </details>
                 </div>
@@ -14718,6 +14736,60 @@ function initDashboardRecap() {
         return html;
     }
 
+    function scxRenderTabLoadingState(title, hint) {
+        const hintHtml = hint ? `<div class="score-loading-name">${esc(hint)}</div>` : '';
+        return `<div class="score-loading-state scx-tab-pane-loading" role="status" aria-live="polite"><div class="score-loading-card"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div class="score-loading-title">${esc(title || 'Memuat data...')}</div>${hintHtml}</div></div>`;
+    }
+
+    function scxRenderTabInlineLoading(message) {
+        return `<div class="scx-table-loading" style="justify-content:center;margin:12px 0;"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>${esc(message || 'Memuat...')}</span></div>`;
+    }
+
+    function scxSetAnalyticTabLoading(active, hint) {
+        const pane = document.querySelector('[data-scx-tab-pane="analytic"]');
+        const summaryEl = document.getElementById('scxAnalyticSummary');
+        const overviewEl = document.getElementById('scxAnalyticOverview');
+        const dailyWrap = document.getElementById('scxAnalyticDailyWrap');
+        const chartBlock = pane ? pane.querySelector('.scx-analytic-chart-block') : null;
+        if (!active) {
+            if (chartBlock) chartBlock.style.visibility = '';
+            return;
+        }
+        if (summaryEl) summaryEl.innerHTML = scxRenderTabLoadingState('Memuat Analytic', hint || 'Mengambil data performa domain...');
+        if (overviewEl) overviewEl.innerHTML = '';
+        if (dailyWrap) dailyWrap.innerHTML = scxRenderTabInlineLoading('Menyiapkan tabel harian...');
+        if (chartBlock) chartBlock.style.visibility = 'hidden';
+        scxDestroyChartInstance('scxAnalyticRoiChartInstance');
+    }
+
+    function scxSetInvalidDataTabLoading(active, hint) {
+        const summaryEl = document.getElementById('scxInvalidSummary');
+        const sectionsEl = document.getElementById('scxInvalidSections');
+        if (!active) return;
+        const loadingHtml = scxRenderTabLoadingState('Memuat Invalid Data', hint || 'Membandingkan data harian vs rekap bulanan...');
+        if (summaryEl) summaryEl.innerHTML = loadingHtml;
+        if (sectionsEl) sectionsEl.innerHTML = scxRenderTabInlineLoading('Menyiapkan perbandingan sumber iklan...');
+    }
+
+    function scxSetMonitoringTabLoading(active, hint) {
+        const pane = document.querySelector('[data-scx-tab-pane="monitoring"]');
+        const summaryEl = document.getElementById('scxMonitoringSummary');
+        const overviewEl = document.getElementById('scxMonitoringOverview');
+        const tableWrap = document.getElementById('scxMonitoringTableWrap');
+        const dailyWrap = document.getElementById('scxMonitoringDailyWrap');
+        const chartBlock = pane ? pane.querySelector('.scx-monitoring-chart-block') : null;
+        if (!active) {
+            if (chartBlock) chartBlock.style.visibility = '';
+            return;
+        }
+        if (summaryEl) summaryEl.innerHTML = scxRenderTabLoadingState('Memuat Monitoring', hint || 'Mengambil data performa per negara...');
+        if (overviewEl) overviewEl.innerHTML = '';
+        if (tableWrap) tableWrap.innerHTML = scxRenderTabInlineLoading('Menyiapkan tabel monitoring...');
+        if (dailyWrap) dailyWrap.innerHTML = '';
+        if (chartBlock) chartBlock.style.visibility = 'hidden';
+        scxDestroyChartInstance('scxMonitoringRoiChartInstance');
+    }
+
     async function loadScoreDetailAnalyticTab(row, state) {
         const pane = document.querySelector('[data-scx-tab-pane="analytic"]');
         if (!pane) return;
@@ -14753,6 +14825,7 @@ function initDashboardRecap() {
             startEl.value = startYmd;
             endEl.value = endYmd;
         }
+        scxSetAnalyticTabLoading(true);
         if (statusEl) statusEl.textContent = 'Memuat...';
         try {
             const hourlySource = resolveScoreDetailHourlySource(row, state);
@@ -14764,6 +14837,7 @@ function initDashboardRecap() {
             const totalSpend = dailyRows.reduce(function(s, r) { return s + Number(r.spend || 0); }, 0);
             const totalRevenue = dailyRows.reduce(function(s, r) { return s + Number(r.revenue || 0); }, 0);
             const totalRoi = totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend * 100) : 0;
+            scxSetAnalyticTabLoading(false);
             if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(totalSpend, totalRevenue, totalRoi);
             if (overviewEl) overviewEl.innerHTML = scxRenderAnalyticOverview(dailyRows);
             window.scxAnalyticDailyCache = {
@@ -14807,6 +14881,8 @@ function initDashboardRecap() {
             } else {
                 scxDestroyChartInstance('scxAnalyticRoiChartInstance');
             }
+            const chartBlock = pane.querySelector('.scx-analytic-chart-block');
+            if (chartBlock) chartBlock.style.visibility = '';
             if (statusEl) {
                 const scopeLabel = scope.isCountryDim
                     ? `${String(row?.name || countryCode).trim()} (${countryCode})`
@@ -14814,8 +14890,12 @@ function initDashboardRecap() {
                 statusEl.textContent = `${dailyRows.length} hari • ${scopeLabel}`;
             }
         } catch (e) {
+            scxSetAnalyticTabLoading(false);
+            if (summaryEl) summaryEl.innerHTML = '';
             if (overviewEl) overviewEl.innerHTML = '';
             if (dailyWrap) dailyWrap.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat analytic'))}</div>`;
+            const chartBlock = pane ? pane.querySelector('.scx-analytic-chart-block') : null;
+            if (chartBlock) chartBlock.style.visibility = '';
             if (statusEl) statusEl.textContent = 'Gagal memuat';
         }
     }
@@ -14941,6 +15021,7 @@ function initDashboardRecap() {
             endEl.value = endYmd;
         }
         const isMultiDay = !!(startYmd && endYmd && startYmd !== endYmd);
+        scxSetMonitoringTabLoading(true);
         if (statusEl) statusEl.textContent = 'Memuat...';
         try {
             if (isMultiDay) {
@@ -14966,6 +15047,7 @@ function initDashboardRecap() {
                     isCountryBreakdownMode: scope.isCountryDim,
                     breakdownRows: scope.isCountryDim ? breakdownRows : []
                 }, monitorOpts);
+                scxSetMonitoringTabLoading(false);
                 if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(totalSpend, totalRevenue, totalRoi);
                 window.scxMonitoringDailyCache = {
                     rows: dailyRows,
@@ -15027,6 +15109,7 @@ function initDashboardRecap() {
                     breakdownRows: breakdownRows,
                     baseSummary: { spend: parsed.spend, revenue: parsed.revenue, roi: parsed.roi }
                 }, monitorOpts);
+                scxSetMonitoringTabLoading(false);
                 if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(parsed.spend, parsed.revenue, parsed.roi);
                 scxSetMonitoringSectionTitles(true, startYmd !== endYmd ? `• ${startYmd} s/d ${endYmd}` : `• ${startYmd}`);
                 scxRefreshMonitoringView();
@@ -15052,6 +15135,7 @@ function initDashboardRecap() {
             cache.countriesByDate = {};
             cache.countriesByDate[startYmd] = rows;
             cache.countriesByDate[prevYmd] = prevParsed.rows || [];
+            scxSetMonitoringTabLoading(false);
             if (summaryEl) summaryEl.innerHTML = scxRenderMetricSummaryBoxes(parsed.spend, parsed.revenue, parsed.roi);
             scxSetMonitoringSectionTitles(false, '');
             scxRefreshMonitoringView();
@@ -15059,10 +15143,12 @@ function initDashboardRecap() {
             const scopeLabel = domain;
             if (statusEl) statusEl.textContent = `${visibleRows.length} negara • ${source.toUpperCase()} • ${scopeLabel}`;
         } catch (e) {
+            scxSetMonitoringTabLoading(false);
             if (dailySection) dailySection.open = false;
             scxHideMonitoringCountryFilter();
             scxHideMonitoringSubdomainFilter();
             window.scxMonitoringCache = null;
+            if (summaryEl) summaryEl.innerHTML = '';
             if (tableWrap) tableWrap.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat monitoring'))}</div>`;
             scxDestroyChartInstance('scxMonitoringRoiChartInstance');
             if (statusEl) statusEl.textContent = 'Gagal memuat';
