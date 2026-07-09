@@ -92,9 +92,24 @@ html[data-theme="dark"] {
 .rad-metric-card.profit { background: linear-gradient(135deg,#4338ca,#6366f1); }
 .rad-metric-card.roi { background: linear-gradient(135deg,#047857,#10b981); }
 .rad-metric-card.domains { background: linear-gradient(135deg,#2563eb,#0891b2); }
-.rad-table-wrap { overflow: auto; border: 1px solid var(--rad-border); border-radius: 12px; }
-.rad-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.rad-table thead th { position: sticky; top: 0; z-index: 1; background: var(--rad-surface-2); color: var(--rad-text); font-size: 11px; text-transform: uppercase; padding: 10px 8px; border-bottom: 1px solid var(--rad-border); white-space: nowrap; }
+.rad-table-wrap { border: 1px solid var(--rad-border); border-radius: 12px; overflow-x: auto; }
+.rad-table-wrap .dataTables_wrapper { padding: 0; }
+.rad-table-wrap .dataTables_length,
+.rad-table-wrap .dataTables_filter { padding: 12px 16px 0; color: var(--rad-text); }
+.rad-table-wrap .dataTables_info,
+.rad-table-wrap .dataTables_paginate { padding: 8px 16px 12px; color: var(--rad-muted); }
+.rad-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 0 !important; }
+.rad-table thead th { position: sticky; top: 0; z-index: 2; background: var(--rad-surface-2); color: var(--rad-text); font-size: 11px; text-transform: uppercase; padding: 10px 26px 10px 8px; border-bottom: 1px solid var(--rad-border); white-space: nowrap; cursor: default; }
+.rad-table thead th.sorting,
+.rad-table thead th.sorting_asc,
+.rad-table thead th.sorting_desc { cursor: pointer; }
+.rad-table thead th.sorting_disabled { cursor: default; padding-right: 8px; }
+html[data-theme="dark"] .rad-table thead th.sorting:before,
+html[data-theme="dark"] .rad-table thead th.sorting_asc:before,
+html[data-theme="dark"] .rad-table thead th.sorting_desc:before,
+html[data-theme="dark"] .rad-table thead th.sorting:after,
+html[data-theme="dark"] .rad-table thead th.sorting_asc:after,
+html[data-theme="dark"] .rad-table thead th.sorting_desc:after { opacity: 0.55; }
 .rad-table tbody td { padding: 10px 8px; border-bottom: 1px solid var(--rad-border); color: var(--rad-text); vertical-align: middle; white-space: nowrap; }
 .rad-table tbody tr:hover td { background: rgba(37,99,235,.05); }
 .rad-source-badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; margin-right: 4px; text-transform: uppercase; }
@@ -227,7 +242,7 @@ html[data-theme="dark"] .rad-source-badge.fb { background: rgba(251,146,60,.2); 
                 </div>
                 <div class="card-body p-0">
                     <div class="rad-table-wrap">
-                        <table class="rad-table">
+                        <table class="rad-table table table-sm table-hover mb-0" id="radTable">
                             <thead id="radTableHead"></thead>
                             <tbody id="radTableBody"></tbody>
                         </table>

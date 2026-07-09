@@ -85,9 +85,24 @@ html[data-theme="dark"] {
 .rac-metric-card.domains { background: linear-gradient(135deg,#2563eb,#0891b2); }
 .rac-chart-wrap { padding: 12px 16px 16px; min-height: 360px; position: relative; }
 .rac-chart-wrap canvas { max-height: 340px; }
-.rac-table-wrap { overflow: auto; border: 1px solid var(--rac-border); border-radius: 12px; }
-.rac-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.rac-table thead th { position: sticky; top: 0; z-index: 1; background: var(--rac-surface-2); color: var(--rac-text); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 8px; border-bottom: 1px solid var(--rac-border); white-space: nowrap; }
+.rac-table-wrap { border: 1px solid var(--rac-border); border-radius: 12px; overflow-x: auto; }
+.rac-table-wrap .dataTables_wrapper { padding: 0; }
+.rac-table-wrap .dataTables_length,
+.rac-table-wrap .dataTables_filter { padding: 12px 16px 0; color: var(--rac-text); }
+.rac-table-wrap .dataTables_info,
+.rac-table-wrap .dataTables_paginate { padding: 8px 16px 12px; color: var(--rac-muted); }
+.rac-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 0 !important; }
+.rac-table thead th { position: sticky; top: 0; z-index: 2; background: var(--rac-surface-2); color: var(--rac-text); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 26px 10px 8px; border-bottom: 1px solid var(--rac-border); white-space: nowrap; cursor: default; }
+.rac-table thead th.sorting,
+.rac-table thead th.sorting_asc,
+.rac-table thead th.sorting_desc { cursor: pointer; }
+.rac-table thead th.sorting_disabled { cursor: default; padding-right: 8px; }
+html[data-theme="dark"] .rac-table thead th.sorting:before,
+html[data-theme="dark"] .rac-table thead th.sorting_asc:before,
+html[data-theme="dark"] .rac-table thead th.sorting_desc:before,
+html[data-theme="dark"] .rac-table thead th.sorting:after,
+html[data-theme="dark"] .rac-table thead th.sorting_asc:after,
+html[data-theme="dark"] .rac-table thead th.sorting_desc:after { opacity: 0.55; }
 .rac-table tbody td { padding: 10px 8px; border-bottom: 1px solid var(--rac-border); color: var(--rac-text); vertical-align: middle; white-space: nowrap; }
 .rac-table tbody tr:hover td { background: rgba(37,99,235,.05); }
 .rac-delta { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; }
@@ -219,7 +234,7 @@ html[data-theme="dark"] .rac-delta.down { background: rgba(239,68,68,.22); color
                 </div>
                 <div class="card-body p-0">
                     <div class="rac-table-wrap">
-                        <table class="rac-table" id="racTable">
+                        <table class="rac-table table table-sm table-hover mb-0" id="racTable">
                             <thead id="racTableHead"></thead>
                             <tbody id="racTableBody"></tbody>
                         </table>
