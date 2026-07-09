@@ -1,0 +1,245 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Detail Account — {{ account.account_name }}{% endblock %}
+{% block page_heading %}Detail Account — {{ account.account_name }}{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'report_account' %}">Report Account</a></li>
+    <li class="breadcrumb-item active">{{ account.account_name }}</li>
+{% endblock %}
+{% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<style>
+:root {
+    --rad-accent: #2563eb;
+    --rad-border: rgba(15, 23, 42, 0.08);
+    --rad-text: #0f172a;
+    --rad-muted: #64748b;
+    --rad-surface: #ffffff;
+    --rad-surface-2: #f8fafc;
+    --rad-radius: 14px;
+}
+html[data-theme="dark"] {
+    --rad-border: rgba(255,255,255,0.08);
+    --rad-text: #e2e8f0;
+    --rad-muted: #94a3b8;
+    --rad-surface: #1e293b;
+    --rad-surface-2: #0f172a;
+}
+.rad-page .card { border-radius: var(--rad-radius); border: 1px solid var(--rad-border); margin-bottom: 16px; }
+.rad-page .card-title { font-weight: 800; color: var(--rad-text); }
+.rad-filter-row { align-items: flex-end; }
+.rad-filter-row label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--rad-muted); }
+.rad-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1199px) { .rad-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.rad-metric-card { color: #fff; border-radius: 14px; padding: 16px; min-height: 90px; }
+.rad-metric-card .k { font-size: 11px; opacity: .92; text-transform: uppercase; font-weight: 700; }
+.rad-metric-card .v { font-size: 1.25rem; font-weight: 800; margin-top: 4px; line-height: 1.2; }
+.rad-metric-compare {
+    margin-top: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.rad-metric-compare-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+.rad-metric-compare-label {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    opacity: .92;
+    flex-shrink: 0;
+    line-height: 1.2;
+}
+.rad-metric-compare-val {
+    font-size: 10px;
+    font-weight: 700;
+    text-align: right;
+    line-height: 1.2;
+    word-break: break-word;
+}
+.rad-metric-card .rad-delta {
+    font-size: 9px;
+    padding: 2px 7px;
+    background: rgba(255, 255, 255, 0.96) !important;
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.12);
+    line-height: 1.2;
+}
+.rad-metric-card .rad-delta.up { color: #15803d !important; }
+.rad-metric-card .rad-delta.down { color: #b91c1c !important; }
+.rad-metric-card .rad-delta.flat { color: #1d4ed8 !important; }
+.rad-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.rad-card-header-main { flex: 1 1 auto; min-width: 0; }
+.rad-card-header-action {
+    flex: 0 0 auto;
+    margin-left: auto;
+    align-self: flex-start;
+}
+.rad-metric-card.spend { background: linear-gradient(135deg,#dc2626,#f97316); }
+.rad-metric-card.revenue { background: linear-gradient(135deg,#7c3aed,#ec4899); }
+.rad-metric-card.profit { background: linear-gradient(135deg,#4338ca,#6366f1); }
+.rad-metric-card.roi { background: linear-gradient(135deg,#047857,#10b981); }
+.rad-metric-card.domains { background: linear-gradient(135deg,#2563eb,#0891b2); }
+.rad-table-wrap { overflow: auto; border: 1px solid var(--rad-border); border-radius: 12px; }
+.rad-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.rad-table thead th { position: sticky; top: 0; z-index: 1; background: var(--rad-surface-2); color: var(--rad-text); font-size: 11px; text-transform: uppercase; padding: 10px 8px; border-bottom: 1px solid var(--rad-border); white-space: nowrap; }
+.rad-table tbody td { padding: 10px 8px; border-bottom: 1px solid var(--rad-border); color: var(--rad-text); vertical-align: middle; white-space: nowrap; }
+.rad-table tbody tr:hover td { background: rgba(37,99,235,.05); }
+.rad-source-badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; margin-right: 4px; text-transform: uppercase; }
+.rad-source-badge.adx { background: rgba(37,99,235,.14); color: #1d4ed8; }
+.rad-source-badge.adsense { background: rgba(16,185,129,.14); color: #047857; }
+.rad-source-badge.fb { background: rgba(249,115,22,.14); color: #c2410c; }
+html[data-theme="dark"] .rad-source-badge.adx { background: rgba(59,130,246,.22); color: #93c5fd; }
+html[data-theme="dark"] .rad-source-badge.adsense { background: rgba(52,211,153,.18); color: #6ee7b7; }
+html[data-theme="dark"] .rad-source-badge.fb { background: rgba(251,146,60,.2); color: #fdba74; }
+.rad-delta { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.rad-delta.up { background: rgba(22,163,74,.15); color: #15803d; }
+.rad-delta.down { background: rgba(220,38,38,.14); color: #b91c1c; }
+.rad-delta.flat { background: rgba(59,130,246,.14); color: #1d4ed8; }
+.rad-compare-pair { font-size: 11px; line-height: 1.35; }
+.rad-mode-panel { display: none; }
+.rad-mode-panel.is-active { display: block; }
+.rad-page .switch-toggle { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.rad-page .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
+.rad-page .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
+.rad-page .switch-toggle .slider { position: absolute; cursor: pointer; inset: 0; background: #cbd5e1; transition: .25s; border-radius: 999px; }
+.rad-page .switch-toggle .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; }
+.rad-page .switch-toggle input:checked + .slider { background: var(--rad-accent); }
+.rad-page .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
+.rad-chart-wrap { padding: 12px 16px 16px; min-height: 340px; }
+.rad-chart-wrap canvas { max-height: 320px; }
+.rad-empty { text-align: center; padding: 40px 16px; color: var(--rad-muted); }
+.rad-account-meta { font-size: 13px; color: var(--rad-muted); }
+.rad-page #radDomainQ + .select2-container { width: 100% !important; }
+</style>
+{% endblock %}
+{% block content %}
+{% csrf_token %}
+<div class="rad-page"
+     id="radPageRoot"
+     data-account-key="{{ account.account_key }}"
+     data-account-id="{{ account.account_id }}"
+     data-account-name="{{ account.account_name|escapejs }}"
+     data-init-mode="{{ init_periode_mode }}"
+     data-init-start="{{ init_start_date }}"
+     data-init-end="{{ init_end_date }}"
+     data-init-compare="{{ init_compare_rekap|yesno:'1,0' }}"
+     data-init-tarik="{{ init_rekap_tarik }}"
+     data-init-domain="{{ init_domain_q|escapejs }}">
+<div class="card">
+    <div class="card-header rad-card-header">
+        <div class="rad-card-header-main">
+            <h3 class="card-title mb-0">Detail Subdomain — {{ account.account_name }}</h3>
+            <div class="rad-account-meta mt-1">
+                Account ID: <strong>{{ account.account_id }}</strong>
+                {% if account.account_email %} · {{ account.account_email }}{% endif %}
+            </div>
+        </div>
+        <div class="rad-card-header-action">
+            <a href="#" id="radBackBtn" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left mr-1"></i> Kembali</a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="form-row rad-filter-row">
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Mode Periode</label>
+                <select class="form-control" id="radMode">
+                    <option value="bulanan">Bulanan</option>
+                    <option value="tanggal">Range Tanggal</option>
+                </select>
+            </div>
+            <div class="col-md-2 col-12 mb-2 mb-md-0 rad-mode-panel is-active" id="radPanelBulanan">
+                <label>Tahun</label>
+                <input type="number" class="form-control" id="radYear" value="{{ default_year }}" min="2020" max="2099">
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 rad-mode-panel is-active" id="radPanelBulan">
+                <label>Bulan</label>
+                <select class="form-control" id="radMonth">
+                    {% for m, name in months %}
+                    <option value="{{ m }}"{% if m == default_month %} selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 rad-mode-panel" id="radPanelStart">
+                <label>Dari</label>
+                <input type="text" class="form-control datepicker-input" id="radStartDate" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 rad-mode-panel" id="radPanelEnd">
+                <label>Sampai</label>
+                <input type="text" class="form-control datepicker-input" id="radEndDate" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="col-md-3 col-12 mb-2 mb-md-0">
+                <label>Cari Subdomain</label>
+                <select class="form-control" id="radDomainQ"><option value=""></option></select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 rad-mode-panel is-active" id="radPanelCompare">
+                <label>Bandingkan Rekap</label>
+                <div class="switch-toggle">
+                    <label class="switch mb-0">
+                        <input type="checkbox" id="radCompareRekap">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 rad-mode-panel is-active" id="radPanelTarik" style="display:none;">
+                <label>Tanggal Tarik Rekap</label>
+                <select class="form-control" id="radTarik"><option value="">Terbaru</option></select>
+            </div>
+            <div class="col-md-2 col-12 mb-2 mb-md-0">
+                <label class="d-none d-md-block">&nbsp;</label>
+                <button type="button" class="btn btn-primary btn-block" id="radLoadBtn"><i class="fas fa-sync-alt mr-1"></i> Muat Data</button>
+            </div>
+        </div>
+        <p class="text-muted mb-0" style="font-size:12px;"><i class="bi bi-info-circle mr-1"></i>Label <strong>AdX</strong> / <strong>AdSense</strong> menunjukkan platform monetisasi subdomain. Mode bulanan mendukung perbandingan dengan rekap resmi.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body position-relative">
+        <div id="radOverlay" class="hris-loader-stub" style="display:none" data-loader-message="Menyiapkan data..." aria-hidden="true"></div>
+        <div class="rad-empty" id="radEmpty">
+            <div class="mb-2"><i class="bi bi-layers" style="font-size:2rem;color:var(--rad-accent);"></i></div>
+            <div style="font-weight:800;color:var(--rad-text);">Belum ada data subdomain</div>
+            <p class="mb-0">Atur filter lalu klik <strong>Muat Data</strong>.</p>
+        </div>
+        <div id="radContent" style="display:none;">
+            <div class="rad-summary-grid" id="radSummary"></div>
+            <div class="card mb-3">
+                <div class="card-header py-2"><strong><i class="bi bi-graph-up mr-1"></i> Grafik Trend Harian</strong></div>
+                <div class="rad-chart-wrap"><canvas id="radChart"></canvas></div>
+            </div>
+            <div class="card mb-0">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <strong><i class="bi bi-table mr-1"></i> Tabel Subdomain</strong>
+                    <small class="text-muted" id="radPeriodLabel"></small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="rad-table-wrap">
+                        <table class="rad-table">
+                            <thead id="radTableHead"></thead>
+                            <tbody id="radTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'ajax/admin/report_account/detail.js' %}?v={% now 'u' %}"></script>
+{% endblock %}

@@ -16508,6 +16508,273 @@ class RoiMonitoringCountryBreakdownView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e), 'data': []}, safe=False)
 
+# ===== Report Account =====
+
+class ReportAccountView(View):
+    """Halaman rekapan performa per Facebook Ads account."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        today = datetime.now().date()
+        prev_month = today.replace(day=1) - timedelta(days=1)
+        month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+        months = [(f'{i:02d}', month_names[i - 1]) for i in range(1, 13)]
+        data_account = data_mysql().master_account_ads()['data']
+        last_update = data_mysql().get_last_update_ads_traffic_per_domain()['data']['last_update']
+        data = {
+            'title': 'Report Account',
+            'user': req.session['hris_admin'],
+            'data_account': data_account,
+            'last_update': last_update,
+            'default_year': prev_month.year,
+            'default_month': f'{prev_month.month:02d}',
+            'months': months,
+        }
+        return render(req, 'admin/report_account/index.html', data)
+
+
+class ReportAccountDataView(View):
+    """API data rekapan per account."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            import calendar
+
+            periode_mode = (req.GET.get('periode_mode') or 'bulanan').strip().lower()
+            account_q = (req.GET.get('account_q') or '').strip()
+            compare_rekap = str(req.GET.get('compare_rekap') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+            if periode_mode == 'bulanan':
+                year = req.GET.get('year')
+                month = req.GET.get('month')
+                if not year or not month:
+                    raise ValueError('Tahun dan bulan wajib diisi untuk mode bulanan')
+                y = int(str(year).strip())
+                m = int(str(month).strip())
+                last_day = calendar.monthrange(y, m)[1]
+                start_date = datetime(y, m, 1).date()
+                end_date = datetime(y, m, last_day).date()
+                rekap_year = y
+                rekap_month = m
+            else:
+                start_date = req.GET.get('start_date')
+                end_date = req.GET.get('end_date')
+                if not start_date or not end_date:
+                    raise ValueError('start_date dan end_date wajib diisi')
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                if start_date > end_date:
+                    raise ValueError('start_date tidak boleh lebih besar dari end_date')
+                compare_rekap = False
+                rekap_year = None
+                rekap_month = None
+
+            rekap_tanggal_tarik = (req.GET.get('rekap_tanggal_tarik') or '').strip() or None
+            if periode_mode == 'bulanan' and not compare_rekap:
+                rekap_year = None
+                rekap_month = None
+
+            result = data_mysql().list_report_account_summary(
+                start_date.isoformat(),
+                end_date.isoformat(),
+                account_q=account_q or None,
+                compare_rekap=compare_rekap,
+                rekap_year=rekap_year,
+                rekap_month=rekap_month,
+                rekap_tanggal_tarik=rekap_tanggal_tarik,
+            )
+            if not result.get('status'):
+                return JsonResponse({'status': False, 'error': result.get('data') or 'Gagal mengambil data'})
+            payload = result.get('data') or {}
+            payload['periode_mode'] = periode_mode
+            return JsonResponse({'status': True, 'data': payload})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+
+class ReportAccountDetailPageView(View):
+    """Halaman detail subdomain per account."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        account_key = (req.GET.get('account_key') or req.GET.get('account_id') or '').strip()
+        if not account_key:
+            return redirect('report_account')
+
+        db = data_mysql()
+        accounts = db._report_account_fetch_accounts()
+        acct = next(
+            (a for a in accounts if a.get('account_key') == db._normalize_fb_account_key(account_key)),
+            None,
+        )
+        if not acct:
+            acct = next(
+                (a for a in accounts if str(a.get('account_id') or '') == account_key or str(a.get('account_name') or '') == account_key),
+                None,
+            )
+        if not acct:
+            return redirect('report_account')
+
+        today = datetime.now().date()
+        prev_month = today.replace(day=1) - timedelta(days=1)
+        month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+        months = [(f'{i:02d}', month_names[i - 1]) for i in range(1, 13)]
+        last_update = db.get_last_update_ads_traffic_per_domain()['data']['last_update']
+
+        data = {
+            'title': f"Detail Account — {acct.get('account_name') or account_key}",
+            'user': req.session['hris_admin'],
+            'last_update': last_update,
+            'account': acct,
+            'default_year': req.GET.get('year') or prev_month.year,
+            'default_month': req.GET.get('month') or f'{prev_month.month:02d}',
+            'months': months,
+            'init_periode_mode': req.GET.get('periode_mode') or 'bulanan',
+            'init_start_date': req.GET.get('start_date') or '',
+            'init_end_date': req.GET.get('end_date') or '',
+            'init_compare_rekap': req.GET.get('compare_rekap') in ('1', 'true', 'yes', 'on'),
+            'init_rekap_tarik': req.GET.get('rekap_tanggal_tarik') or '',
+            'init_domain_q': req.GET.get('domain_q') or '',
+        }
+        return render(req, 'admin/report_account/detail.html', data)
+
+
+class ReportAccountDetailView(View):
+    """API detail subdomain per account."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            import calendar
+
+            account_key = (req.GET.get('account_key') or req.GET.get('account_id') or '').strip()
+            if not account_key:
+                raise ValueError('account_key wajib diisi')
+
+            periode_mode = (req.GET.get('periode_mode') or 'bulanan').strip().lower()
+            compare_rekap = str(req.GET.get('compare_rekap') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+            if periode_mode == 'bulanan':
+                year = req.GET.get('year')
+                month = req.GET.get('month')
+                if not year or not month:
+                    raise ValueError('Tahun dan bulan wajib diisi')
+                y = int(str(year).strip())
+                m = int(str(month).strip())
+                last_day = calendar.monthrange(y, m)[1]
+                start_date = datetime(y, m, 1).date()
+                end_date = datetime(y, m, last_day).date()
+                rekap_year = y
+                rekap_month = m
+            else:
+                start_date = datetime.strptime(req.GET.get('start_date'), '%Y-%m-%d').date()
+                end_date = datetime.strptime(req.GET.get('end_date'), '%Y-%m-%d').date()
+                compare_rekap = False
+                rekap_year = None
+                rekap_month = None
+
+            rekap_tanggal_tarik = (req.GET.get('rekap_tanggal_tarik') or '').strip() or None
+            if periode_mode == 'bulanan' and not compare_rekap:
+                rekap_year = None
+                rekap_month = None
+
+            domain_q = (req.GET.get('domain_q') or '').strip() or None
+
+            result = data_mysql().get_report_account_detail(
+                account_key,
+                start_date.isoformat(),
+                end_date.isoformat(),
+                compare_rekap=compare_rekap,
+                rekap_year=rekap_year,
+                rekap_month=rekap_month,
+                rekap_tanggal_tarik=rekap_tanggal_tarik,
+                domain_q=domain_q,
+            )
+            if not result.get('status'):
+                return JsonResponse({'status': False, 'error': result.get('data') or 'Gagal mengambil detail'})
+            return JsonResponse({'status': True, 'data': result.get('data') or {}})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+
+class ReportAccountSuggestView(View):
+    """Suggest nama account Facebook Ads untuk Select2 (min. 3 karakter)."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = (req.GET.get('q') or req.GET.get('term') or '').strip()
+        if len(q) < 3:
+            return JsonResponse({'results': []})
+        result = data_mysql().search_report_account_suggest(q, limit=20)
+        if not result.get('status'):
+            return JsonResponse({'results': []})
+        results = []
+        for row in (result.get('data') or []):
+            name = str(row.get('account_name') or '').strip()
+            if not name:
+                continue
+            email = str(row.get('account_email') or '').strip()
+            text = name + (f' ({email})' if email else '')
+            results.append({'id': name, 'text': text})
+        return JsonResponse({'results': results})
+
+
+class ReportAccountDomainSuggestView(View):
+    """Suggest subdomain dalam account untuk Select2."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        import calendar
+
+        account_key = (req.GET.get('account_key') or '').strip()
+        q = (req.GET.get('q') or req.GET.get('term') or '').strip()
+        if len(q) < 2 or not account_key:
+            return JsonResponse({'results': []})
+
+        periode_mode = (req.GET.get('periode_mode') or 'bulanan').strip().lower()
+        if periode_mode == 'bulanan':
+            y = int(str(req.GET.get('year') or datetime.now().year))
+            m = int(str(req.GET.get('month') or datetime.now().month))
+            last_day = calendar.monthrange(y, m)[1]
+            start_date = datetime(y, m, 1).date().isoformat()
+            end_date = datetime(y, m, last_day).date().isoformat()
+        else:
+            start_date = (req.GET.get('start_date') or datetime.now().date().isoformat())[:10]
+            end_date = (req.GET.get('end_date') or start_date)[:10]
+
+        result = data_mysql().search_report_account_domain_suggest(
+            account_key, q, start_date, end_date, limit=20
+        )
+        if not result.get('status'):
+            return JsonResponse({'results': []})
+        results = [{'id': row['domain'], 'text': row['domain']} for row in (result.get('data') or []) if row.get('domain')]
+        return JsonResponse({'results': results})
+
 # ===== ROI Rekapitulasi =====
 
 class RoiRekapitulasiView(View):

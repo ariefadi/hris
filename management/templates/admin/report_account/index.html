@@ -1,0 +1,237 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Report Account{% endblock %}
+{% block page_heading %}Report Account{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Report Account</li>
+{% endblock %}
+{% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<style>
+:root {
+    --rac-accent: #2563eb;
+    --rac-accent-2: #0d9488;
+    --rac-border: rgba(15, 23, 42, 0.08);
+    --rac-text: #0f172a;
+    --rac-muted: #64748b;
+    --rac-surface: #ffffff;
+    --rac-surface-2: #f8fafc;
+    --rac-radius: 14px;
+}
+html[data-theme="dark"] {
+    --rac-border: rgba(255,255,255,0.08);
+    --rac-text: #e2e8f0;
+    --rac-muted: #94a3b8;
+    --rac-surface: #1e293b;
+    --rac-surface-2: #0f172a;
+}
+.rac-page .card { border-radius: var(--rac-radius); border: 1px solid var(--rac-border); margin-bottom: 16px; }
+.rac-page .card-title { font-weight: 800; color: var(--rac-text); }
+.rac-filter-row { align-items: flex-end; }
+.rac-filter-row label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--rac-muted); }
+.rac-filter-note { font-size: 12px; color: var(--rac-muted); margin-top: 8px; }
+.rac-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1199px) { .rac-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 575px) { .rac-summary-grid { grid-template-columns: 1fr; } }
+.rac-metric-card { color: #fff; border-radius: 14px; padding: 16px; min-height: 96px; box-shadow: 0 6px 18px rgba(15,23,42,.12); }
+.rac-metric-card .k { font-size: 11px; opacity: .92; text-transform: uppercase; font-weight: 700; letter-spacing: .04em; }
+.rac-metric-card .v { font-size: 1.35rem; font-weight: 800; margin-top: 4px; line-height: 1.2; }
+.rac-metric-compare {
+    margin-top: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.rac-metric-compare-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+.rac-metric-compare-label {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    opacity: .92;
+    flex-shrink: 0;
+    line-height: 1.2;
+}
+.rac-metric-compare-val {
+    font-size: 10px;
+    font-weight: 700;
+    text-align: right;
+    line-height: 1.2;
+    word-break: break-word;
+}
+.rac-metric-card .rac-delta {
+    font-size: 9px;
+    padding: 2px 7px;
+    background: rgba(255, 255, 255, 0.96) !important;
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.12);
+    line-height: 1.2;
+}
+.rac-metric-card .rac-delta.up { color: #15803d !important; }
+.rac-metric-card .rac-delta.down { color: #b91c1c !important; }
+.rac-metric-card .rac-delta.flat { color: #1d4ed8 !important; }
+.rac-metric-card.spend { background: linear-gradient(135deg,#dc2626,#f97316); }
+.rac-metric-card.revenue { background: linear-gradient(135deg,#7c3aed,#ec4899); }
+.rac-metric-card.profit { background: linear-gradient(135deg,#4338ca,#6366f1); }
+.rac-metric-card.roi { background: linear-gradient(135deg,#047857,#10b981); }
+.rac-metric-card.domains { background: linear-gradient(135deg,#2563eb,#0891b2); }
+.rac-chart-wrap { padding: 12px 16px 16px; min-height: 360px; position: relative; }
+.rac-chart-wrap canvas { max-height: 340px; }
+.rac-table-wrap { overflow: auto; border: 1px solid var(--rac-border); border-radius: 12px; }
+.rac-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.rac-table thead th { position: sticky; top: 0; z-index: 1; background: var(--rac-surface-2); color: var(--rac-text); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 8px; border-bottom: 1px solid var(--rac-border); white-space: nowrap; }
+.rac-table tbody td { padding: 10px 8px; border-bottom: 1px solid var(--rac-border); color: var(--rac-text); vertical-align: middle; white-space: nowrap; }
+.rac-table tbody tr:hover td { background: rgba(37,99,235,.05); }
+.rac-delta { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.rac-delta.up { background: rgba(22,163,74,.15); color: #15803d; }
+.rac-delta.down { background: rgba(220,38,38,.14); color: #b91c1c; }
+.rac-delta.flat { background: rgba(59,130,246,.14); color: #1d4ed8; }
+html[data-theme="dark"] .rac-delta.up { background: rgba(34,197,94,.22); color: #86efac; }
+html[data-theme="dark"] .rac-delta.down { background: rgba(239,68,68,.22); color: #fca5a5; }
+.rac-compare-pair { font-size: 11px; line-height: 1.35; }
+.rac-compare-pair .sep { color: var(--rac-muted); margin: 0 3px; }
+.rac-empty { text-align: center; padding: 40px 16px; color: var(--rac-muted); }
+.rac-mode-panel { display: none; }
+.rac-mode-panel.is-active { display: block; }
+.rac-page .switch-toggle { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.rac-page .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
+.rac-page .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
+.rac-page .switch-toggle .slider { position: absolute; cursor: pointer; inset: 0; background: #cbd5e1; transition: .25s; border-radius: 999px; }
+.rac-page .switch-toggle .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.rac-page .switch-toggle input:checked + .slider { background: var(--rac-accent); }
+.rac-page .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
+.rac-last-update { font-size: 12px; color: var(--rac-muted); background: var(--rac-surface-2); border: 1px solid var(--rac-border); border-radius: 999px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rac-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.rac-card-header-main { flex: 1 1 auto; min-width: 0; }
+.rac-card-header-action {
+    flex: 0 0 auto;
+    margin-left: auto;
+    align-self: flex-start;
+}
+.rac-page #racAccountQ + .select2-container { width: 100% !important; }
+.rac-page #racAccountQ + .select2-container .select2-selection--single { min-height: 38px; }
+</style>
+{% endblock %}
+{% block content %}
+{% csrf_token %}
+<div class="rac-page">
+<div class="card">
+    <div class="card-header rac-card-header">
+        <div class="rac-card-header-main">
+            <h3 class="card-title mb-0">Rekapan Data Per Account</h3>
+            <small class="text-muted d-block mt-1">Agregat harian per Facebook Ads account: subdomain AdX/AdSense, spend, revenue, profit, dan ROI.</small>
+        </div>
+        <div class="rac-card-header-action">
+            <span class="rac-last-update"><i class="bi bi-clock-history"></i> Update terakhir <b>{{ last_update|date:"d M Y H:i" }}</b></span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="form-row rac-filter-row">
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Mode Periode</label>
+                <select class="form-control" id="racMode">
+                    <option value="bulanan" selected>Bulanan</option>
+                    <option value="tanggal">Range Tanggal</option>
+                </select>
+            </div>
+            <div class="col-md-2 col-12 mb-2 mb-md-0 rac-mode-panel is-active" id="racPanelBulanan">
+                <label>Tahun</label>
+                <input type="number" class="form-control" id="racYear" value="{{ default_year }}" min="2020" max="2099">
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 rac-mode-panel is-active" id="racPanelBulan">
+                <label>Bulan</label>
+                <select class="form-control" id="racMonth">
+                    {% for m, name in months %}
+                    <option value="{{ m }}"{% if m == default_month %} selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 rac-mode-panel" id="racPanelStart">
+                <label>Dari</label>
+                <input type="text" class="form-control datepicker-input" id="racStartDate" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 rac-mode-panel" id="racPanelEnd">
+                <label>Sampai</label>
+                <input type="text" class="form-control datepicker-input" id="racEndDate" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="col-md-3 col-12 mb-2 mb-md-0">
+                <label>Cari Nama Account</label>
+                <select class="form-control" id="racAccountQ">
+                    <option value=""></option>
+                </select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 rac-mode-panel is-active" id="racPanelCompare">
+                <label>Bandingkan Rekap</label>
+                <div class="switch-toggle">
+                    <label class="switch mb-0">
+                        <input type="checkbox" id="racCompareRekap">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 rac-mode-panel is-active" id="racPanelTarik" style="display:none;">
+                <label>Tanggal Tarik Rekap</label>
+                <select class="form-control" id="racTarik"><option value="">Terbaru</option></select>
+            </div>
+            <div class="col-md-2 col-12 mb-2 mb-md-0">
+                <label class="d-none d-md-block">&nbsp;</label>
+                <button type="button" class="btn btn-primary btn-block" id="racLoadBtn"><i class="fas fa-sync-alt mr-1"></i> Muat Data</button>
+            </div>
+        </div>
+        <p class="rac-filter-note mb-0"><i class="bi bi-info-circle mr-1"></i>Mode <strong>Bulanan</strong> mengagregat data harian sepanjang bulan. Aktifkan <strong>Bandingkan Rekap</strong> untuk melihat selisih % terhadap data rekap bulanan resmi.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body position-relative">
+        <div id="racOverlay" class="hris-loader-stub" style="display:none" data-loader-message="Menyiapkan data..." aria-hidden="true"></div>
+
+        <div class="rac-empty" id="racEmpty">
+            <div class="mb-2"><i class="bi bi-bar-chart-line" style="font-size:2rem;color:var(--rac-accent);"></i></div>
+            <div style="font-weight:800;color:var(--rac-text);">Belum ada data</div>
+            <p class="mb-0">Atur filter lalu klik <strong>Muat Data</strong>.</p>
+        </div>
+
+        <div id="racContent" style="display:none;">
+            <div class="rac-summary-grid" id="racSummary"></div>
+
+            <div class="card mb-3">
+                <div class="card-header py-2"><strong><i class="bi bi-graph-up mr-1"></i> Grafik Trend Harian</strong></div>
+                <div class="rac-chart-wrap"><canvas id="racChart"></canvas></div>
+            </div>
+
+            <div class="card mb-0">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <strong><i class="bi bi-table mr-1"></i> Tabel Rekap Per Account</strong>
+                    <small class="text-muted" id="racPeriodLabel"></small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="rac-table-wrap">
+                        <table class="rac-table" id="racTable">
+                            <thead id="racTableHead"></thead>
+                            <tbody id="racTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'ajax/admin/report_account/index.js' %}?v={% now 'u' %}"></script>
+{% endblock %}

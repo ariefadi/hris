@@ -167,6 +167,13 @@ urlpatterns = [
     path('admin/oauth/callback/', oauth_callback_api, name='oauth_callback_api'),
     
     # MENU REPORT
+    # Menu Report Account
+    path('admin/report_account', views.ReportAccountView.as_view(), name='report_account'),
+    path('admin/report_account/detail', views.ReportAccountDetailPageView.as_view(), name='report_account_detail_page'),
+    path('admin/page_report_account', views.ReportAccountDataView.as_view(), name='report_account_data'),
+    path('admin/page_report_account_detail', views.ReportAccountDetailView.as_view(), name='report_account_detail'),
+    path('admin/report_account_suggest', views.ReportAccountSuggestView.as_view(), name='report_account_suggest'),
+    path('admin/report_account_domain_suggest', views.ReportAccountDomainSuggestView.as_view(), name='report_account_domain_suggest'),
     # Menu Report ROI
     path('admin/roi_summary', views.RoiSummaryView.as_view(), name='roi_summary'),
     # Menu ROI Per Domain

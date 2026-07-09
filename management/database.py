@@ -6,7 +6,7 @@ import json
 import os
 import re
 from django.conf import settings
-from datetime import datetime
+from datetime import datetime, timedelta
 from google_auth_oauthlib.flow import InstalledAppFlow
 from random import sample
 from argon2 import PasswordHasher, exceptions as argon2_exceptions
@@ -12134,3 +12134,707 @@ class data_mysql:
             return {"status": True, "data": result}
         except Exception as e:
             return {"status": False, "error": str(e), "data": {}}
+
+    def _report_account_domain_key_sql(self, column_expr):
+        inner = (
+            "REPLACE(REPLACE(LOWER(TRIM(" + column_expr + ")), 'www.', ''), 'https://', '')"
+        )
+        return f"LOWER(SUBSTRING_INDEX({inner}, '.', 2))"
+
+    def _report_account_fb_key_sql(self, column_expr):
+        return f"REPLACE(LOWER(TRIM({column_expr})), 'act_', '')"
+
+    def _report_account_fetch_accounts(self, account_q=None):
+        params = []
+        sql = [
+            "SELECT account_ads_id, account_id, account_name, account_email",
+            "FROM master_account_ads",
+            "WHERE 1=1",
+        ]
+        q = str(account_q or '').strip()
+        if q:
+            sql.append("AND (account_name LIKE %s OR account_email LIKE %s OR CAST(account_id AS CHAR) LIKE %s)")
+            like = f"%{q}%"
+            params.extend([like, like, like])
+        sql.append("ORDER BY account_name ASC")
+        self.cur_hris.execute("\n".join(sql), tuple(params))
+        rows = self.cur_hris.fetchall() or []
+        accounts = []
+        for row in rows:
+            acct_key = self._normalize_fb_account_key(row.get('account_id') or row.get('account_ads_id'))
+            if not acct_key:
+                continue
+            accounts.append({
+                'account_ads_id': row.get('account_ads_id'),
+                'account_id': row.get('account_id'),
+                'account_key': acct_key,
+                'account_name': str(row.get('account_name') or '').strip() or str(row.get('account_id') or '-'),
+                'account_email': str(row.get('account_email') or '').strip(),
+            })
+        return accounts
+
+    def search_report_account_suggest(self, q, limit=20):
+        q = str(q or '').strip()
+        if len(q) < 3:
+            return {'status': True, 'data': []}
+        try:
+            limit = max(1, min(int(limit or 20), 50))
+            like = f"%{q}%"
+            sql = """
+                SELECT account_ads_id, account_id, account_name, account_email
+                FROM master_account_ads
+                WHERE account_name LIKE %s
+                   OR account_email LIKE %s
+                   OR CAST(account_id AS CHAR) LIKE %s
+                ORDER BY account_name ASC
+                LIMIT %s
+            """
+            self.cur_hris.execute(sql, (like, like, like, limit))
+            rows = self.cur_hris.fetchall() or []
+            data = []
+            seen = set()
+            for row in rows:
+                name = str(row.get('account_name') or '').strip()
+                if not name or name.lower() in seen:
+                    continue
+                seen.add(name.lower())
+                email = str(row.get('account_email') or '').strip()
+                data.append({
+                    'account_ads_id': row.get('account_ads_id'),
+                    'account_id': row.get('account_id'),
+                    'account_name': name,
+                    'account_email': email,
+                })
+            return {'status': True, 'data': data}
+        except Exception as e:
+            return {'status': False, 'data': str(e)}
+
+    def _report_account_list_rekap_tarik_dates(self, year, month):
+        self.cur_hris.execute(
+            """
+            SELECT DISTINCT data_ads_rekap_tanggal AS tanggal_tarik
+            FROM data_ads_rekap
+            WHERE data_ads_rekap_tahun = %s AND data_ads_rekap_bulan = %s
+            ORDER BY data_ads_rekap_tanggal DESC
+            """,
+            (str(year), str(month).zfill(2)),
+        )
+        out = []
+        for row in (self.cur_hris.fetchall() or []):
+            val = row.get('tanggal_tarik')
+            if hasattr(val, 'isoformat'):
+                out.append(val.isoformat())
+            elif val:
+                out.append(str(val).strip())
+        return out
+
+    def _report_account_fetch_spend_by_account(self, start_date, end_date):
+        key_expr = self._report_account_fb_key_sql('b.account_ads_id')
+        sql = f"""
+            SELECT {key_expr} AS account_key,
+                   COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend
+            FROM data_ads_campaign b
+            WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
+            GROUP BY account_key
+        """
+        self.cur_hris.execute(sql, (start_date, end_date))
+        out = {}
+        for row in (self.cur_hris.fetchall() or []):
+            k = str(row.get('account_key') or '').strip()
+            if k:
+                out[k] = float(row.get('spend') or 0)
+        return out
+
+    def _report_account_fetch_spend_daily(self, start_date, end_date, account_keys=None):
+        key_expr = self._report_account_fb_key_sql('b.account_ads_id')
+        sql = [
+            f"SELECT DATE(b.data_ads_tanggal) AS d, {key_expr} AS account_key,",
+            "COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend",
+            "FROM data_ads_campaign b",
+            "WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s",
+        ]
+        params = [start_date, end_date]
+        keys = [str(k).strip() for k in (account_keys or []) if str(k).strip()]
+        if keys:
+            placeholders = ','.join(['%s'] * len(keys))
+            sql.append(f"AND {key_expr} IN ({placeholders})")
+            params.extend(keys)
+        sql.append("GROUP BY d, account_key ORDER BY d ASC")
+        self.cur_hris.execute("\n".join(sql), tuple(params))
+        out = {}
+        for row in (self.cur_hris.fetchall() or []):
+            d = row.get('d')
+            if hasattr(d, 'isoformat'):
+                d = d.isoformat()
+            else:
+                d = str(d or '')[:10]
+            k = str(row.get('account_key') or '').strip()
+            if not d or not k:
+                continue
+            out.setdefault(d, {})
+            out[d][k] = float(row.get('spend') or 0)
+        return out
+
+    def _report_account_fetch_domain_map(self, start_date, end_date):
+        key_expr = self._report_account_fb_key_sql('b.account_ads_id')
+        dom_expr = self._report_account_domain_key_sql('b.data_ads_domain')
+        sql = f"""
+            SELECT DISTINCT {key_expr} AS account_key, {dom_expr} AS domain_key
+            FROM data_ads_campaign b
+            WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
+              AND b.data_ads_domain IS NOT NULL
+              AND TRIM(b.data_ads_domain) <> ''
+        """
+        self.cur_hris.execute(sql, (start_date, end_date))
+        account_domains = {}
+        domain_accounts = {}
+        for row in (self.cur_hris.fetchall() or []):
+            ak = str(row.get('account_key') or '').strip()
+            dk = str(row.get('domain_key') or '').strip()
+            if not ak or not dk:
+                continue
+            account_domains.setdefault(ak, set()).add(dk)
+            domain_accounts.setdefault(dk, set()).add(ak)
+        return account_domains, domain_accounts
+
+    def _report_account_fetch_revenue_by_domain(self, table, date_col, revenue_col, domain_col, start_date, end_date):
+        dom_expr = self._report_account_domain_key_sql(domain_col)
+        sql = f"""
+            SELECT {dom_expr} AS domain_key,
+                   COALESCE(SUM(CAST({revenue_col} AS DECIMAL(18,4))), 0) AS revenue
+            FROM {table}
+            WHERE DATE({date_col}) BETWEEN %s AND %s
+            GROUP BY domain_key
+        """
+        self.cur_hris.execute(sql, (start_date, end_date))
+        out = {}
+        for row in (self.cur_hris.fetchall() or []):
+            k = str(row.get('domain_key') or '').strip()
+            if k:
+                out[k] = float(row.get('revenue') or 0)
+        return out
+
+    def _report_account_fetch_revenue_daily_by_domain(self, table, date_col, revenue_col, domain_col, start_date, end_date):
+        dom_expr = self._report_account_domain_key_sql(domain_col)
+        sql = f"""
+            SELECT DATE({date_col}) AS d, {dom_expr} AS domain_key,
+                   COALESCE(SUM(CAST({revenue_col} AS DECIMAL(18,4))), 0) AS revenue
+            FROM {table}
+            WHERE DATE({date_col}) BETWEEN %s AND %s
+            GROUP BY d, domain_key
+            ORDER BY d ASC
+        """
+        self.cur_hris.execute(sql, (start_date, end_date))
+        out = {}
+        for row in (self.cur_hris.fetchall() or []):
+            d = row.get('d')
+            if hasattr(d, 'isoformat'):
+                d = d.isoformat()
+            else:
+                d = str(d or '')[:10]
+            k = str(row.get('domain_key') or '').strip()
+            if not d or not k:
+                continue
+            out.setdefault(d, {})
+            out[d][k] = out[d].get(k, 0.0) + float(row.get('revenue') or 0)
+        return out
+
+    def _report_account_fetch_rekap_spend_by_account(self, year, month, tanggal_tarik):
+        key_expr = self._report_account_fb_key_sql('account_ads_id')
+        sql = f"""
+            SELECT {key_expr} AS account_key,
+                   COALESCE(SUM(CAST(data_ads_rekap_spend AS DECIMAL(18,4))), 0) AS spend
+            FROM data_ads_rekap
+            WHERE data_ads_rekap_tahun = %s
+              AND data_ads_rekap_bulan = %s
+              AND data_ads_rekap_tanggal = %s
+            GROUP BY account_key
+        """
+        self.cur_hris.execute(sql, (str(year), str(month).zfill(2), tanggal_tarik))
+        out = {}
+        for row in (self.cur_hris.fetchall() or []):
+            k = str(row.get('account_key') or '').strip()
+            if k:
+                out[k] = float(row.get('spend') or 0)
+        return out
+
+    def _report_account_fetch_rekap_revenue_by_domain(self, table, domain_col, revenue_col, year, month, tanggal_tarik):
+        dom_expr = self._report_account_domain_key_sql(domain_col)
+        sql = f"""
+            SELECT {dom_expr} AS domain_key,
+                   COALESCE(SUM(CAST({revenue_col} AS DECIMAL(18,4))), 0) AS revenue
+            FROM {table}
+            WHERE data_adx_rekap_tahun = %s AND data_adx_rekap_bulan = %s AND data_adx_rekap_tanggal = %s
+            GROUP BY domain_key
+        """
+        if table == 'data_adsense_rekap':
+            sql = f"""
+                SELECT {dom_expr} AS domain_key,
+                       COALESCE(SUM(CAST({revenue_col} AS DECIMAL(18,4))), 0) AS revenue
+                FROM {table}
+                WHERE data_adsense_rekap_tahun = %s
+                  AND data_adsense_rekap_bulan = %s
+                  AND data_adsense_rekap_tanggal = %s
+                GROUP BY domain_key
+            """
+        self.cur_hris.execute(sql, (str(year), str(month).zfill(2), tanggal_tarik))
+        out = {}
+        for row in (self.cur_hris.fetchall() or []):
+            k = str(row.get('domain_key') or '').strip()
+            if k:
+                out[k] = float(row.get('revenue') or 0)
+        return out
+
+    def _report_account_sum_revenue_for_account(self, domain_keys, revenue_map):
+        total = 0.0
+        for dk in (domain_keys or []):
+            total += float(revenue_map.get(dk) or 0)
+        return total
+
+    def _report_account_build_row_metrics(self, spend, revenue, subdomain_count):
+        profit = revenue - spend
+        roi = ((profit / spend) * 100.0) if spend > 0 else 0.0
+        return {
+            'subdomain_count': int(subdomain_count or 0),
+            'spend': round(spend, 2),
+            'revenue': round(revenue, 2),
+            'profit': round(profit, 2),
+            'roi': round(roi, 2),
+        }
+
+    def _report_account_compare_block(self, daily_val, rekap_val):
+        cmp = self._compare_rekap_metric(daily_val, rekap_val)
+        return {
+            'daily': round(float(cmp.get('daily') or 0), 2),
+            'rekap': round(float(cmp.get('rekap') or 0), 2),
+            'delta': round(float(cmp.get('delta') or 0), 2),
+            'delta_pct': round(float(cmp.get('delta_pct') or 0), 2),
+            'status': cmp.get('status') or 'missing',
+        }
+
+    def list_report_account_summary(
+        self,
+        start_date,
+        end_date,
+        account_q=None,
+        compare_rekap=False,
+        rekap_year=None,
+        rekap_month=None,
+        rekap_tanggal_tarik=None,
+    ):
+        import calendar
+        from datetime import datetime as dt
+
+        try:
+            start_date = str(start_date or '').strip()[:10]
+            end_date = str(end_date or '').strip()[:10]
+            if not start_date or not end_date:
+                return {'status': False, 'data': 'Rentang tanggal wajib diisi'}
+
+            accounts = self._report_account_fetch_accounts(account_q)
+            if not accounts:
+                return {
+                    'status': True,
+                    'data': {
+                        'period': {'start': start_date, 'end': end_date},
+                        'compare_rekap': bool(compare_rekap),
+                        'rekap': None,
+                        'summary': self._report_account_build_row_metrics(0, 0, 0),
+                        'rows': [],
+                        'chart': [],
+                    },
+                }
+
+            account_domains, _domain_accounts = self._report_account_fetch_domain_map(start_date, end_date)
+            spend_map = self._report_account_fetch_spend_by_account(start_date, end_date)
+            adx_rev_map = self._report_account_fetch_revenue_by_domain(
+                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+            )
+            adsense_rev_map = self._report_account_fetch_revenue_by_domain(
+                'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
+            )
+
+            rekap_spend_map = {}
+            rekap_adx_map = {}
+            rekap_adsense_map = {}
+            resolved_tarik = None
+            available_tarik = []
+            if compare_rekap and rekap_year and rekap_month:
+                available_tarik = self._report_account_list_rekap_tarik_dates(rekap_year, rekap_month)
+                resolved_tarik = str(rekap_tanggal_tarik or '').strip() or (available_tarik[0] if available_tarik else '')
+                if resolved_tarik:
+                    rekap_spend_map = self._report_account_fetch_rekap_spend_by_account(rekap_year, rekap_month, resolved_tarik)
+                    rekap_adx_map = self._report_account_fetch_rekap_revenue_by_domain(
+                        'data_adx_rekap', 'data_adx_rekap_domain', 'data_adx_rekap_revenue',
+                        rekap_year, rekap_month, resolved_tarik,
+                    )
+                    rekap_adsense_map = self._report_account_fetch_rekap_revenue_by_domain(
+                        'data_adsense_rekap', 'data_adsense_rekap_domain', 'data_adsense_rekap_revenue',
+                        rekap_year, rekap_month, resolved_tarik,
+                    )
+
+            rows_out = []
+            totals = {'subdomain_count': 0, 'spend': 0.0, 'revenue': 0.0, 'profit': 0.0}
+            totals_rekap = {'subdomain_count': 0, 'spend': 0.0, 'revenue': 0.0, 'profit': 0.0}
+
+            account_keys = [a['account_key'] for a in accounts]
+            spend_daily = self._report_account_fetch_spend_daily(start_date, end_date, account_keys)
+            adx_daily = self._report_account_fetch_revenue_daily_by_domain(
+                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+            )
+            adsense_daily = self._report_account_fetch_revenue_daily_by_domain(
+                'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
+            )
+
+            for acct in accounts:
+                ak = acct['account_key']
+                domains = account_domains.get(ak, set())
+                active_domains = set()
+                for dk in domains:
+                    if (
+                        float(adx_rev_map.get(dk) or 0) > 0
+                        or float(adsense_rev_map.get(dk) or 0) > 0
+                        or float(spend_map.get(ak) or 0) > 0
+                    ):
+                        active_domains.add(dk)
+                if not active_domains and domains:
+                    active_domains = set(domains)
+
+                adx_rev = self._report_account_sum_revenue_for_account(active_domains, adx_rev_map)
+                adsense_rev = self._report_account_sum_revenue_for_account(active_domains, adsense_rev_map)
+                revenue = adx_rev + adsense_rev
+                spend = float(spend_map.get(ak) or 0)
+                metrics = self._report_account_build_row_metrics(spend, revenue, len(active_domains))
+
+                row = {
+                    'account_ads_id': acct.get('account_ads_id'),
+                    'account_id': acct.get('account_id'),
+                    'account_key': ak,
+                    'account_name': acct.get('account_name'),
+                    'adx_revenue': round(adx_rev, 2),
+                    'adsense_revenue': round(adsense_rev, 2),
+                    **metrics,
+                }
+
+                if compare_rekap and resolved_tarik:
+                    rekap_adx = self._report_account_sum_revenue_for_account(active_domains, rekap_adx_map)
+                    rekap_adsense = self._report_account_sum_revenue_for_account(active_domains, rekap_adsense_map)
+                    rekap_revenue = rekap_adx + rekap_adsense
+                    rekap_spend = float(rekap_spend_map.get(ak) or 0)
+                    rekap_metrics = self._report_account_build_row_metrics(rekap_spend, rekap_revenue, len(active_domains))
+                    row['compare'] = {
+                        'spend': self._report_account_compare_block(metrics['spend'], rekap_metrics['spend']),
+                        'revenue': self._report_account_compare_block(metrics['revenue'], rekap_metrics['revenue']),
+                        'profit': self._report_account_compare_block(metrics['profit'], rekap_metrics['profit']),
+                        'roi': self._report_account_compare_block(metrics['roi'], rekap_metrics['roi']),
+                        'subdomain_count': self._report_account_compare_block(metrics['subdomain_count'], rekap_metrics['subdomain_count']),
+                        'rekap_adx_revenue': round(rekap_adx, 2),
+                        'rekap_adsense_revenue': round(rekap_adsense, 2),
+                    }
+                    totals_rekap['subdomain_count'] += rekap_metrics['subdomain_count']
+                    totals_rekap['spend'] += rekap_metrics['spend']
+                    totals_rekap['revenue'] += rekap_metrics['revenue']
+                    totals_rekap['profit'] += rekap_metrics['profit']
+
+                totals['subdomain_count'] += metrics['subdomain_count']
+                totals['spend'] += metrics['spend']
+                totals['revenue'] += metrics['revenue']
+                totals['profit'] += metrics['profit']
+                rows_out.append(row)
+
+            rows_out.sort(key=lambda r: float(r.get('revenue') or 0), reverse=True)
+
+            chart = []
+            try:
+                d0 = dt.strptime(start_date, '%Y-%m-%d').date()
+                d1 = dt.strptime(end_date, '%Y-%m-%d').date()
+                cur = d0
+                while cur <= d1:
+                    ds = cur.isoformat()
+                    day_spend = 0.0
+                    day_revenue = 0.0
+                    for ak in account_keys:
+                        day_spend += float((spend_daily.get(ds) or {}).get(ak) or 0)
+                        domains = account_domains.get(ak, set())
+                        for dk in domains:
+                            day_revenue += float((adx_daily.get(ds) or {}).get(dk) or 0)
+                            day_revenue += float((adsense_daily.get(ds) or {}).get(dk) or 0)
+                    chart.append({
+                        'date': ds,
+                        'spend': round(day_spend, 2),
+                        'revenue': round(day_revenue, 2),
+                        'profit': round(day_revenue - day_spend, 2),
+                    })
+                    cur += timedelta(days=1)
+            except Exception:
+                chart = []
+
+            summary = self._report_account_build_row_metrics(
+                totals['spend'], totals['revenue'], totals['subdomain_count']
+            )
+            summary_block = {'daily': summary}
+            if compare_rekap and resolved_tarik:
+                rekap_summary = self._report_account_build_row_metrics(
+                    totals_rekap['spend'], totals_rekap['revenue'], totals_rekap['subdomain_count']
+                )
+                summary_block['rekap'] = rekap_summary
+                summary_block['compare'] = {
+                    'spend': self._report_account_compare_block(summary['spend'], rekap_summary['spend']),
+                    'revenue': self._report_account_compare_block(summary['revenue'], rekap_summary['revenue']),
+                    'profit': self._report_account_compare_block(summary['profit'], rekap_summary['profit']),
+                    'roi': self._report_account_compare_block(summary['roi'], rekap_summary['roi']),
+                    'subdomain_count': self._report_account_compare_block(summary['subdomain_count'], rekap_summary['subdomain_count']),
+                }
+
+            return {
+                'status': True,
+                'data': {
+                    'period': {'start': start_date, 'end': end_date},
+                    'compare_rekap': bool(compare_rekap and resolved_tarik),
+                    'rekap': {
+                        'year': str(rekap_year or ''),
+                        'month': str(rekap_month or '').zfill(2),
+                        'tanggal_tarik': resolved_tarik,
+                        'available_tarik_dates': available_tarik,
+                    } if compare_rekap else None,
+                    'summary': summary_block,
+                    'rows': rows_out,
+                    'chart': chart,
+                },
+            }
+        except Exception as e:
+            return {'status': False, 'data': str(e)}
+
+    def _report_account_resolve_source_labels(self, adx_rev, adsense_rev, spend=0):
+        labels = []
+        if float(adx_rev or 0) > 0:
+            labels.append('AdX')
+        if float(adsense_rev or 0) > 0:
+            labels.append('AdSense')
+        if float(spend or 0) > 0 and not labels:
+            labels.append('FB Ads')
+        return labels
+
+    def search_report_account_domain_suggest(self, account_key, q, start_date, end_date, limit=20):
+        account_key = self._normalize_fb_account_key(account_key)
+        q = str(q or '').strip().lower()
+        if not account_key or len(q) < 2:
+            return {'status': True, 'data': []}
+        try:
+            limit = max(1, min(int(limit or 20), 50))
+            account_domains, _ = self._report_account_fetch_domain_map(start_date, end_date)
+            domains = sorted(account_domains.get(account_key, set()))
+            data = []
+            for dk in domains:
+                if q in dk.lower():
+                    data.append({'domain': dk})
+                    if len(data) >= limit:
+                        break
+            return {'status': True, 'data': data}
+        except Exception as e:
+            return {'status': False, 'data': str(e)}
+
+    def get_report_account_detail(
+        self,
+        account_key,
+        start_date,
+        end_date,
+        compare_rekap=False,
+        rekap_year=None,
+        rekap_month=None,
+        rekap_tanggal_tarik=None,
+        domain_q=None,
+    ):
+        try:
+            account_key = self._normalize_fb_account_key(account_key)
+            if not account_key:
+                return {'status': False, 'data': 'Account tidak valid'}
+
+            accounts = self._report_account_fetch_accounts()
+            acct = next((a for a in accounts if a.get('account_key') == account_key), None)
+            if not acct:
+                return {'status': False, 'data': 'Account tidak ditemukan'}
+
+            account_domains, _ = self._report_account_fetch_domain_map(start_date, end_date)
+            domains = sorted(account_domains.get(account_key, set()))
+
+            adx_rev_map = self._report_account_fetch_revenue_by_domain(
+                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+            )
+            adsense_rev_map = self._report_account_fetch_revenue_by_domain(
+                'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
+            )
+
+            key_expr = self._report_account_fb_key_sql('b.account_ads_id')
+            dom_expr = self._report_account_domain_key_sql('b.data_ads_domain')
+            sql = f"""
+                SELECT {dom_expr} AS domain_key,
+                       COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend
+                FROM data_ads_campaign b
+                WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
+                  AND {key_expr} = %s
+                GROUP BY domain_key
+            """
+            self.cur_hris.execute(sql, (start_date, end_date, account_key))
+            spend_by_domain = {}
+            for row in (self.cur_hris.fetchall() or []):
+                dk = str(row.get('domain_key') or '').strip()
+                if dk:
+                    spend_by_domain[dk] = float(row.get('spend') or 0)
+
+            rekap_maps = {}
+            resolved_tarik = None
+            available_tarik = []
+            if compare_rekap and rekap_year and rekap_month:
+                available_tarik = self._report_account_list_rekap_tarik_dates(rekap_year, rekap_month)
+                resolved_tarik = str(rekap_tanggal_tarik or '').strip() or (available_tarik[0] if available_tarik else '')
+                if resolved_tarik:
+                    rekap_maps = {
+                        'spend': {},
+                        'adx': self._report_account_fetch_rekap_revenue_by_domain(
+                            'data_adx_rekap', 'data_adx_rekap_domain', 'data_adx_rekap_revenue',
+                            rekap_year, rekap_month, resolved_tarik,
+                        ),
+                        'adsense': self._report_account_fetch_rekap_revenue_by_domain(
+                            'data_adsense_rekap', 'data_adsense_rekap_domain', 'data_adsense_rekap_revenue',
+                            rekap_year, rekap_month, resolved_tarik,
+                        ),
+                    }
+                    fb_key_expr = self._report_account_fb_key_sql('account_ads_id')
+                    fb_dom_expr = self._report_account_domain_key_sql('data_ads_domain')
+                    rekap_fb_sql = f"""
+                        SELECT {fb_dom_expr} AS domain_key,
+                               COALESCE(SUM(CAST(data_ads_rekap_spend AS DECIMAL(18,4))), 0) AS spend
+                        FROM data_ads_rekap
+                        WHERE data_ads_rekap_tahun = %s
+                          AND data_ads_rekap_bulan = %s
+                          AND data_ads_rekap_tanggal = %s
+                          AND {fb_key_expr} = %s
+                        GROUP BY domain_key
+                    """
+                    self.cur_hris.execute(
+                        rekap_fb_sql,
+                        (str(rekap_year), str(rekap_month).zfill(2), resolved_tarik, account_key),
+                    )
+                    for row in (self.cur_hris.fetchall() or []):
+                        dk = str(row.get('domain_key') or '').strip()
+                        if dk:
+                            rekap_maps['spend'][dk] = float(row.get('spend') or 0)
+
+            all_domains = sorted(set(domains) | set(spend_by_domain.keys()))
+            domain_filter = str(domain_q or '').strip().lower()
+            if domain_filter:
+                all_domains = [dk for dk in all_domains if domain_filter in dk.lower()]
+
+            detail_rows = []
+            totals = {'spend': 0.0, 'revenue': 0.0, 'profit': 0.0, 'adx_revenue': 0.0, 'adsense_revenue': 0.0}
+            totals_rekap = {'spend': 0.0, 'revenue': 0.0, 'profit': 0.0}
+            for dk in all_domains:
+                adx_rev = float(adx_rev_map.get(dk) or 0)
+                adsense_rev = float(adsense_rev_map.get(dk) or 0)
+                spend = float(spend_by_domain.get(dk) or 0)
+                revenue = adx_rev + adsense_rev
+                metrics = self._report_account_build_row_metrics(spend, revenue, 1)
+                source_labels = self._report_account_resolve_source_labels(adx_rev, adsense_rev, spend)
+                item = {
+                    'domain': dk,
+                    'adx_revenue': round(adx_rev, 2),
+                    'adsense_revenue': round(adsense_rev, 2),
+                    'source_labels': source_labels,
+                    'source_label': ' + '.join(source_labels) if source_labels else '-',
+                    **metrics,
+                }
+                if compare_rekap and resolved_tarik:
+                    r_adx = float(rekap_maps.get('adx', {}).get(dk) or 0)
+                    r_adsense = float(rekap_maps.get('adsense', {}).get(dk) or 0)
+                    r_spend = float(rekap_maps.get('spend', {}).get(dk) or 0)
+                    r_rev = r_adx + r_adsense
+                    r_metrics = self._report_account_build_row_metrics(r_spend, r_rev, 1)
+                    item['compare'] = {
+                        'spend': self._report_account_compare_block(metrics['spend'], r_metrics['spend']),
+                        'revenue': self._report_account_compare_block(metrics['revenue'], r_metrics['revenue']),
+                        'profit': self._report_account_compare_block(metrics['profit'], r_metrics['profit']),
+                        'roi': self._report_account_compare_block(metrics['roi'], r_metrics['roi']),
+                    }
+                if spend > 0 or revenue > 0 or dk in domains:
+                    detail_rows.append(item)
+                    totals['spend'] += spend
+                    totals['revenue'] += revenue
+                    totals['profit'] += metrics['profit']
+                    totals['adx_revenue'] += adx_rev
+                    totals['adsense_revenue'] += adsense_rev
+                    if compare_rekap and resolved_tarik:
+                        totals_rekap['spend'] += r_spend
+                        totals_rekap['revenue'] += r_rev
+                        totals_rekap['profit'] += r_metrics['profit']
+
+            detail_rows.sort(key=lambda r: float(r.get('revenue') or 0), reverse=True)
+
+            summary = self._report_account_build_row_metrics(
+                totals['spend'], totals['revenue'], len(detail_rows)
+            )
+            summary['adx_revenue'] = round(totals['adx_revenue'], 2)
+            summary['adsense_revenue'] = round(totals['adsense_revenue'], 2)
+            summary_block = {'daily': summary}
+            if compare_rekap and resolved_tarik:
+                rekap_summary = self._report_account_build_row_metrics(
+                    totals_rekap['spend'], totals_rekap['revenue'], len(detail_rows)
+                )
+                summary_block['rekap'] = rekap_summary
+                summary_block['compare'] = {
+                    'spend': self._report_account_compare_block(summary['spend'], rekap_summary['spend']),
+                    'revenue': self._report_account_compare_block(summary['revenue'], rekap_summary['revenue']),
+                    'profit': self._report_account_compare_block(summary['profit'], rekap_summary['profit']),
+                    'roi': self._report_account_compare_block(summary['roi'], rekap_summary['roi']),
+                }
+
+            chart = []
+            spend_daily = self._report_account_fetch_spend_daily(start_date, end_date, [account_key])
+            adx_daily = self._report_account_fetch_revenue_daily_by_domain(
+                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+            )
+            adsense_daily = self._report_account_fetch_revenue_daily_by_domain(
+                'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
+            )
+            domain_set = set(all_domains)
+            try:
+                from datetime import datetime as dt
+                d0 = dt.strptime(start_date, '%Y-%m-%d').date()
+                d1 = dt.strptime(end_date, '%Y-%m-%d').date()
+                cur = d0
+                while cur <= d1:
+                    ds = cur.isoformat()
+                    day_spend = float((spend_daily.get(ds) or {}).get(account_key) or 0)
+                    day_revenue = 0.0
+                    for dk in domain_set:
+                        day_revenue += float((adx_daily.get(ds) or {}).get(dk) or 0)
+                        day_revenue += float((adsense_daily.get(ds) or {}).get(dk) or 0)
+                    chart.append({
+                        'date': ds,
+                        'spend': round(day_spend, 2),
+                        'revenue': round(day_revenue, 2),
+                        'profit': round(day_revenue - day_spend, 2),
+                    })
+                    cur += timedelta(days=1)
+            except Exception:
+                chart = []
+
+            return {
+                'status': True,
+                'data': {
+                    'account': acct,
+                    'period': {'start': start_date, 'end': end_date},
+                    'compare_rekap': bool(compare_rekap and resolved_tarik),
+                    'rekap': {
+                        'year': str(rekap_year or ''),
+                        'month': str(rekap_month).zfill(2) if rekap_month else '',
+                        'tanggal_tarik': resolved_tarik,
+                        'available_tarik_dates': available_tarik if compare_rekap else [],
+                    } if compare_rekap else None,
+                    'summary': summary_block,
+                    'chart': chart,
+                    'rows': detail_rows,
+                },
+            }
+        except Exception as e:
+            return {'status': False, 'data': str(e)}
