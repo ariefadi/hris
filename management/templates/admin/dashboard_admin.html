@@ -20212,6 +20212,10 @@ function initDashboardRecap() {
             }
 
             root.style.display = 'block';
+            if (window.HrisDatepicker && dateEl && !dateEl._hrisRecapDateReady) {
+                dateEl._hrisRecapDateReady = true;
+                HrisDatepicker.initElement(dateEl, { onChange: function() { load(); } });
+            }
             if (typeof initRecapSourceSelect2 === 'function') {
                 try { initRecapSourceSelect2(); } catch (e) {}
             }
@@ -20226,9 +20230,7 @@ function initDashboardRecap() {
 
     if (!dateEl.value) dateEl.value = today();
 
-    if (window.HrisDatepicker) {
-        HrisDatepicker.initElement(dateEl, { onChange: function() { load(); } });
-    } else {
+    if (!window.HrisDatepicker) {
         dateEl.addEventListener('change', load);
     }
 
