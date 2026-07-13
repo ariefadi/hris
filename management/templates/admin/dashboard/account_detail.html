@@ -1,0 +1,259 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Dashboard — Detail Account — {{ account.account_name }}{% endblock %}
+{% block page_heading %}Dashboard — Detail Account — {{ account.account_name }}{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Detail Account — {{ account.account_name }}</li>
+{% endblock %}
+{% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<style>
+:root {
+    --dad-accent: #2563eb;
+    --dad-border: rgba(15, 23, 42, 0.08);
+    --dad-text: #0f172a;
+    --dad-muted: #64748b;
+    --dad-surface: #ffffff;
+    --dad-surface-2: #f8fafc;
+    --dad-radius: 14px;
+}
+html[data-theme="dark"] {
+    --dad-border: rgba(255,255,255,0.08);
+    --dad-text: #e2e8f0;
+    --dad-muted: #94a3b8;
+    --dad-surface: #1e293b;
+    --dad-surface-2: #0f172a;
+}
+.dad-page .card { border-radius: var(--dad-radius); border: 1px solid var(--dad-border); margin-bottom: 16px; }
+.dad-page .card-title { font-weight: 800; color: var(--dad-text); }
+.dad-filter-row { align-items: flex-end; }
+.dad-filter-row label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--dad-muted); }
+.dad-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1199px) { .dad-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.dad-metric-card { color: #fff; border-radius: 14px; padding: 16px; min-height: 90px; }
+.dad-metric-card .k { font-size: 11px; opacity: .92; text-transform: uppercase; font-weight: 700; }
+.dad-metric-card .v { font-size: 1.25rem; font-weight: 800; margin-top: 4px; line-height: 1.2; }
+.dad-metric-compare {
+    margin-top: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.dad-metric-compare-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+.dad-metric-compare-label {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    opacity: .92;
+    flex-shrink: 0;
+    line-height: 1.2;
+}
+.dad-metric-compare-val {
+    font-size: 10px;
+    font-weight: 700;
+    text-align: right;
+    line-height: 1.2;
+    word-break: break-word;
+}
+.dad-metric-card .dad-delta {
+    font-size: 9px;
+    padding: 2px 7px;
+    background: rgba(255, 255, 255, 0.96) !important;
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.12);
+    line-height: 1.2;
+}
+.dad-metric-card .dad-delta.up { color: #15803d !important; }
+.dad-metric-card .dad-delta.down { color: #b91c1c !important; }
+.dad-metric-card .dad-delta.flat { color: #1d4ed8 !important; }
+.dad-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.dad-card-header-main { flex: 1 1 auto; min-width: 0; }
+.dad-card-header-action {
+    flex: 0 0 auto;
+    margin-left: auto;
+    align-self: flex-start;
+}
+.dad-metric-card.spend { background: linear-gradient(135deg,#dc2626,#f97316); }
+.dad-metric-card.revenue { background: linear-gradient(135deg,#7c3aed,#ec4899); }
+.dad-metric-card.profit { background: linear-gradient(135deg,#4338ca,#6366f1); }
+.dad-metric-card.roi { background: linear-gradient(135deg,#047857,#10b981); }
+.dad-metric-card.domains { background: linear-gradient(135deg,#2563eb,#0891b2); }
+.dad-table-wrap { border: 1px solid var(--dad-border); border-radius: 12px; overflow-x: auto; }
+.dad-table-wrap .dataTables_wrapper { padding: 0; }
+.dad-table-wrap .dataTables_length,
+.dad-table-wrap .dataTables_filter { padding: 12px 16px 0; color: var(--dad-text); }
+.dad-table-wrap .dataTables_info,
+.dad-table-wrap .dataTables_paginate { padding: 8px 16px 12px; color: var(--dad-muted); }
+.dad-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 0 !important; }
+.dad-table thead th { position: sticky; top: 0; z-index: 2; background: var(--dad-surface-2); color: var(--dad-text); font-size: 11px; text-transform: uppercase; padding: 10px 26px 10px 8px; border-bottom: 1px solid var(--dad-border); white-space: nowrap; cursor: default; }
+.dad-table thead th.sorting,
+.dad-table thead th.sorting_asc,
+.dad-table thead th.sorting_desc { cursor: pointer; }
+.dad-table thead th.sorting_disabled { cursor: default; padding-right: 8px; }
+html[data-theme="dark"] .dad-table thead th.sorting:before,
+html[data-theme="dark"] .dad-table thead th.sorting_asc:before,
+html[data-theme="dark"] .dad-table thead th.sorting_desc:before,
+html[data-theme="dark"] .dad-table thead th.sorting:after,
+html[data-theme="dark"] .dad-table thead th.sorting_asc:after,
+html[data-theme="dark"] .dad-table thead th.sorting_desc:after { opacity: 0.55; }
+.dad-table tbody td { padding: 10px 8px; border-bottom: 1px solid var(--dad-border); color: var(--dad-text); vertical-align: middle; white-space: nowrap; }
+.dad-table tbody tr:hover td { background: rgba(37,99,235,.05); }
+.dad-source-badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; margin-right: 4px; text-transform: uppercase; }
+.dad-source-badge.adx { background: rgba(37,99,235,.14); color: #1d4ed8; }
+.dad-source-badge.adsense { background: rgba(16,185,129,.14); color: #047857; }
+.dad-source-badge.fb { background: rgba(249,115,22,.14); color: #c2410c; }
+html[data-theme="dark"] .dad-source-badge.adx { background: rgba(59,130,246,.22); color: #93c5fd; }
+html[data-theme="dark"] .dad-source-badge.adsense { background: rgba(52,211,153,.18); color: #6ee7b7; }
+html[data-theme="dark"] .dad-source-badge.fb { background: rgba(251,146,60,.2); color: #fdba74; }
+.dad-delta { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.dad-delta.up { background: rgba(22,163,74,.15); color: #15803d; }
+.dad-delta.down { background: rgba(220,38,38,.14); color: #b91c1c; }
+.dad-delta.flat { background: rgba(59,130,246,.14); color: #1d4ed8; }
+.dad-compare-pair { font-size: 11px; line-height: 1.35; }
+.dad-mode-panel { display: none; }
+.dad-mode-panel.is-active { display: block; }
+.dad-page .switch-toggle { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.dad-page .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
+.dad-page .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
+.dad-page .switch-toggle .slider { position: absolute; cursor: pointer; inset: 0; background: #cbd5e1; transition: .25s; border-radius: 999px; }
+.dad-page .switch-toggle .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; }
+.dad-page .switch-toggle input:checked + .slider { background: var(--dad-accent); }
+.dad-page .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
+.dad-chart-wrap { padding: 12px 16px 16px; min-height: 340px; }
+.dad-chart-wrap canvas { max-height: 320px; }
+.dad-empty { text-align: center; padding: 40px 16px; color: var(--dad-muted); }
+.dad-account-meta { font-size: 13px; color: var(--dad-muted); }
+.dad-page #dadDomainQ + .select2-container { width: 100% !important; }
+</style>
+{% endblock %}
+{% block content %}
+{% csrf_token %}
+<div class="dad-page"
+     id="dadPageRoot"
+     data-account-key="{{ account.account_key }}"
+     data-account-id="{{ account.account_id }}"
+     data-account-name="{{ account.account_name|escapejs }}"
+     data-init-mode="{{ init_periode_mode }}"
+     data-init-start="{{ init_start_date }}"
+     data-init-end="{{ init_end_date }}"
+     data-init-compare="{{ init_compare_rekap|yesno:'1,0' }}"
+     data-init-tarik="{{ init_rekap_tarik }}"
+     data-init-domain="{{ init_domain_q|escapejs }}">
+<div class="card">
+    <div class="card-header dad-card-header">
+        <div class="dad-card-header-main">
+            <h3 class="card-title mb-0">Detail Subdomain Account — {{ account.account_name }}</h3>
+            <div class="dad-account-meta mt-1">
+                Account ID: <strong>{{ account.account_id }}</strong>
+                {% if account.account_email %} · {{ account.account_email }}{% endif %}
+            </div>
+        </div>
+        <div class="dad-card-header-action">
+            <a href="#" id="dadBackBtn" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left mr-1"></i> Kembali</a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="form-row dad-filter-row">
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Mode Periode</label>
+                <select class="form-control" id="dadMode">
+                    <option value="bulanan">Bulanan</option>
+                    <option value="tanggal">Range Tanggal</option>
+                </select>
+            </div>
+            <div class="col-md-2 col-12 mb-2 mb-md-0 dad-mode-panel is-active" id="dadPanelBulanan">
+                <label>Tahun</label>
+                <input type="number" class="form-control" id="dadYear" value="{{ default_year }}" min="2020" max="2099">
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 dad-mode-panel is-active" id="dadPanelBulan">
+                <label>Bulan</label>
+                <select class="form-control" id="dadMonth">
+                    {% for m, name in months %}
+                    <option value="{{ m }}"{% if m == default_month %} selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 dad-mode-panel" id="dadPanelStart">
+                <label>Dari</label>
+                <input type="text" class="form-control datepicker-input" id="dadStartDate" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 dad-mode-panel" id="dadPanelEnd">
+                <label>Sampai</label>
+                <input type="text" class="form-control datepicker-input" id="dadEndDate" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="col-md-3 col-12 mb-2 mb-md-0">
+                <label>Cari Subdomain</label>
+                <select class="form-control" id="dadDomainQ"><option value=""></option></select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 dad-mode-panel is-active" id="dadPanelCompare">
+                <label>Bandingkan Rekap</label>
+                <div class="switch-toggle">
+                    <label class="switch mb-0">
+                        <input type="checkbox" id="dadCompareRekap">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 dad-mode-panel is-active" id="dadPanelTarik" style="display:none;">
+                <label>Tanggal Tarik Rekap</label>
+                <select class="form-control" id="dadTarik"><option value="">Terbaru</option></select>
+            </div>
+            <div class="col-md-2 col-12 mb-2 mb-md-0">
+                <label class="d-none d-md-block">&nbsp;</label>
+                <button type="button" class="btn btn-primary btn-block" id="dadLoadBtn"><i class="fas fa-sync-alt mr-1"></i> Muat Data</button>
+            </div>
+        </div>
+        <p class="text-muted mb-0" style="font-size:12px;"><i class="bi bi-info-circle mr-1"></i>Label <strong>AdX</strong> / <strong>AdSense</strong> menunjukkan platform monetisasi subdomain. Mode bulanan mendukung perbandingan dengan rekap resmi.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body position-relative">
+        <div id="dadOverlay" class="hris-loader-stub" style="display:none" data-loader-message="Menyiapkan data..." aria-hidden="true"></div>
+        <div class="dad-empty" id="dadEmpty">
+            <div class="mb-2"><i class="bi bi-layers" style="font-size:2rem;color:var(--dad-accent);"></i></div>
+            <div style="font-weight:800;color:var(--dad-text);">Belum ada data subdomain</div>
+            <p class="mb-0">Atur filter lalu klik <strong>Muat Data</strong>.</p>
+        </div>
+        <div id="dadContent" style="display:none;">
+            <div class="dad-summary-grid" id="dadSummary"></div>
+            <div class="card mb-3">
+                <div class="card-header py-2"><strong><i class="bi bi-graph-up mr-1"></i> Grafik Trend Harian</strong></div>
+                <div class="dad-chart-wrap"><canvas id="dadChart"></canvas></div>
+            </div>
+            <div class="card mb-0">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <strong><i class="bi bi-table mr-1"></i> Tabel Subdomain</strong>
+                    <small class="text-muted" id="dadPeriodLabel"></small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="dad-table-wrap">
+                        <table class="dad-table table table-sm table-hover mb-0" id="dadTable">
+                            <thead id="dadTableHead"></thead>
+                            <tbody id="dadTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'ajax/admin/dashboard/account_detail.js' %}?v={% now 'u' %}"></script>
+{% endblock %}

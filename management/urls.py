@@ -30,6 +30,9 @@ urlpatterns = [
     path('admin/dashboard_scoring_compare', views.DashboardScoringCompareView.as_view(), name='dashboard_scoring_compare'),
     path('admin/dashboard_scoring_rekap_compare', views.DashboardScoringRekapCompareView.as_view(), name='dashboard_scoring_rekap_compare'),
     path('admin/dashboard_sync', views.DashboardSyncView.as_view()),
+    path('admin/dashboard/account_detail', views.DashboardAccountDetailPageView.as_view(), name='dashboard_account_detail'),
+    path('admin/page_dashboard_account_detail', views.DashboardAccountDetailDataView.as_view(), name='dashboard_account_detail_data'),
+    path('admin/dashboard_account_domain_suggest', views.DashboardAccountDomainSuggestView.as_view(), name='dashboard_account_domain_suggest'),
     # Portal switching
     path('admin/switch_portal/<str:portal_id>', views.SwitchPortal.as_view(), name='switch_portal'),
  
@@ -174,6 +177,7 @@ urlpatterns = [
     path('admin/page_report_account_detail', views.ReportAccountDetailView.as_view(), name='report_account_detail'),
     path('admin/report_account_suggest', views.ReportAccountSuggestView.as_view(), name='report_account_suggest'),
     path('admin/report_account_domain_suggest', views.ReportAccountDomainSuggestView.as_view(), name='report_account_domain_suggest'),
+    path('admin/report_account_lookup', views.ReportAccountLookupView.as_view(), name='report_account_lookup'),
     # Menu Report ROI
     path('admin/roi_summary', views.RoiSummaryView.as_view(), name='roi_summary'),
     # Menu ROI Per Domain

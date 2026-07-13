@@ -5905,6 +5905,7 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
                                                 <th class="text-end">Pendapatan</th>
                                                 <th class="text-center">Alert Dominan</th>
                                                 <th class="text-center">Kondisi</th>
+                                                <th class="text-center">Detail</th>
                                             </tr>
                                         </thead>
                                         <tbody id="dashboardAccountRelationTbody"></tbody>
@@ -18658,6 +18659,43 @@ function initDashboardRecap() {
         return map;
     }
 
+    async function loadAccountKeyMap() {
+        window.dashboardRecapAccountKeyMap = {};
+        try {
+            const res = await fetch('/management/admin/report_account_lookup', { credentials: 'same-origin' });
+            const json = await res.json();
+            if (json && json.status && json.data && typeof json.data === 'object') {
+                window.dashboardRecapAccountKeyMap = json.data;
+            }
+        } catch (_e) {
+            window.dashboardRecapAccountKeyMap = {};
+        }
+    }
+
+    function resolveAccountKey(accountName) {
+        const map = window.dashboardRecapAccountKeyMap || {};
+        const name = String(accountName || '').trim().toLowerCase();
+        if (!name || name === 'tanpa account' || name === 'backend tanpa subdomain') return '';
+        return String(map[name] || '').trim();
+    }
+
+    function buildReportAccountDetailUrl(accountName, state) {
+        const accountKey = resolveAccountKey(accountName);
+        const date = String(state?.date || '').trim();
+        if (!accountKey || !date) return '';
+        const startDate = date.length >= 7 ? (date.slice(0, 7) + '-01') : date;
+        const params = new URLSearchParams({
+            periode_mode: 'tanggal',
+            start_date: startDate,
+            end_date: date,
+            account_key: accountKey,
+            dash_date: date,
+            dash_subdomain: String(state?.subdomain || '').trim(),
+            dash_source: String(state?.source || 'all').trim()
+        });
+        return '/management/admin/dashboard/account_detail?' + params.toString();
+    }
+
     async function loadSiteAccountMap(state) {
         window.dashboardRecapSiteAccountMap = {};
         const dim = String(state?.dim || '').toLowerCase();
@@ -19062,6 +19100,10 @@ function initDashboardRecap() {
                 const kondisiBadge = x.kondisi === 'Bagus'
                     ? 'badge-success'
                     : (x.kondisi === 'Perlu Pantau' ? 'badge-warning' : 'badge-danger');
+                const detailUrl = buildReportAccountDetailUrl(x.acc, state);
+                const detailCell = detailUrl
+                    ? `<a href="${esc(detailUrl)}" class="btn btn-sm btn-outline-primary" title="Lihat detail subdomain account"><i class="fas fa-eye"></i> Detail</a>`
+                    : '<span class="text-muted">-</span>';
                 return `<tr>
                     <td class="text-center">${i + 1}</td>
                     <td>${esc(x.acc)}</td>
@@ -19079,9 +19121,10 @@ function initDashboardRecap() {
                             <span class="dashboard-kondisi-tooltip" role="tooltip">${esc(x.kondisiReason)}</span>
                         </span>
                     </td>
+                    <td class="text-center">${detailCell}</td>
                 </tr>`;
             }).join('')
-            : '<tr><td colspan="11" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>';
+            : '<tr><td colspan="12" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>';
 
         if (metaEl) {
             const orphanNote = rows.some(function(x){ return x.acc === 'Backend tanpa subdomain'; })
@@ -20189,7 +20232,8 @@ function initDashboardRecap() {
             summary = summarize(rows);
             await Promise.all([
                 loadScoringBaselineHourly(st, rows),
-                loadSiteAccountMap(st)
+                loadSiteAccountMap(st),
+                loadAccountKeyMap()
             ]);
 
             renderSummary(summary);

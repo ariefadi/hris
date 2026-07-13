@@ -16740,6 +16740,191 @@ class ReportAccountSuggestView(View):
         return JsonResponse({'results': results})
 
 
+class ReportAccountLookupView(View):
+    """Lookup account_name / account_id -> account_key untuk link detail dari dashboard."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            db = data_mysql()
+            accounts = db._report_account_fetch_accounts()
+            lookup = {}
+            for row in (accounts or []):
+                key = str(row.get('account_key') or '').strip()
+                if not key:
+                    continue
+                name = str(row.get('account_name') or '').strip().lower()
+                if name:
+                    lookup[name] = key
+                account_id = str(row.get('account_id') or '').strip().lower()
+                if account_id:
+                    lookup[account_id] = key
+            return JsonResponse({'status': True, 'data': lookup})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e), 'data': {}})
+
+
+def _resolve_report_account(account_key):
+    db = data_mysql()
+    key = str(account_key or '').strip()
+    if not key:
+        return db, None
+    accounts = db._report_account_fetch_accounts()
+    acct = next(
+        (a for a in accounts if a.get('account_key') == db._normalize_fb_account_key(key)),
+        None,
+    )
+    if not acct:
+        acct = next(
+            (a for a in accounts if str(a.get('account_id') or '') == key or str(a.get('account_name') or '') == key),
+            None,
+        )
+    return db, acct
+
+
+class DashboardAccountDetailPageView(View):
+    """Halaman detail subdomain per account — khusus dashboard (terpisah dari Report Account)."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        account_key = (req.GET.get('account_key') or req.GET.get('account_id') or '').strip()
+        if not account_key:
+            return redirect('dashboard_admin')
+
+        db, acct = _resolve_report_account(account_key)
+        if not acct:
+            return redirect('dashboard_admin')
+
+        today = datetime.now().date()
+        prev_month = today.replace(day=1) - timedelta(days=1)
+        month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+        months = [(f'{i:02d}', month_names[i - 1]) for i in range(1, 13)]
+        last_update = db.get_last_update_ads_traffic_per_domain()['data']['last_update']
+
+        data = {
+            'title': f"Dashboard Detail Account — {acct.get('account_name') or account_key}",
+            'user': req.session['hris_admin'],
+            'last_update': last_update,
+            'account': acct,
+            'default_year': req.GET.get('year') or prev_month.year,
+            'default_month': req.GET.get('month') or f'{prev_month.month:02d}',
+            'months': months,
+            'init_periode_mode': req.GET.get('periode_mode') or 'bulanan',
+            'init_start_date': req.GET.get('start_date') or '',
+            'init_end_date': req.GET.get('end_date') or '',
+            'init_compare_rekap': req.GET.get('compare_rekap') in ('1', 'true', 'yes', 'on'),
+            'init_rekap_tarik': req.GET.get('rekap_tanggal_tarik') or '',
+            'init_domain_q': req.GET.get('domain_q') or '',
+        }
+        return render(req, 'admin/dashboard/account_detail.html', data)
+
+
+class DashboardAccountDetailDataView(View):
+    """API detail subdomain per account — khusus dashboard."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            import calendar
+
+            account_key = (req.GET.get('account_key') or req.GET.get('account_id') or '').strip()
+            if not account_key:
+                raise ValueError('account_key wajib diisi')
+
+            periode_mode = (req.GET.get('periode_mode') or 'bulanan').strip().lower()
+            compare_rekap = str(req.GET.get('compare_rekap') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+            if periode_mode == 'bulanan':
+                year = req.GET.get('year')
+                month = req.GET.get('month')
+                if not year or not month:
+                    raise ValueError('Tahun dan bulan wajib diisi')
+                y = int(str(year).strip())
+                m = int(str(month).strip())
+                last_day = calendar.monthrange(y, m)[1]
+                start_date = datetime(y, m, 1).date()
+                end_date = datetime(y, m, last_day).date()
+                rekap_year = y
+                rekap_month = m
+            else:
+                start_date = datetime.strptime(req.GET.get('start_date'), '%Y-%m-%d').date()
+                end_date = datetime.strptime(req.GET.get('end_date'), '%Y-%m-%d').date()
+                compare_rekap = False
+                rekap_year = None
+                rekap_month = None
+
+            rekap_tanggal_tarik = (req.GET.get('rekap_tanggal_tarik') or '').strip() or None
+            if periode_mode == 'bulanan' and not compare_rekap:
+                rekap_year = None
+                rekap_month = None
+
+            domain_q = (req.GET.get('domain_q') or '').strip() or None
+
+            result = data_mysql().get_report_account_detail(
+                account_key,
+                start_date.isoformat(),
+                end_date.isoformat(),
+                compare_rekap=compare_rekap,
+                rekap_year=rekap_year,
+                rekap_month=rekap_month,
+                rekap_tanggal_tarik=rekap_tanggal_tarik,
+                domain_q=domain_q,
+            )
+            if not result.get('status'):
+                return JsonResponse({'status': False, 'error': result.get('data') or 'Gagal mengambil detail'})
+            return JsonResponse({'status': True, 'data': result.get('data') or {}})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+
+class DashboardAccountDomainSuggestView(View):
+    """Suggest subdomain dalam account untuk halaman detail dashboard."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        import calendar
+
+        account_key = (req.GET.get('account_key') or '').strip()
+        q = (req.GET.get('q') or req.GET.get('term') or '').strip()
+        if len(q) < 2 or not account_key:
+            return JsonResponse({'results': []})
+
+        periode_mode = (req.GET.get('periode_mode') or 'bulanan').strip().lower()
+        if periode_mode == 'bulanan':
+            y = int(str(req.GET.get('year') or datetime.now().year))
+            m = int(str(req.GET.get('month') or datetime.now().month))
+            last_day = calendar.monthrange(y, m)[1]
+            start_date = datetime(y, m, 1).date().isoformat()
+            end_date = datetime(y, m, last_day).date().isoformat()
+        else:
+            start_date = (req.GET.get('start_date') or datetime.now().date().isoformat())[:10]
+            end_date = (req.GET.get('end_date') or start_date)[:10]
+
+        result = data_mysql().search_report_account_domain_suggest(
+            account_key, q, start_date, end_date, limit=20
+        )
+        if not result.get('status'):
+            return JsonResponse({'results': []})
+        results = [{'id': row['domain'], 'text': row['domain']} for row in (result.get('data') or []) if row.get('domain')]
+        return JsonResponse({'results': results})
+
+
 class ReportAccountDomainSuggestView(View):
     """Suggest subdomain dalam account untuk Select2."""
 
