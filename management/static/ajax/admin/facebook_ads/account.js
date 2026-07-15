@@ -109,7 +109,9 @@ $().ready(function () {
 
     $(document).on('click', '.btn-fb-token-oauth', function(e) {
         e.preventDefault();
-        reauthorizeFacebookToken($(this).data('accountAdsId'));
+        var accountAdsId = $(this).data('accountAdsId');
+        var accountName = $(this).closest('tr').find('td').eq(1).text().trim();
+        reauthorizeFacebookToken(accountAdsId, accountName);
     });
 
     $('#btnCheckAllFacebookTokens').on('click', function(e) {
@@ -146,7 +148,12 @@ function table_data_account_ads() {
                                             : '<i class="bi bi-exclamation-octagon"></i>'}
                                     </td>
                                 `;
-                event_data += '<td class="text-center">' + renderTokenCell(value.account_ads_id, { status: 'unknown', label: 'Belum dicek', can_reauthorize: true }) + '</td>';
+                event_data += '<td class="text-center">' + renderTokenCell(value.account_ads_id, {
+                    status: 'unknown',
+                    label: 'Belum dicek',
+                    can_reauthorize: true,
+                    owner_name: value.pemilik_account || ''
+                }) + '</td>';
 
                 event_data += '<td class="text-center">'
                     + '<div class="btn-group" role="group">'
@@ -251,7 +258,6 @@ function table_data_account_ads() {
                 ]
             });
             try { $('#table_data_account').DataTable().columns.adjust(); } catch (e) {}
-            checkAllFacebookTokens(true);
         }
     });
 }
@@ -291,6 +297,19 @@ function escHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function renderTokenOwnerHint(info) {
+    info = info || {};
+    var needsOwner = info.expiry_reason === 'data_access'
+        || info.status === 'expired'
+        || (info.status === 'expiring_soon' && info.expiry_reason !== 'token');
+    if (!needsOwner) return '';
+    var owner = String(info.owner_name || '').trim();
+    var ownerText = owner ? ('Hubungi <strong>' + escHtml(owner) + '</strong>') : 'Hubungi <strong>Pemilik Account</strong>';
+    return '<small class="fb-token-owner-hint"><i class="fas fa-user-shield mr-1"></i>'
+        + ownerText
+        + ' untuk Authorize Ulang atau kirim token baru via Edit Account.</small>';
+}
+
 function renderTokenBadge(info) {
     info = info || {};
     var st = info.status || 'unknown';
@@ -304,6 +323,7 @@ function renderTokenBadge(info) {
     if (info.message) {
         html += '<small class="fb-token-meta">' + escHtml(info.message) + '</small>';
     }
+    html += renderTokenOwnerHint(info);
     return html;
 }
 
@@ -329,8 +349,23 @@ function renderTokenCell(accountAdsId, info) {
         + '</div>';
 }
 
+function mergeTokenInfoWithRowOwner(accountAdsId, info) {
+    var merged = Object.assign({}, info || {});
+    if (merged.owner_name) return merged;
+    var cell = document.querySelector('.fb-token-cell[data-account-ads-id="' + accountAdsId + '"]');
+    if (!cell) return merged;
+    var row = cell.closest('tr');
+    if (!row) return merged;
+    var ownerCell = row.querySelector('td:nth-child(6)');
+    if (ownerCell) {
+        merged.owner_name = String(ownerCell.textContent || '').trim();
+    }
+    return merged;
+}
+
 function updateTokenCell(accountAdsId, info) {
-    window.fbTokenCache[accountAdsId] = info || {};
+    info = mergeTokenInfoWithRowOwner(accountAdsId, info || {});
+    window.fbTokenCache[accountAdsId] = info;
     var cell = document.querySelector('.fb-token-cell[data-account-ads-id="' + accountAdsId + '"]');
     if (!cell) return;
     var statusEl = cell.querySelector('.fb-token-cell__status');
@@ -367,6 +402,33 @@ function checkFacebookToken(accountAdsId, silent) {
 }
 
 function extendFacebookToken(accountAdsId) {
+    var info = (window.fbTokenCache && window.fbTokenCache[accountAdsId]) ? window.fbTokenCache[accountAdsId] : {};
+    if (info && info.expiry_reason === 'data_access') {
+        var ownerLine = info.owner_name
+            ? ('Minta <strong>' + escHtml(info.owner_name) + '</strong> (Pemilik Account) yang login Facebook untuk Authorize Ulang.')
+            : 'Minta <strong>Pemilik Account</strong> yang login Facebook untuk Authorize Ulang.';
+        Swal.fire({
+            icon: 'info',
+            title: 'Perlu Authorize Ulang',
+            html: 'Status <strong>Akses data segera habis</strong> artinya izin akses data Facebook akan habis'
+                + (info.data_access_expires_label ? ' pada <strong>' + escHtml(info.data_access_expires_label) + '</strong>' : '')
+                + '.<br><br>Tombol <strong>Perpanjang Token</strong> tidak memperbarui izin data ini.<br>'
+                + ownerLine
+                + '<br><br>Alternatif: pemilik akun kirim <em>Access Token</em> baru, lalu paste di halaman <strong>Edit Account</strong>.'
+        });
+        return;
+    }
+    if (info && info.can_extend === false) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Tidak Bisa Diperpanjang',
+            text: (info.message || 'Token tidak bisa diperpanjang.')
+                + (info.status === 'expired'
+                    ? ' Gunakan Authorize Ulang (ikon kunci) untuk login ulang ke Facebook.'
+                    : ' Coba Authorize Ulang jika perpanjangan otomatis gagal.')
+        });
+        return;
+    }
     Swal.fire({
         icon: 'question',
         title: 'Perpanjang Token?',
@@ -391,9 +453,16 @@ function extendFacebookToken(accountAdsId) {
                 $('#overlay').fadeOut(200);
                 if (resp && resp.status) {
                     updateTokenCell(accountAdsId, resp.data || {});
-                    Swal.fire({ icon: 'success', title: 'Berhasil', text: resp.message || 'Token diperpanjang' });
+                    var data = resp.data || {};
+                    var icon = data.status === 'valid' ? 'success' : 'warning';
+                    var title = data.status === 'valid' ? 'Berhasil' : 'Token Diperpanjang';
+                    Swal.fire({ icon: icon, title: title, text: resp.message || 'Token diperpanjang' });
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: (resp && resp.message) ? resp.message : 'Gagal memperpanjang token' });
+                    var errMsg = (resp && resp.message) ? resp.message : 'Gagal memperpanjang token';
+                    if (/expired|authorize|login/i.test(errMsg)) {
+                        errMsg += ' Gunakan Authorize Ulang (ikon kunci) jika token sudah expired.';
+                    }
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: errMsg });
                 }
             },
             error: function(xhr) {
@@ -409,8 +478,47 @@ function extendFacebookToken(accountAdsId) {
     });
 }
 
-function reauthorizeFacebookToken(accountAdsId) {
-    window.location.href = '/management/admin/facebook_account_oauth_start?account_ads_id=' + encodeURIComponent(accountAdsId);
+function reauthorizeFacebookToken(accountAdsId, accountName) {
+    var redirectUri = '';
+    var meta = document.getElementById('fbOAuthMeta');
+    if (meta) {
+        redirectUri = meta.getAttribute('data-redirect-uri') || '';
+    }
+    var accountLabel = String(accountName || accountAdsId || '').trim() || accountAdsId;
+    var ownerName = '';
+    var row = document.querySelector('.btn-fb-token-oauth[data-account-ads-id="' + accountAdsId + '"]');
+    if (row) {
+        var tr = row.closest('tr');
+        if (tr) {
+            var ownerCell = tr.querySelector('td:nth-child(6)');
+            if (ownerCell) ownerName = String(ownerCell.textContent || '').trim();
+        }
+    }
+    var ownerHint = ownerName
+        ? ('Jika Anda tidak punya akses Facebook, minta <strong>' + escHtml(ownerName) + '</strong> (Pemilik Account) yang melakukan langkah ini, atau mengirim Access Token baru untuk di-paste di <strong>Edit Account</strong>.<br><br>')
+        : ('Jika Anda tidak punya akses Facebook, minta <strong>Pemilik Account</strong> yang melakukan langkah ini, atau mengirim Access Token baru untuk di-paste di <strong>Edit Account</strong>.<br><br>');
+
+    Swal.fire({
+        icon: 'info',
+        title: 'Authorize Ulang Token?',
+        html: '<p style="font-size:14px;margin:0 0 10px;">Account: <strong>' + escHtml(accountLabel) + '</strong></p>'
+            + '<p style="font-size:13px;text-align:left;margin:0 0 8px;">' + ownerHint
+            + 'Jika Anda punya akses Facebook, Anda akan dialihkan ke halaman login Facebook untuk mendapatkan access token baru.</p>'
+            + '<p style="font-size:13px;text-align:left;margin:0 0 6px;"><strong>Supaya tidak muncul error &quot;Aplikasi tidak aktif&quot;:</strong></p>'
+            + '<ol style="text-align:left;font-size:12px;margin:0;padding-left:18px;">'
+            + '<li>Buka <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">Meta Developer Console</a> &rarr; pilih App ID account ini</li>'
+            + '<li>Pastikan app <b>aktif</b> (Live) atau akun Facebook Anda ditambahkan sebagai <b>Developer/Tester</b> di menu App Roles</li>'
+            + '<li>Daftarkan Redirect URI ini di <b>Facebook Login &gt; Settings</b>:<br><code style="font-size:11px;word-break:break-all;display:block;margin-top:4px;">' + escHtml(redirectUri) + '</code></li>'
+            + '</ol>',
+        showCancelButton: true,
+        confirmButtonText: 'Lanjut ke Facebook',
+        cancelButtonText: 'Batal',
+        width: 620,
+        customClass: { htmlContainer: 'text-left' }
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        window.location.href = '/management/admin/facebook_account_oauth_start?account_ads_id=' + encodeURIComponent(accountAdsId);
+    });
 }
 
 function checkAllFacebookTokens(silent) {

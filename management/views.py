@@ -6344,24 +6344,37 @@ def _facebook_token_status_payload(access_token, app_id, app_secret):
         _, exp_label = _facebook_format_expiry_ts(expires_at)
         _, data_exp_label = _facebook_format_expiry_ts(data_access_expires_at)
 
+        token_expiring_soon = expires_at > 0 and expires_at <= now_ts + (7 * 86400)
+        data_access_expiring_soon = (
+            data_access_expires_at > 0
+            and data_access_expires_at <= now_ts + (7 * 86400)
+        )
+
         status = 'valid'
         label = 'Valid'
+        expiry_reason = None
         if not is_valid:
             status = 'expired'
             label = 'Expired'
         elif expires_at > 0 and expires_at <= now_ts:
             status = 'expired'
             label = 'Expired'
-        elif expires_at > 0 and expires_at <= now_ts + (7 * 86400):
+        elif token_expiring_soon:
             status = 'expiring_soon'
             label = 'Segera expired'
-        elif data_access_expires_at > 0 and data_access_expires_at <= now_ts + (7 * 86400):
+            expiry_reason = 'token'
+        elif data_access_expiring_soon:
             status = 'expiring_soon'
             label = 'Akses data segera habis'
+            expiry_reason = 'data_access'
+
+        # Perpanjang token hanya memperbarui masa berlaku token, bukan data_access_expires_at.
+        can_extend = is_valid and token_expiring_soon
 
         return {
             'status': status,
             'label': label,
+            'expiry_reason': expiry_reason,
             'is_valid': is_valid and status not in ('expired',),
             'expires_at': expires_at or None,
             'expires_label': exp_label,
@@ -6370,8 +6383,11 @@ def _facebook_token_status_payload(access_token, app_id, app_secret):
             'scopes': data.get('scopes') or [],
             'user_id': data.get('user_id'),
             'app_id': data.get('app_id'),
-            'message': '',
-            'can_extend': is_valid and status in ('valid', 'expiring_soon'),
+            'message': (
+                'Akses data Facebook akan habis. Gunakan Authorize Ulang untuk memperbarui izin.'
+                if expiry_reason == 'data_access' else ''
+            ),
+            'can_extend': can_extend,
             'can_reauthorize': status in ('expired', 'missing', 'error', 'expiring_soon'),
         }
     except Exception as e:
@@ -6383,6 +6399,29 @@ def _facebook_token_status_payload(access_token, app_id, app_secret):
             'can_extend': False,
             'can_reauthorize': True,
         }
+
+
+def _facebook_validate_app_credentials(app_id, app_secret):
+    app_id = str(app_id or '').strip()
+    app_secret = str(app_secret or '').strip()
+    if not app_id or not app_secret:
+        return False, 'App ID / App Secret belum lengkap'
+    try:
+        resp = requests.get(
+            f"{_facebook_graph_base()}/{app_id}",
+            params={
+                'fields': 'id,name',
+                'access_token': _facebook_app_access_token(app_id, app_secret),
+            },
+            timeout=15,
+        )
+        body = resp.json() if resp.content else {}
+        if not resp.ok:
+            err = (body.get('error') or {}).get('message') or 'App ID / App Secret tidak valid'
+            return False, err
+        return True, str(body.get('name') or app_id)
+    except Exception as e:
+        return False, str(e)
 
 
 def _facebook_extend_access_token(access_token, app_id, app_secret):
@@ -6492,9 +6531,17 @@ class FacebookAccountTokenExtendView(View):
 
         token_info = _facebook_token_status_payload(row.get('access_token'), row.get('app_id'), row.get('app_secret'))
         if not token_info.get('can_extend'):
+            hint = 'Gunakan Authorize Ulang jika token sudah expired.'
+            if token_info.get('expiry_reason') == 'data_access':
+                hint = (
+                    'Status "Akses data segera habis" tidak bisa diperbaiki dengan Perpanjang Token. '
+                    'Gunakan Authorize Ulang (ikon kunci) untuk login ulang ke Facebook.'
+                )
+            elif token_info.get('status') == 'expired':
+                hint = 'Token sudah expired. Gunakan tombol Authorize Ulang (ikon kunci) untuk login ulang ke Facebook.'
             return JsonResponse({
                 'status': False,
-                'message': token_info.get('message') or 'Token tidak bisa diperpanjang. Gunakan Authorize Ulang jika sudah expired.',
+                'message': (token_info.get('message') or 'Token tidak bisa diperpanjang. ') + hint,
                 'data': token_info,
             }, status=400)
 
@@ -6516,9 +6563,22 @@ class FacebookAccountTokenExtendView(View):
                 return JsonResponse({'status': False, 'message': hasil.get('message') or 'Gagal menyimpan token baru'}, status=500)
 
             refreshed = _facebook_token_status_payload(new_token, row.get('app_id'), row.get('app_secret'))
+            message = 'Access token berhasil diperpanjang.'
+            if refreshed.get('expiry_reason') == 'data_access':
+                message = (
+                    'Token berhasil diperpanjang, tetapi akses data masih akan habis pada '
+                    + (refreshed.get('data_access_expires_label') or '-')
+                    + '. Gunakan Authorize Ulang untuk memperbarui izin data Facebook.'
+                )
+            elif refreshed.get('status') == 'valid':
+                message = (
+                    'Access token berhasil diperpanjang. Berlaku hingga '
+                    + (refreshed.get('expires_label') or 'tidak kedaluwarsa')
+                    + '.'
+                )
             return JsonResponse({
                 'status': True,
-                'message': 'Access token berhasil diperpanjang',
+                'message': message,
                 'data': refreshed,
                 'expires_in': extended.get('expires_in'),
             })
@@ -6550,6 +6610,16 @@ class FacebookAccountOAuthStartView(View):
         if not app_id or not app_secret:
             req.session['fb_oauth_flash_success'] = False
             req.session['fb_oauth_flash_message'] = 'App ID / App Secret belum lengkap untuk account ini.'
+            return redirect('account_facebook')
+
+        ok, app_msg = _facebook_validate_app_credentials(app_id, app_secret)
+        if not ok:
+            req.session['fb_oauth_flash_success'] = False
+            req.session['fb_oauth_flash_message'] = (
+                'Validasi Facebook App gagal: ' + app_msg
+                + '. Periksa App ID dan App Secret di data account, '
+                + 'lalu pastikan app aktif di Meta Developer Console.'
+            )
             return redirect('account_facebook')
 
         redirect_uri = req.build_absolute_uri(reverse('facebook_account_oauth_callback'))
@@ -6584,7 +6654,12 @@ class FacebookAccountOAuthCallbackView(View):
         error = str(req.GET.get('error') or '').strip()
         if error:
             desc = str(req.GET.get('error_description') or error).strip()
-            _flash(False, f'OAuth Facebook dibatalkan/gagal: {desc}')
+            hint = ''
+            if 'access_denied' in error.lower() or 'dibatalkan' in desc.lower():
+                hint = ' Anda membatalkan login atau akun Facebook belum ditambahkan sebagai Developer/Tester di app.'
+            elif 'app' in desc.lower() and 'active' in desc.lower():
+                hint = ' Facebook App belum aktif. Aktifkan app di Meta Developer Console atau tambahkan akun sebagai Tester.'
+            _flash(False, f'OAuth Facebook gagal: {desc}.{hint}')
             return redirect('account_facebook')
 
         state = str(req.GET.get('state') or '').strip()
