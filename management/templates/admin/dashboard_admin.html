@@ -17360,21 +17360,6 @@ function initDashboardRecap() {
             const fdir = (action === 'STOP' || action === 'PAUSE' || action === 'SCALE DOWN') ? 'UPCOMING_DOWN' : ((action === 'SCALE UP') ? 'UPCOMING_UP' : 'STABLE_OUTLOOK');
             recoMap.set(k, { action, pct, fdir, horizon: fdir === 'STABLE_OUTLOOK' ? 48 : 24, conf: Math.max(0.5, Math.min(0.93, 0.6 + Math.min(1, Math.abs(m)/60) * 0.2 + Math.min(1, Math.abs(r-50)/50) * 0.1)), summary: fdir === 'UPCOMING_DOWN' ? 'Berisiko turun jika tren saat ini berlanjut.' : (fdir === 'UPCOMING_UP' ? 'Berpotensi naik jika momentum tetap terjaga.' : 'Cenderung stabil, pantau sinyal baru.') });
         });
-        const applyTargetSelection = function(targetName) {
-            const target = norm(targetName);
-            let hit = 0;
-            wrapEl.querySelectorAll('tbody tr').forEach(function(tr){
-                const nameCell = tr.children && tr.children[1] ? String(tr.children[1].innerText || '').trim() : '';
-                const cb = tr.querySelector('input.sd-camp-cb[type="checkbox"][data-cid]');
-                if (!cb) return;
-                const n = norm(nameCell);
-                const ok = !!target && (n === target || n.includes(target) || target.includes(n));
-                cb.checked = ok;
-                if (ok) hit += 1;
-            });
-            if (targetName) setStatus(hit ? `Target campaign dipilih: ${targetName} (${hit} baris)` : `Target campaign tidak ditemukan: ${targetName}`);
-        };
-
         function setStatus(msg) {
             if (statusEl) statusEl.textContent = String(msg || '');
         }
@@ -17445,17 +17430,7 @@ function initDashboardRecap() {
                 return;
             }
 
-            const pending = (window.sdDecisionPendingTarget && typeof window.sdDecisionPendingTarget === 'object') ? window.sdDecisionPendingTarget : {};
             let h = '';
-            h += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">';
-            h += '<div style="font-size:12px;color:#475569;font-weight:700;">Campaign tujuan eksekusi</div>';
-            h += '<select id="sdTargetCampaignSelect" class="form-control form-control-sm" style="max-width:420px;">';
-            h += '<option value="">-- pilih campaign --</option>';
-            rows.forEach(function(c){ const nm = String(c?.campaign_name || c?.name || '-'); h += `<option value="${esc(nm)}">${esc(nm)}</option>`; });
-            h += '</select>';
-            h += '<button type="button" class="btn btn-sm btn-outline-primary" id="sdApplyTargetCampaignBtn">Pilih</button>';
-            if (pending?.action) h += `<span style="font-size:12px;color:#64748b;">Aksi rekomendasi: <b>${esc(String(pending.action))}</b></span>`;
-            h += '</div>';
             h += '<div class="table-responsive">';
             h += '<table class="table table-sm table-striped" style="margin:0;font-size:12px;table-layout:fixed;">';
             h += '<thead><tr>';
@@ -17497,18 +17472,6 @@ function initDashboardRecap() {
 
             h += '</tbody></table></div>';
             wrapEl.innerHTML = h;
-
-            const sel = document.getElementById('sdTargetCampaignSelect');
-            const pendingName = String((window.sdDecisionPendingTarget && window.sdDecisionPendingTarget.campaign) || '').trim();
-            if (sel && pendingName) {
-                const opts = Array.from(sel.options || []);
-                const hit = opts.find(function(o){
-                    const v = norm(o.value), p = norm(pendingName);
-                    return p && v && (v === p || v.includes(p) || p.includes(v));
-                });
-                if (hit) sel.value = hit.value;
-                applyTargetSelection(sel.value || pendingName);
-            }
         }
 
         async function refresh() {
@@ -17570,18 +17533,9 @@ function initDashboardRecap() {
                 wrapEl.querySelectorAll('input.sd-camp-cb[type="checkbox"][data-cid]').forEach(function(cb){ cb.checked = on; });
                 return;
             }
-            if (t.id === 'sdTargetCampaignSelect') {
-                applyTargetSelection(String(t.value || ''));
-            }
         });
 
         wrapEl.addEventListener('click', async function(e) {
-            const pickBtn = e.target && e.target.closest ? e.target.closest('#sdApplyTargetCampaignBtn') : null;
-            if (pickBtn) {
-                const sel = document.getElementById('sdTargetCampaignSelect');
-                applyTargetSelection(String(sel ? sel.value : ''));
-                return;
-            }
             const btn = e.target && e.target.closest ? e.target.closest('.sd-camp-upd') : null;
             if (!btn) return;
             const cid = String(btn.getAttribute('data-cid') || '');
