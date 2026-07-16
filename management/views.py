@@ -93,6 +93,11 @@ try:
 except Exception:
     ad_manager = None
 
+try:
+    from facebook_business.exceptions import FacebookRequestError
+except Exception:
+    FacebookRequestError = None
+
 from google_auth_oauthlib.flow import Flow
 import os
 from django.urls import reverse
@@ -6273,6 +6278,31 @@ FB_ACCOUNT_OAUTH_SCOPES = [
 ]
 
 
+def _facebook_api_user_message(exc):
+    text = ''
+    try:
+        if hasattr(exc, 'api_error_message'):
+            text = str(exc.api_error_message() or '').strip()
+    except Exception:
+        pass
+    if not text:
+        text = str(exc or '').strip()
+    lower = text.lower()
+    if 'application has been deleted' in lower:
+        return (
+            f'{text} App Facebook (App ID) account ini sudah dihapus di Meta. '
+            'Buka Edit Account → ganti App ID & App Secret (mis. app Berita21) → Authorize Ulang.'
+        )
+    if 'api access deactivated' in lower:
+        return (
+            f'{text} Akses developer Meta dinonaktifkan. '
+            'Pemilik account harus menyelesaikan registrasi di developers.facebook.com, lalu Authorize Ulang.'
+        )
+    if 'error validating access token' in lower or 'session has expired' in lower:
+        return f'{text} Gunakan Authorize Ulang (ikon kunci) di halaman Account Facebook Ads.'
+    return text
+
+
 def _facebook_graph_base():
     return f'https://graph.facebook.com/{FB_GRAPH_API_VERSION}'
 
@@ -7671,22 +7701,46 @@ class page_per_account_facebook(View):
         if not data_domain or data_domain == '':
             data_domain = '%'
 
-        if not data_account or data_account == '%':
-            rs_account = data_mysql().master_account_ads()['data']
-            data = fetch_data_insights_all_accounts_by_subdomain(str(tanggal_dari), rs_account, str(data_domain), str(tanggal_sampai))
-        else:
-            rs_data_account = data_mysql().master_account_ads_by_id({
-                'data_account': data_account,
-            })['data']
-            data = fetch_data_insights_account(
-                str(tanggal_dari),
-                str(rs_data_account['access_token']),
-                str(rs_data_account['account_id']),
-                str(data_domain),
-                str(rs_data_account['account_name']),
-                str(tanggal_sampai),
+        try:
+            if not data_account or data_account == '%':
+                rs_account = data_mysql().master_account_ads()['data']
+                data = fetch_data_insights_all_accounts_by_subdomain(str(tanggal_dari), rs_account, str(data_domain), str(tanggal_sampai))
+            else:
+                rs_data_account = data_mysql().master_account_ads_by_id({
+                    'data_account': data_account,
+                })['data']
+                if not rs_data_account:
+                    return JsonResponse({
+                        'status': False,
+                        'message': 'Account tidak ditemukan.',
+                        'data_per_account': [],
+                        'total_per_account': {},
+                    }, status=404)
+                data = fetch_data_insights_account(
+                    str(tanggal_dari),
+                    str(rs_data_account['access_token']),
+                    str(rs_data_account['account_id']),
+                    str(data_domain),
+                    str(rs_data_account['account_name']),
+                    str(tanggal_sampai),
+                )
+        except Exception as e:
+            if FacebookRequestError is not None and isinstance(e, FacebookRequestError):
+                message = _facebook_api_user_message(e)
+            else:
+                message = str(e) or 'Gagal mengambil data Facebook.'
+            logger.exception(
+                'page_per_account_facebook failed for account=%s: %s',
+                data_account,
+                message,
             )
-        
+            return JsonResponse({
+                'status': False,
+                'message': message,
+                'data_per_account': [],
+                'total_per_account': {},
+            }, status=400)
+
         hasil = {
             'hasil': "Data Traffic Per Account",
             'data_per_account': data['data'],

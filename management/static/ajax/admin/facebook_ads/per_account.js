@@ -659,6 +659,15 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
         method: 'GET',
         dataType: 'json',
         success: function (data_per_account) {
+            if (data_per_account && data_per_account.status === false) {
+                showFbPerAccountEmptyState();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Muat Data',
+                    text: data_per_account.message || 'Gagal mengambil data Facebook.'
+                });
+                return;
+            }
             destroy_table_data_per_account_facebook()
             showFbPerAccountTable();
             const tanggal = new Date();
@@ -1207,7 +1216,29 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
             }
         },
         error: function (jqXHR, exception) {
-            report_eror(jqXHR, exception);
+            showFbPerAccountEmptyState();
+            var errorMessage = 'Gagal mengambil data traffic Facebook.';
+            try {
+                var resp = JSON.parse(jqXHR.responseText);
+                if (resp && resp.message) {
+                    errorMessage = resp.message;
+                }
+            } catch (e) {
+                if (jqXHR.status === 500) {
+                    errorMessage = 'Internal Server Error [500].';
+                } else if (jqXHR.status === 404) {
+                    errorMessage = 'Account tidak ditemukan.';
+                }
+            }
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Muat Data',
+                    text: errorMessage
+                });
+            } else {
+                alert(errorMessage);
+            }
         },
         complete: function () {
             hideHrisFacebookLoader();
