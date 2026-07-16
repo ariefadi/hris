@@ -6270,7 +6270,6 @@ FB_ACCOUNT_OAUTH_SCOPES = [
     'business_management',
     'pages_read_engagement',
     'pages_show_list',
-    'read_insights',
 ]
 
 
