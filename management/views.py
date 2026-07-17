@@ -6300,6 +6300,12 @@ def _facebook_api_user_message(exc):
         )
     if 'error validating access token' in lower or 'session has expired' in lower:
         return f'{text} Gunakan Authorize Ulang (ikon kunci) di halaman Account Facebook Ads.'
+    if 'ads_management' in lower or 'ads_read' in lower or 'not grant' in lower:
+        return (
+            f'{text} Token Facebook tidak punya izin ke ad account ini. '
+            'Authorize Ulang harus dilakukan oleh pemilik/advertiser ad account (bukan akun HRIS sembarang), '
+            'dan saat login Facebook pastikan semua izin ads_management & ads_read di-Allow.'
+        )
     return text
 
 
@@ -6323,7 +6329,61 @@ def _facebook_format_expiry_ts(ts):
         return None, '-'
 
 
-def _facebook_token_status_payload(access_token, app_id, app_secret):
+def _facebook_normalize_ad_account_id(account_id):
+    raw = str(account_id or '').strip()
+    if raw.lower().startswith('act_'):
+        return raw[4:]
+    return raw
+
+
+def _facebook_token_ads_permission_issue(scopes, granular_scopes, account_id):
+    scopes = [str(s or '').strip().lower() for s in (scopes or [])]
+    if 'ads_read' not in scopes and 'ads_management' not in scopes:
+        return (
+            'Token tidak memiliki scope ads_read atau ads_management. '
+            'Authorize Ulang lalu Allow semua izin iklan.'
+        )
+    ad_id = _facebook_normalize_ad_account_id(account_id)
+    if not ad_id:
+        return ''
+    granular = granular_scopes or []
+    if not granular:
+        return ''
+    ads_targets = set()
+    for item in granular:
+        scope_name = str((item or {}).get('scope') or '').strip().lower()
+        if scope_name not in ('ads_read', 'ads_management'):
+            continue
+        for tid in ((item or {}).get('target_ids') or []):
+            ads_targets.add(str(tid or '').strip())
+    if ads_targets and ad_id not in ads_targets:
+        return (
+            f'Token tidak mencakup ad account act_{ad_id}. '
+            'Pemilik ad account harus Authorize Ulang dan mengizinkan ad account tersebut.'
+        )
+    return ''
+
+
+def _facebook_probe_ad_account_access(access_token, account_id):
+    ad_id = _facebook_normalize_ad_account_id(account_id)
+    token = str(access_token or '').strip()
+    if not ad_id or not token:
+        return ''
+    try:
+        resp = requests.get(
+            f"{_facebook_graph_base()}/act_{ad_id}/campaigns",
+            params={'access_token': token, 'fields': 'id', 'limit': 1},
+            timeout=15,
+        )
+        body = resp.json() if resp.content else {}
+        if resp.ok:
+            return ''
+        return str((body.get('error') or {}).get('message') or '').strip()
+    except Exception as e:
+        return str(e)
+
+
+def _facebook_token_status_payload(access_token, app_id, app_secret, account_id=None):
     token = str(access_token or '').strip()
     app_id = str(app_id or '').strip()
     app_secret = str(app_secret or '').strip()
@@ -6400,6 +6460,32 @@ def _facebook_token_status_payload(access_token, app_id, app_secret):
         # Perpanjang token hanya memperbarui masa berlaku token, bukan data_access_expires_at.
         can_extend = is_valid and token_expiring_soon
 
+        scopes = data.get('scopes') or []
+        granular_scopes = data.get('granular_scopes') or []
+        ads_message = ''
+        if is_valid and status not in ('expired',):
+            scope_issue = _facebook_token_ads_permission_issue(
+                scopes, granular_scopes, account_id,
+            )
+            if scope_issue:
+                status = 'error'
+                label = 'Izin ads kurang'
+                ads_message = scope_issue
+                is_valid = False
+            elif account_id:
+                probe_err = _facebook_probe_ad_account_access(token, account_id)
+                if probe_err:
+                    lower_probe = probe_err.lower()
+                    if any(k in lower_probe for k in ('ads_management', 'ads_read', 'not grant', '(#200)')):
+                        status = 'error'
+                        label = 'Izin ads kurang'
+                        ads_message = (
+                            f'{probe_err} '
+                            'Authorize Ulang harus dilakukan oleh pemilik ad account (mis. Igun Wiguna) '
+                            'menggunakan akun Facebook miliknya — bukan admin HRIS tanpa akses di Business Manager.'
+                        )
+                        is_valid = False
+
         return {
             'status': status,
             'label': label,
@@ -6409,10 +6495,11 @@ def _facebook_token_status_payload(access_token, app_id, app_secret):
             'expires_label': exp_label,
             'data_access_expires_at': data_access_expires_at or None,
             'data_access_expires_label': data_exp_label,
-            'scopes': data.get('scopes') or [],
+            'scopes': scopes,
+            'granular_scopes': granular_scopes,
             'user_id': data.get('user_id'),
             'app_id': data.get('app_id'),
-            'message': (
+            'message': ads_message or (
                 'Akses data Facebook akan habis. Gunakan Authorize Ulang untuk memperbarui izin.'
                 if expiry_reason == 'data_access' else ''
             ),
@@ -6508,7 +6595,12 @@ class FacebookAccountTokenCheckView(View):
         row = _load_master_account_ads_row(account_ads_id)
         if not row:
             return JsonResponse({'status': False, 'message': 'Account tidak ditemukan'}, status=404)
-        payload = _facebook_token_status_payload(row.get('access_token'), row.get('app_id'), row.get('app_secret'))
+        payload = _facebook_token_status_payload(
+            row.get('access_token'),
+            row.get('app_id'),
+            row.get('app_secret'),
+            row.get('account_id'),
+        )
         return JsonResponse({
             'status': True,
             'data': payload,
@@ -6529,7 +6621,9 @@ class FacebookAccountTokenCheckAllView(View):
         items = []
         summary = {'total': 0, 'valid': 0, 'expiring_soon': 0, 'expired': 0, 'missing': 0, 'error': 0}
         for row in rows:
-            token_info = _facebook_token_status_payload(row.get('access_token'), row.get('app_id'), row.get('app_secret'))
+            token_info = _facebook_token_status_payload(
+                row.get('access_token'), row.get('app_id'), row.get('app_secret'), row.get('account_id'),
+            )
             st = str(token_info.get('status') or 'error')
             if st not in summary:
                 st = 'error'
@@ -6558,7 +6652,9 @@ class FacebookAccountTokenExtendView(View):
         if not row:
             return JsonResponse({'status': False, 'message': 'Account tidak ditemukan'}, status=404)
 
-        token_info = _facebook_token_status_payload(row.get('access_token'), row.get('app_id'), row.get('app_secret'))
+        token_info = _facebook_token_status_payload(
+            row.get('access_token'), row.get('app_id'), row.get('app_secret'), row.get('account_id'),
+        )
         if not token_info.get('can_extend'):
             hint = 'Gunakan Authorize Ulang jika token sudah expired.'
             if token_info.get('expiry_reason') == 'data_access':
@@ -6591,7 +6687,9 @@ class FacebookAccountTokenExtendView(View):
             if not hasil.get('status'):
                 return JsonResponse({'status': False, 'message': hasil.get('message') or 'Gagal menyimpan token baru'}, status=500)
 
-            refreshed = _facebook_token_status_payload(new_token, row.get('app_id'), row.get('app_secret'))
+            refreshed = _facebook_token_status_payload(
+                new_token, row.get('app_id'), row.get('app_secret'), row.get('account_id'),
+            )
             message = 'Access token berhasil diperpanjang.'
             if refreshed.get('expiry_reason') == 'data_access':
                 message = (
@@ -6727,7 +6825,7 @@ class FacebookAccountOAuthCallbackView(View):
             if not hasil.get('status'):
                 raise ValueError(hasil.get('message') or 'Gagal menyimpan access token baru')
 
-            token_info = _facebook_token_status_payload(new_token, app_id, app_secret)
+            token_info = _facebook_token_status_payload(new_token, app_id, app_secret, row.get('account_id'))
             exp_label = token_info.get('expires_label') or 'Tidak kedaluwarsa'
             _flash(True, f'Access token untuk {row.get("account_name") or account_ads_id} berhasil diperbarui. Expired: {exp_label}.')
         except Exception as e:
