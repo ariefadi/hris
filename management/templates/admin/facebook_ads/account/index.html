@@ -153,8 +153,12 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             <ul class="mb-0">
                 <li><strong>Perpanjang Token</strong> (ikon jam) — tanpa login Facebook, hanya jika masa berlaku <em>token</em> hampir habis.</li>
                 <li><strong>Authorize Ulang</strong> (ikon kunci) — wajib login Facebook untuk memperbarui izin, terutama jika status <em>Akses data segera habis</em> atau <em>Expired</em>.</li>
-                <li><strong>Tidak punya akses Facebook?</strong> Klik ikon <strong>pesawat</strong> (Minta Token Partner BM) — HRIS kirim webhook ke partner, partner balas token via API. Atau paste token manual di <strong>Edit Account</strong>.</li>
-                <li>Redirect URI OAuth yang harus terdaftar di Facebook App: <code>{{ request.scheme }}://{{ request.get_host }}/management/admin/facebook_account_oauth_callback</code></li>
+                <li><strong>Partner BM (Opsi 1 — API otomatis):</strong> klik ikon <strong>pesawat</strong> → HRIS kirim webhook ke partner → partner balas token <code>EAAG...</code> via API.
+                    <a href="{% url 'facebook_partner_api' %}">Panduan integrasi Partner BM</a>
+                    {% if not fb_partner_api_configured %}<span class="text-warning">(set <code>FACEBOOK_PARTNER_API_KEY</code> di .env)</span>{% endif %}
+                </li>
+                <li><strong class="text-warning">Jangan</strong> paste <em>request_token</em> HRIS ke kolom Access Token — itu bukan token Facebook.</li>
+                <li>Redirect URI OAuth: <code>{{ request.scheme }}://{{ request.get_host }}/management/admin/facebook_account_oauth_callback</code></li>
             </ul>
         </div>
         <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Menyiapkan Data ..." aria-hidden="true"></div>

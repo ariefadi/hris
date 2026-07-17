@@ -7059,17 +7059,46 @@ class FacebookPartnerSubmitTokenApiView(View):
         })
 
 
+class FacebookPartnerApiDocsView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        partner_cfg = _facebook_partner_settings()
+        base = req.build_absolute_uri('/').rstrip('/')
+        api_key = partner_cfg.get('api_key') or ''
+        webhook_secret = partner_cfg.get('webhook_secret') or ''
+        context = {
+            'title': 'Partner BM API — Facebook Token',
+            'user': req.session['hris_admin'],
+            'submit_url': base + '/management/api/facebook/partner/submit-token',
+            'partner_api_key_hint': api_key if api_key else '(set FACEBOOK_PARTNER_API_KEY di .env)',
+            'partner_webhook_url_hint': partner_cfg.get('webhook_url') or 'http://IP_PARTNER:8787/hris/facebook-token-request',
+            'partner_webhook_secret_hint': webhook_secret if webhook_secret else '(opsional)',
+            'partner_api_configured': bool(api_key),
+            'partner_webhook_configured': bool(partner_cfg.get('webhook_url')),
+        }
+        return render(req, 'admin/facebook_ads/partner_api.html', context)
+
+
 class AccountFacebookAds(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super(AccountFacebookAds, self).dispatch(request, *args, **kwargs)
     def get(self, req):
+        partner_cfg = _facebook_partner_settings()
+        base = req.build_absolute_uri('/').rstrip('/')
         data = {
             'title': 'Data Account Facebook Ads',
             'user': req.session['hris_admin'],
             'fb_oauth_flash_success': req.session.pop('fb_oauth_flash_success', None),
             'fb_oauth_flash_message': req.session.pop('fb_oauth_flash_message', ''),
+            'fb_partner_submit_url': base + '/management/api/facebook/partner/submit-token',
+            'fb_partner_api_configured': bool(partner_cfg.get('api_key')),
+            'fb_partner_webhook_configured': bool(partner_cfg.get('webhook_url')),
         }
         return render(req, 'admin/facebook_ads/account/index.html', data)
     

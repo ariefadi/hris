@@ -568,14 +568,21 @@ function requestFacebookPartnerToken(accountAdsId, accountName) {
                     + '  -d \'{"request_token":"' + escHtml(d.request_token) + '","access_token":"EAAG...","submitted_by":"partner-bm"}\'';
                 Swal.fire({
                     icon: 'success',
-                    title: 'Permintaan Partner Dibuat',
-                    html: '<p style="font-size:12px;text-align:left;"><strong>Webhook:</strong> ' + escHtml(webhookMsg) + '</p>'
-                        + '<p style="font-size:12px;text-align:left;"><strong>Submit URL:</strong><br><code style="word-break:break-all;">' + escHtml(d.submit_url) + '</code></p>'
-                        + '<p style="font-size:12px;text-align:left;"><strong>Request Token</strong> (berlaku sampai ' + escHtml(d.expires_at_label || '-') + '):</p>'
-                        + '<textarea readonly class="form-control" rows="3" style="font-size:11px;">' + escHtml(d.request_token) + '</textarea>'
-                        + '<p style="font-size:12px;text-align:left;margin-top:10px;"><strong>Contoh curl untuk Partner BM:</strong></p>'
-                        + '<pre style="font-size:10px;text-align:left;white-space:pre-wrap;max-height:160px;overflow:auto;">' + curlExample + '</pre>',
-                    width: 760,
+                    title: 'Permintaan Partner Dibuat (Opsi 1)',
+                    html: '<div style="font-size:12px;text-align:left;">'
+                        + '<p><strong>Webhook:</strong> ' + escHtml(webhookMsg) + '</p>'
+                        + '<div class="alert alert-warning py-2 px-2" style="font-size:11px;">'
+                        + '<strong>Untuk Partner BM:</strong> generate token Facebook <code>EAAG...</code> di Graph API Explorer, '
+                        + 'lalu POST ke Submit URL di bawah. <strong>Jangan</strong> kirim request_token ke kolom Access Token manual.</div>'
+                        + '<p><strong>Submit URL (Partner → HRIS):</strong><br><code style="word-break:break-all;">' + escHtml(d.submit_url) + '</code></p>'
+                        + '<p><strong>request_token</strong> (untuk body API, bukan Access Token):</p>'
+                        + '<textarea readonly class="form-control" rows="2" style="font-size:11px;">' + escHtml(d.request_token) + '</textarea>'
+                        + '<p style="margin-top:10px;"><strong>Contoh curl Partner BM:</strong></p>'
+                        + '<pre style="font-size:10px;white-space:pre-wrap;max-height:180px;overflow:auto;background:#1e1e1e;color:#eee;padding:8px;border-radius:4px;">'
+                        + escHtml(curlExample) + '</pre>'
+                        + '<p style="margin-top:8px;"><a href="/management/admin/facebook_partner_api" target="_blank" rel="noopener">Buka panduan lengkap Partner BM API →</a></p>'
+                        + '</div>',
+                    width: 780,
                     customClass: { htmlContainer: 'text-left' }
                 });
             },
