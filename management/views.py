@@ -7006,6 +7006,19 @@ class FacebookPartnerTokenRequestView(View):
 class FacebookPartnerSubmitTokenApiView(View):
     """Partner BM: kirim access token kembali ke HRIS."""
 
+    def get(self, req):
+        base = req.build_absolute_uri('/').rstrip('/')
+        return JsonResponse({
+            'status': False,
+            'message': (
+                'Endpoint API — bukan halaman web. Gunakan HTTP POST dengan JSON '
+                '(request_token + access_token EAAG...) dan header X-API-Key.'
+            ),
+            'method': 'POST',
+            'submit_url': base + '/management/api/facebook/partner/submit-token',
+            'docs_url': base + '/management/admin/facebook_partner_api',
+        }, status=405)
+
     def post(self, req):
         body = _facebook_partner_parse_body(req)
         access_token = str(body.get('access_token') or '').strip()

@@ -87,7 +87,10 @@ class AuthMiddleware:
             reverse('app_credentials_import_env'),
             # Allow OAuth URL generation and callback without requiring session login
             reverse('generate_oauth_url_api'),
-            reverse('oauth_callback_api')
+            reverse('oauth_callback_api'),
+            # Partner BM: kirim token tanpa session login admin
+            reverse('facebook_partner_submit_token'),
+            reverse('facebook_account_oauth_callback'),
         ]
 
         # Abaikan request untuk static/media/favicon/vite agar tidak men-trigger alert berulang
