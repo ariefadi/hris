@@ -1,5 +1,6 @@
 from collections import defaultdict
 import os
+import secrets
 import csv
 from io import StringIO
 import math
@@ -16,6 +17,7 @@ from django.shortcuts import render, redirect
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.core import signing
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.conf import settings
 from django import template
@@ -6277,6 +6279,127 @@ FB_ACCOUNT_OAUTH_SCOPES = [
     'pages_show_list',
 ]
 
+FACEBOOK_PARTNER_REQUEST_SALT = 'hris.fb.partner.token.request.v1'
+FACEBOOK_PARTNER_REQUEST_TTL = 60 * 60 * 72  # 72 jam
+
+
+def _facebook_partner_settings():
+    return {
+        'api_key': str(
+            getattr(settings, 'FACEBOOK_PARTNER_API_KEY', None)
+            or os.getenv('FACEBOOK_PARTNER_API_KEY', '')
+        ).strip(),
+        'webhook_url': str(
+            getattr(settings, 'FACEBOOK_PARTNER_WEBHOOK_URL', None)
+            or os.getenv('FACEBOOK_PARTNER_WEBHOOK_URL', '')
+        ).strip(),
+        'webhook_secret': str(
+            getattr(settings, 'FACEBOOK_PARTNER_WEBHOOK_SECRET', None)
+            or os.getenv('FACEBOOK_PARTNER_WEBHOOK_SECRET', '')
+        ).strip(),
+    }
+
+
+def _facebook_partner_api_key_ok(provided):
+    expected = _facebook_partner_settings()['api_key']
+    if not expected:
+        return False
+    return secrets.compare_digest(str(provided or '').strip(), expected)
+
+
+def _facebook_create_partner_token_request(row, base_url):
+    account_ads_id = str((row or {}).get('account_ads_id') or '').strip()
+    account_id = str((row or {}).get('account_id') or '').strip()
+    if not account_ads_id or not account_id:
+        raise ValueError('Data account tidak lengkap untuk permintaan partner.')
+    expires_at = int((datetime.now(tz=timezone.utc) + timedelta(seconds=FACEBOOK_PARTNER_REQUEST_TTL)).timestamp())
+    payload = {
+        'account_ads_id': account_ads_id,
+        'account_id': account_id,
+        'exp': expires_at,
+    }
+    request_token = signing.dumps(payload, salt=FACEBOOK_PARTNER_REQUEST_SALT)
+    submit_url = base_url.rstrip('/') + '/management/api/facebook/partner/submit-token'
+    return {
+        'request_token': request_token,
+        'submit_url': submit_url,
+        'expires_at': expires_at,
+        'expires_at_label': datetime.fromtimestamp(expires_at, tz=timezone.utc).astimezone().strftime('%d %b %Y %H:%M'),
+        'account_id': account_id,
+        'account_name': str((row or {}).get('account_name') or '').strip(),
+        'app_id': str((row or {}).get('app_id') or '').strip(),
+    }
+
+
+def _facebook_load_partner_token_request(request_token):
+    token = str(request_token or '').strip()
+    if not token:
+        return None, 'request_token wajib diisi.'
+    try:
+        data = signing.loads(
+            token,
+            salt=FACEBOOK_PARTNER_REQUEST_SALT,
+            max_age=FACEBOOK_PARTNER_REQUEST_TTL,
+        )
+    except signing.BadSignature:
+        return None, 'request_token tidak valid atau sudah kadaluarsa.'
+    except signing.SignatureExpired:
+        return None, 'request_token sudah kadaluarsa. Minta request baru dari HRIS.'
+    account_ads_id = str((data or {}).get('account_ads_id') or '').strip()
+    if not account_ads_id:
+        return None, 'request_token tidak valid.'
+    return data, ''
+
+
+def _facebook_partner_parse_body(req):
+    if req.content_type and 'application/json' in req.content_type.lower():
+        try:
+            raw = req.body.decode('utf-8') if req.body else '{}'
+            body = json.loads(raw or '{}')
+            if isinstance(body, dict):
+                return body
+        except Exception:
+            pass
+    return {
+        'access_token': req.POST.get('access_token'),
+        'request_token': req.POST.get('request_token'),
+        'account_id': req.POST.get('account_id'),
+        'api_key': req.POST.get('api_key'),
+        'submitted_by': req.POST.get('submitted_by'),
+    }
+
+
+def _facebook_partner_notify_webhook(req_info, row):
+    partner_cfg = _facebook_partner_settings()
+    webhook_url = partner_cfg.get('webhook_url') or ''
+    if not webhook_url:
+        return {'sent': False, 'message': 'FACEBOOK_PARTNER_WEBHOOK_URL belum diset di .env'}
+    payload = {
+        'event': 'facebook_token_request',
+        'request_token': req_info.get('request_token'),
+        'submit_url': req_info.get('submit_url'),
+        'expires_at': req_info.get('expires_at'),
+        'expires_at_label': req_info.get('expires_at_label'),
+        'account_id': req_info.get('account_id'),
+        'account_name': req_info.get('account_name'),
+        'app_id': req_info.get('app_id'),
+        'required_scopes': ['ads_read', 'ads_management', 'business_management'],
+    }
+    headers = {'Content-Type': 'application/json', 'User-Agent': 'HRIS-Facebook-Partner-Webhook/1.0'}
+    webhook_secret = partner_cfg.get('webhook_secret') or ''
+    if webhook_secret:
+        headers['X-Webhook-Secret'] = webhook_secret
+    try:
+        resp = requests.post(webhook_url, json=payload, headers=headers, timeout=20)
+        ok = 200 <= int(resp.status_code) < 300
+        return {
+            'sent': ok,
+            'status_code': resp.status_code,
+            'message': 'Webhook partner terkirim.' if ok else f'Webhook partner gagal (HTTP {resp.status_code}).',
+        }
+    except Exception as e:
+        return {'sent': False, 'message': f'Gagal kirim webhook partner: {e}'}
+
 
 def _facebook_api_user_message(exc):
     text = ''
@@ -6837,6 +6960,103 @@ class FacebookAccountOAuthCallbackView(View):
             req.session.pop('fb_oauth_redirect_uri', None)
 
         return redirect('account_facebook')
+
+
+class FacebookPartnerTokenRequestView(View):
+    """Admin HRIS: buat permintaan token & kirim webhook ke partner BM."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        account_ads_id = str(req.POST.get('account_ads_id') or '').strip()
+        if not account_ads_id:
+            return JsonResponse({'status': False, 'message': 'account_ads_id wajib diisi.'}, status=400)
+        row = _load_master_account_ads_row(account_ads_id)
+        if not row:
+            return JsonResponse({'status': False, 'message': 'Account tidak ditemukan.'}, status=404)
+        try:
+            base_url = req.build_absolute_uri('/').rstrip('/')
+            req_info = _facebook_create_partner_token_request(row, base_url)
+        except ValueError as e:
+            return JsonResponse({'status': False, 'message': str(e)}, status=400)
+        webhook = _facebook_partner_notify_webhook(req_info, row)
+        partner_cfg = _facebook_partner_settings()
+        return JsonResponse({
+            'status': True,
+            'message': 'Permintaan token partner dibuat.',
+            'data': {
+                **req_info,
+                'webhook': webhook,
+                'partner_api_key_configured': bool(partner_cfg.get('api_key')),
+            },
+        })
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class FacebookPartnerSubmitTokenApiView(View):
+    """Partner BM: kirim access token kembali ke HRIS."""
+
+    def post(self, req):
+        body = _facebook_partner_parse_body(req)
+        access_token = str(body.get('access_token') or '').strip()
+        request_token = str(body.get('request_token') or '').strip()
+        account_id = str(body.get('account_id') or '').strip()
+        api_key = str(req.headers.get('X-API-Key') or body.get('api_key') or '').strip()
+        submitted_by = str(body.get('submitted_by') or 'partner-bm').strip()
+
+        if not access_token:
+            return JsonResponse({'status': False, 'message': 'access_token wajib diisi.'}, status=400)
+
+        row = None
+        if request_token:
+            req_data, err = _facebook_load_partner_token_request(request_token)
+            if err:
+                return JsonResponse({'status': False, 'message': err}, status=400)
+            row = _load_master_account_ads_row(req_data.get('account_ads_id'))
+        elif account_id and _facebook_partner_api_key_ok(api_key):
+            rs = data_mysql().master_account_ads_by_id({'data_account': account_id})
+            row = rs.get('data') if isinstance(rs, dict) and rs.get('status') else None
+        else:
+            return JsonResponse({
+                'status': False,
+                'message': 'Kirim request_token valid dari HRIS, atau kombinasi account_id + header X-API-Key.',
+            }, status=401)
+
+        if not row:
+            return JsonResponse({'status': False, 'message': 'Account tidak ditemukan.'}, status=404)
+
+        rs_update = data_mysql().update_account_ads_access_token(
+            row.get('account_ads_id'),
+            access_token,
+            submitted_by,
+            submitted_by,
+        )
+        hasil = (rs_update or {}).get('hasil') or {}
+        if not hasil.get('status'):
+            return JsonResponse({
+                'status': False,
+                'message': hasil.get('message') or 'Gagal menyimpan access token.',
+            }, status=500)
+
+        token_info = _facebook_token_status_payload(
+            access_token,
+            row.get('app_id'),
+            row.get('app_secret'),
+            row.get('account_id'),
+        )
+        return JsonResponse({
+            'status': True,
+            'message': 'Access token berhasil disimpan di HRIS.',
+            'account_id': row.get('account_id'),
+            'account_name': row.get('account_name'),
+            'token_status': token_info.get('status'),
+            'token_label': token_info.get('label'),
+            'token_message': token_info.get('message'),
+            'scopes': token_info.get('scopes') or [],
+        })
 
 
 class AccountFacebookAds(View):

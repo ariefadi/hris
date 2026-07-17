@@ -29,6 +29,14 @@ load_dotenv(BASE_DIR / '.env')
 GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
 GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
 
+# Facebook OAuth callback override (full HTTPS URL for ngrok/production). Kosong = URL browser.
+FACEBOOK_OAUTH_REDIRECT_URI = os.getenv('FACEBOOK_OAUTH_REDIRECT_URI', '').strip()
+
+# Partner BM API — token submission & webhook
+FACEBOOK_PARTNER_API_KEY = os.getenv('FACEBOOK_PARTNER_API_KEY', '').strip()
+FACEBOOK_PARTNER_WEBHOOK_URL = os.getenv('FACEBOOK_PARTNER_WEBHOOK_URL', '').strip()
+FACEBOOK_PARTNER_WEBHOOK_SECRET = os.getenv('FACEBOOK_PARTNER_WEBHOOK_SECRET', '').strip()
+
 # Provide compatibility alias for deprecated force_text used by older packages
 try:
     from django.utils.encoding import force_str

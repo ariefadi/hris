@@ -52,6 +52,8 @@ urlpatterns = [
     path('admin/facebook_account_token_extend', views.FacebookAccountTokenExtendView.as_view(), name='facebook_account_token_extend'),
     path('admin/facebook_account_oauth_start', views.FacebookAccountOAuthStartView.as_view(), name='facebook_account_oauth_start'),
     path('admin/facebook_account_oauth_callback', views.FacebookAccountOAuthCallbackView.as_view(), name='facebook_account_oauth_callback'),
+    path('admin/facebook_partner_token_request', views.FacebookPartnerTokenRequestView.as_view(), name='facebook_partner_token_request'),
+    path('api/facebook/partner/submit-token', views.FacebookPartnerSubmitTokenApiView.as_view(), name='facebook_partner_submit_token'),
     # Menu Per Account Facebook Ads
     path('admin/per_account_facebook', views.PerAccountFacebookAds.as_view(), name='per_account_facebook'),
     path('admin/create_campaign', views.CreateCampaignFacebookAds.as_view(), name='create_campaign_facebook'),

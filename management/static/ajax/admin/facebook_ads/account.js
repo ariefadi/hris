@@ -114,6 +114,11 @@ $().ready(function () {
         reauthorizeFacebookToken(accountAdsId, accountName);
     });
 
+    $(document).on('click', '.btn-fb-token-partner', function(e) {
+        e.preventDefault();
+        requestFacebookPartnerToken($(this).data('accountAdsId'), $(this).closest('tr').find('td').eq(1).text().trim());
+    });
+
     $('#btnCheckAllFacebookTokens').on('click', function(e) {
         e.preventDefault();
         checkAllFacebookTokens();
@@ -337,6 +342,7 @@ function renderTokenActions(accountAdsId, info) {
     if (info.can_reauthorize !== false) {
         html += '<button type="button" class="btn btn-outline-warning btn-xs btn-fb-token-oauth" data-account-ads-id="' + escHtml(accountAdsId) + '" title="Authorize ulang"><i class="fas fa-key"></i></button>';
     }
+    html += '<button type="button" class="btn btn-outline-info btn-xs btn-fb-token-partner" data-account-ads-id="' + escHtml(accountAdsId) + '" title="Minta token via Partner BM"><i class="fas fa-paper-plane"></i></button>';
     return html;
 }
 
@@ -518,6 +524,66 @@ function reauthorizeFacebookToken(accountAdsId, accountName) {
     }).then(function(result) {
         if (!result.isConfirmed) return;
         window.location.href = '/management/admin/facebook_account_oauth_start?account_ads_id=' + encodeURIComponent(accountAdsId);
+    });
+}
+
+function requestFacebookPartnerToken(accountAdsId, accountName) {
+    if (!accountAdsId) return;
+    var accountLabel = String(accountName || accountAdsId || '').trim() || accountAdsId;
+    Swal.fire({
+        icon: 'question',
+        title: 'Minta Token ke Partner BM?',
+        html: '<p style="font-size:13px;text-align:left;">HRIS akan mengirim <strong>webhook</strong> ke partner BM (jika URL sudah diset di <code>.env</code>) '
+            + 'dan menampilkan <code>request_token</code> untuk partner submit token via API.</p>'
+            + '<p style="font-size:13px;text-align:left;margin:0;">Account: <strong>' + escHtml(accountLabel) + '</strong></p>',
+        showCancelButton: true,
+        confirmButtonText: 'Kirim Permintaan',
+        cancelButtonText: 'Batal',
+        width: 620,
+        customClass: { htmlContainer: 'text-left' }
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        var formData = new FormData();
+        formData.append('account_ads_id', accountAdsId);
+        $.ajax({
+            type: 'POST',
+            url: '/management/admin/facebook_partner_token_request',
+            data: formData,
+            headers: { 'X-CSRFToken': csrftoken },
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            beforeSend: function() { $('#overlay').fadeIn(200); },
+            success: function(resp) {
+                $('#overlay').fadeOut(200);
+                if (!resp || !resp.status || !resp.data) {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: (resp && resp.message) ? resp.message : 'Gagal membuat permintaan partner.' });
+                    return;
+                }
+                var d = resp.data;
+                var webhookMsg = (d.webhook && d.webhook.message) ? d.webhook.message : 'Webhook tidak dikirim.';
+                var curlExample = 'curl -X POST "' + escHtml(d.submit_url) + '" \\\n'
+                    + '  -H "Content-Type: application/json" \\\n'
+                    + '  -H "X-API-Key: YOUR_PARTNER_API_KEY" \\\n'
+                    + '  -d \'{"request_token":"' + escHtml(d.request_token) + '","access_token":"EAAG...","submitted_by":"partner-bm"}\'';
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Permintaan Partner Dibuat',
+                    html: '<p style="font-size:12px;text-align:left;"><strong>Webhook:</strong> ' + escHtml(webhookMsg) + '</p>'
+                        + '<p style="font-size:12px;text-align:left;"><strong>Submit URL:</strong><br><code style="word-break:break-all;">' + escHtml(d.submit_url) + '</code></p>'
+                        + '<p style="font-size:12px;text-align:left;"><strong>Request Token</strong> (berlaku sampai ' + escHtml(d.expires_at_label || '-') + '):</p>'
+                        + '<textarea readonly class="form-control" rows="3" style="font-size:11px;">' + escHtml(d.request_token) + '</textarea>'
+                        + '<p style="font-size:12px;text-align:left;margin-top:10px;"><strong>Contoh curl untuk Partner BM:</strong></p>'
+                        + '<pre style="font-size:10px;text-align:left;white-space:pre-wrap;max-height:160px;overflow:auto;">' + curlExample + '</pre>',
+                    width: 760,
+                    customClass: { htmlContainer: 'text-left' }
+                });
+            },
+            error: function(xhr, status, error) {
+                $('#overlay').fadeOut(200);
+                report_eror(xhr, status);
+            }
+        });
     });
 }
 

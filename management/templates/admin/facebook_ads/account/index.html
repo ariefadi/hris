@@ -153,7 +153,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             <ul class="mb-0">
                 <li><strong>Perpanjang Token</strong> (ikon jam) — tanpa login Facebook, hanya jika masa berlaku <em>token</em> hampir habis.</li>
                 <li><strong>Authorize Ulang</strong> (ikon kunci) — wajib login Facebook untuk memperbarui izin, terutama jika status <em>Akses data segera habis</em> atau <em>Expired</em>.</li>
-                <li><strong>Tidak punya akses Facebook?</strong> Minta <strong>Pemilik Account</strong> (kolom di tabel) melakukan Authorize Ulang, atau kirim <em>Access Token</em> baru untuk di-paste di halaman <strong>Edit Account</strong>.</li>
+                <li><strong>Tidak punya akses Facebook?</strong> Klik ikon <strong>pesawat</strong> (Minta Token Partner BM) — HRIS kirim webhook ke partner, partner balas token via API. Atau paste token manual di <strong>Edit Account</strong>.</li>
                 <li>Redirect URI OAuth yang harus terdaftar di Facebook App: <code>{{ request.scheme }}://{{ request.get_host }}/management/admin/facebook_account_oauth_callback</code></li>
             </ul>
         </div>
