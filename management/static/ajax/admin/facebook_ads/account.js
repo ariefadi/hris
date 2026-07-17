@@ -580,7 +580,14 @@ function requestFacebookPartnerToken(accountAdsId, accountName) {
                         + '<p style="margin-top:10px;"><strong>Contoh curl Partner BM:</strong></p>'
                         + '<pre style="font-size:10px;white-space:pre-wrap;max-height:180px;overflow:auto;background:#1e1e1e;color:#eee;padding:8px;border-radius:4px;">'
                         + escHtml(curlExample) + '</pre>'
-                        + '<p style="margin-top:8px;"><a href="/management/admin/facebook_partner_api" target="_blank" rel="noopener">Buka panduan lengkap Partner BM API →</a></p>'
+                        + '<p style="margin-top:8px;color:#856404;"><strong>Langkah selanjutnya (wajib Partner BM):</strong></p>'
+                        + '<ol style="font-size:11px;padding-left:18px;margin:0;">'
+                        + '<li>Generate token <code>EAAG...</code> di Graph API Explorer (app Berita21, permission ads_read + ads_management)</li>'
+                        + '<li>Jalankan curl di bawah (ganti <code>EAAG...</code> dengan token asli)</li>'
+                        + '<li>Di HRIS klik <strong>Cek Semua</strong> — harus <strong>Valid</strong></li>'
+                        + '</ol>'
+                        + '<p style="margin-top:8px;font-size:11px;color:#dc3545;">Webhook terkirim ≠ token sudah OK. Status &quot;Izin ads kurang&quot; akan hilang setelah partner POST token EAAG yang benar.</p>'
+                        + '<p style="margin-top:8px;"><a href="/management/admin/facebook_partner_api" target="_blank" rel="noopener">Panduan lengkap Partner BM API →</a></p>'
                         + '</div>',
                     width: 780,
                     customClass: { htmlContainer: 'text-left' }

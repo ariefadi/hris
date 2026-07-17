@@ -6604,8 +6604,9 @@ def _facebook_token_status_payload(access_token, app_id, app_secret, account_id=
                         label = 'Izin ads kurang'
                         ads_message = (
                             f'{probe_err} '
-                            'Authorize Ulang harus dilakukan oleh pemilik ad account (mis. Igun Wiguna) '
-                            'menggunakan akun Facebook miliknya — bukan admin HRIS tanpa akses di Business Manager.'
+                            'Token Facebook yang dipakai belum punya izin ads ke ad account ini. '
+                            'Partner BM harus generate token EAAG... dari akun yang punya akses ke ad account tersebut, '
+                            'lalu POST via API submit-token (bukan paste request_token HRIS).'
                         )
                         is_valid = False
 
@@ -6991,6 +6992,12 @@ class FacebookPartnerTokenRequestView(View):
                 **req_info,
                 'webhook': webhook,
                 'partner_api_key_configured': bool(partner_cfg.get('api_key')),
+                'next_steps': [
+                    'Webhook terkirim hanya memberitahu partner — token belum otomatis valid.',
+                    'Partner generate Access Token Facebook (EAAG...) di Graph API Explorer untuk ad account ini.',
+                    'Partner POST ke submit_url dengan request_token + access_token (EAAG...).',
+                    'Setelah sukses, klik Cek Semua — status harus Valid, bukan Izin ads kurang.',
+                ],
             },
         })
 
