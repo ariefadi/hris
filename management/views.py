@@ -6297,6 +6297,90 @@ def _facebook_partner_settings():
             getattr(settings, 'FACEBOOK_PARTNER_WEBHOOK_SECRET', None)
             or os.getenv('FACEBOOK_PARTNER_WEBHOOK_SECRET', '')
         ).strip(),
+        'fb_access_token': str(
+            getattr(settings, 'FACEBOOK_PARTNER_FB_ACCESS_TOKEN', None)
+            or os.getenv('FACEBOOK_PARTNER_FB_ACCESS_TOKEN', '')
+        ).strip(),
+    }
+
+
+def _facebook_partner_apply_access_token(row, access_token, submitted_by='partner-bm'):
+    """Simpan access token Facebook ke account ads dan kembalikan status token."""
+    access_token = str(access_token or '').strip()
+    if not access_token:
+        return {'ok': False, 'message': 'access_token wajib diisi.'}
+    if not str(access_token).startswith('EAA'):
+        return {
+            'ok': False,
+            'message': 'access_token harus token Facebook (EAAG...), bukan request_token HRIS.',
+        }
+    if not row:
+        return {'ok': False, 'message': 'Account tidak ditemukan.'}
+
+    rs_update = data_mysql().update_account_ads_access_token(
+        row.get('account_ads_id'),
+        access_token,
+        submitted_by,
+        submitted_by,
+    )
+    hasil = (rs_update or {}).get('hasil') or {}
+    if not hasil.get('status'):
+        return {
+            'ok': False,
+            'message': hasil.get('message') or 'Gagal menyimpan access token.',
+        }
+
+    token_info = _facebook_token_status_payload(
+        access_token,
+        row.get('app_id'),
+        row.get('app_secret'),
+        row.get('account_id'),
+    )
+    return {
+        'ok': True,
+        'message': 'Access token berhasil disimpan di HRIS.',
+        'account_id': row.get('account_id'),
+        'account_name': row.get('account_name'),
+        'token_info': token_info,
+        'token_status': token_info.get('status'),
+        'token_label': token_info.get('label'),
+        'token_message': token_info.get('message'),
+        'scopes': token_info.get('scopes') or [],
+    }
+
+
+def _facebook_partner_auto_submit_token(req_info, row):
+    """Auto-submit token dari FACEBOOK_PARTNER_FB_ACCESS_TOKEN saat ikon pesawat diklik."""
+    token = (_facebook_partner_settings().get('fb_access_token') or '').strip()
+    if not token:
+        return {
+            'attempted': False,
+            'saved': False,
+            'message': (
+                'Set FACEBOOK_PARTNER_FB_ACCESS_TOKEN di .env agar token otomatis tersimpan '
+                'saat klik ikon pesawat (tanpa curl manual).'
+            ),
+        }
+    result = _facebook_partner_apply_access_token(row, token, 'partner-bm-auto')
+    if not result.get('ok'):
+        return {
+            'attempted': True,
+            'saved': False,
+            'message': result.get('message') or 'Gagal menyimpan token otomatis.',
+        }
+    token_info = result.get('token_info') or {}
+    is_valid = token_info.get('status') == 'valid'
+    return {
+        'attempted': True,
+        'saved': True,
+        'is_valid': is_valid,
+        'message': result.get('message'),
+        'account_id': result.get('account_id'),
+        'account_name': result.get('account_name'),
+        'token_status': result.get('token_status'),
+        'token_label': result.get('token_label'),
+        'token_message': result.get('token_message'),
+        'scopes': result.get('scopes') or [],
     }
 
 
@@ -6984,20 +7068,24 @@ class FacebookPartnerTokenRequestView(View):
         except ValueError as e:
             return JsonResponse({'status': False, 'message': str(e)}, status=400)
         webhook = _facebook_partner_notify_webhook(req_info, row)
+        auto_submit = _facebook_partner_auto_submit_token(req_info, row)
         partner_cfg = _facebook_partner_settings()
+        if auto_submit.get('saved') and auto_submit.get('is_valid'):
+            msg = 'Token partner otomatis disimpan dan valid.'
+        elif auto_submit.get('saved'):
+            msg = 'Token partner otomatis disimpan, tetapi status token masih bermasalah.'
+        else:
+            msg = 'Permintaan token partner dibuat.'
         return JsonResponse({
             'status': True,
-            'message': 'Permintaan token partner dibuat.',
+            'message': msg,
             'data': {
                 **req_info,
+                'account_ads_id': account_ads_id,
                 'webhook': webhook,
+                'auto_submit': auto_submit,
                 'partner_api_key_configured': bool(partner_cfg.get('api_key')),
-                'next_steps': [
-                    'Webhook terkirim hanya memberitahu partner — token belum otomatis valid.',
-                    'Partner generate Access Token Facebook (EAAG...) di Graph API Explorer untuk ad account ini.',
-                    'Partner POST ke submit_url dengan request_token + access_token (EAAG...).',
-                    'Setelah sukses, klik Cek Semua — status harus Valid, bukan Izin ads kurang.',
-                ],
+                'partner_auto_token_configured': bool(partner_cfg.get('fb_access_token')),
             },
         })
 
@@ -7048,34 +7136,20 @@ class FacebookPartnerSubmitTokenApiView(View):
         if not row:
             return JsonResponse({'status': False, 'message': 'Account tidak ditemukan.'}, status=404)
 
-        rs_update = data_mysql().update_account_ads_access_token(
-            row.get('account_ads_id'),
-            access_token,
-            submitted_by,
-            submitted_by,
-        )
-        hasil = (rs_update or {}).get('hasil') or {}
-        if not hasil.get('status'):
-            return JsonResponse({
-                'status': False,
-                'message': hasil.get('message') or 'Gagal menyimpan access token.',
-            }, status=500)
+        result = _facebook_partner_apply_access_token(row, access_token, submitted_by)
+        if not result.get('ok'):
+            status_code = 500 if 'Gagal menyimpan' in str(result.get('message') or '') else 400
+            return JsonResponse({'status': False, 'message': result.get('message')}, status=status_code)
 
-        token_info = _facebook_token_status_payload(
-            access_token,
-            row.get('app_id'),
-            row.get('app_secret'),
-            row.get('account_id'),
-        )
         return JsonResponse({
             'status': True,
-            'message': 'Access token berhasil disimpan di HRIS.',
-            'account_id': row.get('account_id'),
-            'account_name': row.get('account_name'),
-            'token_status': token_info.get('status'),
-            'token_label': token_info.get('label'),
-            'token_message': token_info.get('message'),
-            'scopes': token_info.get('scopes') or [],
+            'message': result.get('message'),
+            'account_id': result.get('account_id'),
+            'account_name': result.get('account_name'),
+            'token_status': result.get('token_status'),
+            'token_label': result.get('token_label'),
+            'token_message': result.get('token_message'),
+            'scopes': result.get('scopes') or [],
         })
 
 
@@ -7099,6 +7173,7 @@ class FacebookPartnerApiDocsView(View):
             'partner_webhook_secret_hint': webhook_secret if webhook_secret else '(opsional)',
             'partner_api_configured': bool(api_key),
             'partner_webhook_configured': bool(partner_cfg.get('webhook_url')),
+            'partner_auto_token_configured': bool(partner_cfg.get('fb_access_token')),
         }
         return render(req, 'admin/facebook_ads/partner_api.html', context)
 
@@ -7119,6 +7194,7 @@ class AccountFacebookAds(View):
             'fb_partner_submit_url': base + '/management/api/facebook/partner/submit-token',
             'fb_partner_api_configured': bool(partner_cfg.get('api_key')),
             'fb_partner_webhook_configured': bool(partner_cfg.get('webhook_url')),
+            'fb_partner_auto_token_configured': bool(partner_cfg.get('fb_access_token')),
         }
         return render(req, 'admin/facebook_ads/account/index.html', data)
     

@@ -561,32 +561,73 @@ function requestFacebookPartnerToken(accountAdsId, accountName) {
                     return;
                 }
                 var d = resp.data;
+                var auto = d.auto_submit || {};
+                var rowAccountAdsId = d.account_ads_id || accountAdsId;
+
+                if (auto.saved) {
+                    updateTokenCell(rowAccountAdsId, {
+                        status: auto.token_status || 'unknown',
+                        label: auto.token_label || 'Selesai',
+                        message: auto.token_message || '',
+                        can_reauthorize: true,
+                        scopes: auto.scopes || []
+                    });
+                }
+
+                if (auto.saved && auto.is_valid) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Token Otomatis Tersimpan',
+                        html: '<div style="font-size:13px;text-align:left;">'
+                            + '<p>Token Facebook dari <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN</code> sudah disimpan otomatis.</p>'
+                            + '<p><strong>Status:</strong> ' + escHtml(auto.token_label || 'Valid') + '</p>'
+                            + '<p style="margin:0;">Account: <strong>' + escHtml(d.account_name || accountLabel) + '</strong></p>'
+                            + '</div>',
+                        width: 560
+                    });
+                    return;
+                }
+
+                if (auto.saved && !auto.is_valid) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Token Tersimpan — Masih Bermasalah',
+                        html: '<div style="font-size:12px;text-align:left;">'
+                            + '<p>Token otomatis sudah masuk HRIS, tapi Meta masih menolak untuk ad account ini.</p>'
+                            + '<p><strong>Status:</strong> ' + escHtml(auto.token_label || 'Error') + '</p>'
+                            + '<p style="font-size:11px;">' + escHtml(auto.token_message || '') + '</p>'
+                            + '<p style="margin-top:8px;">Ganti <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN</code> di <code>.env</code> dengan token <code>EAAG...</code> dari akun Facebook yang punya akses ke ad account ini, lalu klik ikon pesawat lagi.</p>'
+                            + '</div>',
+                        width: 680,
+                        customClass: { htmlContainer: 'text-left' }
+                    });
+                    return;
+                }
+
                 var webhookMsg = (d.webhook && d.webhook.message) ? d.webhook.message : 'Webhook tidak dikirim.';
+                var autoHint = auto.attempted
+                    ? escHtml(auto.message || '')
+                    : 'Untuk otomatis tanpa curl: set <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN=EAAG...</code> di <code>.env</code> server HRIS, restart gunicorn, lalu klik ikon pesawat lagi.';
                 var curlExample = 'curl -X POST "' + escHtml(d.submit_url) + '" \\\n'
                     + '  -H "Content-Type: application/json" \\\n'
                     + '  -H "X-API-Key: YOUR_PARTNER_API_KEY" \\\n'
                     + '  -d \'{"request_token":"' + escHtml(d.request_token) + '","access_token":"EAAG...","submitted_by":"partner-bm"}\'';
                 Swal.fire({
-                    icon: 'success',
+                    icon: auto.attempted ? 'warning' : 'success',
                     title: 'Permintaan Partner Dibuat (Opsi 1)',
                     html: '<div style="font-size:12px;text-align:left;">'
                         + '<p><strong>Webhook:</strong> ' + escHtml(webhookMsg) + '</p>'
+                        + '<div class="alert alert-info py-2 px-2" style="font-size:11px;">'
+                        + '<strong>Opsi otomatis (disarankan):</strong> ' + autoHint + '</div>'
                         + '<div class="alert alert-warning py-2 px-2" style="font-size:11px;">'
-                        + '<strong>Untuk Partner BM:</strong> generate token Facebook <code>EAAG...</code> di Graph API Explorer, '
-                        + 'lalu POST ke Submit URL di bawah. <strong>Jangan</strong> kirim request_token ke kolom Access Token manual.</div>'
+                        + '<strong>Opsi manual:</strong> generate token Facebook <code>EAAG...</code> di Graph API Explorer, '
+                        + 'lalu POST ke Submit URL di bawah.</div>'
                         + '<p><strong>Submit URL (Partner → HRIS):</strong><br><code style="word-break:break-all;">' + escHtml(d.submit_url) + '</code></p>'
                         + '<p><strong>request_token</strong> (untuk body API, bukan Access Token):</p>'
                         + '<textarea readonly class="form-control" rows="2" style="font-size:11px;">' + escHtml(d.request_token) + '</textarea>'
                         + '<p style="margin-top:10px;"><strong>Contoh curl Partner BM:</strong></p>'
                         + '<pre style="font-size:10px;white-space:pre-wrap;max-height:180px;overflow:auto;background:#1e1e1e;color:#eee;padding:8px;border-radius:4px;">'
                         + escHtml(curlExample) + '</pre>'
-                        + '<p style="margin-top:8px;color:#856404;"><strong>Langkah selanjutnya (wajib Partner BM):</strong></p>'
-                        + '<ol style="font-size:11px;padding-left:18px;margin:0;">'
-                        + '<li>Generate token <code>EAAG...</code> di Graph API Explorer (app Berita21, permission ads_read + ads_management)</li>'
-                        + '<li>Jalankan curl di bawah (ganti <code>EAAG...</code> dengan token asli)</li>'
-                        + '<li>Di HRIS klik <strong>Cek Semua</strong> — harus <strong>Valid</strong></li>'
-                        + '</ol>'
-                        + '<p style="margin-top:8px;font-size:11px;color:#dc3545;">Webhook terkirim ≠ token sudah OK. Status &quot;Izin ads kurang&quot; akan hilang setelah partner POST token EAAG yang benar.</p>'
                         + '<p style="margin-top:8px;"><a href="/management/admin/facebook_partner_api" target="_blank" rel="noopener">Panduan lengkap Partner BM API →</a></p>'
                         + '</div>',
                     width: 780,

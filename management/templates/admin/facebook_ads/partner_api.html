@@ -17,10 +17,19 @@
             <div class="card-body">
                 <ol class="mb-4">
                     <li>Admin HRIS klik ikon <strong>pesawat</strong> di halaman Account Facebook Ads.</li>
-                    <li>HRIS kirim <strong>webhook</strong> ke server Partner BM.</li>
-                    <li>Partner generate <strong>Facebook Access Token</strong> (<code>EAAG...</code>) di Graph API Explorer.</li>
-                    <li>Partner service POST token balik ke HRIS → token tersimpan otomatis.</li>
+                    <li>Jika <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN</code> sudah diset di <code>.env</code>, HRIS <strong>langsung simpan token otomatis</strong> (tanpa curl manual).</li>
+                    <li>Opsional: HRIS kirim <strong>webhook</strong> ke server Partner BM eksternal.</li>
+                    <li>Alternatif manual: Partner POST token <code>EAAG...</code> ke endpoint submit di bawah.</li>
                 </ol>
+
+                <div class="alert alert-success">
+                    <strong>Opsi termudah (server HRIS = partner):</strong> set token Facebook di <code>.env</code>, restart gunicorn, klik ikon pesawat.
+                    {% if partner_auto_token_configured %}
+                    <span class="badge badge-light ml-1">Auto-submit: aktif</span>
+                    {% else %}
+                    <span class="badge badge-warning ml-1">Auto-submit: belum diset</span>
+                    {% endif %}
+                </div>
 
                 <div class="alert alert-warning">
                     <strong>Jangan</strong> paste <em>request_token</em> HRIS ke kolom Access Token di Edit Account.
@@ -28,9 +37,11 @@
                 </div>
 
                 <h5>1. Konfigurasi HRIS (<code>.env</code>)</h5>
-                <pre class="bg-dark text-light p-3 rounded"><code>FACEBOOK_PARTNER_API_KEY={{ partner_api_key_hint }}
+                <pre class="bg-dark text-light p-3 rounded"><code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN=EAAG...   # wajib untuk auto-submit saat klik pesawat
+FACEBOOK_PARTNER_API_KEY={{ partner_api_key_hint }}
 FACEBOOK_PARTNER_WEBHOOK_URL={{ partner_webhook_url_hint }}
 FACEBOOK_PARTNER_WEBHOOK_SECRET={{ partner_webhook_secret_hint }}</code></pre>
+                <p class="text-muted small">Setelah edit <code>.env</code>: <code>sudo systemctl restart hris-gunicorn</code></p>
 
                 <h5 class="mt-4">2. Webhook HRIS → Partner BM</h5>
                 <p>HRIS POST ke <code>FACEBOOK_PARTNER_WEBHOOK_URL</code> dengan body:</p>
