@@ -575,11 +575,14 @@ function requestFacebookPartnerToken(accountAdsId, accountName) {
                 }
 
                 if (auto.saved && auto.is_valid) {
+                    var srcLabel = auto.token_source === 'account'
+                        ? 'Access Token di <strong>Edit Account</strong>'
+                        : '<code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN</code> (.env)';
                     Swal.fire({
                         icon: 'success',
-                        title: 'Token Otomatis Tersimpan',
+                        title: auto.verified_only ? 'Token Valid (Edit Account)' : 'Token Otomatis Tersimpan',
                         html: '<div style="font-size:13px;text-align:left;">'
-                            + '<p>Token Facebook dari <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN</code> sudah disimpan otomatis.</p>'
+                            + '<p>Token dari ' + srcLabel + ' sudah OK untuk ad account ini.</p>'
                             + '<p><strong>Status:</strong> ' + escHtml(auto.token_label || 'Valid') + '</p>'
                             + '<p style="margin:0;">Account: <strong>' + escHtml(d.account_name || accountLabel) + '</strong></p>'
                             + '</div>',
@@ -589,14 +592,20 @@ function requestFacebookPartnerToken(accountAdsId, accountName) {
                 }
 
                 if (auto.saved && !auto.is_valid) {
+                    var fixHint = auto.token_source === 'account'
+                        ? 'Perbarui <strong>Access Token</strong> di halaman <strong>Edit Account</strong> dengan token <code>EAAG...</code> dari akun Facebook yang punya akses ke ad account ini, lalu klik ikon pesawat lagi.'
+                        : 'Ganti <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN</code> di <code>.env</code>, atau isi token langsung di <strong>Edit Account</strong>.';
                     Swal.fire({
                         icon: 'warning',
-                        title: 'Token Tersimpan — Masih Bermasalah',
+                        title: auto.verified_only ? 'Token Edit Account — Masih Bermasalah' : 'Token Tersimpan — Masih Bermasalah',
                         html: '<div style="font-size:12px;text-align:left;">'
-                            + '<p>Token otomatis sudah masuk HRIS, tapi Meta masih menolak untuk ad account ini.</p>'
+                            + '<p>' + (auto.verified_only
+                                ? 'Token di Edit Account sudah ada, tapi Meta masih menolak untuk ad account ini.'
+                                : 'Token otomatis sudah masuk HRIS, tapi Meta masih menolak untuk ad account ini.') + '</p>'
+                            + '<p><strong>Sumber:</strong> ' + escHtml(auto.token_source === 'account' ? 'Edit Account' : '.env partner') + '</p>'
                             + '<p><strong>Status:</strong> ' + escHtml(auto.token_label || 'Error') + '</p>'
                             + '<p style="font-size:11px;">' + escHtml(auto.token_message || '') + '</p>'
-                            + '<p style="margin-top:8px;">Ganti <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN</code> di <code>.env</code> dengan token <code>EAAG...</code> dari akun Facebook yang punya akses ke ad account ini, lalu klik ikon pesawat lagi.</p>'
+                            + '<p style="margin-top:8px;">' + fixHint + '</p>'
                             + '</div>',
                         width: 680,
                         customClass: { htmlContainer: 'text-left' }
@@ -607,7 +616,8 @@ function requestFacebookPartnerToken(accountAdsId, accountName) {
                 var webhookMsg = (d.webhook && d.webhook.message) ? d.webhook.message : 'Webhook tidak dikirim.';
                 var autoHint = auto.attempted
                     ? escHtml(auto.message || '')
-                    : 'Untuk otomatis tanpa curl: set <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN=EAAG...</code> di <code>.env</code> server HRIS, restart gunicorn, lalu klik ikon pesawat lagi.';
+                    : 'Isi <code>Access Token (EAAG...)</code> di <strong>Edit Account</strong> — ikon pesawat akan cek otomatis. '
+                        + 'Opsional fallback: <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN</code> di <code>.env</code>.';
                 var curlExample = 'curl -X POST "' + escHtml(d.submit_url) + '" \\\n'
                     + '  -H "Content-Type: application/json" \\\n'
                     + '  -H "X-API-Key: YOUR_PARTNER_API_KEY" \\\n'

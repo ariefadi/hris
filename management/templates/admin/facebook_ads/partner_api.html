@@ -16,18 +16,16 @@
             </div>
             <div class="card-body">
                 <ol class="mb-4">
-                    <li>Admin HRIS klik ikon <strong>pesawat</strong> di halaman Account Facebook Ads.</li>
-                    <li>Jika <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN</code> sudah diset di <code>.env</code>, HRIS <strong>langsung simpan token otomatis</strong> (tanpa curl manual).</li>
-                    <li>Opsional: HRIS kirim <strong>webhook</strong> ke server Partner BM eksternal.</li>
-                    <li>Alternatif manual: Partner POST token <code>EAAG...</code> ke endpoint submit di bawah.</li>
+                    <li>Admin isi <strong>Access Token (EAAG...)</strong> di halaman <strong>Edit Account</strong> (sumber utama per account).</li>
+                    <li>Klik ikon <strong>pesawat</strong> → HRIS cek otomatis token dari Edit Account.</li>
+                    <li>Opsional fallback partner BM: set <code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN</code> di <code>.env</code> jika Edit Account kosong.</li>
+                    <li>Opsional: webhook ke server Partner BM eksternal untuk kirim token via API.</li>
                 </ol>
 
                 <div class="alert alert-success">
-                    <strong>Opsi termudah (server HRIS = partner):</strong> set token Facebook di <code>.env</code>, restart gunicorn, klik ikon pesawat.
+                    <strong>Opsi termudah:</strong> paste token <code>EAAG...</code> di <strong>Edit Account</strong>, lalu klik ikon pesawat untuk verifikasi.
                     {% if partner_auto_token_configured %}
-                    <span class="badge badge-light ml-1">Auto-submit: aktif</span>
-                    {% else %}
-                    <span class="badge badge-warning ml-1">Auto-submit: belum diset</span>
+                    <span class="badge badge-light ml-1">Fallback .env: aktif</span>
                     {% endif %}
                 </div>
 
@@ -36,8 +34,10 @@
                     Kolom itu hanya untuk token Facebook (<code>EAAG...</code>).
                 </div>
 
-                <h5>1. Konfigurasi HRIS (<code>.env</code>)</h5>
-                <pre class="bg-dark text-light p-3 rounded"><code>FACEBOOK_PARTNER_FB_ACCESS_TOKEN=EAAG...   # wajib untuk auto-submit saat klik pesawat
+                <h5>1. Konfigurasi HRIS (<code>.env</code>) — opsional</h5>
+                <p class="text-muted small">Token utama per account: isi di <strong>Edit Account</strong>. Baris di bawah hanya fallback jika Edit Account kosong.</p>
+                <pre class="bg-dark text-light p-3 rounded"><code># Opsional — fallback partner BM (jika Edit Account kosong)
+FACEBOOK_PARTNER_FB_ACCESS_TOKEN=EAAG...
 FACEBOOK_PARTNER_API_KEY={{ partner_api_key_hint }}
 FACEBOOK_PARTNER_WEBHOOK_URL={{ partner_webhook_url_hint }}
 FACEBOOK_PARTNER_WEBHOOK_SECRET={{ partner_webhook_secret_hint }}</code></pre>

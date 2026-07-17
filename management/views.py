@@ -6349,32 +6349,76 @@ def _facebook_partner_apply_access_token(row, access_token, submitted_by='partne
     }
 
 
+def _facebook_partner_resolve_auto_token(row):
+    """Prioritas: Access Token di Edit Account → fallback .env partner."""
+    account_token = str((row or {}).get('access_token') or '').strip()
+    env_token = (_facebook_partner_settings().get('fb_access_token') or '').strip()
+    if account_token.startswith('EAA'):
+        return account_token, 'account'
+    if env_token.startswith('EAA'):
+        return env_token, 'env'
+    return '', ''
+
+
 def _facebook_partner_auto_submit_token(req_info, row):
-    """Auto-submit token dari FACEBOOK_PARTNER_FB_ACCESS_TOKEN saat ikon pesawat diklik."""
-    token = (_facebook_partner_settings().get('fb_access_token') or '').strip()
+    """Auto cek/simpan token saat ikon pesawat diklik."""
+    token, source = _facebook_partner_resolve_auto_token(row)
     if not token:
         return {
             'attempted': False,
             'saved': False,
             'message': (
-                'Set FACEBOOK_PARTNER_FB_ACCESS_TOKEN di .env agar token otomatis tersimpan '
-                'saat klik ikon pesawat (tanpa curl manual).'
+                'Isi Access Token Facebook (EAAG...) di halaman Edit Account, '
+                'atau set FACEBOOK_PARTNER_FB_ACCESS_TOKEN di .env (fallback partner BM).'
             ),
         }
+
+    if source == 'account':
+        token_info = _facebook_token_status_payload(
+            token,
+            row.get('app_id'),
+            row.get('app_secret'),
+            row.get('account_id'),
+        )
+        is_valid = token_info.get('status') == 'valid'
+        label = token_info.get('label') or ('Valid' if is_valid else 'Error')
+        msg = (
+            'Token dari Edit Account dicek ulang.'
+            if is_valid
+            else (token_info.get('message') or 'Token dari Edit Account masih bermasalah.')
+        )
+        return {
+            'attempted': True,
+            'saved': True,
+            'verified_only': True,
+            'token_source': 'account',
+            'is_valid': is_valid,
+            'message': msg,
+            'account_id': row.get('account_id'),
+            'account_name': row.get('account_name'),
+            'token_status': token_info.get('status'),
+            'token_label': label,
+            'token_message': token_info.get('message'),
+            'scopes': token_info.get('scopes') or [],
+        }
+
     result = _facebook_partner_apply_access_token(row, token, 'partner-bm-auto')
     if not result.get('ok'):
         return {
             'attempted': True,
             'saved': False,
-            'message': result.get('message') or 'Gagal menyimpan token otomatis.',
+            'token_source': 'env',
+            'message': result.get('message') or 'Gagal menyimpan token otomatis dari .env.',
         }
     token_info = result.get('token_info') or {}
     is_valid = token_info.get('status') == 'valid'
     return {
         'attempted': True,
         'saved': True,
+        'verified_only': False,
+        'token_source': 'env',
         'is_valid': is_valid,
-        'message': result.get('message'),
+        'message': 'Token dari .env (FACEBOOK_PARTNER_FB_ACCESS_TOKEN) disimpan ke account.',
         'account_id': result.get('account_id'),
         'account_name': result.get('account_name'),
         'token_status': result.get('token_status'),
