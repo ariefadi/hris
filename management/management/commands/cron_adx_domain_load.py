@@ -1,7 +1,7 @@
 # Top-level imports and helper
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from management.database import data_mysql
 from management.utils import fetch_adx_traffic_account_by_user
 from management.utils import fetch_user_adx_account_data
@@ -31,36 +31,27 @@ def convert_to_idr(amount, currency_code):
         return float(amount or 0.0)
 
 class Command(BaseCommand):
-    help = "Tarik dan simpan data Ad Manager (AdX) per tanggal & domain ke tabel data_adx_domain. Default: hari ini + refresh H-1."
+    help = "Tarik dan simpan data Ad Manager (AdX) per tanggal & domain ke tabel data_adx_domain, default hari ini. Kredensial diambil dari app_credentials."
     def add_arguments(self, parser):
         parser.add_argument(
             '--tanggal',
             type=str,
             default='%',
-            help='Tanggal tunggal (YYYY-MM-DD). Jika tidak diisi, ambil H-1 s/d hari ini.'
+            help='Tanggal tunggal (YYYY-MM-DD) atau kosong untuk default hari ini.',
         )
     def handle(self, *args, **kwargs):
-        tanggal_arg = (kwargs.get('tanggal') or '%').strip()
+        tanggal = kwargs.get('tanggal')
 
-        today_dt = datetime.now().date()
-        yesterday_dt = today_dt - timedelta(days=1)
-        start_date = yesterday_dt.strftime('%Y-%m-%d')
-        end_date = today_dt.strftime('%Y-%m-%d')
-
-        if tanggal_arg and tanggal_arg != '%':
-            try:
-                tanggal_dt = datetime.strptime(tanggal_arg, '%Y-%m-%d').date()
-            except ValueError:
-                self.stdout.write(self.style.ERROR(
-                    f"Format --tanggal tidak valid: {tanggal_arg}. Gunakan YYYY-MM-DD."
-                ))
-                return
-            start_date = tanggal_dt.strftime('%Y-%m-%d')
-            end_date = tanggal_dt.strftime('%Y-%m-%d')
+        if tanggal and tanggal != '%':
+            start_date = tanggal
+            end_date = tanggal
+        else:
+            today_dt = datetime.now().date()
+            start_date = today_dt.strftime('%Y-%m-%d')
+            end_date = today_dt.strftime('%Y-%m-%d')
 
         self.stdout.write(self.style.WARNING(
-            f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date}. "
-            f"(Default: H-1 + hari ini, override pakai --tanggal)"
+            f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date}."
         ))
         db = data_mysql()
         # Ambil semua kredensial dari app_credentials
