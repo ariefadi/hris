@@ -2832,6 +2832,116 @@ class data_mysql:
                 'status': False,
                 'error': f'Database error: {str(e)}'
             }
+
+    def _normalize_subdomain_key(self, raw_value):
+        s = str(raw_value or '').strip().lower()
+        if not s:
+            return ''
+        parts = [p for p in s.split('.') if p]
+        if len(parts) >= 2:
+            return parts[0] + '.' + parts[1]
+        return s
+
+    def get_subdomain_platform_summary_for_accounts(self, account_ids=None):
+        """
+        Ringkas subdomain per account_id dari data_adx_domain / data_adsense_domain.
+        Return: {account_id: [{subdomain, platform_code, platform_label}, ...]}
+        """
+        account_ids = [str(a).strip() for a in (account_ids or []) if str(a or '').strip()]
+        id_clause = ''
+        params = ()
+        if account_ids:
+            placeholders = ','.join(['%s'] * len(account_ids))
+            id_clause = f' AND account_id IN ({placeholders})'
+            params = tuple(account_ids)
+
+        by_account = {}
+
+        def _touch(account_id, raw_domain, source):
+            aid = str(account_id or '').strip()
+            key = self._normalize_subdomain_key(raw_domain)
+            if not aid or not key:
+                return
+            bucket = by_account.setdefault(aid, {})
+            row = bucket.setdefault(key, {
+                'subdomain': key,
+                'has_adx': False,
+                'has_adsense': False,
+            })
+            if source == 'adx':
+                row['has_adx'] = True
+            else:
+                row['has_adsense'] = True
+
+        try:
+            sql_adx = f"""
+                SELECT account_id, data_adx_domain AS raw_domain
+                FROM data_adx_domain
+                WHERE account_id IS NOT NULL
+                  AND TRIM(COALESCE(data_adx_domain, '')) <> ''
+                  {id_clause}
+                GROUP BY account_id, data_adx_domain
+            """
+            if not self.execute_query(sql_adx, params if params else None):
+                raise pymysql.Error('Failed to fetch adx subdomains')
+            for row in (self.cur_hris.fetchall() or []):
+                try:
+                    account_id = row.get('account_id')
+                    raw_domain = row.get('raw_domain')
+                except AttributeError:
+                    account_id, raw_domain = row[0], row[1]
+                _touch(account_id, raw_domain, 'adx')
+
+            sql_adsense = f"""
+                SELECT account_id, data_adsense_domain AS raw_domain
+                FROM data_adsense_domain
+                WHERE account_id IS NOT NULL
+                  AND TRIM(COALESCE(data_adsense_domain, '')) <> ''
+                  {id_clause}
+                GROUP BY account_id, data_adsense_domain
+            """
+            if not self.execute_query(sql_adsense, params if params else None):
+                raise pymysql.Error('Failed to fetch adsense subdomains')
+            for row in (self.cur_hris.fetchall() or []):
+                try:
+                    account_id = row.get('account_id')
+                    raw_domain = row.get('raw_domain')
+                except AttributeError:
+                    account_id, raw_domain = row[0], row[1]
+                _touch(account_id, raw_domain, 'adsense')
+
+            data = {}
+            for aid, domains in by_account.items():
+                items = []
+                for key in sorted(domains.keys()):
+                    item = domains[key]
+                    has_adx = bool(item.get('has_adx'))
+                    has_adsense = bool(item.get('has_adsense'))
+                    if has_adx and has_adsense:
+                        platform_code = 'both'
+                        platform_label = 'AdX dan AdSense'
+                    elif has_adx:
+                        platform_code = 'adx'
+                        platform_label = 'AdX'
+                    elif has_adsense:
+                        platform_code = 'adsense'
+                        platform_label = 'AdSense'
+                    else:
+                        continue
+                    items.append({
+                        'subdomain': key,
+                        'platform_code': platform_code,
+                        'platform_label': platform_label,
+                    })
+                data[aid] = items
+
+            return {'status': True, 'data': data}
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'error': f'Database error: {str(e)}',
+                'data': {},
+            }
     
     def get_all_app_credentials_user(self, user_id):
         """

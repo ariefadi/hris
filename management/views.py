@@ -11268,6 +11268,27 @@ class CacheStatsView(View):
             'data': stats
         })
 
+def _enrich_adx_credentials_subdomains(credentials_data):
+    rows = list(credentials_data or [])
+    if not rows:
+        return rows
+    account_ids = [str(row.get('account_id') or '').strip() for row in rows if row.get('account_id')]
+    summary_rs = data_mysql().get_subdomain_platform_summary_for_accounts(account_ids)
+    summary_map = (summary_rs or {}).get('data') or {} if (summary_rs or {}).get('status') else {}
+    for row in rows:
+        aid = str(row.get('account_id') or '').strip()
+        platforms = summary_map.get(aid) or summary_map.get(row.get('account_id')) or []
+        row['subdomain_platforms'] = platforms
+        counts = {'adx': 0, 'adsense': 0, 'both': 0}
+        for item in platforms:
+            code = str((item or {}).get('platform_code') or '').strip()
+            if code in counts:
+                counts[code] += 1
+        row['subdomain_counts'] = counts
+        row['subdomain_total'] = len(platforms)
+    return rows
+
+
 class AdxAccountView(View):
     """View untuk AdX Account Data"""
     def dispatch(self, request, *args, **kwargs):
@@ -11310,7 +11331,7 @@ class AdxAccountView(View):
                 'error': data_account_adx['data']
             })
         if result.get('status'):
-            credentials_data = result.get('data', [])
+            credentials_data = _enrich_adx_credentials_subdomains(result.get('data', []))
         else:
             credentials_data = []
         rs_users = data_mysql().data_user_by_params()

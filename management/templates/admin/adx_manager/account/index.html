@@ -219,6 +219,64 @@ html[data-theme="dark"] .adx-share-badge { color: #a5b4fc; }
     border-top: 1px solid var(--adx-border);
     font-size: 0.82rem; color: var(--adx-muted);
 }
+/* Kolom sementara disembunyikan — hapus class adx-col-hidden untuk tampilkan lagi */
+.adx-cred-table .adx-col-hidden { display: none !important; }
+.adx-subdomain-cell { min-width: 200px; max-width: 280px; white-space: normal; text-align: left !important; }
+.adx-subdomain-accordion {
+    border: 1px solid var(--adx-border); border-radius: 10px;
+    background: var(--adx-surface-2); overflow: hidden;
+}
+.adx-subdomain-accordion > summary {
+    list-style: none; cursor: pointer; padding: 8px 10px;
+    display: flex; flex-direction: column; gap: 6px;
+    user-select: none;
+}
+.adx-subdomain-accordion > summary::-webkit-details-marker { display: none; }
+.adx-subdomain-accordion > summary::after {
+    content: 'Klik untuk lihat daftar';
+    font-size: 0.65rem; font-weight: 600; color: var(--adx-muted);
+}
+.adx-subdomain-accordion[open] > summary::after { content: 'Klik untuk tutup'; }
+.adx-subdomain-summary-counts {
+    display: flex; flex-wrap: wrap; gap: 4px;
+}
+.adx-subdomain-count-chip {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 0.68rem; font-weight: 800; white-space: nowrap;
+}
+.adx-subdomain-count-chip.is-adx { background: rgba(59, 130, 246, 0.14); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.25); }
+.adx-subdomain-count-chip.is-adsense { background: rgba(16, 185, 129, 0.14); color: #047857; border: 1px solid rgba(16, 185, 129, 0.25); }
+.adx-subdomain-count-chip.is-both { background: rgba(139, 92, 246, 0.14); color: #6d28d9; border: 1px solid rgba(139, 92, 246, 0.25); }
+html[data-theme="dark"] .adx-subdomain-count-chip.is-adx { color: #93c5fd; }
+html[data-theme="dark"] .adx-subdomain-count-chip.is-adsense { color: #6ee7b7; }
+html[data-theme="dark"] .adx-subdomain-count-chip.is-both { color: #c4b5fd; }
+.adx-subdomain-total-label {
+    font-size: 0.72rem; font-weight: 700; color: var(--adx-muted);
+}
+.adx-subdomain-list {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 0 8px 8px; border-top: 1px solid var(--adx-border);
+    max-height: 220px; overflow-y: auto;
+}
+.adx-subdomain-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 6px 8px; border-radius: 8px;
+    background: var(--adx-surface-2); border: 1px solid var(--adx-border);
+}
+.adx-subdomain-name {
+    font-size: 0.78rem; font-weight: 700; color: var(--adx-text);
+    word-break: break-word; line-height: 1.3;
+}
+.adx-platform-badge {
+    flex-shrink: 0; display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 0.68rem; font-weight: 800; white-space: nowrap;
+}
+.adx-platform-badge.is-adx { background: rgba(59, 130, 246, 0.14); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.25); }
+.adx-platform-badge.is-adsense { background: rgba(16, 185, 129, 0.14); color: #047857; border: 1px solid rgba(16, 185, 129, 0.25); }
+.adx-platform-badge.is-both { background: rgba(139, 92, 246, 0.14); color: #6d28d9; border: 1px solid rgba(139, 92, 246, 0.25); }
+html[data-theme="dark"] .adx-platform-badge.is-adx { color: #93c5fd; }
+html[data-theme="dark"] .adx-platform-badge.is-adsense { color: #6ee7b7; }
+html[data-theme="dark"] .adx-platform-badge.is-both { color: #c4b5fd; }
 .adx-cred-empty {
     text-align: center; padding: 40px 24px; color: var(--adx-muted);
     background: var(--adx-surface-2); border-radius: 12px;
@@ -522,8 +580,9 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th>Client ID</th>
                         <th>Network Code</th>
                         <th>Status</th>
-                        <th>Share Profit</th>
-                        <th>Assigned Users</th>
+                        <th>Subdomain / Platform</th>
+                        <th class="adx-col-hidden">Share Profit</th>
+                        <th class="adx-col-hidden">Assigned Users</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -544,8 +603,38 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                 <span class="adx-status-badge inactive">Tidak Aktif</span>
                             {% endif %}
                         </td>
-                        <td class="text-center"><span class="adx-share-badge">{{ credential.mcm_revenue_share|default:"0" }}%</span></td>
-                        <td class="text-center">{{ credential.assigned_users|safe|default:'-' }}</td>
+                        <td class="adx-subdomain-cell">
+                            {% if credential.subdomain_platforms %}
+                            <details class="adx-subdomain-accordion">
+                                <summary class="adx-subdomain-summary">
+                                    <div class="adx-subdomain-summary-counts">
+                                        {% if credential.subdomain_counts.adx %}
+                                        <span class="adx-subdomain-count-chip is-adx">{{ credential.subdomain_counts.adx }} AdX</span>
+                                        {% endif %}
+                                        {% if credential.subdomain_counts.adsense %}
+                                        <span class="adx-subdomain-count-chip is-adsense">{{ credential.subdomain_counts.adsense }} AdSense</span>
+                                        {% endif %}
+                                        {% if credential.subdomain_counts.both %}
+                                        <span class="adx-subdomain-count-chip is-both">{{ credential.subdomain_counts.both }} keduanya</span>
+                                        {% endif %}
+                                    </div>
+                                    <span class="adx-subdomain-total-label">{{ credential.subdomain_total }} subdomain</span>
+                                </summary>
+                                <div class="adx-subdomain-list">
+                                    {% for item in credential.subdomain_platforms %}
+                                    <div class="adx-subdomain-item">
+                                        <span class="adx-subdomain-name">{{ item.subdomain }}</span>
+                                        <span class="adx-platform-badge is-{{ item.platform_code }}">{{ item.platform_label }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center adx-col-hidden"><span class="adx-share-badge">{{ credential.mcm_revenue_share|default:"0" }}%</span></td>
+                        <td class="text-center adx-col-hidden">{{ credential.assigned_users|safe|default:'-' }}</td>
                         <td class="text-center">
                             <div class="adx-action-group">
                                 <button class="btn btn-sm btn-primary load-account-data"
