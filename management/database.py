@@ -12248,6 +12248,217 @@ class data_mysql:
     def _report_account_domain_key_sql(self, column_expr):
         return self._domain_join_sql_key_expr(column_expr)
 
+    def _report_account_normalize_campaign_domain(self, raw_value):
+        """Normalisasi domain dari campaign FB (buang suffix .ADX/.DISP/.display)."""
+        s = self._normalize_domain_full(raw_value)
+        if not s:
+            return ''
+        for suffix in ('.adx', '.disp', '.display'):
+            if s.endswith(suffix):
+                s = s[: -len(suffix)]
+                break
+        return self._normalize_domain_match_key(s)
+
+    def _report_account_fetch_email_cred_ids(self):
+        """Map email app_credentials -> account_id."""
+        sql = """
+            SELECT LOWER(TRIM(ac.user_mail)) AS user_mail, ac.account_id
+            FROM app_credentials ac
+            WHERE COALESCE(ac.is_active, '1') = '1'
+              AND TRIM(COALESCE(ac.user_mail, '')) <> ''
+        """
+        self.cur_hris.execute(sql)
+        out = {}
+        for row in (self.cur_hris.fetchall() or []):
+            email = str(row.get('user_mail') or '').strip().lower()
+            cid = str(row.get('account_id') or '').strip()
+            if email and cid:
+                out.setdefault(email, set()).add(cid)
+        return out
+
+    def _report_account_cred_ids_for_account(self, acct, owner_cred_map, email_cred_map):
+        cred_ids = set()
+        owner_id = str(acct.get('account_owner') or '').strip()
+        if owner_id:
+            cred_ids |= set(owner_cred_map.get(owner_id) or set())
+        email = str(acct.get('account_email') or '').strip().lower()
+        if email:
+            cred_ids |= set(email_cred_map.get(email) or set())
+        return cred_ids
+
+    def _report_account_fuzzy_adx_keys(self, domain_key, adx_map):
+        domain_key = str(domain_key or '').strip()
+        if not domain_key:
+            return set()
+        keys = {domain_key}
+        prefix = domain_key + '.'
+        for candidate in (adx_map or {}).keys():
+            if candidate == domain_key:
+                continue
+            if candidate.startswith(prefix) or domain_key.startswith(candidate + '.'):
+                keys.add(candidate)
+        return keys
+
+    def _report_account_lookup_adx_map_amount(self, domain_key, adx_map, adx_by_cred, cred_ids):
+        domain_key = str(domain_key or '').strip()
+        if not domain_key:
+            return 0.0
+        cred_ids = [str(c).strip() for c in (cred_ids or []) if str(c).strip()]
+        total = 0.0
+        for fk in self._report_account_fuzzy_adx_keys(domain_key, adx_map):
+            if cred_ids:
+                scoped = 0.0
+                for cid in cred_ids:
+                    scoped += float((adx_by_cred.get(cid) or {}).get(fk) or 0)
+                if scoped == 0.0:
+                    scoped = float(adx_map.get(fk) or 0)
+                total += scoped
+            else:
+                total += float(adx_map.get(fk) or 0)
+        return total
+
+    def _report_account_register_domain_revenue(self, global_map, by_cred_map, raw_domain, rev, account_id=None):
+        dk = self._normalize_domain_match_key(raw_domain)
+        full = self._normalize_domain_full(raw_domain)
+        keys = set()
+        if dk:
+            keys.add(dk)
+        if full and full != dk:
+            keys.add(full)
+        if not keys:
+            return
+        rev = float(rev or 0)
+        cid = str(account_id or '').strip()
+        for k in keys:
+            global_map[k] = global_map.get(k, 0.0) + rev
+            if cid:
+                bucket = by_cred_map.setdefault(cid, {})
+                bucket[k] = bucket.get(k, 0.0) + rev
+
+    def _report_account_fetch_adx_revenue_by_account(self, start_date, end_date, account_keys=None):
+        """Sum AdX revenue per FB account via domain join key (selaras invalid report)."""
+        fb_key = self._report_account_fb_key_sql('c.account_ads_id')
+        fb_dom = self._domain_join_sql_key_expr('c.data_ads_domain')
+        adx_dom = self._domain_join_sql_key_expr('d.data_adx_domain')
+        camp_where = (
+            "DATE(c.data_ads_tanggal) BETWEEN %s AND %s"
+            " AND TRIM(COALESCE(c.data_ads_domain, '')) <> ''"
+        )
+        params = [start_date, end_date]
+        if account_keys:
+            keys = [str(k).strip() for k in account_keys if str(k).strip()]
+            if keys:
+                placeholders = ','.join(['%s'] * len(keys))
+                camp_where += f" AND {fb_key} IN ({placeholders})"
+                params.extend(keys)
+        params.extend([start_date, end_date])
+        sql = f"""
+            SELECT camps.account_key,
+                   COALESCE(SUM(adx.adx_rev), 0) AS adx_revenue
+            FROM (
+                SELECT DISTINCT {fb_key} AS account_key, {fb_dom} AS domain_key,
+                       DATE(c.data_ads_tanggal) AS d
+                FROM data_ads_campaign c
+                WHERE {camp_where}
+            ) camps
+            INNER JOIN (
+                SELECT {adx_dom} AS domain_key, DATE(d.data_adx_domain_tanggal) AS d,
+                       COALESCE(SUM(CAST(d.data_adx_domain_revenue AS DECIMAL(18,4))), 0) AS adx_rev
+                FROM data_adx_domain d
+                WHERE DATE(d.data_adx_domain_tanggal) BETWEEN %s AND %s
+                GROUP BY domain_key, d
+            ) adx ON adx.domain_key = camps.domain_key AND adx.d = camps.d
+            GROUP BY camps.account_key
+        """
+        self.cur_hris.execute(sql, tuple(params))
+        out = {}
+        for row in (self.cur_hris.fetchall() or []):
+            k = str(row.get('account_key') or '').strip()
+            if k:
+                out[k] = float(row.get('adx_revenue') or 0)
+        return out
+
+    def _report_account_fetch_adx_revenue_map_for_account(self, start_date, end_date, account_key):
+        fb_key = self._report_account_fb_key_sql('c.account_ads_id')
+        fb_dom = self._domain_join_sql_key_expr('c.data_ads_domain')
+        adx_dom = self._domain_join_sql_key_expr('d.data_adx_domain')
+        sql = f"""
+            SELECT camps.domain_key,
+                   COALESCE(SUM(adx.adx_rev), 0) AS adx_revenue
+            FROM (
+                SELECT DISTINCT {fb_dom} AS domain_key, DATE(c.data_ads_tanggal) AS d
+                FROM data_ads_campaign c
+                WHERE DATE(c.data_ads_tanggal) BETWEEN %s AND %s
+                  AND {fb_key} = %s
+                  AND TRIM(COALESCE(c.data_ads_domain, '')) <> ''
+            ) camps
+            INNER JOIN (
+                SELECT {adx_dom} AS domain_key, DATE(d.data_adx_domain_tanggal) AS d,
+                       COALESCE(SUM(CAST(d.data_adx_domain_revenue AS DECIMAL(18,4))), 0) AS adx_rev
+                FROM data_adx_domain d
+                WHERE DATE(d.data_adx_domain_tanggal) BETWEEN %s AND %s
+                GROUP BY domain_key, d
+            ) adx ON adx.domain_key = camps.domain_key AND adx.d = camps.d
+            GROUP BY camps.domain_key
+        """
+        self.cur_hris.execute(sql, (start_date, end_date, account_key, start_date, end_date))
+        out = {}
+        for row in (self.cur_hris.fetchall() or []):
+            k = str(row.get('domain_key') or '').strip()
+            if k:
+                out[k] = float(row.get('adx_revenue') or 0)
+        return out
+
+    def _report_account_fetch_adx_revenue_daily_for_accounts(self, start_date, end_date, account_keys=None):
+        fb_key = self._report_account_fb_key_sql('c.account_ads_id')
+        fb_dom = self._domain_join_sql_key_expr('c.data_ads_domain')
+        adx_dom = self._domain_join_sql_key_expr('d.data_adx_domain')
+        camp_where = (
+            "DATE(c.data_ads_tanggal) BETWEEN %s AND %s"
+            " AND TRIM(COALESCE(c.data_ads_domain, '')) <> ''"
+        )
+        params = [start_date, end_date]
+        if account_keys:
+            keys = [str(k).strip() for k in account_keys if str(k).strip()]
+            if keys:
+                placeholders = ','.join(['%s'] * len(keys))
+                camp_where += f" AND {fb_key} IN ({placeholders})"
+                params.extend(keys)
+        params.extend([start_date, end_date])
+        sql = f"""
+            SELECT camps.d AS d, camps.account_key,
+                   COALESCE(SUM(adx.adx_rev), 0) AS adx_revenue
+            FROM (
+                SELECT DISTINCT {fb_key} AS account_key, {fb_dom} AS domain_key,
+                       DATE(c.data_ads_tanggal) AS d
+                FROM data_ads_campaign c
+                WHERE {camp_where}
+            ) camps
+            INNER JOIN (
+                SELECT {adx_dom} AS domain_key, DATE(d.data_adx_domain_tanggal) AS d,
+                       COALESCE(SUM(CAST(d.data_adx_domain_revenue AS DECIMAL(18,4))), 0) AS adx_rev
+                FROM data_adx_domain d
+                WHERE DATE(d.data_adx_domain_tanggal) BETWEEN %s AND %s
+                GROUP BY domain_key, d
+            ) adx ON adx.domain_key = camps.domain_key AND adx.d = camps.d
+            GROUP BY camps.d, camps.account_key
+            ORDER BY camps.d ASC
+        """
+        self.cur_hris.execute(sql, tuple(params))
+        out = {}
+        for row in (self.cur_hris.fetchall() or []):
+            d = row.get('d')
+            if hasattr(d, 'isoformat'):
+                d = d.isoformat()
+            else:
+                d = str(d or '')[:10]
+            ak = str(row.get('account_key') or '').strip()
+            if not d or not ak:
+                continue
+            out.setdefault(d, {})
+            out[d][ak] = float(row.get('adx_revenue') or 0)
+        return out
+
     def _report_account_fetch_owner_cred_ids(self):
         """Map app_users.user_id -> set(app_credentials.account_id) untuk scope revenue AdX/AdSense."""
         sql = """
@@ -12281,15 +12492,9 @@ class data_mysql:
         global_map = {}
         by_cred_map = {}
         for row in (self.cur_hris.fetchall() or []):
-            dk = self._normalize_domain_match_key(row.get('raw_domain'))
-            if not dk:
-                continue
-            rev = float(row.get('revenue') or 0)
-            global_map[dk] = global_map.get(dk, 0.0) + rev
-            cid = str(row.get('account_id') or '').strip()
-            if cid:
-                bucket = by_cred_map.setdefault(cid, {})
-                bucket[dk] = bucket.get(dk, 0.0) + rev
+            self._report_account_register_domain_revenue(
+                global_map, by_cred_map, row.get('raw_domain'), row.get('revenue'), row.get('account_id')
+            )
         return global_map, by_cred_map
 
     def _report_account_build_revenue_daily_maps(self, table, date_col, revenue_col, domain_col, start_date, end_date):
@@ -12310,52 +12515,60 @@ class data_mysql:
                 d = d.isoformat()
             else:
                 d = str(d or '')[:10]
-            dk = self._normalize_domain_match_key(row.get('raw_domain'))
-            if not d or not dk:
+            if not d:
                 continue
             rev = float(row.get('revenue') or 0)
-            global_out.setdefault(d, {})
-            global_out[d][dk] = global_out[d].get(dk, 0.0) + rev
             cid = str(row.get('account_id') or '').strip()
-            if cid:
-                by_cred_out.setdefault(cid, {})
-                by_cred_out[cid].setdefault(d, {})
-                by_cred_out[cid][d][dk] = by_cred_out[cid][d].get(dk, 0.0) + rev
+            keys = set()
+            dk = self._normalize_domain_match_key(row.get('raw_domain'))
+            full = self._normalize_domain_full(row.get('raw_domain'))
+            if dk:
+                keys.add(dk)
+            if full and full != dk:
+                keys.add(full)
+            if not keys:
+                continue
+            global_out.setdefault(d, {})
+            for k in keys:
+                global_out[d][k] = global_out[d].get(k, 0.0) + rev
+                if cid:
+                    by_cred_out.setdefault(cid, {})
+                    by_cred_out[cid].setdefault(d, {})
+                    by_cred_out[cid][d][k] = by_cred_out[cid][d].get(k, 0.0) + rev
         return global_out, by_cred_out
 
     def _report_account_sum_adx_revenue(self, domain_keys, adx_global, adx_by_cred, cred_ids):
         domains = [str(d).strip() for d in (domain_keys or []) if str(d).strip()]
-        cred_ids = [str(c).strip() for c in (cred_ids or []) if str(c).strip()]
-        total = 0.0
-        if cred_ids:
-            for dk in domains:
-                scoped = 0.0
-                for cid in cred_ids:
-                    scoped += float((adx_by_cred.get(cid) or {}).get(dk) or 0)
-                if scoped == 0.0:
-                    scoped = float(adx_global.get(dk) or 0)
-                total += scoped
-            return total
+        if not domains:
+            return 0.0
+        all_fk = set()
         for dk in domains:
-            total += float(adx_global.get(dk) or 0)
+            all_fk |= self._report_account_fuzzy_adx_keys(dk, adx_global)
+        total = 0.0
+        for fk in all_fk:
+            total += self._report_account_lookup_adx_map_amount(fk, adx_global, adx_by_cred, cred_ids)
         return total
 
     def _report_account_sum_adx_revenue_daily(self, date_key, domain_keys, adx_daily_global, adx_daily_by_cred, cred_ids):
         domains = [str(d).strip() for d in (domain_keys or []) if str(d).strip()]
-        cred_ids = [str(c).strip() for c in (cred_ids or []) if str(c).strip()]
+        if not domains:
+            return 0.0
         day_global = adx_daily_global.get(date_key) or {}
-        total = 0.0
-        if cred_ids:
-            for dk in domains:
-                scoped = 0.0
-                for cid in cred_ids:
-                    scoped += float(((adx_daily_by_cred.get(cid) or {}).get(date_key) or {}).get(dk) or 0)
-                if scoped == 0.0:
-                    scoped = float(day_global.get(dk) or 0)
-                total += scoped
-            return total
+        all_fk = set()
         for dk in domains:
-            total += float(day_global.get(dk) or 0)
+            all_fk |= self._report_account_fuzzy_adx_keys(dk, day_global)
+        total = 0.0
+        for fk in all_fk:
+            cred_ids_list = [str(c).strip() for c in (cred_ids or []) if str(c).strip()]
+            if cred_ids_list:
+                scoped = 0.0
+                for cid in cred_ids_list:
+                    scoped += float(((adx_daily_by_cred.get(cid) or {}).get(date_key) or {}).get(fk) or 0)
+                if scoped == 0.0:
+                    scoped = float(day_global.get(fk) or 0)
+                total += scoped
+            else:
+                total += float(day_global.get(fk) or 0)
         return total
 
     def _report_account_build_rekap_revenue_maps(self, table, domain_col, revenue_col, year, month, tanggal_tarik):
@@ -12383,15 +12596,9 @@ class data_mysql:
         global_map = {}
         by_cred_map = {}
         for row in (self.cur_hris.fetchall() or []):
-            dk = self._normalize_domain_match_key(row.get('raw_domain'))
-            if not dk:
-                continue
-            rev = float(row.get('revenue') or 0)
-            global_map[dk] = global_map.get(dk, 0.0) + rev
-            cid = str(row.get('account_id') or '').strip()
-            if cid:
-                bucket = by_cred_map.setdefault(cid, {})
-                bucket[dk] = bucket.get(dk, 0.0) + rev
+            self._report_account_register_domain_revenue(
+                global_map, by_cred_map, row.get('raw_domain'), row.get('revenue'), row.get('account_id')
+            )
         return global_map, by_cred_map
 
     def _report_account_fb_key_sql(self, column_expr):
@@ -12543,7 +12750,7 @@ class data_mysql:
         domain_accounts = {}
         for row in (self.cur_hris.fetchall() or []):
             ak = str(row.get('account_key') or '').strip()
-            dk = self._normalize_domain_match_key(row.get('raw_domain'))
+            dk = self._report_account_normalize_campaign_domain(row.get('raw_domain'))
             if not ak or not dk:
                 continue
             account_domains.setdefault(ak, set()).add(dk)
@@ -12698,9 +12905,12 @@ class data_mysql:
                     },
                 }
 
+            account_keys = [a['account_key'] for a in accounts]
             account_domains, _domain_accounts = self._report_account_fetch_domain_map(start_date, end_date)
             owner_cred_map = self._report_account_fetch_owner_cred_ids()
+            email_cred_map = self._report_account_fetch_email_cred_ids()
             spend_map = self._report_account_fetch_spend_by_account(start_date, end_date)
+            adx_by_account = self._report_account_fetch_adx_revenue_by_account(start_date, end_date, account_keys)
             adx_rev_map, adx_rev_by_cred = self._report_account_build_revenue_maps(
                 'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
             )
@@ -12731,10 +12941,9 @@ class data_mysql:
             totals = {'subdomain_count': 0, 'spend': 0.0, 'revenue': 0.0, 'profit': 0.0}
             totals_rekap = {'subdomain_count': 0, 'spend': 0.0, 'revenue': 0.0, 'profit': 0.0}
 
-            account_keys = [a['account_key'] for a in accounts]
             spend_daily = self._report_account_fetch_spend_daily(start_date, end_date, account_keys)
-            adx_daily, adx_daily_by_cred = self._report_account_build_revenue_daily_maps(
-                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+            adx_daily_by_account = self._report_account_fetch_adx_revenue_daily_for_accounts(
+                start_date, end_date, account_keys
             )
             adsense_daily, _adsense_daily_by_cred = self._report_account_build_revenue_daily_maps(
                 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
@@ -12742,23 +12951,30 @@ class data_mysql:
 
             for acct in accounts:
                 ak = acct['account_key']
-                owner_id = str(acct.get('account_owner') or '').strip()
-                cred_ids = owner_cred_map.get(owner_id, set())
+                cred_ids = self._report_account_cred_ids_for_account(acct, owner_cred_map, email_cred_map)
                 domains = set(account_domains.get(ak, set()))
                 for cid in cred_ids:
                     domains |= set((adx_rev_by_cred.get(cid) or {}).keys())
                 active_domains = set()
+                account_spend = float(spend_map.get(ak) or 0)
                 for dk in domains:
+                    adx_hint = self._report_account_lookup_adx_map_amount(
+                        dk, adx_rev_map, adx_rev_by_cred, cred_ids
+                    )
                     if (
-                        float(adx_rev_map.get(dk) or 0) > 0
+                        adx_hint > 0
                         or float(adsense_rev_map.get(dk) or 0) > 0
-                        or float(spend_map.get(ak) or 0) > 0
+                        or account_spend > 0
                     ):
                         active_domains.add(dk)
                 if not active_domains and domains:
                     active_domains = set(domains)
 
-                adx_rev = self._report_account_sum_adx_revenue(active_domains, adx_rev_map, adx_rev_by_cred, cred_ids)
+                adx_rev = float(adx_by_account.get(ak) or 0)
+                if adx_rev <= 0 and active_domains:
+                    adx_rev = self._report_account_sum_adx_revenue(
+                        active_domains, adx_rev_map, adx_rev_by_cred, cred_ids
+                    )
                 adsense_rev = self._report_account_sum_revenue_for_account(active_domains, adsense_rev_map)
                 revenue = adx_rev + adsense_rev
                 spend = float(spend_map.get(ak) or 0)
@@ -12813,15 +13029,15 @@ class data_mysql:
                     day_revenue = 0.0
                     for ak in account_keys:
                         day_spend += float((spend_daily.get(ds) or {}).get(ak) or 0)
-                        owner_id = str(next((a.get('account_owner') for a in accounts if a.get('account_key') == ak), '') or '').strip()
-                        cred_ids = owner_cred_map.get(owner_id, set())
+                        day_revenue += float((adx_daily_by_account.get(ds) or {}).get(ak) or 0)
+                        acct = next((a for a in accounts if a.get('account_key') == ak), None)
+                        cred_ids = self._report_account_cred_ids_for_account(
+                            acct or {}, owner_cred_map, email_cred_map
+                        )
                         domains = set(account_domains.get(ak, set()))
                         for cid in cred_ids:
                             domains |= set((adx_rev_by_cred.get(cid) or {}).keys())
                         for dk in domains:
-                            day_revenue += self._report_account_sum_adx_revenue_daily(
-                                ds, [dk], adx_daily, adx_daily_by_cred, cred_ids
-                            )
                             day_revenue += float((adsense_daily.get(ds) or {}).get(dk) or 0)
                     chart.append({
                         'date': ds,
@@ -12921,8 +13137,9 @@ class data_mysql:
 
             account_domains, _ = self._report_account_fetch_domain_map(start_date, end_date)
             owner_cred_map = self._report_account_fetch_owner_cred_ids()
-            owner_id = str(acct.get('account_owner') or '').strip()
-            cred_ids = owner_cred_map.get(owner_id, set())
+            email_cred_map = self._report_account_fetch_email_cred_ids()
+            cred_ids = self._report_account_cred_ids_for_account(acct, owner_cred_map, email_cred_map)
+            adx_by_domain = self._report_account_fetch_adx_revenue_map_for_account(start_date, end_date, account_key)
 
             adx_rev_map, adx_rev_by_cred = self._report_account_build_revenue_maps(
                 'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
@@ -12948,7 +13165,7 @@ class data_mysql:
             self.cur_hris.execute(sql, (start_date, end_date, account_key))
             spend_by_domain = {}
             for row in (self.cur_hris.fetchall() or []):
-                dk = self._normalize_domain_match_key(row.get('raw_domain'))
+                dk = self._report_account_normalize_campaign_domain(row.get('raw_domain'))
                 if dk:
                     spend_by_domain[dk] = spend_by_domain.get(dk, 0.0) + float(row.get('spend') or 0)
 
@@ -12993,7 +13210,7 @@ class data_mysql:
                         if dk:
                             rekap_maps['spend'][dk] = rekap_maps['spend'].get(dk, 0.0) + float(row.get('spend') or 0)
 
-            all_domains = sorted(set(domains) | set(spend_by_domain.keys()))
+            all_domains = sorted(set(domains) | set(spend_by_domain.keys()) | set(adx_by_domain.keys()))
             domain_filter = str(domain_q or '').strip().lower()
             if domain_filter:
                 all_domains = [dk for dk in all_domains if domain_filter in dk.lower()]
@@ -13002,7 +13219,9 @@ class data_mysql:
             totals = {'spend': 0.0, 'revenue': 0.0, 'profit': 0.0, 'adx_revenue': 0.0, 'adsense_revenue': 0.0}
             totals_rekap = {'spend': 0.0, 'revenue': 0.0, 'profit': 0.0}
             for dk in all_domains:
-                adx_rev = self._report_account_sum_adx_revenue([dk], adx_rev_map, adx_rev_by_cred, cred_ids)
+                adx_rev = float(adx_by_domain.get(dk) or 0)
+                if adx_rev <= 0:
+                    adx_rev = self._report_account_sum_adx_revenue([dk], adx_rev_map, adx_rev_by_cred, cred_ids)
                 adsense_rev = float(adsense_rev_map.get(dk) or 0)
                 spend = float(spend_by_domain.get(dk) or 0)
                 revenue = adx_rev + adsense_rev
@@ -13067,8 +13286,8 @@ class data_mysql:
 
             chart = []
             spend_daily = self._report_account_fetch_spend_daily(start_date, end_date, [account_key])
-            adx_daily, adx_daily_by_cred = self._report_account_build_revenue_daily_maps(
-                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+            adx_daily_by_account = self._report_account_fetch_adx_revenue_daily_for_accounts(
+                start_date, end_date, [account_key]
             )
             adsense_daily, _adsense_daily_by_cred = self._report_account_build_revenue_daily_maps(
                 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
@@ -13082,11 +13301,8 @@ class data_mysql:
                 while cur <= d1:
                     ds = cur.isoformat()
                     day_spend = float((spend_daily.get(ds) or {}).get(account_key) or 0)
-                    day_revenue = 0.0
+                    day_revenue = float((adx_daily_by_account.get(ds) or {}).get(account_key) or 0)
                     for dk in domain_set:
-                        day_revenue += self._report_account_sum_adx_revenue_daily(
-                            ds, [dk], adx_daily, adx_daily_by_cred, cred_ids
-                        )
                         day_revenue += float((adsense_daily.get(ds) or {}).get(dk) or 0)
                     chart.append({
                         'date': ds,

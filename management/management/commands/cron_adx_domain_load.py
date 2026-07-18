@@ -31,21 +31,21 @@ def convert_to_idr(amount, currency_code):
         return float(amount or 0.0)
 
 class Command(BaseCommand):
-    help = "Tarik dan simpan data Ad Manager (AdX) per tanggal & domain ke tabel data_adx untuk hari ini. Kredensial diambil dari app_credentials."
+    help = "Tarik dan simpan data Ad Manager (AdX) per tanggal & domain ke tabel data_adx_domain. Default: hari ini + refresh H-1."
     def add_arguments(self, parser):
         parser.add_argument(
             '--tanggal',
             type=str,
             default='%',
-            help='Tanggal tunggal (YYYY-MM-DD). Jika tidak diisi, ambil hari ini.'
+            help='Tanggal tunggal (YYYY-MM-DD). Jika tidak diisi, ambil H-1 s/d hari ini.'
         )
     def handle(self, *args, **kwargs):
         tanggal_arg = (kwargs.get('tanggal') or '%').strip()
 
         today_dt = datetime.now().date()
-        default_dt = today_dt - timedelta(days=1)
-        start_date = default_dt.strftime('%Y-%m-%d')
-        end_date = default_dt.strftime('%Y-%m-%d')
+        yesterday_dt = today_dt - timedelta(days=1)
+        start_date = yesterday_dt.strftime('%Y-%m-%d')
+        end_date = today_dt.strftime('%Y-%m-%d')
 
         if tanggal_arg and tanggal_arg != '%':
             try:
@@ -59,7 +59,8 @@ class Command(BaseCommand):
             end_date = tanggal_dt.strftime('%Y-%m-%d')
 
         self.stdout.write(self.style.WARNING(
-            f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date}. (Default: H-1, override pakai --tanggal)"
+            f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date}. "
+            f"(Default: H-1 + hari ini, override pakai --tanggal)"
         ))
         db = data_mysql()
         # Ambil semua kredensial dari app_credentials
