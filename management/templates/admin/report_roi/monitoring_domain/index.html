@@ -711,6 +711,137 @@ html[data-theme="dark"] .roi-traffic-table-wrap .roi-val-negative { color: #fca5
   html[data-theme="dark"] .roi-cmd-cut {
       color: #0f172a;
   }
+
+  /* Campaign Breakdown modal (detail subdomain) */
+  .roi-cb .modal-content {
+      border: 1px solid var(--roi-border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--roi-shadow);
+      background: var(--roi-surface);
+      color: var(--roi-text);
+  }
+  .roi-cb-head {
+      background: linear-gradient(120deg, #2b6ef2, #5e35b1);
+      color: #fff;
+      border-bottom: 0;
+  }
+  .roi-cb-sub { opacity: .9; font-size: 12px; color: rgba(255,255,255,.88); }
+  .roi-cb .modal-body { background: var(--roi-surface); color: var(--roi-text); }
+  .roi-cb-kpi {
+      background: var(--roi-surface-2);
+      border: 1px solid var(--roi-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+  }
+  .roi-cb-kpi .l { font-size: 11px; color: var(--roi-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .roi-cb-kpi .v { font-weight: 800; color: var(--roi-text); font-size: 1rem; }
+  .roi-cb-table { color: var(--roi-text); border-color: var(--roi-border) !important; margin-bottom: 0; }
+  .roi-cb-table thead th {
+      background: var(--roi-surface-2);
+      color: var(--roi-text);
+      border-color: var(--roi-border) !important;
+      border-bottom: 0;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+  }
+  .roi-cb-table tbody td { border-color: var(--roi-border) !important; color: var(--roi-text); vertical-align: middle; }
+  .roi-cb-table tbody tr:hover td { background: rgba(13, 148, 136, 0.06); }
+  .roi-roi-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .roi-roi-pos { background: rgba(22, 163, 74, 0.14); color: #067647; }
+  .roi-roi-neg { background: rgba(220, 38, 38, 0.14); color: #b42318; }
+  .roi-net-neg { color: #b42318; font-weight: 700; }
+  .roi-net-pos { color: #067647; font-weight: 700; }
+  html[data-theme="dark"] .roi-cb-table tbody tr:hover td { background: rgba(13, 148, 136, 0.12); }
+  html[data-theme="dark"] .roi-roi-pos { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+  html[data-theme="dark"] .roi-roi-neg { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+  html[data-theme="dark"] .roi-net-pos { color: #6ee7b7; }
+  html[data-theme="dark"] .roi-net-neg { color: #fca5a5; }
+  html[data-theme="dark"] #roiCampaignBreakdownModal .text-muted { color: var(--roi-muted) !important; }
+  html[data-theme="dark"] #roiCampaignBreakdownModal .dataTables_wrapper .dataTables_filter input,
+  html[data-theme="dark"] #roiCampaignBreakdownModal .dataTables_wrapper .dataTables_length select {
+      background: #0f172a;
+      border-color: var(--roi-border);
+      color: #e2e8f0;
+  }
+  html[data-theme="dark"] #roiCampaignBreakdownModal .dataTables_wrapper .dataTables_info,
+  html[data-theme="dark"] #roiCampaignBreakdownModal .dataTables_wrapper .dataTables_paginate {
+      color: var(--roi-muted);
+  }
+  html[data-theme="dark"] #roiCampaignBreakdownModal .page-item .page-link {
+      background: #0f172a;
+      border-color: var(--roi-border);
+      color: #e2e8f0;
+  }
+  html[data-theme="dark"] #roiCampaignBreakdownModal .page-item.active .page-link {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+  }
+
+  /* Domain detail modal (advanced panel) */
+  html[data-theme="dark"] #roiDomainDetailModal .roi-domain-detail-modal {
+      background: var(--roi-surface);
+      color: var(--roi-text);
+      border: 1px solid var(--roi-border);
+  }
+  html[data-theme="dark"] #roiDomainDetailModal .modal-header {
+      background: linear-gradient(120deg, rgba(43, 110, 242, 0.35), rgba(94, 53, 177, 0.35));
+      border-bottom: 1px solid var(--roi-border);
+  }
+  html[data-theme="dark"] #roiDomainDetailModal .modal-title,
+  html[data-theme="dark"] #roiDomainDetailModal .close { color: #f8fafc; }
+  html[data-theme="dark"] #roiDomainDetailModal .modal-body { background: var(--roi-surface); color: var(--roi-text); }
+  html[data-theme="dark"] #roiDomainDetailModal .roi-domain-detail-card {
+      background: var(--roi-surface);
+      border: 1px solid var(--roi-border);
+      color: var(--roi-text);
+  }
+  html[data-theme="dark"] #roiDomainDetailModal .roi-domain-detail-card .card-header {
+      background: var(--roi-surface-2);
+      border-bottom: 1px solid var(--roi-border);
+      color: var(--roi-text);
+  }
+  html[data-theme="dark"] #roiDomainDetailModal .roi-domain-detail-card .card-body { background: var(--roi-surface); color: var(--roi-text); }
+  html[data-theme="dark"] #roiDomainDetailModal .roi-domain-detail-advisor,
+  html[data-theme="dark"] #roiDomainDetailModal .roi-domain-metric .v,
+  html[data-theme="dark"] #roiDomainDetailModal .roi-domain-hotspot .label { color: var(--roi-text); }
+  html[data-theme="dark"] #roiDomainDetailModal .text-muted { color: var(--roi-muted) !important; }
+  html[data-theme="dark"] #roiDomainDetailModal .form-control,
+  html[data-theme="dark"] #roiDomainDetailModal textarea.form-control {
+      background: #0f172a;
+      border-color: var(--roi-border);
+      color: #e2e8f0;
+  }
+  html[data-theme="dark"] #roiDomainDetailModal .form-control::placeholder,
+  html[data-theme="dark"] #roiDomainDetailModal textarea.form-control::placeholder { color: #64748b; }
+  html[data-theme="dark"] #roiDomainBudgetModal .modal-content,
+  html[data-theme="dark"] #roiDomainStopCampaignModal .modal-content {
+      background: var(--roi-surface);
+      color: var(--roi-text);
+      border: 1px solid var(--roi-border);
+  }
+  html[data-theme="dark"] #roiDomainBudgetModal .modal-header,
+  html[data-theme="dark"] #roiDomainStopCampaignModal .modal-header {
+      background: var(--roi-surface-2);
+      border-bottom: 1px solid var(--roi-border);
+      color: var(--roi-text);
+  }
+  html[data-theme="dark"] #roiDomainBudgetModal .modal-body,
+  html[data-theme="dark"] #roiDomainStopCampaignModal .modal-body,
+  html[data-theme="dark"] #roiDomainBudgetModal .modal-footer,
+  html[data-theme="dark"] #roiDomainStopCampaignModal .modal-footer {
+      background: var(--roi-surface);
+      border-color: var(--roi-border);
+      color: var(--roi-text);
+  }
+  html[data-theme="dark"] #roiDomainBudgetModal .form-control,
+  html[data-theme="dark"] #roiDomainStopCampaignModal .form-control {
+      background: #0f172a;
+      border-color: var(--roi-border);
+      color: #e2e8f0;
+  }
 </style>
 <div class="roi-monitoring-page">
 <div class="card roi-filter-card">

@@ -168,6 +168,32 @@ html[data-theme="dark"] {
     background: linear-gradient(135deg, rgba(5,150,105,0.12), rgba(16,185,129,0.08));
 }
 .adsense-monitor-country-empty-title { font-size: 16px; font-weight: 800; color: var(--adsense-text); margin-bottom: 6px; }
+.adsense-chart-section {
+    background: var(--adsense-surface); border: 1px solid var(--adsense-border);
+    border-radius: 14px; overflow: hidden; margin-bottom: 14px;
+}
+.adsense-chart-section-header {
+    padding: 12px 16px; border-bottom: 1px solid var(--adsense-border);
+    background: var(--adsense-surface-2);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    font-size: 0.88rem; font-weight: 800; color: var(--adsense-text);
+}
+.adsense-chart-section-header .title-wrap {
+    display: flex; align-items: center; gap: 10px;
+}
+.adsense-chart-section-header .title-wrap i {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(5,150,105,0.15), rgba(16,185,129,0.12));
+    color: var(--adsense-accent); font-size: 0.85rem;
+}
+.adsense-chart-top-note {
+    font-size: 0.78rem; font-weight: 700; color: var(--adsense-muted);
+    background: var(--adsense-surface-2); border: 1px solid var(--adsense-border);
+    border-radius: 999px; padding: 6px 12px; white-space: nowrap;
+}
+.adsense-chart-wrap { padding: 12px 16px 16px; min-height: 420px; position: relative; }
+.adsense-chart-wrap canvas { max-height: 400px; width: 100% !important; }
 .adsense-traffic-table-wrap { overflow-x: auto; margin-top: 14px; }
 .adsense-traffic-table-wrap .dt-buttons { margin-bottom: 12px; }
 .adsense-traffic-table-wrap .dt-buttons .btn {
@@ -266,6 +292,57 @@ html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-negative { color: #
     background: linear-gradient(135deg, #059669, #10b981);
     border-bottom: 0;
 }
+html[data-theme="dark"] #countryDetailModal .modal-content {
+    background: var(--adsense-surface);
+    color: var(--adsense-text);
+    border-color: var(--adsense-border);
+    box-shadow: var(--adsense-shadow);
+}
+html[data-theme="dark"] #countryDetailModal .modal-body {
+    background: var(--adsense-surface);
+    color: var(--adsense-text);
+}
+html[data-theme="dark"] #countryDetailModal .text-muted { color: var(--adsense-muted) !important; }
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable {
+    color: var(--adsense-text);
+    border-color: var(--adsense-border) !important;
+}
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable thead th,
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable thead.thead-light th {
+    background: var(--adsense-surface-2) !important;
+    color: var(--adsense-text) !important;
+    border-color: var(--adsense-border) !important;
+}
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable tbody td {
+    color: var(--adsense-text);
+    border-color: var(--adsense-border) !important;
+}
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable.table-striped tbody tr:nth-of-type(odd) td {
+    background: rgba(15, 23, 42, 0.35);
+}
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable tbody tr:hover td {
+    background: rgba(5, 150, 105, 0.12);
+}
+html[data-theme="dark"] #countryDetailModal .dataTables_wrapper .dataTables_filter input,
+html[data-theme="dark"] #countryDetailModal .dataTables_wrapper .dataTables_length select {
+    background: #0f172a;
+    border-color: var(--adsense-border);
+    color: #e2e8f0;
+}
+html[data-theme="dark"] #countryDetailModal .dataTables_wrapper .dataTables_info,
+html[data-theme="dark"] #countryDetailModal .dataTables_wrapper .dataTables_paginate {
+    color: var(--adsense-muted);
+}
+html[data-theme="dark"] #countryDetailModal .page-item .page-link {
+    background: #0f172a;
+    border-color: var(--adsense-border);
+    color: #e2e8f0;
+}
+html[data-theme="dark"] #countryDetailModal .page-item.active .page-link {
+    background: #059669;
+    border-color: #059669;
+    color: #fff;
+}
 </style>
 
 <div class="adsense-monitor-country-page">
@@ -357,7 +434,7 @@ html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-negative { color: #
         <div class="adsense-monitor-country-empty" id="adsenseMonitoringCountryEmpty">
             <div class="adsense-monitor-country-empty-icon"><i class="bi bi-globe2"></i></div>
             <div class="adsense-monitor-country-empty-title">Belum ada data monitoring negara</div>
-            <p class="mb-0">Atur filter di atas, lalu klik <strong>Muat Data</strong> untuk melihat ringkasan dan tabel per negara.</p>
+            <p class="mb-0">Atur filter di atas, lalu klik <strong>Muat Data</strong> untuk melihat ringkasan, grafik, dan tabel per negara.</p>
         </div>
 
         <div id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, Total Pendapatan, dan ROI Nett. Akan muncul setelah data dimuat.">
@@ -388,6 +465,21 @@ html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-negative { color: #
                         </div>
                         <div class="metric-card-icon"><i class="bi bi-graph-up-arrow"></i></div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="adsenseCountryDailyChartSection" style="display:none;" data-title="Grafik" data-intro="Grafik perbandingan spend, earning, net profit, dan ROI untuk 10 negara dengan revenue terbesar.">
+            <div class="adsense-chart-section mt-3">
+                <div class="adsense-chart-section-header">
+                    <div class="title-wrap">
+                        <i class="bi bi-graph-up"></i>
+                        <span>Perbandingan Spend, Earning, Net Profit &amp; ROI — Top 10 Negara</span>
+                    </div>
+                    <span class="adsense-chart-top-note">Top 10 berdasarkan revenue terbesar</span>
+                </div>
+                <div class="adsense-chart-wrap">
+                    <canvas id="adsenseCountryDailyChart"></canvas>
                 </div>
             </div>
         </div>
@@ -431,6 +523,7 @@ html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-negative { color: #
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{% static 'ajax/admin/report_adsense/monitoring_country.js'%}?v={%now 'u'%}"></script>
 <script>
 (function() {
@@ -469,12 +562,13 @@ html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-negative { color: #
             '#btn_load_data',
             '#adsenseMonitoringCountryLastUpdate',
             '#summary_boxes',
+            '#adsenseCountryDailyChartSection',
             '#adsenseMonitoringCountryTableSection'
         ];
         selectors.forEach(function(sel) {
             const el = document.querySelector(sel);
             if (!el) return;
-            if (!isVisible(el) && sel === '#summary_boxes') return;
+            if (!isVisible(el) && (sel === '#summary_boxes' || sel === '#adsenseCountryDailyChartSection')) return;
             steps.push({
                 element: el,
                 title: el.getAttribute('data-title') || undefined,

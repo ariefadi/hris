@@ -189,11 +189,12 @@ html[data-theme="dark"] {
     background: linear-gradient(135deg, rgba(13,148,136,0.15), rgba(99,102,241,0.12));
     color: var(--roi-accent); font-size: 0.85rem;
 }
-.roi-chart-country-select {
-    min-width: 240px; max-width: 100%; border-radius: 10px; border-color: var(--roi-border);
-    font-size: 0.85rem; font-weight: 600;
+.roi-chart-top-note {
+    font-size: 0.78rem; font-weight: 700; color: var(--roi-muted);
+    background: var(--roi-surface-2); border: 1px solid var(--roi-border);
+    border-radius: 999px; padding: 6px 12px; white-space: nowrap;
 }
-.roi-chart-wrap { padding: 12px 16px 16px; min-height: 360px; position: relative; }
+.roi-chart-wrap { padding: 12px 16px 16px; min-height: 420px; position: relative; }
 .roi-chart-wrap canvas { max-height: 400px; width: 100% !important; }
 .roi-traffic-table-wrap { overflow-x: auto; margin-top: 14px; }
 .roi-traffic-table-wrap .dt-buttons { margin-bottom: 12px; }
@@ -293,6 +294,57 @@ html[data-theme="dark"] .roi-traffic-table-wrap .roi-val-negative { color: #fca5
 #countryDetailModal .modal-header {
     background: linear-gradient(135deg, #0d9488, #6366f1);
     border-bottom: 0;
+}
+html[data-theme="dark"] #countryDetailModal .modal-content {
+    background: var(--roi-surface);
+    color: var(--roi-text);
+    border-color: var(--roi-border);
+    box-shadow: var(--roi-shadow);
+}
+html[data-theme="dark"] #countryDetailModal .modal-body {
+    background: var(--roi-surface);
+    color: var(--roi-text);
+}
+html[data-theme="dark"] #countryDetailModal .text-muted { color: var(--roi-muted) !important; }
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable {
+    color: var(--roi-text);
+    border-color: var(--roi-border) !important;
+}
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable thead th,
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable thead.thead-light th {
+    background: var(--roi-surface-2) !important;
+    color: var(--roi-text) !important;
+    border-color: var(--roi-border) !important;
+}
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable tbody td {
+    color: var(--roi-text);
+    border-color: var(--roi-border) !important;
+}
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable.table-striped tbody tr:nth-of-type(odd) td {
+    background: rgba(15, 23, 42, 0.35);
+}
+html[data-theme="dark"] #countryDetailModal #roiCountryBreakdownTable tbody tr:hover td {
+    background: rgba(13, 148, 136, 0.12);
+}
+html[data-theme="dark"] #countryDetailModal .dataTables_wrapper .dataTables_filter input,
+html[data-theme="dark"] #countryDetailModal .dataTables_wrapper .dataTables_length select {
+    background: #0f172a;
+    border-color: var(--roi-border);
+    color: #e2e8f0;
+}
+html[data-theme="dark"] #countryDetailModal .dataTables_wrapper .dataTables_info,
+html[data-theme="dark"] #countryDetailModal .dataTables_wrapper .dataTables_paginate {
+    color: var(--roi-muted);
+}
+html[data-theme="dark"] #countryDetailModal .page-item .page-link {
+    background: #0f172a;
+    border-color: var(--roi-border);
+    color: #e2e8f0;
+}
+html[data-theme="dark"] #countryDetailModal .page-item.active .page-link {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
 }
 </style>
 
@@ -429,14 +481,14 @@ html[data-theme="dark"] .roi-traffic-table-wrap .roi-val-negative { color: #fca5
             </div>
         </div>
 
-        <div id="roiCountryDailyChartSection" style="display:none;" data-title="Grafik" data-intro="Grafik harian spend, earning, net profit, dan ROI untuk negara terpilih.">
+        <div id="roiCountryDailyChartSection" style="display:none;" data-title="Grafik" data-intro="Grafik perbandingan spend, earning, net profit, dan ROI untuk 10 negara dengan revenue terbesar.">
             <div class="roi-chart-section mt-3">
                 <div class="roi-chart-section-header">
                     <div class="title-wrap">
                         <i class="bi bi-graph-up"></i>
-                        <span>Perbandingan Spend, Earning, Net Profit &amp; ROI (Daily)</span>
+                        <span>Perbandingan Spend, Earning, Net Profit &amp; ROI — Top 10 Negara</span>
                     </div>
-                    <select class="form-control roi-chart-country-select" id="roiDailyCountrySelect"></select>
+                    <span class="roi-chart-top-note">Top 10 berdasarkan revenue terbesar</span>
                 </div>
                 <div class="roi-chart-wrap">
                     <canvas id="roiCountryDailyChart"></canvas>
