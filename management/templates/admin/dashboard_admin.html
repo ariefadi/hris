@@ -4,6 +4,7 @@
 {% block body_class %}hold-transition sidebar-mini dashboard-admin-page{% endblock %}
 {% block page_heading %}{% endblock %}
 {% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
 <!-- Custom Dashboard CSS -->
 <style>
@@ -19310,7 +19311,7 @@ function initDashboardRecap() {
 
             const keputusanData = buildDecisionCellData(meta, { row: r, state: state });
             const detailBtn = (meta)
-                ? `<button type="button" class="btn btn-sm ds-detail-btn dashboard-open-score-detail-btn" data-score-key="${esc(k)}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Detail</button>`
+                ? `<button type="button" class="btn btn-sm ds-detail-btn dashboard-open-score-detail-btn" data-score-key="${esc(k)}" title="Buka detail scoring" aria-label="Buka detail scoring"><i class="fas fa-eye mr-1" aria-hidden="true"></i>Detail</button>`
                 : `<button type="button" class="btn btn-sm ds-detail-btn" disabled title="Scoring belum tersedia">Detail</button>`;
 
             const activeDays = Number(r?.active_days || 0);
