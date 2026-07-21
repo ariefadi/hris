@@ -17350,6 +17350,53 @@ class ReportAccountDetailView(View):
             return JsonResponse({'status': False, 'error': str(e)})
 
 
+class ReportAccountSubdomainCampaignBreakdownView(View):
+    """API breakdown campaign per subdomain pada Report Account detail."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            import calendar
+
+            account_key = (req.GET.get('account_key') or req.GET.get('account_id') or '').strip()
+            domain_key = (req.GET.get('domain') or req.GET.get('domain_key') or req.GET.get('subdomain') or '').strip()
+            if not account_key:
+                raise ValueError('account_key wajib diisi')
+            if not domain_key:
+                raise ValueError('domain wajib diisi')
+
+            periode_mode = (req.GET.get('periode_mode') or 'bulanan').strip().lower()
+            if periode_mode == 'bulanan':
+                year = req.GET.get('year')
+                month = req.GET.get('month')
+                if not year or not month:
+                    raise ValueError('Tahun dan bulan wajib diisi')
+                y = int(str(year).strip())
+                m = int(str(month).strip())
+                last_day = calendar.monthrange(y, m)[1]
+                start_date = datetime(y, m, 1).date()
+                end_date = datetime(y, m, last_day).date()
+            else:
+                start_date = datetime.strptime(req.GET.get('start_date'), '%Y-%m-%d').date()
+                end_date = datetime.strptime(req.GET.get('end_date'), '%Y-%m-%d').date()
+
+            result = data_mysql().get_report_account_subdomain_campaign_breakdown(
+                account_key,
+                domain_key,
+                start_date.isoformat(),
+                end_date.isoformat(),
+            )
+            if not result.get('status'):
+                return JsonResponse({'status': False, 'error': result.get('data') or 'Gagal mengambil data campaign'})
+            return JsonResponse({'status': True, 'data': result.get('data') or {}})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+
 class ReportAccountSuggestView(View):
     """Suggest nama account Facebook Ads untuk Select2 (min. 3 karakter)."""
 

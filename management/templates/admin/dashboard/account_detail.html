@@ -190,6 +190,39 @@ html[data-theme="dark"] .dad-source-badge.fb { background: rgba(251,146,60,.2); 
 .dad-empty { text-align: center; padding: 40px 16px; color: var(--dad-muted); }
 .dad-account-meta { font-size: 13px; color: var(--dad-muted); }
 .dad-page #dadDomainQ + .select2-container { width: 100% !important; }
+.dad-detail-btn {
+    border-radius: 8px; font-weight: 700; padding: 4px 10px;
+    border-color: rgba(37, 99, 235, 0.35); color: var(--dad-accent);
+}
+.dad-detail-btn:hover { background: rgba(37, 99, 235, 0.08); border-color: var(--dad-accent); color: #1d4ed8; }
+.dad-campaign-modal .modal-content {
+    border: 1px solid var(--dad-border); border-radius: 16px; overflow: hidden;
+    background: var(--dad-surface); color: var(--dad-text);
+}
+.dad-campaign-modal .modal-header {
+    background: linear-gradient(120deg, #2563eb, #6366f1); color: #fff; border-bottom: 0;
+}
+.dad-campaign-modal .modal-body { background: var(--dad-surface); color: var(--dad-text); }
+.dad-campaign-modal .dad-campaign-sub { opacity: .9; font-size: 12px; color: rgba(255,255,255,.88); }
+.dad-campaign-table { width: 100%; font-size: 12px; margin-bottom: 0 !important; }
+.dad-campaign-table thead th {
+    background: var(--dad-surface-2); color: var(--dad-text); font-size: 11px;
+    text-transform: uppercase; border-color: var(--dad-border) !important; white-space: nowrap;
+}
+.dad-campaign-table tbody td { border-color: var(--dad-border) !important; color: var(--dad-text); vertical-align: middle; }
+.dad-campaign-table tbody tr:hover td { background: rgba(37, 99, 235, 0.05); }
+html[data-theme="dark"] .dad-campaign-table tbody tr:hover td { background: rgba(37, 99, 235, 0.12); }
+.dad-campaign-modal .dataTables_wrapper .dataTables_filter input,
+.dad-campaign-modal .dataTables_wrapper .dataTables_length select {
+    border-radius: 8px; border-color: var(--dad-border); background: var(--dad-surface); color: var(--dad-text);
+}
+.dad-campaign-modal .dataTables_wrapper .dataTables_info,
+.dad-campaign-modal .dataTables_wrapper .dataTables_paginate { color: var(--dad-muted); }
+.dad-roi-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.dad-roi-pos { background: rgba(22,163,74,.14); color: #15803d; }
+.dad-roi-neg { background: rgba(220,38,38,.14); color: #b91c1c; }
+html[data-theme="dark"] .dad-roi-pos { background: rgba(34,197,94,.18); color: #86efac; }
+html[data-theme="dark"] .dad-roi-neg { background: rgba(239,68,68,.18); color: #fca5a5; }
 </style>
 {% endblock %}
 {% block content %}
@@ -299,6 +332,43 @@ html[data-theme="dark"] .dad-source-badge.fb { background: rgba(251,146,60,.2); 
                             <tbody id="dadTableBody"></tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade dad-campaign-modal" id="dadCampaignModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header text-white">
+                <div>
+                    <h5 class="modal-title mb-1">Detail Campaign</h5>
+                    <div class="dad-campaign-sub" id="dadCampaignModalSub">-</div>
+                </div>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body p-3">
+                <div class="text-muted mb-2" id="dadCampaignModalPeriod" style="font-size:12px;"></div>
+                <div class="dad-table-wrap">
+                    <table class="table table-sm table-hover dad-campaign-table mb-0" id="dadCampaignTable">
+                        <thead>
+                            <tr>
+                                <th class="text-center" style="width:48px;">No</th>
+                                <th>Campaign</th>
+                                <th>Platform</th>
+                                <th>Spend</th>
+                                <th>Rev AdX</th>
+                                <th>Rev AdSense</th>
+                                <th>Revenue</th>
+                                <th>Profit</th>
+                                <th>ROI</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dadCampaignTableBody">
+                            <tr><td colspan="9" class="text-center text-muted py-4">Loading...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

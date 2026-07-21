@@ -178,6 +178,7 @@ urlpatterns = [
     path('admin/report_account/detail', views.ReportAccountDetailPageView.as_view(), name='report_account_detail_page'),
     path('admin/page_report_account', views.ReportAccountDataView.as_view(), name='report_account_data'),
     path('admin/page_report_account_detail', views.ReportAccountDetailView.as_view(), name='report_account_detail'),
+    path('admin/page_report_account_subdomain_campaign', views.ReportAccountSubdomainCampaignBreakdownView.as_view(), name='report_account_subdomain_campaign'),
     path('admin/report_account_suggest', views.ReportAccountSuggestView.as_view(), name='report_account_suggest'),
     path('admin/report_account_domain_suggest', views.ReportAccountDomainSuggestView.as_view(), name='report_account_domain_suggest'),
     path('admin/report_account_lookup', views.ReportAccountLookupView.as_view(), name='report_account_lookup'),

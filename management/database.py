@@ -13085,6 +13085,100 @@ class data_mysql:
         except Exception as e:
             return {'status': False, 'data': str(e)}
 
+    def get_report_account_subdomain_campaign_breakdown(
+        self,
+        account_key,
+        domain_key,
+        start_date,
+        end_date,
+    ):
+        try:
+            account_key = self._normalize_fb_account_key(account_key)
+            domain_key = self._report_account_normalize_campaign_domain(domain_key) or str(domain_key or '').strip().lower()
+            if not account_key or not domain_key:
+                return {'status': False, 'data': 'Parameter tidak valid'}
+
+            accounts = self._report_account_fetch_accounts()
+            acct = next((a for a in accounts if a.get('account_key') == account_key), None)
+            if not acct:
+                return {'status': False, 'data': 'Account tidak ditemukan'}
+
+            owner_cred_map = self._report_account_fetch_owner_cred_ids()
+            email_cred_map = self._report_account_fetch_email_cred_ids()
+            cred_ids = self._report_account_cred_ids_for_account(acct, owner_cred_map, email_cred_map)
+
+            adx_by_domain = self._report_account_fetch_adx_revenue_map_for_account(start_date, end_date, account_key)
+            adx_rev_map, adx_rev_by_cred = self._report_account_build_revenue_maps(
+                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+            )
+            adsense_rev_map, _adsense_rev_by_cred = self._report_account_build_revenue_maps(
+                'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
+            )
+
+            domain_adx = float(adx_by_domain.get(domain_key) or 0)
+            if domain_adx <= 0:
+                domain_adx = self._report_account_sum_adx_revenue([domain_key], adx_rev_map, adx_rev_by_cred, cred_ids)
+            domain_adsense = float(adsense_rev_map.get(domain_key) or 0)
+
+            key_expr = self._report_account_fb_key_sql('b.account_ads_id')
+            dom_expr = self._report_account_domain_key_sql('b.data_ads_domain')
+            sql = f"""
+                SELECT TRIM(COALESCE(b.data_ads_campaign_nm, '')) AS campaign,
+                       COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend,
+                       COALESCE(SUM(CAST(b.data_ads_lpv AS DECIMAL(18,4))), 0) AS lpv
+                FROM data_ads_campaign b
+                WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
+                  AND {key_expr} = %s
+                  AND {dom_expr} = %s
+                GROUP BY campaign
+                HAVING campaign <> ''
+            """
+            self.cur_hris.execute(sql, (start_date, end_date, account_key, domain_key))
+            campaign_rows = {}
+            for row in (self.cur_hris.fetchall() or []):
+                camp = str(row.get('campaign') or '').strip() or 'unknown_campaign'
+                bucket = campaign_rows.setdefault(camp, {'spend': 0.0, 'lpv': 0.0})
+                bucket['spend'] += float(row.get('spend') or 0)
+                bucket['lpv'] += float(row.get('lpv') or 0)
+
+            total_lpv = sum(float(v.get('lpv') or 0) for v in campaign_rows.values())
+            total_spend = sum(float(v.get('spend') or 0) for v in campaign_rows.values())
+            campaign_count = len(campaign_rows) or 1
+
+            rows = []
+            for camp, vals in campaign_rows.items():
+                spend = float(vals.get('spend') or 0)
+                lpv = float(vals.get('lpv') or 0)
+                if total_lpv > 0:
+                    weight = lpv / total_lpv
+                elif total_spend > 0:
+                    weight = spend / total_spend
+                else:
+                    weight = 1.0 / campaign_count
+                adx_rev = domain_adx * weight
+                adsense_rev = domain_adsense * weight
+                revenue = adx_rev + adsense_rev
+                metrics = self._report_account_build_row_metrics(spend, revenue, 1)
+                rows.append({
+                    'campaign': camp,
+                    'source_labels': self._report_account_resolve_source_labels(adx_rev, adsense_rev, spend),
+                    'adx_revenue': round(adx_rev, 2),
+                    'adsense_revenue': round(adsense_rev, 2),
+                    **metrics,
+                })
+
+            rows.sort(key=lambda r: float(r.get('revenue') or 0), reverse=True)
+            return {
+                'status': True,
+                'data': {
+                    'domain': domain_key,
+                    'period': {'start': start_date, 'end': end_date},
+                    'rows': rows,
+                },
+            }
+        except Exception as e:
+            return {'status': False, 'data': str(e)}
+
     def _report_account_resolve_source_labels(self, adx_rev, adsense_rev, spend=0):
         labels = []
         if float(adx_rev or 0) > 0:
@@ -13329,6 +13423,100 @@ class data_mysql:
                     'summary': summary_block,
                     'chart': chart,
                     'rows': detail_rows,
+                },
+            }
+        except Exception as e:
+            return {'status': False, 'data': str(e)}
+
+    def get_report_account_subdomain_campaign_breakdown(
+        self,
+        account_key,
+        domain_key,
+        start_date,
+        end_date,
+    ):
+        try:
+            account_key = self._normalize_fb_account_key(account_key)
+            domain_key = self._report_account_normalize_campaign_domain(domain_key) or str(domain_key or '').strip().lower()
+            if not account_key or not domain_key:
+                return {'status': False, 'data': 'Parameter tidak valid'}
+
+            accounts = self._report_account_fetch_accounts()
+            acct = next((a for a in accounts if a.get('account_key') == account_key), None)
+            if not acct:
+                return {'status': False, 'data': 'Account tidak ditemukan'}
+
+            owner_cred_map = self._report_account_fetch_owner_cred_ids()
+            email_cred_map = self._report_account_fetch_email_cred_ids()
+            cred_ids = self._report_account_cred_ids_for_account(acct, owner_cred_map, email_cred_map)
+
+            adx_by_domain = self._report_account_fetch_adx_revenue_map_for_account(start_date, end_date, account_key)
+            adx_rev_map, adx_rev_by_cred = self._report_account_build_revenue_maps(
+                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+            )
+            adsense_rev_map, _adsense_rev_by_cred = self._report_account_build_revenue_maps(
+                'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
+            )
+
+            domain_adx = float(adx_by_domain.get(domain_key) or 0)
+            if domain_adx <= 0:
+                domain_adx = self._report_account_sum_adx_revenue([domain_key], adx_rev_map, adx_rev_by_cred, cred_ids)
+            domain_adsense = float(adsense_rev_map.get(domain_key) or 0)
+
+            key_expr = self._report_account_fb_key_sql('b.account_ads_id')
+            dom_expr = self._report_account_domain_key_sql('b.data_ads_domain')
+            sql = f"""
+                SELECT TRIM(COALESCE(b.data_ads_campaign_nm, '')) AS campaign,
+                       COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend,
+                       COALESCE(SUM(CAST(b.data_ads_lpv AS DECIMAL(18,4))), 0) AS lpv
+                FROM data_ads_campaign b
+                WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
+                  AND {key_expr} = %s
+                  AND {dom_expr} = %s
+                GROUP BY campaign
+                HAVING campaign <> ''
+            """
+            self.cur_hris.execute(sql, (start_date, end_date, account_key, domain_key))
+            campaign_rows = {}
+            for row in (self.cur_hris.fetchall() or []):
+                camp = str(row.get('campaign') or '').strip() or 'unknown_campaign'
+                bucket = campaign_rows.setdefault(camp, {'spend': 0.0, 'lpv': 0.0})
+                bucket['spend'] += float(row.get('spend') or 0)
+                bucket['lpv'] += float(row.get('lpv') or 0)
+
+            total_lpv = sum(float(v.get('lpv') or 0) for v in campaign_rows.values())
+            total_spend = sum(float(v.get('spend') or 0) for v in campaign_rows.values())
+            campaign_count = len(campaign_rows) or 1
+
+            rows = []
+            for camp, vals in campaign_rows.items():
+                spend = float(vals.get('spend') or 0)
+                lpv = float(vals.get('lpv') or 0)
+                if total_lpv > 0:
+                    weight = lpv / total_lpv
+                elif total_spend > 0:
+                    weight = spend / total_spend
+                else:
+                    weight = 1.0 / campaign_count
+                adx_rev = domain_adx * weight
+                adsense_rev = domain_adsense * weight
+                revenue = adx_rev + adsense_rev
+                metrics = self._report_account_build_row_metrics(spend, revenue, 1)
+                rows.append({
+                    'campaign': camp,
+                    'source_labels': self._report_account_resolve_source_labels(adx_rev, adsense_rev, spend),
+                    'adx_revenue': round(adx_rev, 2),
+                    'adsense_revenue': round(adsense_rev, 2),
+                    **metrics,
+                })
+
+            rows.sort(key=lambda r: float(r.get('revenue') or 0), reverse=True)
+            return {
+                'status': True,
+                'data': {
+                    'domain': domain_key,
+                    'period': {'start': start_date, 'end': end_date},
+                    'rows': rows,
                 },
             }
         except Exception as e:
