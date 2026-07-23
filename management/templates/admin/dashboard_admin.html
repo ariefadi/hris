@@ -2993,6 +2993,13 @@ html[data-theme="dark"] .score-detail-modal__body .scx-modal-nav-label {
 .score-detail-modal__body .scx-metric-summary-box.spend { background: linear-gradient(135deg, #dc2626, #f97316); }
 .score-detail-modal__body .scx-metric-summary-box.revenue { background: linear-gradient(135deg, #7c3aed, #ec4899); }
 .score-detail-modal__body .scx-metric-summary-box.roi { background: linear-gradient(135deg, #047857, #10b981); }
+.score-detail-modal__body .scx-metric-summary-box.profit { background: linear-gradient(135deg, #0369a1, #0ea5e9); }
+.score-detail-modal__body .scx-metric-summary-grid.scx-metric-summary-grid--4col {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 900px) {
+    .score-detail-modal__body .scx-metric-summary-grid.scx-metric-summary-grid--4col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .score-detail-modal__body .scx-metric-summary-box .k {
     font-size: 11px;
     font-weight: 700;
@@ -3339,22 +3346,45 @@ html[data-theme="dark"] .score-detail-modal__body .scx-analytic-table tbody tr.s
     gap: 8px;
 }
 .score-detail-modal__body .scx-analytic-hourly-scroll {
+    --scx-hourly-head-row-h: 38px;
     max-height: 380px;
     overflow: auto;
     border: 1px solid rgba(99, 102, 241, 0.12);
     border-radius: 12px;
+    background: #ffffff;
 }
 .score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead th {
     position: sticky;
     top: 0;
+    z-index: 3;
+    background-color: #eef2ff !important;
+    background-clip: padding-box;
+    box-shadow: inset 0 -1px 0 rgba(99, 102, 241, 0.18);
+}
+.score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead tr:nth-child(2) th {
+    top: var(--scx-hourly-head-row-h);
     z-index: 2;
-    box-shadow: 0 1px 0 rgba(99, 102, 241, 0.12);
+    background-color: #eef2ff !important;
+}
+.score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead th.scx-compare-head,
+.score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead th.scx-compare-sub {
+    background-color: #eef2ff !important;
 }
 html[data-theme="dark"] .score-detail-modal__body .scx-analytic-hourly-scroll {
     border-color: rgba(148, 163, 184, 0.18);
+    background: #0f172a;
 }
 html[data-theme="dark"] .score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead th {
-    box-shadow: 0 1px 0 rgba(148, 163, 184, 0.18);
+    background-color: #1e293b !important;
+    color: #e2e8f0;
+    box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.24);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead tr:nth-child(2) th {
+    background-color: #1e293b !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead th.scx-compare-head,
+html[data-theme="dark"] .score-detail-modal__body .scx-analytic-hourly-scroll .scx-analytic-table thead th.scx-compare-sub {
+    background-color: #1e293b !important;
 }
 .score-detail-modal__body .scx-analytic-shell {
     display: flex;
@@ -3771,6 +3801,102 @@ html[data-theme="dark"] .score-detail-modal__body .scx-analytic-table tbody tr.s
     gap: 10px;
     align-items: flex-end;
     flex: 0 0 auto;
+}
+.score-detail-modal__body .scx-campaign-search-field {
+    flex: 1 1 420px;
+    min-width: min(100%, 420px);
+    max-width: none;
+}
+.score-detail-modal__body .scx-campaign-search-wrap {
+    position: relative;
+    width: 100%;
+}
+.score-detail-modal__body .scx-campaign-search-wrap .form-control {
+    width: 100%;
+    min-width: 100%;
+}
+.score-detail-modal__body .scx-campaign-search-suggest {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 48;
+    max-height: 240px;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(99, 102, 241, 0.18);
+    background: #fff;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.14);
+}
+.score-detail-modal__body .scx-campaign-search-suggest[hidden] {
+    display: none !important;
+}
+.score-detail-modal__body .scx-campaign-search-suggest-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #0f172a;
+    cursor: pointer;
+    word-break: break-word;
+}
+.score-detail-modal__body .scx-campaign-search-suggest-item + .scx-campaign-search-suggest-item {
+    border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+.score-detail-modal__body .scx-campaign-search-suggest-item:hover,
+.score-detail-modal__body .scx-campaign-search-suggest-item.is-active {
+    background: rgba(99, 102, 241, 0.08);
+}
+.score-detail-modal__body .scx-campaign-search-mark {
+    padding: 0 1px;
+    border-radius: 3px;
+    background: rgba(250, 204, 21, 0.35);
+    color: inherit;
+}
+.score-detail-modal__body .scx-campaign-search-suggest-empty {
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #64748b;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-suggest {
+    background: rgba(15, 23, 42, 0.98);
+    border-color: rgba(148, 163, 184, 0.22);
+    box-shadow: 0 16px 40px rgba(2, 6, 23, 0.45);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-suggest-item {
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-suggest-item + .scx-campaign-search-suggest-item {
+    border-top-color: rgba(148, 163, 184, 0.16);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-suggest-item:hover,
+html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-suggest-item.is-active {
+    background: rgba(99, 102, 241, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-mark {
+    background: rgba(250, 204, 21, 0.22);
+    color: #fde68a;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-suggest-empty {
+    color: #94a3b8;
+}
+.score-detail-modal__body .scx-campaign-table tbody tr.scx-campaign-row-focus td {
+    background: rgba(99, 102, 241, 0.14) !important;
+    transition: background 0.25s ease;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-campaign-table tbody tr.scx-campaign-row-focus td {
+    background: rgba(99, 102, 241, 0.22) !important;
+}
+.score-detail-modal__body .scx-action-panel .sd-camp-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
 }
 .score-detail-modal__body .scx-monitoring-shell #scxMonitoringSummary .scx-metric-summary-grid {
     margin-bottom: 0;
@@ -8820,6 +8946,7 @@ function renderDecisionScoreHourlyChart(storeKey) {
             return {
                 label: labelText,
                 data: seriesData,
+                hidden: key !== 'current',
                 borderColor: hasFocus ? (focusSeriesMatch ? meta.color : rgbaFromHex(meta.color, 0.18)) : meta.color,
                 backgroundColor: hasFocus ? (focusSeriesMatch ? meta.bg : rgbaFromHex(meta.color, 0.06)) : meta.bg,
                 fill: chartMode === 'delta' ? false : meta.fill,
@@ -11880,6 +12007,7 @@ function initDashboardRecap() {
                     return {
                         label: labelText,
                         data: values,
+                        hidden: key !== 'current',
                         borderColor: hasFocus ? (focusSeriesMatch ? meta.color : 'rgba(148,163,184,.25)') : meta.color,
                         backgroundColor: hasFocus ? (focusSeriesMatch ? meta.bg : 'rgba(148,163,184,.05)') : meta.bg,
                         fill: modeKey === 'overlay' ? meta.fill : false,
@@ -12977,6 +13105,91 @@ function initDashboardRecap() {
         </div>`;
     }
 
+    function scxRenderCampaignMetricSummaryBoxes(spend, revenue, profit, roi) {
+        return `<div class="scx-metric-summary-grid scx-metric-summary-grid--4col">
+            <div class="scx-metric-summary-box spend"><div class="k">Total Spend</div><div class="v">${esc(fmtIdr(spend))}</div></div>
+            <div class="scx-metric-summary-box revenue"><div class="k">Total Revenue</div><div class="v">${esc(fmtIdr(revenue))}</div></div>
+            <div class="scx-metric-summary-box profit"><div class="k">Total Profit</div><div class="v">${esc(fmtIdr(profit))}</div></div>
+            <div class="scx-metric-summary-box roi"><div class="k">ROI Nett</div><div class="v">${esc(fmtPct(roi))}</div></div>
+        </div>`;
+    }
+
+    function scxCampaignNormName(s) {
+        return String(s || '').toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_#.-]/g, '');
+    }
+
+    function scxBuildCampaignScoringMaps(scoringData) {
+        const details = Array.isArray(scoringData?.country_details)
+            ? scoringData.country_details
+            : (Array.isArray(scoringData?.statuses) ? scoringData.statuses : []);
+        const recoMap = new Map();
+        const tagMap = new Map();
+        const aggMap = new Map();
+        details.forEach(function(d) {
+            const k = scxCampaignNormName(d?.meta_campaign || d?.campaign || d?.campaign_name || '');
+            if (!k) return;
+            if (!aggMap.has(k)) aggMap.set(k, { mSum: 0, rSum: 0, hSum: 0, nM: 0, nR: 0, nH: 0, tags: new Map() });
+            const a = aggMap.get(k);
+            const m = Number(d?.decision_margin);
+            const r = Number(d?.ivt_risk_score);
+            const h = Number(d?.health_score);
+            if (Number.isFinite(m)) { a.mSum += m; a.nM += 1; }
+            if (Number.isFinite(r)) { a.rSum += r; a.nR += 1; }
+            if (Number.isFinite(h)) { a.hSum += h; a.nH += 1; }
+            const t = String(d?.final_label || d?.root_cause_label || '').toUpperCase().trim();
+            if (t) a.tags.set(t, Number(a.tags.get(t) || 0) + 1);
+        });
+        aggMap.forEach(function(a, k) {
+            const m = a.nM ? (a.mSum / a.nM) : 0;
+            const r = a.nR ? (a.rSum / a.nR) : 0;
+            const h = a.nH ? (a.hSum / a.nH) : 0;
+            let tag = 'STABLE_HOLD';
+            let cnt = -1;
+            a.tags.forEach(function(v, t) { if (v > cnt) { tag = t; cnt = v; } });
+            tagMap.set(k, { label: tag, friendly: scxFriendlyLabel(tag) });
+            const action = (tag.includes('RED_FLAG') || tag.includes('FRAUD') || r >= 85 || m <= -90) ? 'STOP'
+                : ((tag.includes('PAUSE') || (r >= 75 && m <= -60)) ? 'PAUSE'
+                : ((tag.includes('NEG') || tag.includes('DROP') || m <= -25 || r >= 65 || h <= -12) ? 'SCALE DOWN'
+                : ((tag.includes('POSITIVE') || tag.includes('RECOVERY') || tag.includes('EXPANSION') || (m >= 20 && r < 55 && h >= 0)) ? 'SCALE UP' : 'HOLD')));
+            const pctByAction = { 'STOP': -100, 'PAUSE': -100, 'SCALE DOWN': -12, 'HOLD': 0, 'SCALE UP': 8 };
+            const pct = Number(pctByAction[action] || 0);
+            const fdir = (action === 'STOP' || action === 'PAUSE' || action === 'SCALE DOWN') ? 'UPCOMING_DOWN'
+                : ((action === 'SCALE UP') ? 'UPCOMING_UP' : 'STABLE_OUTLOOK');
+            recoMap.set(k, {
+                action: action,
+                pct: pct,
+                fdir: fdir,
+                horizon: fdir === 'STABLE_OUTLOOK' ? 48 : 24,
+                conf: Math.max(0.5, Math.min(0.93, 0.6 + Math.min(1, Math.abs(m) / 60) * 0.2 + Math.min(1, Math.abs(r - 50) / 50) * 0.1)),
+                summary: fdir === 'UPCOMING_DOWN' ? 'Berisiko turun jika tren saat ini berlanjut.' : (fdir === 'UPCOMING_UP' ? 'Berpotensi naik jika momentum tetap terjaga.' : 'Cenderung stabil, pantau sinyal baru.')
+            });
+        });
+        return { recoMap: recoMap, tagMap: tagMap };
+    }
+
+    function scxCampaignStatusLabel(raw) {
+        const s = String(raw || '').trim().toUpperCase();
+        if (!s || s === 'UNKNOWN') return 'Tidak Diketahui';
+        if (s === 'HISTORIS') return 'Tidak Aktif (Historis)';
+        if (s === 'ACTIVE') return 'Aktif';
+        if (s === 'PAUSED') return 'Pause';
+        if (s === 'ARCHIVED' || s === 'DELETED') return 'Tidak Aktif';
+        return s.charAt(0) + s.slice(1).toLowerCase();
+    }
+
+    function scxCampaignStatusTone(raw) {
+        const s = String(raw || '').trim().toUpperCase();
+        if (s === 'ACTIVE') return 'green';
+        if (s === 'PAUSED' || s === 'ARCHIVED' || s === 'DELETED' || s === 'HISTORIS') return 'red';
+        return 'gray';
+    }
+
+    function scxTruncateCampaignLabel(name, maxLen) {
+        const s = String(name || '-');
+        const n = Number(maxLen || 28);
+        return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+    }
+
     function scxFormatAnalyticDayShort(ymd) {
         const s = String(ymd || '').trim();
         if (!s) return '-';
@@ -13884,6 +14097,51 @@ function initDashboardRecap() {
         </div>`;
     }
 
+    function scxRenderCampaignPane(defaultDate) {
+        const d = esc(String(defaultDate || ''));
+        return `<div data-scx-tab-pane="campaign" hidden>
+            <div class="scx-card scx-monitoring-shell scx-campaign-shell">
+                <div class="scx-monitoring-head">
+                    <div>
+                        <div class="scx-title">Campaign Subdomain</div>
+                        <div class="scx-sub scx-campaign-lead">Semua campaign pada subdomain ini — aktif maupun tidak aktif — dengan ringkasan performa, grafik perbandingan, dan aksi cepat.</div>
+                    </div>
+                    <span class="scx-sub scx-campaign-status" style="margin:0;"></span>
+                </div>
+                <div class="scx-monitoring-toolbar">
+                    <div class="scx-monitoring-range-filters">
+                        <div class="scx-range-field"><label>Dari</label><input type="text" class="form-control scx-campaign-start" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
+                        <div class="scx-range-field"><label>Sampai</label><input type="text" class="form-control scx-campaign-end" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
+                    </div>
+                    <div class="scx-range-field scx-campaign-search-field">
+                        <label>Cari Campaign</label>
+                        <div class="scx-campaign-search-wrap">
+                            <input type="text" class="form-control scx-campaign-search" placeholder="Ketik minimal 3 huruf untuk saran nama campaign..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="scxCampaignSearchSuggest">
+                            <div id="scxCampaignSearchSuggest" class="scx-campaign-search-suggest" hidden></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="scxCampaignSummary"></div>
+                <div class="scx-monitoring-chart-block">
+                    <div class="scx-analytic-block-title">Perbandingan Performa Campaign</div>
+                    <div class="scx-sub scx-analytic-block-sub">Top 10 campaign berdasarkan spend dalam filter aktif.</div>
+                    <div class="scx-chart-box scx-monitoring-chart-box"><canvas id="scxCampaignPerfChart"></canvas></div>
+                </div>
+                <div class="scx-analytic-detail-stack">
+                    <details class="scx-analytic-detail-panel" open data-campaign-panel="table">
+                        <summary class="scx-analytic-detail-summary">
+                            <span class="scx-analytic-detail-summary__main"><i class="bi bi-table"></i> Daftar Campaign</span>
+                            <span class="scx-analytic-detail-summary__hint" id="scxCampaignTableMeta">Detail lengkap</span>
+                        </summary>
+                        <div class="scx-analytic-detail-body">
+                            <div id="scxCampaignTableWrap" class="scx-data-table-wrap"></div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>`;
+    }
+
     function scxDestroyChartInstance(key) {
         const inst = window[key];
         if (inst && typeof inst.destroy === 'function') {
@@ -14316,6 +14574,69 @@ function initDashboardRecap() {
                         ticks: { callback: function(v) { return `${v}%`; } }
                     },
                     y: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function scxBindCampaignPerfChart(items) {
+        const canvas = document.getElementById('scxCampaignPerfChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+        scxDestroyChartInstance('scxCampaignPerfChartInstance');
+        const top = (Array.isArray(items) ? items : []).slice().sort(function(a, b) {
+            return Number(b.spend || 0) - Number(a.spend || 0);
+        }).slice(0, 10);
+        if (!top.length) return;
+        const labels = top.map(function(it) { return scxTruncateCampaignLabel(it.campaign_name, 24); });
+        window.scxCampaignPerfChartInstance = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Spend',
+                        data: top.map(function(it) { return Number(it.spend || 0); }),
+                        backgroundColor: 'rgba(239, 68, 68, 0.75)',
+                        borderWidth: 0,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Revenue',
+                        data: top.map(function(it) { return Number(it.revenue || 0); }),
+                        backgroundColor: 'rgba(124, 58, 237, 0.75)',
+                        borderWidth: 0,
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(ctx) {
+                                const idx = ctx[0]?.dataIndex;
+                                const row = top[idx];
+                                if (!row) return [];
+                                return [`ROI: ${Number(row.roi || 0).toFixed(2)}%`, `Profit: ${fmtIdr(Number(row.net_profit || 0))}`];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: {
+                        ticks: {
+                            callback: function(v) {
+                                const n = Number(v || 0);
+                                if (Math.abs(n) >= 1000000) return `${(n / 1000000).toFixed(1)}jt`;
+                                if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(0)}rb`;
+                                return n;
+                            }
+                        }
+                    }
                 }
             }
         });
@@ -15307,6 +15628,502 @@ function initDashboardRecap() {
         }
     }
 
+    function scxSetCampaignTabLoading(active, hint) {
+        const pane = document.querySelector('[data-scx-tab-pane="campaign"]');
+        const summaryEl = document.getElementById('scxCampaignSummary');
+        const tableWrap = document.getElementById('scxCampaignTableWrap');
+        const chartBlock = pane ? pane.querySelector('.scx-monitoring-chart-block') : null;
+        if (!active) {
+            if (chartBlock) chartBlock.style.visibility = '';
+            return;
+        }
+        if (summaryEl) summaryEl.innerHTML = scxRenderTabLoadingState('Memuat Campaign', hint || 'Mengambil data campaign subdomain...');
+        if (tableWrap) tableWrap.innerHTML = scxRenderTabInlineLoading('Menyiapkan tabel campaign...');
+        if (chartBlock) chartBlock.style.visibility = 'hidden';
+        scxDestroyChartInstance('scxCampaignPerfChartInstance');
+    }
+
+    function scxFilterCampaignTabRows(rows, searchQuery) {
+        const q = String(searchQuery || '').trim().toLowerCase();
+        if (!q) return Array.isArray(rows) ? rows.slice() : [];
+        return (Array.isArray(rows) ? rows : []).filter(function(r) {
+            return String(r?.campaign_name || '').toLowerCase().includes(q);
+        });
+    }
+
+    function scxCampaignSearchSuggestOptions(allRows, query, limit) {
+        const q = String(query || '').trim().toLowerCase();
+        if (q.length < 3) return [];
+        const names = [];
+        const seen = new Set();
+        (Array.isArray(allRows) ? allRows : []).forEach(function(r) {
+            const name = String(r?.campaign_name || '').trim();
+            if (!name) return;
+            const key = name.toLowerCase();
+            if (seen.has(key) || !key.includes(q)) return;
+            seen.add(key);
+            names.push(name);
+        });
+        names.sort(function(a, b) {
+            const al = a.toLowerCase();
+            const bl = b.toLowerCase();
+            const aStarts = al.startsWith(q) ? 0 : 1;
+            const bStarts = bl.startsWith(q) ? 0 : 1;
+            if (aStarts !== bStarts) return aStarts - bStarts;
+            return al.localeCompare(bl);
+        });
+        return names.slice(0, Number(limit || 12));
+    }
+
+    function scxHighlightCampaignSuggest(text, query) {
+        const raw = String(text || '');
+        const q = String(query || '').trim();
+        if (!q) return esc(raw);
+        const lower = raw.toLowerCase();
+        const idx = lower.indexOf(q.toLowerCase());
+        if (idx < 0) return esc(raw);
+        return esc(raw.slice(0, idx))
+            + `<mark class="scx-campaign-search-mark">${esc(raw.slice(idx, idx + q.length))}</mark>`
+            + esc(raw.slice(idx + q.length));
+    }
+
+    function scxRenderCampaignSearchSuggest(names, query) {
+        if (!names.length) {
+            return '<div class="scx-campaign-search-suggest-empty">Tidak ada campaign cocok.</div>';
+        }
+        return names.map(function(name) {
+            return `<button type="button" class="scx-campaign-search-suggest-item" data-campaign-name="${esc(name)}">${scxHighlightCampaignSuggest(name, query)}</button>`;
+        }).join('');
+    }
+
+    function scxHideCampaignSearchSuggest(searchEl) {
+        const wrap = searchEl ? searchEl.closest('.scx-campaign-search-wrap') : null;
+        const box = wrap ? wrap.querySelector('.scx-campaign-search-suggest') : null;
+        if (!box) return;
+        box.hidden = true;
+        box.innerHTML = '';
+        if (searchEl) searchEl.setAttribute('aria-expanded', 'false');
+    }
+
+    function scxShowCampaignSearchSuggest(searchEl) {
+        const wrap = searchEl ? searchEl.closest('.scx-campaign-search-wrap') : null;
+        const box = wrap ? wrap.querySelector('.scx-campaign-search-suggest') : null;
+        if (!box || !searchEl) return;
+        const cache = window.scxCampaignTabCache;
+        const query = String(searchEl.value || '').trim();
+        if (query.length < 3) {
+            scxHideCampaignSearchSuggest(searchEl);
+            return;
+        }
+        const names = scxCampaignSearchSuggestOptions(cache?.allRows, query, 12);
+        box.innerHTML = scxRenderCampaignSearchSuggest(names, query);
+        box.hidden = false;
+        searchEl.setAttribute('aria-expanded', names.length ? 'true' : 'false');
+    }
+
+    function scxApplyCampaignSearchQuery(searchEl, query) {
+        const cache = window.scxCampaignTabCache;
+        if (!cache || !searchEl) return;
+        cache.searchQuery = String(query || '');
+        searchEl.value = cache.searchQuery;
+        scxRefreshCampaignTabView();
+        scxShowCampaignSearchSuggest(searchEl);
+    }
+
+    function scxScrollCampaignTabIntoView(pane, campaignName) {
+        if (!pane) return;
+        const panel = pane.querySelector('[data-campaign-panel="table"]');
+        if (panel) panel.open = true;
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                const tableWrap = document.getElementById('scxCampaignTableWrap');
+                if (tableWrap) tableWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                const q = String(campaignName || '').trim().toLowerCase();
+                if (!q || !tableWrap) return;
+                const rows = Array.from(tableWrap.querySelectorAll('tbody tr'));
+                const hit = rows.find(function(tr) {
+                    const cell = tr.querySelector('td:nth-child(2)');
+                    return cell && String(cell.textContent || '').trim().toLowerCase() === q;
+                }) || rows.find(function(tr) {
+                    const cell = tr.querySelector('td:nth-child(2)');
+                    return cell && String(cell.textContent || '').trim().toLowerCase().includes(q);
+                });
+                if (!hit) return;
+                hit.classList.add('scx-campaign-row-focus');
+                hit.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                window.setTimeout(function() { hit.classList.remove('scx-campaign-row-focus'); }, 2400);
+            });
+        });
+    }
+
+    async function scxOpenScoreDetailCampaignFocus(campaignName, row, state, scoringData) {
+        const name = String(campaignName || '').trim();
+        if (!name) return;
+        window.scxCampaignTabPendingFocus = name;
+        bindScoreDetailCampaignTab(row, state, scoringData || {});
+        const activate = window.scoreDetailModalTabActivate;
+        if (typeof activate === 'function') {
+            await activate('campaign');
+            return;
+        }
+        const btn = document.querySelector('[data-scx-tab-btn="campaign"]');
+        if (btn) btn.click();
+    }
+
+    function scxSummarizeCampaignRows(rows) {
+        const list = Array.isArray(rows) ? rows : [];
+        const spend = list.reduce(function(s, r) { return s + Number(r.spend || 0); }, 0);
+        const revenue = list.reduce(function(s, r) { return s + Number(r.revenue || 0); }, 0);
+        const profit = list.reduce(function(s, r) {
+            const net = Number(r.net_profit != null ? r.net_profit : (Number(r.revenue || 0) - Number(r.spend || 0)));
+            return s + net;
+        }, 0);
+        const roi = spend > 0 ? ((revenue - spend) / spend * 100) : 0;
+        return { spend: spend, revenue: revenue, profit: profit, roi: roi };
+    }
+
+    function scxRenderCampaignTabTable(rows, cache) {
+        if (!Array.isArray(rows) || !rows.length) {
+            return '<div class="scx-sub" style="padding:14px;">Tidak ada campaign untuk filter ini.</div>';
+        }
+        const recoMap = cache?.recoMap || new Map();
+        const tagMap = cache?.tagMap || new Map();
+        const accountAds = String(cache?.accountAds || '').trim();
+        const fmtBudgetInput = function(v) {
+            const n = Math.max(0, Math.round(Number(v) || 0));
+            return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        };
+        let html = '<table class="scx-data-table scx-campaign-table"><thead><tr>';
+        html += '<th style="width:42px;">No</th>';
+        html += '<th>Nama Campaign</th>';
+        html += '<th class="text-end">Spend</th>';
+        html += '<th class="text-end">Revenue</th>';
+        html += '<th class="text-end">ROI</th>';
+        html += '<th>Status Campaign</th>';
+        html += '<th>Status Scoring</th>';
+        html += '<th>Prediksi</th>';
+        html += '<th class="text-end">Rekomendasi</th>';
+        html += '<th class="text-end">Daily Budget</th>';
+        html += '<th class="text-center">Aksi</th>';
+        html += '</tr></thead><tbody>';
+        rows.forEach(function(row, idx) {
+            const name = String(row?.campaign_name || '-');
+            const key = scxCampaignNormName(name);
+            const cid = String(row?.campaign_id || '').trim();
+            const spend = Number(row?.spend || 0);
+            const revenue = Number(row?.revenue || 0);
+            const roi = Number(row?.roi != null ? row.roi : (spend > 0 ? ((revenue - spend) / spend * 100) : 0));
+            const roiCls = roi >= 0 ? 'scx-val-up' : 'scx-val-down';
+            const rec = recoMap.get(key) || { action: 'HOLD', pct: 0, fdir: 'STABLE_OUTLOOK', horizon: 48, conf: 0.55, summary: 'Cenderung stabil, pantau sinyal baru.' };
+            const tag = tagMap.get(key) || { label: 'STABLE_HOLD', friendly: 'Stabil' };
+            const recPct = Number(rec.pct || 0);
+            const recPctTxt = `${recPct > 0 ? '+' : ''}${recPct.toFixed(2)}%`;
+            const action = String(rec.action || 'HOLD').toUpperCase();
+            const actionTone = (action === 'SCALE UP') ? 'green' : ((action === 'SCALE DOWN' || action === 'PAUSE' || action === 'STOP') ? 'red' : 'gray');
+            const fcTone = (rec.fdir === 'UPCOMING_UP') ? 'green' : ((rec.fdir === 'UPCOMING_DOWN') ? 'red' : 'yellow');
+            const isStatusAction = (action === 'STOP' || action === 'PAUSE');
+            const bud = Number(row?.daily_budget || 0);
+            const suggestedBudget = isStatusAction ? bud : Math.max(1, Math.round(bud * (1 + (recPct / 100))));
+            const inputId = `scxCampBud_${cid || idx}`;
+            const canAct = !!(accountAds && cid);
+            html += '<tr>';
+            html += `<td>${esc(String(idx + 1))}</td>`;
+            html += `<td title="${esc(name)}">${esc(name)}</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(spend))}</td>`;
+            html += `<td class="text-end">${esc(fmtIdr(revenue))}</td>`;
+            html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(roi))}</span></td>`;
+            html += `<td><span class="scx-pill ${scxCampaignStatusTone(row?.campaign_status)}">${esc(scxCampaignStatusLabel(row?.campaign_status))}</span></td>`;
+            html += `<td><span class="scx-pill gray">${esc(tag.friendly || scxFriendlyLabel(tag.label))}</span></td>`;
+            html += `<td><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:3px;"><span class="scx-pill ${fcTone}" style="font-size:10px;padding:2px 8px;">${esc(rec.fdir)}</span><span class="scx-pill gray" style="font-size:10px;padding:2px 8px;">${esc(String(rec.horizon))} jam</span><span class="scx-pill gray" style="font-size:10px;padding:2px 8px;">${esc(scxPct01(rec.conf, 0))}</span></div><div class="scx-sub" style="margin:0;font-size:11px;">${esc(rec.summary)}</div></td>`;
+            html += `<td class="text-end"><span class="scx-pill ${actionTone}" style="font-size:10px;padding:2px 8px;">${esc(action)}</span><div style="font-size:11px;font-weight:700;margin-top:4px;">${esc(recPctTxt)}</div></td>`;
+            if (canAct) {
+                html += `<td class="text-end"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm scx-campaign-budget-input" data-cid="${esc(cid)}" value="${esc(fmtBudgetInput(suggestedBudget))}" style="text-align:right;max-width:132px;margin-left:auto;${isStatusAction ? 'opacity:.65;' : ''}" ${isStatusAction ? 'readonly' : ''}></td>`;
+                html += `<td class="text-center"><button type="button" class="btn btn-sm btn-outline-primary scx-campaign-act-btn" data-cid="${esc(cid)}" data-action="${esc(action)}" data-bud-input="${esc(inputId)}">Save</button></td>`;
+            } else {
+                html += `<td class="text-end">${bud > 0 ? esc(fmtIdr(bud)) : '<span class="text-muted">—</span>'}</td>`;
+                html += '<td class="text-center"><span class="text-muted">—</span></td>';
+            }
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function scxRefreshCampaignTabView() {
+        const cache = window.scxCampaignTabCache;
+        const summaryEl = document.getElementById('scxCampaignSummary');
+        const tableWrap = document.getElementById('scxCampaignTableWrap');
+        const tableMeta = document.getElementById('scxCampaignTableMeta');
+        const statusEl = document.querySelector('.scx-campaign-status');
+        const pane = document.querySelector('[data-scx-tab-pane="campaign"]');
+        const chartBlock = pane ? pane.querySelector('.scx-monitoring-chart-block') : null;
+        if (!cache) return;
+        const filtered = scxFilterCampaignTabRows(cache.allRows, cache.searchQuery);
+        cache.filteredRows = filtered;
+        const totals = scxSummarizeCampaignRows(filtered);
+        if (summaryEl) summaryEl.innerHTML = scxRenderCampaignMetricSummaryBoxes(totals.spend, totals.revenue, totals.profit, totals.roi);
+        if (tableWrap) tableWrap.innerHTML = scxRenderCampaignTabTable(filtered, cache);
+        if (tableMeta) tableMeta.textContent = `${filtered.length} campaign • ${cache.startYmd || '-'} s/d ${cache.endYmd || '-'}`;
+        if (statusEl) statusEl.textContent = `${filtered.length} / ${(cache.allRows || []).length} campaign`;
+        if (chartBlock) chartBlock.style.visibility = '';
+        requestAnimationFrame(function() {
+            scxBindCampaignPerfChart(filtered);
+        });
+    }
+
+    async function scxFetchCampaignTabRows(row, state, startYmd, endYmd) {
+        const scope = resolveScoreDetailScope(row, state);
+        const siteName = String(scope.domain || '').trim();
+        const accountAds = String(row?.account_ads || '').trim();
+        if (!siteName) throw new Error('Subdomain tidak ditemukan.');
+        const breakdownQs = new URLSearchParams({ site_name: siteName, start_date: startYmd, end_date: endYmd });
+        const breakdownResp = await fetch('/management/admin/page_monitoring_domain_campaign_breakdown?' + breakdownQs.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const breakdownJson = await breakdownResp.json();
+        if (!breakdownJson || !breakdownJson.status) throw new Error(breakdownJson?.error || 'Gagal memuat breakdown campaign');
+        const breakdownRows = Array.isArray(breakdownJson.data) ? breakdownJson.data : [];
+        let fbRows = [];
+        if (accountAds) {
+            try {
+                const fbQs = new URLSearchParams({ account_ads: accountAds, site_name: siteName, start_date: startYmd, end_date: endYmd });
+                const fbResp = await fetch('/management/admin/page_monitoring_domain_campaigns?' + fbQs.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const fbJson = await fbResp.json();
+                if (fbJson && fbJson.status) fbRows = Array.isArray(fbJson.campaigns) ? fbJson.campaigns : [];
+            } catch (_) {}
+        }
+        const fbByName = new Map();
+        fbRows.forEach(function(c) {
+            const key = scxCampaignNormName(c?.campaign_name || c?.name || '');
+            if (key) fbByName.set(key, c);
+        });
+        const merged = new Map();
+        breakdownRows.forEach(function(r) {
+            const name = String(r?.campaign || r?.campaign_name || '').trim() || 'unknown_campaign';
+            const key = scxCampaignNormName(name);
+            const fb = fbByName.get(key);
+            const spend = Number(r?.spend || 0);
+            const revenue = Number(r?.revenue || 0);
+            merged.set(key, {
+                campaign_name: name,
+                campaign_id: String(fb?.campaign_id || fb?.id || '').trim(),
+                spend: spend,
+                revenue: revenue,
+                net_profit: Number(r?.net_profit != null ? r.net_profit : (revenue - spend)),
+                roi: Number(r?.roi != null ? r.roi : (spend > 0 ? ((revenue - spend) / spend * 100) : 0)),
+                daily_budget: Number(fb?.daily_budget || fb?.budget || 0),
+                campaign_status: fb?.status || (spend > 0 ? 'HISTORIS' : 'TIDAK AKTIF'),
+                has_fb: !!fb
+            });
+            if (fb) fbByName.delete(key);
+        });
+        fbByName.forEach(function(fb, key) {
+            const spend = Number(fb?.spend || 0);
+            merged.set(key, {
+                campaign_name: String(fb?.campaign_name || fb?.name || key),
+                campaign_id: String(fb?.campaign_id || fb?.id || '').trim(),
+                spend: spend,
+                revenue: 0,
+                net_profit: -spend,
+                roi: 0,
+                daily_budget: Number(fb?.daily_budget || fb?.budget || 0),
+                campaign_status: fb?.status || 'UNKNOWN',
+                has_fb: true
+            });
+        });
+        return {
+            rows: Array.from(merged.values()).sort(function(a, b) { return Number(b.spend || 0) - Number(a.spend || 0); }),
+            accountAds: accountAds,
+            siteName: siteName
+        };
+    }
+
+    async function loadScoreDetailCampaignTab(row, state, scoringData) {
+        const pane = document.querySelector('[data-scx-tab-pane="campaign"]');
+        if (!pane) return;
+        const scope = resolveScoreDetailScope(row, state);
+        const startEl = pane.querySelector('.scx-campaign-start');
+        const endEl = pane.querySelector('.scx-campaign-end');
+        const statusEl = pane.querySelector('.scx-campaign-status');
+        const tableWrap = document.getElementById('scxCampaignTableWrap');
+        const leadEl = pane.querySelector('.scx-campaign-lead');
+        if (scope.isCountryDim) {
+            if (tableWrap) tableWrap.innerHTML = '<div class="scx-sub" style="padding:14px;">Tab Campaign tersedia untuk detail scoring subdomain/domain.</div>';
+            if (statusEl) statusEl.textContent = 'Hanya subdomain';
+            return;
+        }
+        if (!scope.domain) {
+            if (tableWrap) tableWrap.innerHTML = '<div class="scx-sub" style="padding:14px;">Subdomain tidak ditemukan.</div>';
+            return;
+        }
+        if (leadEl) leadEl.textContent = `Semua campaign pada subdomain ${scope.domain} — aktif maupun tidak aktif — dengan ringkasan performa, grafik perbandingan, dan aksi cepat.`;
+        if (!startEl || !endEl) return;
+        let startYmd = String(startEl.value || state?.date || '').trim();
+        let endYmd = String(endEl.value || state?.date || '').trim();
+        if (startYmd && endYmd && startYmd > endYmd) {
+            const tmp = startYmd; startYmd = endYmd; endYmd = tmp;
+            startEl.value = startYmd;
+            endEl.value = endYmd;
+        }
+        scxSetCampaignTabLoading(true);
+        if (statusEl) statusEl.textContent = 'Memuat...';
+        try {
+            const maps = scxBuildCampaignScoringMaps(scoringData || {});
+            const payload = await scxFetchCampaignTabRows(row, state, startYmd, endYmd);
+            const pendingFocus = String(window.scxCampaignTabPendingFocus || '').trim();
+            if (pendingFocus) window.scxCampaignTabPendingFocus = '';
+            const prevSearch = pendingFocus || (window.scxCampaignTabCache ? String(window.scxCampaignTabCache.searchQuery || '') : '');
+            window.scxCampaignTabCache = {
+                allRows: payload.rows,
+                filteredRows: payload.rows,
+                searchQuery: prevSearch,
+                accountAds: payload.accountAds,
+                siteName: payload.siteName,
+                recoMap: maps.recoMap,
+                tagMap: maps.tagMap,
+                startYmd: startYmd,
+                endYmd: endYmd
+            };
+            const searchEl = pane.querySelector('.scx-campaign-search');
+            if (searchEl) searchEl.value = prevSearch;
+            scxSetCampaignTabLoading(false);
+            scxRefreshCampaignTabView();
+            if (searchEl && prevSearch.trim().length >= 3) scxShowCampaignSearchSuggest(searchEl);
+            if (pendingFocus && searchEl) {
+                scxHideCampaignSearchSuggest(searchEl);
+                scxScrollCampaignTabIntoView(pane, pendingFocus);
+            }
+        } catch (e) {
+            scxSetCampaignTabLoading(false);
+            const summaryEl = document.getElementById('scxCampaignSummary');
+            if (summaryEl) summaryEl.innerHTML = '';
+            if (tableWrap) tableWrap.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat campaign'))}</div>`;
+            scxDestroyChartInstance('scxCampaignPerfChartInstance');
+            if (statusEl) statusEl.textContent = 'Gagal memuat';
+        }
+    }
+
+    function bindScoreDetailCampaignTab(row, state, scoringData) {
+        const pane = document.querySelector('[data-scx-tab-pane="campaign"]');
+        if (!pane || pane.dataset.bound === '1') return;
+        pane.dataset.bound = '1';
+        pane.dataset.scoringBound = '1';
+        const startEl = pane.querySelector('.scx-campaign-start');
+        const endEl = pane.querySelector('.scx-campaign-end');
+        const searchEl = pane.querySelector('.scx-campaign-search');
+        const run = function() { loadScoreDetailCampaignTab(row, state, scoringData).catch(function(){}); };
+        scxBindScoreDetailDateRange(startEl, endEl, run);
+        if (searchEl && !searchEl.dataset.bound) {
+            searchEl.dataset.bound = '1';
+            let searchTimer = null;
+            let suggestHideTimer = null;
+            searchEl.addEventListener('input', function() {
+                scxShowCampaignSearchSuggest(searchEl);
+                if (searchTimer) clearTimeout(searchTimer);
+                searchTimer = setTimeout(function() {
+                    const cache = window.scxCampaignTabCache;
+                    if (!cache) return;
+                    cache.searchQuery = String(searchEl.value || '');
+                    scxRefreshCampaignTabView();
+                }, 180);
+            });
+            searchEl.addEventListener('focus', function() {
+                if (suggestHideTimer) {
+                    clearTimeout(suggestHideTimer);
+                    suggestHideTimer = null;
+                }
+                scxShowCampaignSearchSuggest(searchEl);
+            });
+            searchEl.addEventListener('blur', function() {
+                if (suggestHideTimer) clearTimeout(suggestHideTimer);
+                suggestHideTimer = setTimeout(function() {
+                    scxHideCampaignSearchSuggest(searchEl);
+                }, 160);
+            });
+            searchEl.addEventListener('keydown', function(e) {
+                const wrap = searchEl.closest('.scx-campaign-search-wrap');
+                const box = wrap ? wrap.querySelector('.scx-campaign-search-suggest') : null;
+                if (!box || box.hidden) return;
+                const items = Array.from(box.querySelectorAll('.scx-campaign-search-suggest-item'));
+                if (!items.length) return;
+                const activeIdx = items.findIndex(function(el) { return el.classList.contains('is-active'); });
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const next = activeIdx < items.length - 1 ? activeIdx + 1 : 0;
+                    items.forEach(function(el, i) { el.classList.toggle('is-active', i === next); });
+                    items[next].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prev = activeIdx > 0 ? activeIdx - 1 : items.length - 1;
+                    items.forEach(function(el, i) { el.classList.toggle('is-active', i === prev); });
+                    items[prev].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'Enter') {
+                    const pick = items[activeIdx >= 0 ? activeIdx : 0];
+                    if (!pick) return;
+                    e.preventDefault();
+                    scxApplyCampaignSearchQuery(searchEl, pick.getAttribute('data-campaign-name') || '');
+                    scxHideCampaignSearchSuggest(searchEl);
+                } else if (e.key === 'Escape') {
+                    scxHideCampaignSearchSuggest(searchEl);
+                }
+            });
+        }
+        pane.addEventListener('mousedown', function(e) {
+            const suggestBtn = e.target && e.target.closest ? e.target.closest('.scx-campaign-search-suggest-item') : null;
+            if (!suggestBtn || !searchEl) return;
+            e.preventDefault();
+            scxApplyCampaignSearchQuery(searchEl, suggestBtn.getAttribute('data-campaign-name') || '');
+            scxHideCampaignSearchSuggest(searchEl);
+            searchEl.focus();
+        });
+        pane.addEventListener('click', async function(e) {
+            const btn = e.target && e.target.closest ? e.target.closest('.scx-campaign-act-btn') : null;
+            if (!btn) return;
+            const cache = window.scxCampaignTabCache;
+            if (!cache || !cache.accountAds) return;
+            const cid = String(btn.getAttribute('data-cid') || '').trim();
+            const action = String(btn.getAttribute('data-action') || 'HOLD').toUpperCase();
+            const inputId = String(btn.getAttribute('data-bud-input') || '');
+            const statusEl = pane.querySelector('.scx-campaign-status');
+            btn.disabled = true;
+            const postForm = async function(url, data) {
+                const body = new URLSearchParams();
+                Object.keys(data || {}).forEach(function(k) { body.append(k, String((data || {})[k])); });
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: body.toString()
+                });
+                return await resp.json();
+            };
+            try {
+                if (action === 'STOP' || action === 'PAUSE') {
+                    const j = await postForm('/management/admin/update_campaign_status_monitoring_domain_campaign', {
+                        account_ads: cache.accountAds,
+                        status: 'PAUSED',
+                        campaign_ids: JSON.stringify([cid])
+                    });
+                    if (!j || !j.status) throw new Error(j?.error || 'Gagal update status campaign');
+                    if (statusEl) statusEl.textContent = `OK: campaign di-pause (${cid})`;
+                } else {
+                    const inp = inputId ? document.getElementById(inputId) : null;
+                    const raw = String(inp ? inp.value : '').replace('Rp', '').replace(/\./g, '').replace(/,/g, '').trim();
+                    const n = parseInt(raw, 10);
+                    if (!cid || !isFinite(n) || n <= 0) throw new Error('Daily budget tidak valid');
+                    const j = await postForm('/management/admin/update_daily_budget_monitoring_domain_campaign', {
+                        account_ads: cache.accountAds,
+                        campaign_id: cid,
+                        daily_budget: n
+                    });
+                    if (!j || !j.status) throw new Error(j?.error || 'Gagal update daily budget');
+                    if (statusEl) statusEl.textContent = `OK: daily budget diperbarui (${cid})`;
+                }
+            } catch (er) {
+                if (statusEl) statusEl.textContent = String(er?.message || er || 'Gagal eksekusi aksi campaign');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    }
+
     function bindScoreCountryTabs(onShow) {
         const btns = Array.from(document.querySelectorAll('[data-scx-tab-btn]'));
         const panes = Array.from(document.querySelectorAll('[data-scx-tab-pane]'));
@@ -15326,6 +16143,7 @@ function initDashboardRecap() {
         btns.forEach(function(b) {
             b.onclick = function() { act(String(b.getAttribute('data-scx-tab-btn') || 'summary')).catch(function(){}); };
         });
+        window.scoreDetailModalTabActivate = act;
         act('summary').catch(function(){});
     }
 
@@ -17333,34 +18151,7 @@ function initDashboardRecap() {
         const start = end ? ymdShift(end, -6) : '';
 
         const st = { campaigns: [] };
-        const norm = function(s){ return String(s || '').toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9_#.-]/g,''); };
-        const details = Array.isArray(scoringData?.country_details) ? scoringData.country_details : (Array.isArray(scoringData?.statuses) ? scoringData.statuses : []);
-        const recoMap = new Map();
-        const aggMap = new Map();
-        details.forEach(function(d){
-            const k = norm(d?.meta_campaign || d?.campaign || d?.campaign_name || '');
-            if (!k) return;
-            if (!aggMap.has(k)) aggMap.set(k, { mSum:0, rSum:0, hSum:0, nM:0, nR:0, nH:0, tags:new Map() });
-            const a = aggMap.get(k);
-            const m = Number(d?.decision_margin), r = Number(d?.ivt_risk_score), h = Number(d?.health_score);
-            if (Number.isFinite(m)) { a.mSum += m; a.nM += 1; }
-            if (Number.isFinite(r)) { a.rSum += r; a.nR += 1; }
-            if (Number.isFinite(h)) { a.hSum += h; a.nH += 1; }
-            const t = String(d?.final_label || d?.root_cause_label || '').toUpperCase().trim();
-            if (t) a.tags.set(t, Number(a.tags.get(t) || 0) + 1);
-        });
-        aggMap.forEach(function(a, k){
-            const m = a.nM ? (a.mSum / a.nM) : 0;
-            const r = a.nR ? (a.rSum / a.nR) : 0;
-            const h = a.nH ? (a.hSum / a.nH) : 0;
-            let tag = 'STABLE_HOLD', cnt = -1;
-            a.tags.forEach(function(v, t){ if (v > cnt) { tag = t; cnt = v; } });
-            const action = (tag.includes('RED_FLAG') || tag.includes('FRAUD') || r >= 85 || m <= -90) ? 'STOP' : ((tag.includes('PAUSE') || (r >= 75 && m <= -60)) ? 'PAUSE' : ((tag.includes('NEG') || tag.includes('DROP') || m <= -25 || r >= 65 || h <= -12) ? 'SCALE DOWN' : ((tag.includes('POSITIVE') || tag.includes('RECOVERY') || tag.includes('EXPANSION') || (m >= 20 && r < 55 && h >= 0)) ? 'SCALE UP' : 'HOLD')));
-            const pctByAction = { 'STOP': -100, 'PAUSE': -100, 'SCALE DOWN': -12, 'HOLD': 0, 'SCALE UP': 8 };
-            const pct = Number(pctByAction[action] || 0);
-            const fdir = (action === 'STOP' || action === 'PAUSE' || action === 'SCALE DOWN') ? 'UPCOMING_DOWN' : ((action === 'SCALE UP') ? 'UPCOMING_UP' : 'STABLE_OUTLOOK');
-            recoMap.set(k, { action, pct, fdir, horizon: fdir === 'STABLE_OUTLOOK' ? 48 : 24, conf: Math.max(0.5, Math.min(0.93, 0.6 + Math.min(1, Math.abs(m)/60) * 0.2 + Math.min(1, Math.abs(r-50)/50) * 0.1)), summary: fdir === 'UPCOMING_DOWN' ? 'Berisiko turun jika tren saat ini berlanjut.' : (fdir === 'UPCOMING_UP' ? 'Berpotensi naik jika momentum tetap terjaga.' : 'Cenderung stabil, pantau sinyal baru.') });
-        });
+        const { recoMap } = scxBuildCampaignScoringMaps(scoringData || {});
         function setStatus(msg) {
             if (statusEl) statusEl.textContent = String(msg || '');
         }
@@ -17442,7 +18233,7 @@ function initDashboardRecap() {
             h += '<th style="width:110px;">Status Aksi</th>';
             h += '<th class="text-end" style="width:100px;">Prosentase <br> Rekomendasi</th>';
             h += '<th class="text-end" style="width:150px;">Daily Budget</th>';
-            h += '<th style="width:82px;" class="text-center">Update</th>';
+            h += '<th style="width:140px;" class="text-center">Aksi</th>';
             h += '</tr></thead><tbody>';
 
             rows.forEach(function(c){
@@ -17451,7 +18242,7 @@ function initDashboardRecap() {
                 const spend = Number(c?.spend || 0) || 0;
                 const bud = Number(c?.daily_budget || c?.budget || 0) || 0;
                 const inputId = `sdBud_${cid}`;
-                const rec = recoMap.get(norm(name)) || { action: 'HOLD', pct: 0, fdir: 'STABLE_OUTLOOK', horizon: 48, conf: 0.55, summary: 'Cenderung stabil, pantau sinyal baru.' };
+                const rec = recoMap.get(scxCampaignNormName(name)) || { action: 'HOLD', pct: 0, fdir: 'STABLE_OUTLOOK', horizon: 48, conf: 0.55, summary: 'Cenderung stabil, pantau sinyal baru.' };
                 const recPct = Number(rec.pct || 0);
                 const recPctTxt = `${recPct > 0 ? '+' : ''}${recPct.toFixed(2)}%`;
                 const fcTone = (rec.fdir === 'UPCOMING_UP') ? 'green' : ((rec.fdir === 'UPCOMING_DOWN') ? 'red' : 'yellow');
@@ -17467,7 +18258,7 @@ function initDashboardRecap() {
                 h += `<td><span class="scx-pill ${actionTone}" style="font-size:10px;padding:2px 8px;">${esc(action)}</span></td>`;
                 h += `<td class="text-end" style="font-weight:700;white-space:nowrap;">${esc(recPctTxt)}</td>`;
                 h += `<td class="text-end"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm" value="${esc(fmtBudgetInput(suggestedBudget))}" style="text-align:right;width:132px;min-width:132px;margin-left:auto;padding:2px 8px;height:30px;${isStatusAction ? 'background:#e2e8f0;cursor:not-allowed;' : ''}" ${isStatusAction ? 'readonly' : ''}></td>`;
-                h += `<td class="text-center"><button type="button" class="btn btn-sm btn-outline-primary sd-camp-upd" data-cid="${esc(cid)}" data-action="${esc(action)}" style="padding:2px 10px;height:30px;">Save</button></td>`;
+                h += `<td class="text-center"><div class="sd-camp-actions"><button type="button" class="btn btn-sm btn-outline-primary sd-camp-upd" data-cid="${esc(cid)}" data-action="${esc(action)}" title="Simpan perubahan" style="padding:2px 10px;height:30px;"><i class="fas fa-save" aria-hidden="true"></i></button><button type="button" class="btn btn-sm btn-outline-secondary sd-camp-detail" data-campaign-name="${esc(name)}" title="Lihat detail di tab Campaign" style="padding:2px 8px;height:30px;"><i class="fas fa-eye" aria-hidden="true"></i></button></div></td>`;
                 h += '</tr>';
             });
 
@@ -17537,6 +18328,22 @@ function initDashboardRecap() {
         });
 
         wrapEl.addEventListener('click', async function(e) {
+            const detailBtn = e.target && e.target.closest ? e.target.closest('.sd-camp-detail') : null;
+            if (detailBtn) {
+                const campaignName = String(detailBtn.getAttribute('data-campaign-name') || '').trim();
+                const ctx = window.scoreDetailCampaignContext || {};
+                try {
+                    await scxOpenScoreDetailCampaignFocus(
+                        campaignName,
+                        ctx.row || row,
+                        ctx.state || { date: end, dim: 'domain' },
+                        ctx.scoring || scoringData
+                    );
+                } catch (er) {
+                    setStatus(String(er?.message || er || 'Gagal membuka detail campaign'));
+                }
+                return;
+            }
             const btn = e.target && e.target.closest ? e.target.closest('.sd-camp-upd') : null;
             if (!btn) return;
             const cid = String(btn.getAttribute('data-cid') || '');
@@ -17968,7 +18775,7 @@ function initDashboardRecap() {
             const monitoringSource = resolveScoreDetailMonitoringSource(row, state);
             const monitoringSourceLabel = monitoringSource === 'adsense' ? 'AdSense' : 'ADX';
             const defaultScxDate = String(state?.date || '').trim();
-            const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">Navigasi hasil scoring</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="decision">Hasil Keputusan</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="analytic">Analytic</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="invalid_data">Invalid data</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="monitoring">Monitoring</button></div></div>`;
+            const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">Navigasi hasil scoring</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="decision">Hasil Keputusan</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="analytic">Analytic</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="invalid_data">Invalid data</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="monitoring">Monitoring</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="campaign">Campaign</button></div></div>`;
             const actionPanel = canAct ? `<div class="scx-section-gap scx-action-panel"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
 
             let html = '';
@@ -18007,13 +18814,11 @@ function initDashboardRecap() {
             html += `      <div class="scx-summary-box"><div class="label">Yang perlu dipahami dulu</div><div class="value">${esc(scxFriendlyLabel(rootLabel))}</div><div class="desc">${esc(String(first?.reason_summary || scxRootCauseText(rootLabel) || '-'))}</div></div>`;
             html += `      <div class="scx-summary-box"><div class="label">Prediksi kedepan</div><div class="value">${esc(forecastTitle)} • ${esc(scxPct01(forecastConfidence,0))}</div><div class="desc">${esc(forecastReason)} Horizon analisa ${esc(String(forecastHorizon))} jam.</div></div>`;
             html += `      <div class="scx-summary-box"><div class="label">Negara prioritas</div><div class="value">${esc(focusCountryLabel)}</div><div class="desc">${groups.length > 1 ? 'Negara ini paling memengaruhi hasil agregat, jadi sebaiknya dilihat lebih dulu.' : 'Analisa saat ini fokus pada negara ini.'}</div></div>`;
-            html += `      <div class="scx-summary-box"><div class="label">Sumber scoring</div><div class="value">${esc(sourceLabel)}</div><div class="desc">${esc(countryInfo)}</div></div>`;
             html += `    </div>`;
             html += `    <div class="scx-insight-grid">`;
             html += `      <div class="scx-insight-card"><div class="scx-insight-k">Score</div><div class="scx-insight-v">${overallScore == null ? '-' : esc(scxNum(overallScore,0))}</div><div class="scx-insight-s">Ringkasan kualitas performa keseluruhan</div></div>`;
             html += `      <div class="scx-insight-card"><div class="scx-insight-k">Sinyal Positif</div><div class="scx-insight-v">${esc(scxNum(totalPositiveSignals,0))}</div><div class="scx-insight-s">Sinyal yang mendorong performa naik</div></div>`;
             html += `      <div class="scx-insight-card"><div class="scx-insight-k">Sinyal Negatif</div><div class="scx-insight-v">${esc(scxNum(totalNegativeSignals,0))}</div><div class="scx-insight-s">Sinyal risiko yang perlu ditangani</div></div>`;
-            html += `      <div class="scx-insight-card"><div class="scx-insight-k">Keseimbangan Sinyal</div><div class="scx-insight-v">${esc(scxSigned(signalSkew,0))}</div><div class="scx-insight-s">Selisih sinyal positif vs negatif lintas semua negara</div></div>`;
             html += `    </div>`;
             html += `  </div>`;
             html += `  <div class="scx-section-gap scx-kpi-grid">`;
@@ -18099,6 +18904,7 @@ function initDashboardRecap() {
             html += scxRenderAnalyticPane(defaultScxDate);
             html += scxRenderInvalidDataPane(defaultScxDate);
             html += scxRenderMonitoringPane(defaultScxDate, monitoringSourceLabel);
+            html += scxRenderCampaignPane(defaultScxDate);
     
             return html;
         }
@@ -18542,6 +19348,11 @@ function initDashboardRecap() {
 
             window.setTimeout(function() {
                 try {
+                    window.scoreDetailCampaignContext = {
+                        row: rowWithTrend,
+                        state: state,
+                        scoring: normalizedJson?.scoring || {}
+                    };
                     mountScoreDetailBackendTables(normalizedJson?.scoring || {}, { row, state });
                     bindScoreMetric14Tabs(metricDailySeries.slice(-SCORE_METRIC_CHART_DAYS));
                     bindScoreCountryTabs(async function(tabKey){
@@ -18565,6 +19376,11 @@ function initDashboardRecap() {
                         if (tabKey === 'monitoring') {
                             bindScoreDetailMonitoringTab(row, state);
                             await loadScoreDetailMonitoringTab(row, state);
+                            return;
+                        }
+                        if (tabKey === 'campaign') {
+                            bindScoreDetailCampaignTab(row, state, normalizedJson?.scoring || {});
+                            await loadScoreDetailCampaignTab(row, state, normalizedJson?.scoring || {});
                             return;
                         }
                         if (tabKey === 'summary') {

@@ -16348,6 +16348,7 @@ class RoiMonitoringDomainCampaignsView(View):
                         'campaign_name': str((it or {}).get('campaign_name') or cid),
                         'daily_budget': dbgt,
                         'spend': spend,
+                        'status': str((it or {}).get('status') or '').strip(),
                     }
 
             campaigns = list(by_id.values())
