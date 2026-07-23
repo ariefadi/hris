@@ -2463,6 +2463,10 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
 .score-detail-modal__body .scx-kpi-grid {
     gap: 14px;
 }
+.score-detail-modal__body .scx-kpi-grid.scx-kpi-grid--sidebar {
+    grid-template-columns: 1fr;
+    margin-bottom: 4px;
+}
 .score-detail-modal__body .scx-kpi {
     position: relative;
     overflow: hidden;
@@ -18761,11 +18765,6 @@ function initDashboardRecap() {
                     </div>
                 </div>`;
             }).join('')}</div>` : '';
-            const topRiskCountries = groups.slice().sort(function(a, b) {
-                const sa = (Number(a?.status?.ivt_risk_score || 0) * 1.15) + Math.max(0, -Number(a?.status?.decision_margin || 0)) + (Math.max(0, -Number(a?.status?.health_score || 0)) * 0.45);
-                const sb = (Number(b?.status?.ivt_risk_score || 0) * 1.15) + Math.max(0, -Number(b?.status?.decision_margin || 0)) + (Math.max(0, -Number(b?.status?.health_score || 0)) * 0.45);
-                return sb - sa;
-            }).slice(0, 6);
             const actionChecklist = [
                 { title: 'Keputusan utama', text: recommendedDecision ? `${recommendedDecision} - ${actionText}` : actionText },
                 { title: 'Masalah utama yang dibaca sistem', text: `${scxFriendlyLabel(rootLabel)} - ${scxRootCauseText(rootLabel)}` },
@@ -18820,8 +18819,13 @@ function initDashboardRecap() {
             html += `      <div class="scx-insight-card"><div class="scx-insight-k">Sinyal Positif</div><div class="scx-insight-v">${esc(scxNum(totalPositiveSignals,0))}</div><div class="scx-insight-s">Sinyal yang mendorong performa naik</div></div>`;
             html += `      <div class="scx-insight-card"><div class="scx-insight-k">Sinyal Negatif</div><div class="scx-insight-v">${esc(scxNum(totalNegativeSignals,0))}</div><div class="scx-insight-s">Sinyal risiko yang perlu ditangani</div></div>`;
             html += `    </div>`;
+            html += `    <div class="scx-section-gap"><div class="scx-title">Yang Mendorong Naik (Top ${esc(String(Math.min(topPositive.length, 4)))})</div>${scxRenderImpactList(topPositive, 'Belum ada sinyal positif dominan.', 'positive', 4)}</div>`;
+            html += `    <div class="scx-section-gap"><div class="scx-title">Yang Perlu Diperhatikan (Top ${esc(String(Math.min(topNegative.length, 4)))})</div>${scxRenderImpactList(topNegative, 'Belum ada sinyal negatif dominan.', 'negative', 4)}</div>`;
             html += `  </div>`;
-            html += `  <div class="scx-section-gap scx-kpi-grid">`;
+            html += `</div>`;
+
+            html += `<div class="scx-card">`;
+            html += `  <div class="scx-section-gap scx-kpi-grid scx-kpi-grid--sidebar">`;
             html += `      <div class="scx-kpi scx-kpi--score"><div class="scx-kpi-head"><div class="scx-kpi-label">Overall Score</div><span class="scx-kpi-icon"><i class="bi bi-stars"></i></span></div><div class="scx-kpi-value">${overallScore == null ? '-' : esc(scxNum(overallScore, 0))}</div><div class="scx-kpi-note">Meringkas performa keseluruhan domain saat ini</div><div class="scx-progress blue"><span style="width:${scxClamp(overallScore == null ? 0 : overallScore, 0, 100)}%"></span></div></div>`;
             html += `      <div class="scx-kpi scx-kpi--health"><div class="scx-kpi-head"><div class="scx-kpi-label">Health Score</div><span class="scx-kpi-icon"><i class="bi bi-heart-pulse"></i></span></div><div class="scx-kpi-value">${esc(scxNum(health, 2))}</div><div class="scx-kpi-note">${esc(scxHealthLabel(health))}</div><div class="scx-progress green"><span style="width:${scxClamp(Math.abs(health), 0, 100)}%"></span></div></div>`;
             html += `      <div class="scx-kpi scx-kpi--confidence"><div class="scx-kpi-head"><div class="scx-kpi-label">Confidence</div><span class="scx-kpi-icon"><i class="bi bi-patch-check"></i></span></div><div class="scx-kpi-value">${esc(scxPct01(confidence, 0))}</div><div class="scx-kpi-note">${esc(scxConfidenceLabel(confidence))}</div><div class="scx-progress blue"><span style="width:${scxClamp(confidence * 100, 0, 100)}%"></span></div></div>`;
@@ -18829,30 +18833,6 @@ function initDashboardRecap() {
             html += `      <div class="scx-kpi scx-kpi--adjustment"><div class="scx-kpi-head"><div class="scx-kpi-label">Adjustment Score</div><span class="scx-kpi-icon"><i class="bi bi-sliders2"></i></span></div><div class="scx-kpi-value">${esc(scxNum(adjustment, 2))}</div><div class="scx-kpi-note">${adjustment >= 0 ? 'Belum ada penalti besar dari koreksi data/performa.' : 'Ada tekanan penyesuaian yang ikut menekan hasil scoring.'}</div><div class="scx-progress ${adjustment >= 0 ? 'green' : 'yellow'}"><span style="width:${scxClamp(Math.abs(adjustment), 0, 100)}%"></span></div></div>`;
             html += `      <div class="scx-kpi scx-kpi--margin"><div class="scx-kpi-head"><div class="scx-kpi-label">Decision Margin</div><span class="scx-kpi-icon"><i class="bi bi-graph-up-arrow"></i></span></div><div class="scx-kpi-value">${esc(scxNum(decision, 2))}</div><div class="scx-kpi-note">${esc(scxDecisionLabel(decision))}</div><div class="scx-progress yellow"><span style="width:${scxClamp(Math.abs(decision), 0, 100)}%"></span></div></div>`;
             html += `  </div>`;
-            html += `</div>`;
-
-            html += `<div class="scx-card">`;
-            html += `  <div class="scx-title">Fokus yang Perlu Diprioritaskan</div>`;
-            html += `  <div class="scx-section-gap"><div class="scx-callout"><strong>${esc(scxFriendlyLabel(rootLabel))}:</strong> ${esc(scxRootCauseText(rootLabel))}</div><div class="scx-mini-muted">${esc(String(first?.reason_summary || ''))}</div></div>`;
-            html += `  <div class="scx-section-gap"><div class="scx-title">Negara / Subdomain yang paling perlu dilihat</div><div class="scx-sub" style="margin-bottom:8px;">Urutan ini memprioritaskan entitas yang paling menekan hasil agregat berdasarkan risk, margin, dan health.</div><div class="scx-focus-list">`;
-            html += topRiskCountries.length ? topRiskCountries.map(function(group, idx){
-                const st = group?.status || {};
-                const spend = scxSpendValue(st);
-                const revenue = scxRevenueValue(st);
-                const roiRaw = Number(st?.roi);
-                const roi = Number.isFinite(roiRaw) ? roiRaw : (spend > 0 ? ((revenue - spend) / spend) * 100 : NaN);
-                const focusAlert = scxAlertMeta(String(st?.final_label || ''), String(st?.root_cause_label || ''), Number(st?.ivt_risk_score || 0), String(st?.forecast_direction || 'STABLE_OUTLOOK'), Number(st?.forecast_confidence || 0));
-                const margin = Number(st?.decision_margin || 0);
-                const healthScore = Number(st?.health_score || 0);
-                const riskScore = Number(st?.ivt_risk_score || 0);
-                const roiClass = Number.isFinite(roi) ? (roi >= 0 ? 'is-positive' : 'is-negative') : '';
-                const marginClass = margin >= 0 ? 'is-positive' : 'is-negative';
-                const healthClass = healthScore >= 0 ? 'is-positive' : 'is-negative';
-                return `<div class="scx-focus-card"><div class="scx-focus-card-head"><span class="scx-focus-rank">${esc(String(idx + 1))}</span><div class="scx-focus-meta"><div class="scx-focus-name">${esc(scxCountryLabel(st))}</div><div class="scx-focus-sub">Prioritas ${esc(String(idx + 1))} untuk dianalisa lebih dulu</div></div><div>${scxAlertBadgeHtml(focusAlert)}</div></div><div class="scx-focus-stats"><div class="scx-focus-stat"><div class="scx-focus-stat-k">Health</div><div class="scx-focus-stat-v ${healthClass}">${esc(scxNum(healthScore,2))}</div></div><div class="scx-focus-stat"><div class="scx-focus-stat-k">Risk</div><div class="scx-focus-stat-v">${esc(scxNum(riskScore,2))}</div></div><div class="scx-focus-stat"><div class="scx-focus-stat-k">Margin</div><div class="scx-focus-stat-v ${marginClass}">${esc(scxNum(margin,2))}</div></div><div class="scx-focus-stat"><div class="scx-focus-stat-k">Spend</div><div class="scx-focus-stat-v">${esc(fmtIdr(spend))}</div></div><div class="scx-focus-stat"><div class="scx-focus-stat-k">ROI</div><div class="scx-focus-stat-v ${roiClass}">${Number.isFinite(roi) ? `${esc(scxNum(roi,2))}%` : '-'}</div></div></div></div>`;
-            }).join('') : `<div class="scx-focus-empty">Belum ada detail negara prioritas.</div>`;
-            html += `  </div></div>`;
-            html += `  <div class="scx-section-gap"><div class="scx-title">Yang Mendorong Naik (Top ${esc(String(Math.min(topPositive.length, 4)))})</div>${scxRenderImpactList(topPositive, 'Belum ada sinyal positif dominan.', 'positive', 4)}</div>`;
-            html += `  <div class="scx-section-gap"><div class="scx-title">Yang Perlu Diperhatikan (Top ${esc(String(Math.min(topNegative.length, 4)))})</div>${scxRenderImpactList(topNegative, 'Belum ada sinyal negatif dominan.', 'negative', 4)}</div>`;
             html += `  <div class="scx-section-gap"><div class="scx-title">Apa yang perlu dilakukan sekarang</div><div class="scx-checklist">`;
             html += actionChecklist.map(function(item){ return `<div class="scx-checklist-item"><i class="bi bi-check2-circle" aria-hidden="true"></i><div><strong>${esc(item.title)}</strong><span>${esc(item.text)}</span></div></div>`; }).join('');
             html += `  </div></div>`;
