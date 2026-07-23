@@ -15760,6 +15760,19 @@ function initDashboardRecap() {
         });
     }
 
+    function scxCampaignTabContextKey(row, state) {
+        const scope = resolveScoreDetailScope(row, state);
+        return String(scope.domain || row?.name || '').trim().toLowerCase();
+    }
+
+    function scxResetCampaignTabState(clearPendingFocus) {
+        window.scxCampaignTabCache = null;
+        if (clearPendingFocus !== false) {
+            window.scxCampaignTabPendingFocus = '';
+        }
+        scxDestroyChartInstance('scxCampaignPerfChartInstance');
+    }
+
     async function scxOpenScoreDetailCampaignFocus(campaignName, row, state, scoringData) {
         const name = String(campaignName || '').trim();
         if (!name) return;
@@ -15972,13 +15985,19 @@ function initDashboardRecap() {
         try {
             const maps = scxBuildCampaignScoringMaps(scoringData || {});
             const payload = await scxFetchCampaignTabRows(row, state, startYmd, endYmd);
+            const contextKey = scxCampaignTabContextKey(row, state);
             const pendingFocus = String(window.scxCampaignTabPendingFocus || '').trim();
             if (pendingFocus) window.scxCampaignTabPendingFocus = '';
-            const prevSearch = pendingFocus || (window.scxCampaignTabCache ? String(window.scxCampaignTabCache.searchQuery || '') : '');
+            const oldCache = window.scxCampaignTabCache;
+            let prevSearch = pendingFocus;
+            if (!prevSearch && oldCache && String(oldCache.contextKey || '') === contextKey) {
+                prevSearch = String(oldCache.searchQuery || '');
+            }
             window.scxCampaignTabCache = {
                 allRows: payload.rows,
                 filteredRows: payload.rows,
                 searchQuery: prevSearch,
+                contextKey: contextKey,
                 accountAds: payload.accountAds,
                 siteName: payload.siteName,
                 recoMap: maps.recoMap,
@@ -17236,6 +17255,7 @@ function initDashboardRecap() {
         const body = document.getElementById('scoreDetailBody');
         const ttl = document.getElementById('scoreDetailTitle');
         if (!modal || !body || !ttl) return;
+        scxResetCampaignTabState(true);
         if (modal.parentNode !== document.body) {
             document.body.appendChild(modal);
         }
@@ -17253,6 +17273,7 @@ function initDashboardRecap() {
             try { window.sdMetric14Chart.destroy(); } catch (_) {}
             window.sdMetric14Chart = null;
         }
+        scxResetCampaignTabState(true);
         closeDetailKeputusan();
         window.scoreDetailDecisionStoreKey = null;
         if (modal) {
