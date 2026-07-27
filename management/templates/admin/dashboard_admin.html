@@ -13205,18 +13205,34 @@ function initDashboardRecap() {
 
     function scxParseMetaDateTime(raw) {
         const s = String(raw || '').trim();
-        if (!s) return null;
-        let normalized = s;
-        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{4}$/.test(s)) {
-            normalized = `${s.slice(0, -5)}:${s.slice(-4)}`;
+        if (!s || s === 'None' || s === 'null') return null;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            const dtOnly = new Date(`${s}T00:00:00`);
+            return Number.isFinite(dtOnly.getTime()) ? dtOnly : null;
+        }
+        let normalized = s.replace(' ', 'T');
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{4}$/.test(normalized)) {
+            normalized = `${normalized.slice(0, -5)}:${normalized.slice(-4)}`;
         }
         const dt = new Date(normalized);
-        return Number.isFinite(dt.getTime()) ? dt : null;
+        if (Number.isFinite(dt.getTime())) return dt;
+        const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (m) {
+            const dt2 = new Date(`${m[1]}T00:00:00`);
+            return Number.isFinite(dt2.getTime()) ? dt2 : null;
+        }
+        return null;
+    }
+
+    function scxCoerceCampaignDateTimeField(raw) {
+        if (raw == null || raw === '') return '';
+        if (typeof raw === 'object' && raw.date_time) return String(raw.date_time || '').trim();
+        return String(raw).trim();
     }
 
     function scxCampaignRunningDaysInfo(row) {
-        const start = scxParseMetaDateTime(row?.start_time);
-        const stop = scxParseMetaDateTime(row?.stop_time);
+        const start = scxParseMetaDateTime(scxCoerceCampaignDateTimeField(row?.start_time));
+        const stop = scxParseMetaDateTime(scxCoerceCampaignDateTimeField(row?.stop_time));
         const status = String(row?.campaign_status || '').trim().toUpperCase();
         if (!start) {
             return { label: 'Durasi tidak diketahui', tone: 'gray' };
@@ -15980,8 +15996,8 @@ function initDashboardRecap() {
                 roi: Number(r?.roi != null ? r.roi : (spend > 0 ? ((revenue - spend) / spend * 100) : 0)),
                 daily_budget: Number(fb?.daily_budget || fb?.budget || 0),
                 campaign_status: fb?.status || (spend > 0 ? 'HISTORIS' : 'TIDAK AKTIF'),
-                start_time: String(fb?.start_time || '').trim(),
-                stop_time: String(fb?.stop_time || '').trim(),
+                start_time: scxCoerceCampaignDateTimeField(fb?.start_time),
+                stop_time: scxCoerceCampaignDateTimeField(fb?.stop_time),
                 has_fb: !!fb
             });
             if (fb) fbByName.delete(key);
@@ -15997,8 +16013,8 @@ function initDashboardRecap() {
                 roi: 0,
                 daily_budget: Number(fb?.daily_budget || fb?.budget || 0),
                 campaign_status: fb?.status || 'UNKNOWN',
-                start_time: String(fb?.start_time || '').trim(),
-                stop_time: String(fb?.stop_time || '').trim(),
+                start_time: scxCoerceCampaignDateTimeField(fb?.start_time),
+                stop_time: scxCoerceCampaignDateTimeField(fb?.stop_time),
                 has_fb: true
             });
         });

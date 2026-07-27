@@ -1190,17 +1190,22 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
         Campaign.Field.status,
         Campaign.Field.daily_budget,
         Campaign.Field.start_time,
-        Campaign.Field.stop_time
+        Campaign.Field.stop_time,
+        Campaign.Field.created_time,
     ])
-    campaign_map = {
-        c['id']: {
+    campaign_map = {}
+    for c in campaign_configs:
+        cid = str((c or {}).get('id') or '').strip()
+        if not cid:
+            continue
+        start_raw = (c or {}).get('start_time') or (c or {}).get('created_time')
+        campaign_map[cid] = {
             'name': c.get('name'),
             'status': c.get('status'),
             'daily_budget': float(c.get('daily_budget') or 0),
-            'start_time': c.get('start_time'),
+            'start_time': start_raw,
             'stop_time': c.get('stop_time'),
-        } for c in campaign_configs
-    }
+        }
     campaign_aggregates = defaultdict(lambda: {
         'spend': 0.0,
         'reach': 0,
@@ -1231,7 +1236,7 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
         campaign_id = row.get('campaign_id')
         if not campaign_id:
             continue
-        config = campaign_map.get(campaign_id, {})
+        config = campaign_map.get(str(campaign_id or '').strip(), {})
         agg = campaign_aggregates[campaign_id]
         agg['campaign_name'] = row.get('campaign_name')
         spend_val = row.get('spend')
@@ -1261,11 +1266,15 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
                 break
         if result_count not in [None, ""]:
             agg['clicks'] = result_count
-        if not agg['status']:
-            agg['status'] = config.get('status')
-            agg['daily_budget'] = float(config.get('daily_budget') or 0)
-            agg['start_time'] = config.get('start_time')
-            agg['stop_time'] = config.get('stop_time')
+        if config:
+            if config.get('status'):
+                agg['status'] = config.get('status')
+            if config.get('daily_budget'):
+                agg['daily_budget'] = float(config.get('daily_budget') or 0)
+            if config.get('start_time'):
+                agg['start_time'] = config.get('start_time')
+            if config.get('stop_time'):
+                agg['stop_time'] = config.get('stop_time')
     data = []
     total_budget = total_spend = total_clicks = total_impressions = total_reach = total_cpr = total_frequency = 0
     for campaign_id, agg in campaign_aggregates.items():
@@ -1281,8 +1290,8 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
             'frequency': agg['frequency'],
             'cpr': agg['cpr'],
             'status': agg['status'],
-            'start_time': agg['start_time'],
-            'stop_time': agg['stop_time'],
+            'start_time': agg['start_time'] or '',
+            'stop_time': agg['stop_time'] or '',
         })
         total_budget += agg['daily_budget']
         total_spend += agg['spend']

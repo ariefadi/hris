@@ -16352,6 +16352,16 @@ class RoiMonitoringDomainCampaignsView(View):
                         'start_time': str((it or {}).get('start_time') or '').strip(),
                         'stop_time': str((it or {}).get('stop_time') or '').strip(),
                     }
+                else:
+                    cur = by_id[cid]
+                    st = str((it or {}).get('start_time') or '').strip()
+                    sp = str((it or {}).get('stop_time') or '').strip()
+                    if st and not str(cur.get('start_time') or '').strip():
+                        cur['start_time'] = st
+                    if sp and not str(cur.get('stop_time') or '').strip():
+                        cur['stop_time'] = sp
+                    if not str(cur.get('status') or '').strip():
+                        cur['status'] = str((it or {}).get('status') or '').strip()
 
             campaigns = list(by_id.values())
             try:
