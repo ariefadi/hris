@@ -16349,6 +16349,8 @@ class RoiMonitoringDomainCampaignsView(View):
                         'daily_budget': dbgt,
                         'spend': spend,
                         'status': str((it or {}).get('status') or '').strip(),
+                        'start_time': str((it or {}).get('start_time') or '').strip(),
+                        'stop_time': str((it or {}).get('stop_time') or '').strip(),
                     }
 
             campaigns = list(by_id.values())
