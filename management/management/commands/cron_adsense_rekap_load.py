@@ -1,44 +1,12 @@
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from datetime import datetime, date
-import os
 import uuid
 
 from management.database import data_mysql
 from management.rekap_month import month_bounds, parse_pull_date, resolve_rekap_target_month
-from management.utils import fetch_user_adx_account_data
+from management.adsense_currency import resolve_adsense_report_currency, revenue_amount_to_idr
 from management.utils_adsense import fetch_adsense_traffic_per_domain_advanced
-
-
-def convert_to_idr(amount, currency_code):
-    try:
-        code = (currency_code or 'IDR').strip().upper()
-        base = float(amount or 0.0)
-        if code == 'IDR':
-            return base
-        env_key = f'EXCHANGE_RATE_{code}_IDR'
-        if os.getenv(env_key):
-            rate = float(os.getenv(env_key))
-            return base * rate
-        default_rates = {
-            'USD': float(os.getenv('USD_IDR_RATE', '16000')),
-            'EUR': float(os.getenv('EUR_IDR_RATE', '17500')),
-            'SGD': float(os.getenv('SGD_IDR_RATE', '12000')),
-            'HKG': float(os.getenv('HKG_IDR_RATE', '3000')),
-            'GBP': float(os.getenv('GBP_IDR_RATE', '20000')),
-        }
-        rate = default_rates.get(code)
-        return base * rate if rate else base
-    except Exception:
-        return float(amount or 0.0)
-
-
-def force_usd_by_domain(domain):
-    d = str(domain or '').strip().lower()
-    if not d:
-        return False
-    usd_domains = ('uaetiming', 'valoranewspekanbaru')
-    return any(k in d for k in usd_domains)
 
 
 def to_float(val):
@@ -127,12 +95,6 @@ class Command(BaseCommand):
                 continue
 
             try:
-                acct_info = fetch_user_adx_account_data(user_mail)
-                currency_code = 'IDR'
-                if isinstance(acct_info, dict) and acct_info.get('status'):
-                    currency_code = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
-                currency_code = (currency_code or 'IDR').strip().upper()
-
                 res = fetch_adsense_traffic_per_domain_advanced(
                     user_mail,
                     start_date,
@@ -151,9 +113,7 @@ class Command(BaseCommand):
                     ))
                     continue
 
-                res_currency = (res.get('currency_code') or '').strip().upper()
-                if res_currency:
-                    currency_code = res_currency
+                report_currency = resolve_adsense_report_currency(res)
 
                 for item in res.get('data', []) or []:
                     try:
@@ -164,8 +124,9 @@ class Command(BaseCommand):
                         page_views = int(item.get('page_views', 0) or 0)
                         ad_requests = int(item.get('ad_requests', 0) or 0)
 
-                        currency_for_item = 'USD' if force_usd_by_domain(domain) else currency_code
-                        revenue_idr = convert_to_idr(revenue, currency_for_item)
+                        revenue_idr = revenue_amount_to_idr(
+                            revenue, report_currency, domain, impressions
+                        )
 
                         ctr = (clicks / impressions * 100) if impressions > 0 else 0.0
                         cpc = (revenue_idr / clicks) if clicks > 0 else 0.0

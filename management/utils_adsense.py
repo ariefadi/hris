@@ -274,6 +274,43 @@ def get_user_adsense_client(user_mail):
             'error': f'Error initializing AdSense client: {str(e)}'
         }
 
+
+def extract_currency_from_adsense_report(report, fallback=''):
+    """
+    AdSense v2: mata uang metrik moneter ada di headers (METRIC_CURRENCY),
+    bukan di resource Account maupun root ReportResult.
+    """
+    if not isinstance(report, dict):
+        return str(fallback or '').strip().upper()
+
+    headers = report.get('headers') or []
+    if isinstance(headers, list):
+        for header in headers:
+            if not isinstance(header, dict):
+                continue
+            htype = str(header.get('type') or '').strip().upper()
+            if htype != 'METRIC_CURRENCY':
+                continue
+            cc = header.get('currencyCode') or header.get('currency_code') or header.get('currency')
+            cc = str(cc or '').strip().upper()
+            if cc:
+                return cc
+
+    for key in ('currencyCode', 'currency_code'):
+        cc = str(report.get(key) or '').strip().upper()
+        if cc:
+            return cc
+
+    meta = report.get('metadata') or {}
+    if isinstance(meta, dict):
+        for key in ('currencyCode', 'currency_code'):
+            cc = str(meta.get(key) or '').strip().upper()
+            if cc:
+                return cc
+
+    return str(fallback or '').strip().upper()
+
+
 def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, site_filter='%', report_level='owned_site'):
     try:
         client_result = get_user_adsense_client(user_mail)
@@ -288,7 +325,6 @@ def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, s
 
         acc0 = accounts_list[0]
         account_name = acc0.get('name') or ''
-        currency_code = acc0.get('currencyCode') or acc0.get('currency_code') or ''
 
         lvl = str(report_level or 'owned_site').strip().lower()
         use_campaign = lvl in ('campaign', 'ad_unit', 'ad_unit_name', 'adunit')
@@ -392,16 +428,7 @@ def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, s
         if report is None or used_metrics is None or used_dim is None:
             return {'status': False, 'error': f'Error fetching AdSense per domain: {str(last_err)}'}
 
-        try:
-            report_currency = report.get('currencyCode') or report.get('currency_code')
-            if not report_currency:
-                meta = report.get('metadata') or {}
-                report_currency = meta.get('currencyCode') or meta.get('currency_code')
-            if report_currency:
-                currency_code = report_currency
-        except Exception:
-            pass
-        currency_code = (currency_code or '').strip().upper()
+        currency_code = extract_currency_from_adsense_report(report)
 
         agg = {}
         for row in report.get('rows', []) or []:
@@ -530,7 +557,6 @@ def fetch_adsense_traffic_per_country_domain_advanced(user_mail, start_date, end
 
         acc0 = accounts_list[0]
         account_name = acc0.get('name') or ''
-        currency_code = acc0.get('currencyCode') or acc0.get('currency_code') or ''
 
         lvl = str(report_level or 'owned_site').strip().lower()
         use_subdomain = lvl in ('subdomain', 'host', 'header', 'page_url', 'pageurl')
@@ -624,16 +650,7 @@ def fetch_adsense_traffic_per_country_domain_advanced(user_mail, start_date, end
         if report is None or used_metrics is None:
             return {'status': False, 'error': f'Error fetching AdSense per country+domain: {str(last_err)}'}
 
-        try:
-            report_currency = report.get('currencyCode') or report.get('currency_code')
-            if not report_currency:
-                meta = report.get('metadata') or {}
-                report_currency = meta.get('currencyCode') or meta.get('currency_code')
-            if report_currency:
-                currency_code = report_currency
-        except Exception:
-            pass
-        currency_code = (currency_code or '').strip().upper()
+        currency_code = extract_currency_from_adsense_report(report)
 
         agg = {}
         for row in report.get('rows', []) or []:
@@ -964,14 +981,8 @@ def fetch_adsense_summary_data(user_mail, start_date, end_date, site_filter='%')
                 'error': 'No AdSense accounts found. This could be due to: 1) Invalid or expired OAuth credentials, 2) Account does not have AdSense access, 3) Incorrect OAuth scopes'
             }
 
-        # Determine currency code from account info (fallback to USD)
-        currency_code = 'USD'
-        try:
-            acc0 = accounts['accounts'][0]
-            currency_code = acc0.get('currencyCode') or acc0.get('currency_code') or currency_code
-        except Exception:
-            pass
-
+        # Determine currency from report headers (Account resource has no currency in v2)
+        currency_code = ''
         account_id = accounts['accounts'][0]['name']
         print(f"[DEBUG] Using AdSense account: {account_id}")
 
@@ -1006,16 +1017,7 @@ def fetch_adsense_summary_data(user_mail, start_date, end_date, site_filter='%')
         try:
             report = report_request.execute()
             print(f"[DEBUG] AdSense report result: {report}")
-            # Try to read currency from report response if available
-            try:
-                report_currency = report.get('currencyCode') or report.get('currency_code')
-                if not report_currency:
-                    meta = report.get('metadata') or {}
-                    report_currency = meta.get('currencyCode') or meta.get('currency_code')
-                if report_currency:
-                    currency_code = report_currency
-            except Exception:
-                pass
+            currency_code = extract_currency_from_adsense_report(report, fallback=currency_code)
         except Exception as report_error:
             print(f"[DEBUG] AdSense report request failed: {str(report_error)}")
             return {
