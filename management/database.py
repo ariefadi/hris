@@ -11496,71 +11496,133 @@ class data_mysql:
                 "error": f"Terjadi error: {str(e)}"
             }
 
+    def _ch_domain_join_key_expr(self, column_expr):
+        col = str(column_expr or '').strip()
+        return (
+            "lower(arrayStringConcat(arraySlice(splitByChar('.', "
+            f"replaceRegexpAll(lower(trimBoth({col})), '^www\\\\.', '')"
+            "), 1, 2), '.'))"
+        )
+
     def get_monitoring_domain_campaign_breakdown_by_params(self, start_date, end_date, site_name):
         try:
-            domain = str(site_name or '').strip().lower()
+            domain = self._normalize_domain_match_key(site_name)
             if not domain:
                 return {"status": False, "error": "site_name wajib diisi", "data": []}
 
-            sql = """
+            self._ensure_report_connection()
+            self.cur_hris = self.report_cur
+            dom_key = self._ch_domain_join_key_expr
+
+            camp_sql = f"""
             SELECT
-                ifNull(nullIf(m.campaign_name, ''), 'unknown_campaign') AS campaign,
-                round(sum(m.spend), 0) AS spend,
-                round(sum(m.lpv_weight * (ifNull(a.revenue, 0) + ifNull(s.revenue, 0))), 0) AS revenue,
-                round(sum(m.lpv_weight * (ifNull(a.revenue, 0) + ifNull(s.revenue, 0))) - sum(m.spend), 0) AS net_profit,
-                if(sum(m.spend) > 0,
-                   round(((sum(m.lpv_weight * (ifNull(a.revenue, 0) + ifNull(s.revenue, 0))) - sum(m.spend)) / sum(m.spend)) * 100, 2),
-                   0) AS roi
-            FROM
-            (
-                SELECT
-                    base.*,
-                    base.lpv / nullIf(sum(base.lpv) OVER (PARTITION BY base.date, base.domain, base.country_cd), 0) AS lpv_weight
-                FROM
-                (
-                    SELECT
-                        lower(arrayStringConcat(arraySlice(splitByChar('.', a.log_ads_domain), 1, 2), '.')) AS domain,
-                        upper(a.log_ads_country_cd) AS country_cd,
-                        toDate(a.log_ads_country_tanggal) AS date,
-                        lower(a.log_ads_campaign_nm) AS campaign_name,
-                        argMax(a.log_ads_country_spend, a.mdd) AS spend,
-                        argMax(a.log_ads_country_lpv, a.mdd) AS lpv
-                    FROM hris_trendHorizone.log_ads_country a
-                    WHERE toDate(a.log_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
-                      AND lower(arrayStringConcat(arraySlice(splitByChar('.', a.log_ads_domain), 1, 2), '.')) = lower(%s)
-                    GROUP BY domain, country_cd, date, campaign_name
-                ) base
-            ) m
-            LEFT JOIN
-            (
-                SELECT lower(arrayStringConcat(arraySlice(splitByChar('.', data_adx_country_domain), 1, 2), '.')) AS domain,
-                       upper(data_adx_country_cd) AS country_cd,
-                       toDate(data_adx_country_tanggal) AS date,
-                       argMax(data_adx_country_revenue, data_adx_country_tanggal) AS revenue
-                FROM hris_trendHorizone.data_adx_country
-                WHERE toDate(data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
-                GROUP BY domain, country_cd, date
-            ) a ON m.domain = a.domain AND m.country_cd = a.country_cd AND m.date = a.date
-            LEFT JOIN
-            (
-                SELECT lower(arrayStringConcat(arraySlice(splitByChar('.', data_adsense_country_domain), 1, 2), '.')) AS domain,
-                       upper(data_adsense_country_cd) AS country_cd,
-                       toDate(data_adsense_country_tanggal) AS date,
-                       argMax(data_adsense_country_revenue, data_adsense_country_tanggal) AS revenue
-                FROM hris_trendHorizone.data_adsense_country
-                WHERE toDate(data_adsense_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
-                GROUP BY domain, country_cd, date
-            ) s ON m.domain = s.domain AND m.country_cd = s.country_cd AND m.date = s.date
+                ifNull(nullIf(lower(trim(data_ads_campaign_nm)), ''), 'unknown_campaign') AS campaign,
+                sum(toFloat64(data_ads_spend)) AS spend,
+                sum(toFloat64(data_ads_lpv)) AS lpv
+            FROM hris_trendHorizone.data_ads_campaign
+            WHERE toDate(data_ads_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+              AND {dom_key('data_ads_domain')} = lower(%s)
             GROUP BY campaign
             ORDER BY spend DESC
             """
+            self.cur_hris.execute(camp_sql, (start_date, end_date, domain))
+            campaigns = self.fetch_all() or []
 
-            params = (start_date, end_date, domain, start_date, end_date, start_date, end_date)
-            self._ensure_report_connection()
-            self.cur_hris = self.report_cur
-            self.cur_hris.execute(sql, params)
-            rows = self.fetch_all() or []
-            return {"status": True, "data": rows}
+            if not campaigns:
+                log_sql = f"""
+                SELECT
+                    campaign,
+                    sum(spend) AS spend,
+                    sum(lpv) AS lpv
+                FROM (
+                    SELECT
+                        ifNull(nullIf(lower(trim(log_ads_campaign_nm)), ''), 'unknown_campaign') AS campaign,
+                        argMax(toFloat64(log_ads_country_spend), mdd) AS spend,
+                        argMax(toFloat64(log_ads_country_lpv), mdd) AS lpv
+                    FROM hris_trendHorizone.log_ads_country
+                    WHERE toDate(log_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                      AND {dom_key('log_ads_domain')} = lower(%s)
+                    GROUP BY log_ads_domain, log_ads_country_cd, toDate(log_ads_country_tanggal), campaign
+                ) x
+                GROUP BY campaign
+                ORDER BY spend DESC
+                """
+                self.cur_hris.execute(log_sql, (start_date, end_date, domain))
+                campaigns = self.fetch_all() or []
+
+            rev_sql = f"""
+            SELECT sum(toFloat64(rev)) AS revenue
+            FROM (
+                SELECT argMax(toFloat64(data_adx_domain_revenue), data_adx_domain_tanggal) AS rev
+                FROM hris_trendHorizone.data_adx_domain
+                WHERE toDate(data_adx_domain_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                  AND {dom_key('data_adx_domain')} = lower(%s)
+                GROUP BY data_adx_domain, toDate(data_adx_domain_tanggal)
+                UNION ALL
+                SELECT argMax(toFloat64(data_adsense_revenue), data_adsense_tanggal) AS rev
+                FROM hris_trendHorizone.data_adsense_domain
+                WHERE toDate(data_adsense_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                  AND {dom_key('data_adsense_domain')} = lower(%s)
+                GROUP BY data_adsense_domain, toDate(data_adsense_tanggal)
+            )
+            """
+            self.cur_hris.execute(
+                rev_sql,
+                (start_date, end_date, domain, start_date, end_date, domain),
+            )
+            rev_row = self.cur_hris.fetchone() or {}
+            domain_rev = float(rev_row.get('revenue') or 0)
+
+            if domain_rev <= 0:
+                country_rev_sql = f"""
+                SELECT sum(toFloat64(rev)) AS revenue
+                FROM (
+                    SELECT argMax(toFloat64(data_adx_country_revenue), data_adx_country_tanggal) AS rev
+                    FROM hris_trendHorizone.data_adx_country
+                    WHERE toDate(data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                      AND {dom_key('data_adx_country_domain')} = lower(%s)
+                    GROUP BY data_adx_country_domain, data_adx_country_cd, toDate(data_adx_country_tanggal)
+                    UNION ALL
+                    SELECT argMax(toFloat64(data_adsense_country_revenue), data_adsense_country_tanggal) AS rev
+                    FROM hris_trendHorizone.data_adsense_country
+                    WHERE toDate(data_adsense_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                      AND {dom_key('data_adsense_country_domain')} = lower(%s)
+                    GROUP BY data_adsense_country_domain, data_adsense_country_cd, toDate(data_adsense_country_tanggal)
+                )
+                """
+                self.cur_hris.execute(
+                    country_rev_sql,
+                    (start_date, end_date, domain, start_date, end_date, domain),
+                )
+                domain_rev = float((self.cur_hris.fetchone() or {}).get('revenue') or 0)
+
+            total_lpv = sum(float(c.get('lpv') or 0) for c in campaigns)
+            total_spend = sum(float(c.get('spend') or 0) for c in campaigns)
+            n = len(campaigns) or 1
+
+            rows_out = []
+            for c in campaigns:
+                spend = float(c.get('spend') or 0)
+                lpv = float(c.get('lpv') or 0)
+                if total_lpv > 0:
+                    weight = lpv / total_lpv
+                elif total_spend > 0:
+                    weight = spend / total_spend
+                else:
+                    weight = 1.0 / n
+                revenue = domain_rev * weight
+                net_profit = revenue - spend
+                roi = ((net_profit / spend) * 100.0) if spend > 0 else 0.0
+                rows_out.append({
+                    'campaign': c.get('campaign'),
+                    'spend': int(round(spend)),
+                    'revenue': int(round(revenue)),
+                    'net_profit': int(round(net_profit)),
+                    'roi': round(roi, 2),
+                })
+
+            rows_out.sort(key=lambda r: float(r.get('spend') or 0), reverse=True)
+            return {"status": True, "data": rows_out}
         except Exception as e:
             return {"status": False, "error": f"Terjadi error: {e}", "data": []}
 
