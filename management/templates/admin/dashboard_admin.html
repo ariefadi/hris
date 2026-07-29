@@ -11615,6 +11615,37 @@ function initDashboardRecap() {
         };
     }
 
+    function scxSnapshotRowMinutes(row, idx) {
+        const rawHour = Number(row?.run_hour);
+        if (Number.isFinite(rawHour) && rawHour >= 0 && rawHour <= 23) return rawHour * 60;
+        const label = String(row?.run_hour_label || row?.run_hour || '').trim();
+        const m = label.match(/^(\d{1,2}):(\d{2})$/);
+        if (m) return (Number(m[1]) * 60) + Number(m[2]);
+        const ord = scxSnapshotHourOrder(row, idx);
+        if (Number.isFinite(ord) && ord >= 0 && ord <= 23) return ord * 60;
+        return Number.isFinite(ord) ? ord : null;
+    }
+
+    function scxBrowserTodayYmd() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function scxFilterTodayFutureSnapshots(rows, targetDateYmd) {
+        const list = Array.isArray(rows) ? rows : [];
+        const target = String(targetDateYmd || '').trim();
+        if (!target || target !== scxBrowserTodayYmd()) return list;
+        const nowMinutes = (new Date().getHours() * 60) + new Date().getMinutes();
+        return list.filter(function(row, idx) {
+            const mins = scxSnapshotRowMinutes(row, idx);
+            if (!Number.isFinite(mins)) return true;
+            return mins <= nowMinutes;
+        });
+    }
+
     function scxSnapshotHourOrder(row, idx) {
         const rawHour = Number(row?.run_hour);
         if (Number.isFinite(rawHour)) return rawHour;
@@ -11828,10 +11859,15 @@ function initDashboardRecap() {
             }).sort(function(a, b) { return Number(a?.__snapshotOrd || 0) - Number(b?.__snapshotOrd || 0); });
         };
         const seriesMapRaw = (opts?.seriesMap && typeof opts.seriesMap === 'object') ? opts.seriesMap : {};
+        const targetDateYmd = String(opts?.targetDate || opts?.date || '').trim();
         const seriesMap = {};
         compareOrder.forEach(function(key) {
-            if (key === 'current') seriesMap[key] = normalizeRows(seriesMapRaw[key] || rows);
-            else seriesMap[key] = normalizeRows(seriesMapRaw[key]);
+            if (key === 'current') {
+                const rawCurrent = seriesMapRaw[key] || rows;
+                seriesMap[key] = normalizeRows(scxFilterTodayFutureSnapshots(rawCurrent, targetDateYmd));
+            } else {
+                seriesMap[key] = normalizeRows(seriesMapRaw[key]);
+            }
         });
         const currentRows = Array.isArray(seriesMap.current) ? seriesMap.current : [];
 
@@ -19461,7 +19497,7 @@ function initDashboardRecap() {
                         }
                         if (tabKey === 'summary') {
                             const snapshotCountryCode = dim === 'country' ? scxResolveCountryCode(row) : '';
-                            bindScoreSnapshotMetricTabs('sdSnapshot', normalizedTimeline, { activeIndex: effectiveMeta?.breakdown?.meta?.scoring_timeline_active_idx, seriesMap: buildSnapshotSeriesMap(snapshotCountryCode) });
+                            bindScoreSnapshotMetricTabs('sdSnapshot', normalizedTimeline, { activeIndex: effectiveMeta?.breakdown?.meta?.scoring_timeline_active_idx, seriesMap: buildSnapshotSeriesMap(snapshotCountryCode), targetDate: String(state?.date || effectiveMeta?.date || '').trim() });
                             const summaryKeys = subgroups.map(function(it){ return it.key; }).filter(Boolean);
                             if (summaryKeys.length) {
                                 const trendState = Object.assign({}, state, { dim: 'domain' });

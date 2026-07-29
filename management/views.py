@@ -5296,7 +5296,11 @@ class DashboardScoringCompareView(View):
             by_hour = {}
             hourly_series = {}
 
-            def build_hourly_series(day_value):
+            now_jkt = datetime.now(timezone(timedelta(hours=7)))
+            today_jkt = now_jkt.date()
+            current_hour_cap = int(now_jkt.hour) if target_date == today_jkt else None
+
+            def build_hourly_series(day_value, max_hour_inclusive=None):
                 day_frame_all = sdf[sdf['date'] == day_value].copy()
                 if day_frame_all.empty:
                     return []
@@ -5305,6 +5309,8 @@ class DashboardScoringCompareView(View):
                 series = []
                 for hr in sorted(hours):
                     if hr in seen_hours:
+                        continue
+                    if max_hour_inclusive is not None and int(hr) > int(max_hour_inclusive):
                         continue
                     seen_hours.append(hr)
                     hour_frame = day_frame_all[day_frame_all['run_hour_key'] == hr].copy()
@@ -5318,7 +5324,7 @@ class DashboardScoringCompareView(View):
                     series.append(snap_hour)
                 return series
 
-            hourly_series['current'] = build_hourly_series(target_date)
+            hourly_series['current'] = build_hourly_series(target_date, current_hour_cap)
             for key, dprev in compare_dates.items():
                 lh = latest_hour_by_date.get(dprev)
                 # daily snapshot = latest hour
@@ -14905,6 +14911,21 @@ class DashboardDomainHourlyHeatmapView(View):
                 adx_rows = [r for r in (adx_rows or []) if _country_match(r)]
                 adsense_rows = [r for r in (adsense_rows or []) if _country_match(r)]
 
+            # ClickHouse hourly kosong/tidak match filter → fallback log MySQL (sama sumber Monitoring)
+            if source in ('adx', 'all') and not adx_rows:
+                domain_terms = build_domain_filter_terms(
+                    domains_raw, include_original=True, include_base=True
+                ) if domains_raw else None
+                adx_mysql = db.get_all_adx_roi_country_hourly_logs_by_params(
+                    tanggal_formatted,
+                    domain_terms,
+                )
+                adx_rows = (adx_mysql.get('data') if isinstance(adx_mysql, dict) else []) or []
+                if not isinstance(adx_rows, list):
+                    adx_rows = []
+                if selected_country_set:
+                    adx_rows = [r for r in adx_rows if _country_match(r)]
+
             unique_name_site = []
             extracted_sites = set[Any]()
             def _collect_sites(rows, key):
@@ -14921,20 +14942,17 @@ class DashboardDomainHourlyHeatmapView(View):
                     if len(parts) >= 2:
                         main_domain = ".".join(parts[:2])
                 unique_name_site.append(main_domain)
-            unique_name_site = list(set(unique_name_site))
-            ads_resp = None
-            ads_rows = []
-            if selected_country_set:
-                ads_resp = db.get_all_ads_roi_country_hourly_logs_by_params(
-                    tanggal_formatted,
-                    unique_name_site if unique_name_site else None
+            spend_domain_keys = list(set(unique_name_site))
+            if domains_raw:
+                spend_domain_keys.extend(
+                    build_domain_filter_terms(domains_raw, include_original=True, include_base=True)
                 )
-                ads_rows_raw = ((ads_resp or {}).get('hasil') or {}).get('data') or []
-                if not isinstance(ads_rows_raw, list):
-                    ads_rows_raw = []
+            spend_domain_keys = list({str(x).strip() for x in spend_domain_keys if str(x).strip()})
+
+            def _ads_rows_from_roi_logs(raw_rows, filter_country=False):
                 spend_by_country_hour = {f"{h:02d}": 0.0 for h in range(24)}
-                for row in ads_rows_raw:
-                    if not _country_match(row):
+                for row in raw_rows or []:
+                    if filter_country and not _country_match(row):
                         continue
                     try:
                         hour = int(row.get('hour', 0) or 0)
@@ -14944,13 +14962,40 @@ class DashboardDomainHourlyHeatmapView(View):
                         continue
                     hkey = f"{hour:02d}"
                     spend_by_country_hour[hkey] = spend_by_country_hour.get(hkey, 0.0) + float(row.get('spend', 0) or 0)
-                ads_rows = [{'hour': int(h), 'spend': spend_by_country_hour[h]} for h in spend_by_country_hour]
-            elif unique_name_site:
+                return [
+                    {'hour': h, 'spend': spend_by_country_hour[f"{h:02d}"]}
+                    for h in range(24)
+                ]
+
+            ads_resp = None
+            ads_rows = []
+            if selected_country_set:
+                ads_resp = db.get_all_ads_roi_country_hourly_logs_by_params(
+                    tanggal_formatted,
+                    spend_domain_keys if spend_domain_keys else None,
+                )
+                ads_rows_raw = ((ads_resp or {}).get('hasil') or {}).get('data') or []
+                if not isinstance(ads_rows_raw, list):
+                    ads_rows_raw = []
+                ads_rows = _ads_rows_from_roi_logs(ads_rows_raw, filter_country=True)
+            elif spend_domain_keys:
                 ads_resp = db.get_all_ads_country_hourly_by_params(
                     tanggal_formatted,
-                    unique_name_site
+                    spend_domain_keys,
                 )
                 ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
+                if not isinstance(ads_rows, list):
+                    ads_rows = []
+                has_spend = any(float((r or {}).get('spend') or 0) > 0 for r in ads_rows)
+                if not has_spend:
+                    ads_resp = db.get_all_ads_roi_country_hourly_logs_by_params(
+                        tanggal_formatted,
+                        spend_domain_keys,
+                    )
+                    ads_rows_raw = ((ads_resp or {}).get('hasil') or {}).get('data') or []
+                    if not isinstance(ads_rows_raw, list):
+                        ads_rows_raw = []
+                    ads_rows = _ads_rows_from_roi_logs(ads_rows_raw, filter_country=False)
             if not isinstance(ads_rows, list):
                 ads_rows = []
             rev_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
@@ -14980,17 +15025,18 @@ class DashboardDomainHourlyHeatmapView(View):
             revenue_series = []
             spend_series = []
             roi_series = []
-            total_revenue = 0.0
-            total_spend = 0.0
+            cum_revenue = 0.0
+            cum_spend = 0.0
             for h in hours:
                 r = float(rev_by_hour.get(h, 0.0) or 0.0)
                 s = float(spend_by_hour.get(h, 0.0) or 0.0)
-                revenue_series.append(round(r, 2))
-                spend_series.append(round(s, 2))
-                roi_series.append(round((((r - s) / s) * 100) if s > 0 else 0.0, 2))
-                if r > 0 or s > 0:
-                    total_revenue = r
-                    total_spend = s
+                cum_revenue = max(cum_revenue, r)
+                cum_spend = max(cum_spend, s)
+                revenue_series.append(round(cum_revenue, 2))
+                spend_series.append(round(cum_spend, 2))
+                roi_series.append(round((((cum_revenue - cum_spend) / cum_spend) * 100) if cum_spend > 0 else 0.0, 2))
+            total_revenue = cum_revenue
+            total_spend = cum_spend
             result = {
                 'status': True,
                 'tanggal': tanggal_formatted,
