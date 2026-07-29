@@ -8740,9 +8740,22 @@ function bindDecisionSnapshotChart(storeKey, timeline, activeIndex) {
     const tl = (Array.isArray(timeline) && timeline.length)
         ? timeline
         : (Array.isArray(entry.normalizedTimeline) ? entry.normalizedTimeline : []);
-    const seriesMap = Object.assign({}, (entry.snapshotSeriesMap && typeof entry.snapshotSeriesMap === 'object') ? entry.snapshotSeriesMap : {});
+    const targetDate = String(
+        entry?.state?.date || entry?.meta?.date || entry?.meta?.breakdown?.meta?.date || ''
+    ).trim();
+    const capFn = window.scxCapSnapshotSeriesMapForToday;
+    const filterFn = window.scxFilterTodayFutureSnapshots;
+    let seriesMap = Object.assign({}, (entry.snapshotSeriesMap && typeof entry.snapshotSeriesMap === 'object') ? entry.snapshotSeriesMap : {});
+    if (typeof capFn === 'function') {
+        seriesMap = capFn(seriesMap, targetDate);
+    } else if (typeof filterFn === 'function') {
+        seriesMap.current = filterFn(
+            Array.isArray(seriesMap.current) && seriesMap.current.length ? seriesMap.current : tl,
+            targetDate
+        );
+    }
     if (!Array.isArray(seriesMap.current) || !seriesMap.current.length) {
-        seriesMap.current = tl;
+        seriesMap.current = (typeof filterFn === 'function') ? filterFn(tl, targetDate) : tl;
     }
     if (typeof window.bindScoreSnapshotMetricTabs !== 'function') {
         scheduleDecisionScoreHourlyChart(storeKey);
@@ -8754,9 +8767,10 @@ function bindDecisionSnapshotChart(storeKey, timeline, activeIndex) {
         mode: entry.activeChartMode || 'overlay',
         focus: entry.chartFocus || null
     };
-    window.bindScoreSnapshotMetricTabs('decisionSnapshot', tl, {
+    window.bindScoreSnapshotMetricTabs('decisionSnapshot', seriesMap.current, {
         activeIndex: activeIndex,
-        seriesMap: seriesMap
+        seriesMap: seriesMap,
+        targetDate: targetDate
     });
     const ui = window.scxSnapshotUiState.decisionSnapshot || {};
     entry.activeMetric = ui.metric || entry.activeMetric || 'score';
@@ -8806,9 +8820,15 @@ function renderDecisionScoreHourlyChart(storeKey) {
     if (!cvs || typeof Chart === 'undefined') return;
     const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
     const info = entry?.meta?.breakdown?.meta || {};
-    const timeline = (Array.isArray(entry?.normalizedTimeline) && entry.normalizedTimeline.length)
+    const targetDate = String(entry?.state?.date || info.date || '').trim();
+    const filterFn = window.scxFilterTodayFutureSnapshots;
+    const capLabelsFn = window.scxCapSnapshotChartLabels;
+    const timelineRaw = (Array.isArray(entry?.normalizedTimeline) && entry.normalizedTimeline.length)
         ? entry.normalizedTimeline
         : (Array.isArray(info.scoring_timeline) ? info.scoring_timeline : []);
+    const timeline = (typeof filterFn === 'function')
+        ? filterFn(timelineRaw, targetDate)
+        : timelineRaw;
     const decisionCompare = (info?.decision_compare && typeof info.decision_compare === 'object') ? info.decision_compare : {};
     const activeMetric = entry?.activeMetric || 'score';
     const chartMode = (String(entry?.activeChartMode || 'overlay').toLowerCase() === 'delta') ? 'delta' : 'overlay';
@@ -8903,6 +8923,9 @@ function renderDecisionScoreHourlyChart(storeKey) {
     const hourlySeriesMap = hasCompareHourly
         ? hourlyFromCompare
         : (hasEntryHourly ? hourlyFromEntry : hourlyFromSnapshot);
+    if (typeof filterFn === 'function' && Array.isArray(hourlySeriesMap.current)) {
+        hourlySeriesMap.current = filterFn(hourlySeriesMap.current, targetDate);
+    }
     const hasCompareSeries = hasCompareHourly || hasEntryHourly || hasSnapshotSeries;
     let labels = [];
     let datasets = [];
@@ -8919,6 +8942,9 @@ function renderDecisionScoreHourlyChart(storeKey) {
             });
         });
         labels = Array.from(labelSet.entries()).sort(function(a, b){ return a[1] - b[1]; }).map(function(item){ return item[0]; });
+        if (typeof capLabelsFn === 'function') {
+            labels = capLabelsFn(labels, targetDate);
+        }
         const currentRows = Array.isArray(hourlySeriesMap?.current) ? hourlySeriesMap.current : [];
         const currentValueMap = new Map();
         currentRows.forEach(function(row, idx){
@@ -9611,7 +9637,10 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
             entry.hourlySeriesFromCompare = json.data.hourly_series;
             const sm = (entry.snapshotSeriesMap && typeof entry.snapshotSeriesMap === 'object') ? Object.assign({}, entry.snapshotSeriesMap) : {};
             ['current', 'h1', 'h3', 'h7', 'h14', 'h28', 'h35'].forEach(function(key) {
-                const rows = Array.isArray(json.data.hourly_series[key]) ? json.data.hourly_series[key] : [];
+                let rows = Array.isArray(json.data.hourly_series[key]) ? json.data.hourly_series[key] : [];
+                if (key === 'current' && typeof window.scxFilterTodayFutureSnapshots === 'function') {
+                    rows = window.scxFilterTodayFutureSnapshots(rows, date);
+                }
                 if (rows.length) sm[key] = rows;
             });
             entry.snapshotSeriesMap = sm;
@@ -11626,6 +11655,31 @@ function initDashboardRecap() {
         return Number.isFinite(ord) ? ord : null;
     }
 
+    function scxSnapshotLabelMinutes(labelText) {
+        const s = String(labelText || '').trim();
+        const m = s.match(/^(\d{1,2}):(\d{2})$/);
+        if (!m) return null;
+        return (Number(m[1]) * 60) + Number(m[2]);
+    }
+
+    function scxCapSnapshotChartLabels(labels, targetDateYmd) {
+        const list = Array.isArray(labels) ? labels.slice() : [];
+        const target = String(targetDateYmd || '').trim();
+        if (!target || target !== scxBrowserTodayYmd()) return list;
+        const nowMinutes = (new Date().getHours() * 60) + new Date().getMinutes();
+        return list.filter(function(lb) {
+            const mins = scxSnapshotLabelMinutes(lb);
+            return !Number.isFinite(mins) || mins <= nowMinutes;
+        });
+    }
+
+    function scxCapSnapshotSeriesMapForToday(seriesMap, targetDateYmd) {
+        if (!seriesMap || typeof seriesMap !== 'object') return seriesMap;
+        const out = Object.assign({}, seriesMap);
+        out.current = scxFilterTodayFutureSnapshots(out.current, targetDateYmd);
+        return out;
+    }
+
     function scxBrowserTodayYmd() {
         const now = new Date();
         const y = now.getFullYear();
@@ -11645,9 +11699,15 @@ function initDashboardRecap() {
             return mins <= nowMinutes;
         });
     }
+    window.scxFilterTodayFutureSnapshots = scxFilterTodayFutureSnapshots;
+    window.scxCapSnapshotSeriesMapForToday = scxCapSnapshotSeriesMapForToday;
+    window.scxCapSnapshotChartLabels = scxCapSnapshotChartLabels;
+    window.scxSnapshotLabelMinutes = scxSnapshotLabelMinutes;
+    window.scxBrowserTodayYmd = scxBrowserTodayYmd;
 
     function scxSnapshotHourOrder(row, idx) {
         const rawHour = Number(row?.run_hour);
+        if (Number.isFinite(rawHour) && rawHour >= 0 && rawHour <= 23) return rawHour * 60;
         if (Number.isFinite(rawHour)) return rawHour;
         const match = String(row?.run_hour_label || row?.run_hour || '').match(/\b(\d{1,2}):(\d{2})/);
         if (match) {
@@ -12024,7 +12084,10 @@ function initDashboardRecap() {
                     if (!labelSet.has(label)) labelSet.set(label, Number(row?.__snapshotOrd || idx));
                 });
             });
-            const labels = Array.from(labelSet.entries()).sort(function(a, b){ return a[1] - b[1]; }).map(function(item){ return item[0]; });
+            const labels = scxCapSnapshotChartLabels(
+                Array.from(labelSet.entries()).sort(function(a, b){ return a[1] - b[1]; }).map(function(item){ return item[0]; }),
+                targetDateYmd
+            );
             const currentMap = new Map();
             currentRows.forEach(function(row) { currentMap.set(String(row?.__snapshotLabel || ''), scxSnapshotMetricValue(row, metricKey)); });
             let datasets = [];
@@ -19410,8 +19473,17 @@ function initDashboardRecap() {
                     if (!Array.isArray(timelineRows) || !timelineRows.length) return [];
                     return cc ? scxBuildCountrySnapshotRows(timelineRows, cc) : timelineRows;
                 };
+                const snapshotDateYmd = String(state?.date || effectiveMeta?.date || '').trim();
+                const withTodayCap = function(map) {
+                    if (!map || typeof map !== 'object') return map;
+                    map.current = scxFilterTodayFutureSnapshots(map.current, snapshotDateYmd);
+                    return map;
+                };
                 const fallback = {
-                    current: pickRows(normalizedTimeline),
+                    current: scxFilterTodayFutureSnapshots(
+                        pickRows(normalizedTimeline),
+                        snapshotDateYmd
+                    ),
                     h1: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h1)),
                     h3: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h3)),
                     h7: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h7)),
@@ -19421,13 +19493,13 @@ function initDashboardRecap() {
                 };
                 if (cc && metricHourlySeriesByCountry[cc] && typeof metricHourlySeriesByCountry[cc] === 'object') {
                     const fromCountry = scxMapHourlyObjToSnapshotSeries(metricHourlySeriesByCountry[cc]);
-                    if (fromCountry) return scxMergeSnapshotSeriesMaps(fromCountry, fallback);
+                    if (fromCountry) return withTodayCap(scxMergeSnapshotSeriesMaps(fromCountry, fallback));
                 }
                 const compareScopeCc = (dim === 'country') ? scxResolveCountryCode(row) : '';
                 const canUseDomainCompare = !cc || (compareScopeCc && cc === compareScopeCc);
                 if (canUseDomainCompare && metricHourlySeriesByOffset) {
                     const fromDomain = scxMapHourlyObjToSnapshotSeries(metricHourlySeriesByOffset);
-                    if (fromDomain) return scxMergeSnapshotSeriesMaps(fromDomain, fallback);
+                    if (fromDomain) return withTodayCap(scxMergeSnapshotSeriesMaps(fromDomain, fallback));
                 }
                 return fallback;
             };
