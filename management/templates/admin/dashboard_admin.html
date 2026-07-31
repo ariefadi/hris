@@ -4631,6 +4631,91 @@ html[data-theme="dark"] .score-detail-modal__body .scx-action-panel #sdCampaignT
     background: rgba(51, 65, 85, 0.55) !important;
     color: #94a3b8;
 }
+.sd-campaign-log-card {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: rgba(248, 250, 252, 0.72);
+}
+.sd-campaign-log-card .table { margin: 0; font-size: 12px; }
+.sd-campaign-log-card thead th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    white-space: nowrap;
+}
+.sd-campaign-log-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 30050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.55);
+}
+.sd-campaign-log-modal[hidden] { display: none !important; }
+.sd-campaign-log-modal__dialog {
+    width: min(1280px, 96vw);
+    max-height: min(85vh, 820px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+.sd-campaign-log-modal__body .table {
+    font-size: 12px;
+    table-layout: auto;
+    min-width: 1100px;
+}
+.sd-campaign-log-modal__body .table th,
+.sd-campaign-log-modal__body .table td {
+    vertical-align: middle;
+}
+.sd-campaign-log-modal__body .table .sd-log-col-campaign {
+    min-width: 320px;
+    max-width: 420px;
+    white-space: normal;
+    word-break: break-word;
+}
+.sd-campaign-log-modal__body .table .sd-log-col-changed {
+    min-width: 160px;
+    white-space: nowrap;
+}
+.sd-campaign-log-modal__body .table .sd-log-col-by {
+    min-width: 140px;
+    white-space: nowrap;
+}
+.sd-campaign-log-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+.sd-campaign-log-modal__header .scx-sub {
+    max-width: min(980px, calc(96vw - 120px));
+    word-break: break-word;
+}
+.sd-campaign-log-modal__body {
+    padding: 0 16px 16px;
+    overflow: auto;
+}
+html[data-theme="dark"] .sd-campaign-log-card {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] .sd-campaign-log-modal__dialog {
+    background: #0f172a;
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .sd-campaign-log-modal__header {
+    border-color: rgba(148, 163, 184, 0.18);
+}
 html[data-theme="dark"] .score-detail-modal__body .scx-action-panel .scx-pill.green {
     background: rgba(34, 197, 94, 0.18);
     color: #86efac;
@@ -18338,6 +18423,12 @@ function initDashboardRecap() {
         const optBtn = document.getElementById('sdOptimize10Btn');
         const statusEl = document.getElementById('sdCampaignStatus');
         const wrapEl = document.getElementById('sdCampaignTable');
+        const logTableEl = document.getElementById('sdCampaignLogTable');
+        const logModalEl = document.getElementById('sdCampaignLogModal');
+        const logModalTitleEl = document.getElementById('sdCampaignLogModalTitle');
+        const logModalSubEl = document.getElementById('sdCampaignLogModalSub');
+        const logModalTableEl = document.getElementById('sdCampaignLogModalTable');
+        const logModalCloseEl = document.getElementById('sdCampaignLogModalClose');
 
         if (!wrapEl) return;
 
@@ -18346,10 +18437,126 @@ function initDashboardRecap() {
         const end = String(ymd || '').trim();
         const start = end ? ymdShift(end, -6) : '';
 
-        const st = { campaigns: [] };
+        if (logModalEl && logModalEl.parentElement !== document.body) {
+            document.body.appendChild(logModalEl);
+        }
+
+        const st = { campaigns: [], logs: [] };
         const { recoMap } = scxBuildCampaignScoringMaps(scoringData || {});
         function setStatus(msg) {
             if (statusEl) statusEl.textContent = String(msg || '');
+        }
+
+        function fmtBudgetDisplay(v) {
+            const n = Math.max(0, Math.round(Number(v) || 0));
+            return 'Rp ' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function renderLogRowsHtml(rows, options) {
+            const opts = options || {};
+            const isModal = opts.variant === 'modal';
+            const list = Array.isArray(rows) ? rows : [];
+            if (!list.length) {
+                return `<div class="text-muted" style="font-size:12px;">${esc(opts.emptyText || 'Belum ada riwayat perubahan.')}</div>`;
+            }
+            let h = '';
+            h += '<div class="table-responsive">';
+            h += '<table class="table table-sm table-striped" style="margin:0;">';
+            h += '<thead><tr>';
+            h += '<th style="width:42px;" class="text-center">No</th>';
+            h += `<th style="${isModal ? 'min-width:320px;' : ''}">Campaign</th>`;
+            h += `<th style="width:${isModal ? '130px' : '110px'};">Status Perubahan</th>`;
+            h += `<th class="text-end" style="width:${isModal ? '130px' : '120px'};">Daily Budget</th>`;
+            h += `<th style="width:${isModal ? '100px' : '90px'};">Status Aktif</th>`;
+            h += `<th style="width:${isModal ? '170px' : '150px'};">Terakhir Diubah</th>`;
+            h += `<th style="width:${isModal ? '160px' : '120px'};">Oleh</th>`;
+            h += '</tr></thead><tbody>';
+            list.forEach(function(item, idx){
+                const campaignName = String(item?.log_master_campaign_nm || item?.log_master_campaign_id || '-');
+                const campaignCellStyle = isModal
+                    ? 'class="sd-log-col-campaign"'
+                    : `title="${esc(campaignName)}" style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"`;
+                const byCellStyle = isModal
+                    ? 'class="sd-log-col-by"'
+                    : `title="${esc(String(item?.changed_by || '-'))}" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"`;
+                h += '<tr>';
+                h += `<td class="text-center">${esc(String(idx + 1))}</td>`;
+                h += `<td ${campaignCellStyle}>${esc(campaignName)}</td>`;
+                h += `<td>${esc(String(item?.change_label || '-'))}</td>`;
+                h += `<td class="text-end">${esc(fmtBudgetDisplay(item?.budget_display))}</td>`;
+                h += `<td>${esc(String(item?.status_label || '-'))}</td>`;
+                h += `<td class="sd-log-col-changed">${esc(String(item?.changed_at || '-'))}</td>`;
+                h += `<td ${byCellStyle}>${esc(String(item?.changed_by || '-'))}</td>`;
+                h += '</tr>';
+            });
+            h += '</tbody></table></div>';
+            return h;
+        }
+
+        async function loadRecentLogs() {
+            if (!logTableEl || !siteName) return;
+            logTableEl.innerHTML = '<div class="text-muted" style="font-size:12px;">Memuat riwayat...</div>';
+            try {
+                const campaignIds = (st.campaigns || []).map(function(c){
+                    return String(c?.campaign_id || c?.id || '').trim();
+                }).filter(Boolean);
+                const qs = new URLSearchParams({
+                    domain: siteName,
+                    limit: '4'
+                });
+                if (campaignIds.length) qs.set('campaign_ids', JSON.stringify(campaignIds));
+                const resp = await fetch('/management/admin/log_master_ads_recent_by_domain?' + qs.toString(), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin'
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const json = await resp.json();
+                if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat riwayat');
+                st.logs = Array.isArray(json.data) ? json.data : [];
+                logTableEl.innerHTML = renderLogRowsHtml(st.logs, { emptyText: 'Belum ada riwayat perubahan untuk domain ini.' });
+            } catch (e) {
+                logTableEl.innerHTML = `<div class="text-muted" style="font-size:12px;">${esc(String(e?.message || e || 'Gagal memuat riwayat'))}</div>`;
+            }
+        }
+
+        async function openCampaignLogModal(campaignId, campaignName) {
+            if (!logModalEl || !logModalTableEl) return;
+            const cid = String(campaignId || '').trim();
+            const name = String(campaignName || cid || '-').trim();
+            if (!cid) return;
+            if (logModalEl.parentElement !== document.body) document.body.appendChild(logModalEl);
+            if (logModalTitleEl) logModalTitleEl.textContent = 'Riwayat Campaign';
+            if (logModalSubEl) logModalSubEl.textContent = name;
+            logModalTableEl.innerHTML = '<div class="text-muted" style="font-size:12px;padding:12px 0;">Memuat riwayat...</div>';
+            logModalEl.hidden = false;
+            try {
+                const qs = new URLSearchParams({
+                    campaign_id: cid,
+                    limit: '200'
+                });
+                const resp = await fetch('/management/admin/log_master_ads_history_by_campaign?' + qs.toString(), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin'
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const json = await resp.json();
+                if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat riwayat campaign');
+                const rows = Array.isArray(json.data) ? json.data : [];
+                logModalTableEl.innerHTML = renderLogRowsHtml(rows, { emptyText: 'Belum ada riwayat untuk campaign ini.', variant: 'modal' });
+            } catch (e) {
+                logModalTableEl.innerHTML = `<div class="text-muted" style="font-size:12px;padding:12px 0;">${esc(String(e?.message || e || 'Gagal memuat riwayat campaign'))}</div>`;
+            }
+        }
+
+        function closeCampaignLogModal() {
+            if (logModalEl) logModalEl.hidden = true;
+        }
+
+        if (logModalCloseEl) logModalCloseEl.onclick = closeCampaignLogModal;
+        if (logModalEl) {
+            logModalEl.addEventListener('click', function(ev){
+                if (ev.target === logModalEl) closeCampaignLogModal();
+            });
         }
 
         async function getCampaigns() {
@@ -18454,7 +18661,7 @@ function initDashboardRecap() {
                 h += `<td><span class="scx-pill ${actionTone}" style="font-size:10px;padding:2px 8px;">${esc(action)}</span></td>`;
                 h += `<td class="text-end" style="font-weight:700;white-space:nowrap;">${esc(recPctTxt)}</td>`;
                 h += `<td class="text-end"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm" value="${esc(fmtBudgetInput(suggestedBudget))}" style="text-align:right;width:132px;min-width:132px;margin-left:auto;padding:2px 8px;height:30px;${isStatusAction ? 'background:#e2e8f0;cursor:not-allowed;' : ''}" ${isStatusAction ? 'readonly' : ''}></td>`;
-                h += `<td class="text-center"><div class="sd-camp-actions"><button type="button" class="btn btn-sm btn-outline-primary sd-camp-upd" data-cid="${esc(cid)}" data-action="${esc(action)}" title="Simpan perubahan" style="padding:2px 10px;height:30px;"><i class="fas fa-save" aria-hidden="true"></i></button><button type="button" class="btn btn-sm btn-outline-secondary sd-camp-detail" data-campaign-name="${esc(name)}" title="Lihat detail di tab Campaign" style="padding:2px 8px;height:30px;"><i class="fas fa-eye" aria-hidden="true"></i></button></div></td>`;
+                h += `<td class="text-center"><div class="sd-camp-actions"><button type="button" class="btn btn-sm btn-outline-primary sd-camp-upd" data-cid="${esc(cid)}" data-action="${esc(action)}" title="Simpan perubahan" style="padding:2px 10px;height:30px;"><i class="fas fa-save" aria-hidden="true"></i></button><button type="button" class="btn btn-sm btn-outline-secondary sd-camp-log" data-cid="${esc(cid)}" data-campaign-name="${esc(name)}" title="Riwayat perubahan" style="padding:2px 8px;height:30px;"><i class="fas fa-list" aria-hidden="true"></i></button><button type="button" class="btn btn-sm btn-outline-secondary sd-camp-detail" data-campaign-name="${esc(name)}" title="Lihat detail di tab Campaign" style="padding:2px 8px;height:30px;"><i class="fas fa-eye" aria-hidden="true"></i></button></div></td>`;
                 h += '</tr>';
             });
 
@@ -18473,11 +18680,13 @@ function initDashboardRecap() {
                 st.campaigns = await getCampaigns();
                 render();
                 setStatus(`${st.campaigns.length} campaign • ${start} s/d ${end}`);
+                await loadRecentLogs();
             } catch (e) {
                 st.campaigns = [];
                 st.error = String(e?.message || e || 'Gagal memuat campaigns');
                 render();
                 setStatus(st.error);
+                await loadRecentLogs();
             }
         }
 
@@ -18485,7 +18694,11 @@ function initDashboardRecap() {
             const ids = selectedIds();
             if (!ids.length) { setStatus('Pilih minimal 1 campaign'); return; }
             setStatus('Updating status...');
-            try { await updateStatus(ids, status); setStatus(`OK: status ${status} (${ids.length} campaign)`); }
+            try {
+                await updateStatus(ids, status);
+                setStatus(`OK: status ${status} (${ids.length} campaign)`);
+                await refresh();
+            }
             catch (e) { setStatus(String(e?.message || e || 'Gagal update status')); }
         }
 
@@ -18503,6 +18716,7 @@ function initDashboardRecap() {
                     if (inp) inp.value = String(next);
                 }
                 setStatus(`OK: update budget (${ids.length} campaign)`);
+                await refresh();
             } catch (e) {
                 setStatus(String(e?.message || e || 'Gagal update budget'));
             }
@@ -18524,6 +18738,13 @@ function initDashboardRecap() {
         });
 
         wrapEl.addEventListener('click', async function(e) {
+            const logBtn = e.target && e.target.closest ? e.target.closest('.sd-camp-log') : null;
+            if (logBtn) {
+                const cid = String(logBtn.getAttribute('data-cid') || '');
+                const campaignName = String(logBtn.getAttribute('data-campaign-name') || '').trim();
+                await openCampaignLogModal(cid, campaignName);
+                return;
+            }
             const detailBtn = e.target && e.target.closest ? e.target.closest('.sd-camp-detail') : null;
             if (detailBtn) {
                 const campaignName = String(detailBtn.getAttribute('data-campaign-name') || '').trim();
@@ -18551,6 +18772,7 @@ function initDashboardRecap() {
                     setStatus('Updating status campaign...');
                     await updateStatus([cid], status);
                     setStatus(`OK: status campaign ${status} (${cid})`);
+                    await refresh();
                 } else {
                     const inp = document.getElementById(`sdBud_${cid}`);
                     const raw = String(inp ? inp.value : '').trim();
@@ -18560,6 +18782,7 @@ function initDashboardRecap() {
                     setStatus('Updating daily budget...');
                     await updateBudget(cid, n);
                     setStatus(`OK: update daily budget (${cid})`);
+                    await loadRecentLogs();
                 }
             } catch (er) { setStatus(String(er?.message || er || 'Gagal eksekusi campaign')); }
             finally { btn.disabled = false; }
@@ -18970,7 +19193,7 @@ function initDashboardRecap() {
             const invalidDataTabBtn = isCountryScoringDetail ? '' : '<button type="button" class="scx-modal-tab" data-scx-tab-btn="invalid_data">Invalid data</button>';
             const campaignTabBtn = isCountryScoringDetail ? '' : '<button type="button" class="scx-modal-tab" data-scx-tab-btn="campaign">Campaign</button>';
             const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">Navigasi hasil scoring</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="decision">Hasil Keputusan</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="analytic">Analytic</button>${invalidDataTabBtn}<button type="button" class="scx-modal-tab" data-scx-tab-btn="monitoring">Monitoring</button>${campaignTabBtn}</div></div>`;
-            const actionPanel = canAct ? `<div class="scx-section-gap scx-action-panel"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
+            const actionPanel = canAct ? `<div class="scx-section-gap scx-action-panel"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div><div id="sdCampaignLogCard" class="sd-campaign-log-card"><div class="scx-title" style="font-size:14px;margin-bottom:4px;">Riwayat Perubahan Campaign</div><div class="scx-sub" style="margin-bottom:8px;">4 perubahan terbaru untuk domain ini.</div><div id="sdCampaignLogTable"><div class="text-muted" style="font-size:12px;">Memuat riwayat...</div></div></div><div id="sdCampaignLogModal" class="sd-campaign-log-modal" hidden><div class="sd-campaign-log-modal__dialog"><div class="sd-campaign-log-modal__header"><div><div class="scx-title" style="font-size:15px;margin-bottom:2px;" id="sdCampaignLogModalTitle">Riwayat Campaign</div><div class="scx-sub" id="sdCampaignLogModalSub">Log perubahan lengkap</div></div><button type="button" class="btn btn-sm btn-outline-secondary" id="sdCampaignLogModalClose">Tutup</button></div><div class="sd-campaign-log-modal__body"><div id="sdCampaignLogModalTable"><div class="text-muted" style="font-size:12px;padding:12px 0;">Memuat riwayat...</div></div></div></div></div></div>` : '';
 
             let html = '';
             html += tabButtons;

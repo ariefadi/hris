@@ -38,7 +38,8 @@ class Command(BaseCommand):
             'log_adsense_country',
             'log_adx_country',
             'master_account_ads',
-            'master_ads'
+            'master_ads',
+            'log_master_ads'
         ]
 
     def _resolve_tables(self, tables_arg):

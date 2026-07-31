@@ -8370,6 +8370,251 @@ class DeleteAccountFacebookAds(View):
 
         return JsonResponse(hasil)
 
+def _fb_object_field(obj, *keys, default=None):
+    if obj is None:
+        return default
+    for key in keys:
+        if not key:
+            continue
+        try:
+            if isinstance(obj, dict):
+                val = obj.get(key)
+            elif hasattr(obj, 'get') and callable(getattr(obj, 'get')):
+                val = obj.get(key)
+            else:
+                val = obj[key]
+            if val is not None and val != '':
+                return val
+        except Exception:
+            continue
+    return default
+
+
+def _resolve_hris_actor(req):
+    admin = (req.session.get('hris_admin') or {}) if req else {}
+    user_id = str(admin.get('user_id') or '').strip()
+    user_name = str(
+        admin.get('user_alias') or admin.get('user_name') or admin.get('user_mail') or 'system'
+    ).strip()
+    return user_id, user_name
+
+
+def _budget_action_from_delta(before_val, after_val):
+    try:
+        before_i = int(before_val) if before_val is not None else None
+        after_i = int(after_val) if after_val is not None else None
+    except Exception:
+        return None
+    if before_i is None or after_i is None:
+        return None
+    if after_i > before_i:
+        return 'scale_up'
+    if after_i < before_i:
+        return 'scale_down'
+    return 'hold'
+
+
+def _normalize_campaign_domain_from_name(campaign_name):
+    name = str(campaign_name or '').strip().lower()
+    if not name:
+        return ''
+    token = name.split('_')[0].split()[0].strip()
+    for suffix in ('.adx', '.disp', '.display'):
+        if token.endswith(suffix):
+            token = token[: -len(suffix)]
+    parts = [p for p in token.split('.') if p]
+    if len(parts) >= 2:
+        return '.'.join(parts[:2])
+    return token
+
+
+def _log_master_ads_user_change(req, account_row, campaign_id, *,
+                                campaign_name='',
+                                budget_before=None,
+                                budget_after=None,
+                                status_before=None,
+                                status_after=None,
+                                force_status_log=False):
+    try:
+        cid = str(campaign_id or '').strip()
+        if not cid:
+            return
+
+        status_after_norm = str(status_after or '').strip().upper() if status_after is not None else ''
+        status_before_norm = str(status_before or '').strip().upper() if status_before is not None else ''
+
+        budget_changed = False
+        if budget_before is not None and budget_after is not None:
+            try:
+                budget_changed = int(budget_before) != int(budget_after)
+            except Exception:
+                budget_changed = False
+        elif budget_after is not None and budget_before is None:
+            budget_changed = True
+
+        status_changed = False
+        if force_status_log and status_after_norm in ('ACTIVE', 'PAUSED', 'DELETED', 'ARCHIVED'):
+            status_changed = True
+            if not status_before_norm and status_after_norm in ('ACTIVE', 'PAUSED'):
+                status_before_norm = 'PAUSED' if status_after_norm == 'ACTIVE' else 'ACTIVE'
+        elif status_before_norm and status_after_norm:
+            status_changed = status_before_norm != status_after_norm
+
+        if not budget_changed and not status_changed:
+            return
+
+        account_row = account_row or {}
+        account_ads_id = str(account_row.get('account_ads_id') or '').strip()
+        db = data_mysql()
+        master = {}
+        try:
+            mresp = db.get_latest_master_ads_by_campaign(cid, account_ads_id or None)
+            master = (mresp or {}).get('data') or {}
+        except Exception:
+            master = {}
+
+        nm = str(
+            campaign_name
+            or master.get('master_campaign_nm')
+            or cid
+        ).strip()
+        domain = str(master.get('master_domain') or '').strip()
+        if not domain:
+            domain = _normalize_campaign_domain_from_name(nm)
+
+        user_id, user_name = _resolve_hris_actor(req)
+        action = _budget_action_from_delta(budget_before, budget_after) if budget_changed else None
+
+        new_budget = None
+        if budget_after is not None:
+            try:
+                new_budget = int(budget_after)
+            except Exception:
+                new_budget = None
+        elif master.get('master_budget') is not None:
+            try:
+                new_budget = int(master.get('master_budget') or 0)
+            except Exception:
+                new_budget = None
+
+        new_status = None
+        if status_changed and status_after_norm:
+            new_status = status_after_norm
+        elif status_before_norm:
+            new_status = status_before_norm
+        elif master.get('master_status'):
+            new_status = str(master.get('master_status') or '').strip().upper()
+
+        if new_status and new_status not in ('ACTIVE', 'PAUSED', 'DELETED', 'ARCHIVED'):
+            new_status = None
+
+        resp = db.insert_log_master_ads({
+            'account_ads_id': account_ads_id or str(master.get('account_ads_id') or '').strip(),
+            'log_master_domain': domain,
+            'log_master_campaign_id': cid,
+            'log_master_campaign_nm': nm,
+            'log_master_action': action,
+            'log_master_budget': new_budget,
+            'log_master_date_start': master.get('master_date_start'),
+            'log_master_date_end': master.get('master_date_end'),
+            'log_master_status': new_status,
+            'mdb': user_id or None,
+            'mdb_name': user_name or None,
+        })
+        if not (resp or {}).get('hasil', {}).get('status'):
+            logger.warning(
+                'log_master_ads insert failed campaign_id=%s resp=%s',
+                cid,
+                (resp or {}).get('hasil'),
+            )
+    except Exception as exc:
+        logger.warning('log_master_ads user change failed campaign_id=%s: %s', campaign_id, exc)
+
+
+def _format_log_master_ads_row(row):
+    item = dict(row or {})
+    action = str(item.get('log_master_action') or '').strip().lower()
+    status = str(item.get('log_master_status') or '').strip().upper()
+    if action == 'scale_up':
+        change_label = 'Scale Up'
+    elif action == 'scale_down':
+        change_label = 'Scale Down'
+    elif action == 'hold':
+        change_label = 'Hold'
+    elif status == 'ACTIVE':
+        change_label = 'Aktif'
+    elif status == 'PAUSED':
+        change_label = 'Pause'
+    elif status:
+        change_label = status.title()
+    else:
+        change_label = '-'
+
+    if status == 'ACTIVE':
+        status_label = 'Aktif'
+    elif status == 'PAUSED':
+        status_label = 'Pause'
+    elif status == 'DELETED':
+        status_label = 'Deleted'
+    elif status == 'ARCHIVED':
+        status_label = 'Archived'
+    elif status:
+        status_label = status.title()
+    else:
+        status_label = '-'
+
+    def _fmt_dt(val):
+        if val is None:
+            return None
+        try:
+            if hasattr(val, 'strftime'):
+                if hasattr(val, 'hour'):
+                    return val.strftime('%Y-%m-%d %H:%M:%S')
+                return val.strftime('%Y-%m-%d')
+        except Exception:
+            pass
+        return str(val)
+
+    mdd = item.get('mdd')
+    changed_at = _fmt_dt(mdd) or ''
+
+    try:
+        budget_val = int(item.get('log_master_budget') or 0)
+    except Exception:
+        budget_val = 0
+
+    item['change_label'] = change_label
+    item['status_label'] = status_label
+    item['changed_at'] = changed_at
+    item['budget_display'] = budget_val
+    item['changed_by'] = str(item.get('mdb_name') or item.get('mdb') or '-').strip() or '-'
+    for key in ('mdd', 'log_master_date', 'log_master_date_start', 'log_master_date_end'):
+        if key in item:
+            item[key] = _fmt_dt(item.get(key))
+    return item
+
+
+def _serialize_log_master_ads_rows(rows):
+    out = []
+    for row in (rows or []):
+        out.append(_format_log_master_ads_row(row))
+    return out
+
+
+def _resolve_monitoring_account_row(account_ads):
+    key = str(account_ads or '').strip()
+    if not key:
+        return None
+    accounts = (data_mysql().master_account_ads() or {}).get('data') or []
+    for a in (accounts or []):
+        if str((a or {}).get('account_name') or '').strip() == key:
+            return a
+    key_lower = key.lower()
+    for a in (accounts or []):
+        if str((a or {}).get('account_name') or '').strip().lower() == key_lower:
+            return a
+    return None
+
 @method_decorator(csrf_exempt, name='dispatch') 
 class update_daily_budget_per_campaign(View):
     def post(self, req):
@@ -8387,17 +8632,17 @@ class update_daily_budget_per_campaign(View):
 
         before_budget = None
         campaign_name = ''
+        before_status = None
         try:
             meta = fetch_campaign_meta(str(rs_data_account['access_token']), str(campaign_id))
             mdata = meta.get('data') if isinstance(meta, dict) else None
             if isinstance(meta, dict) and meta.get('status') and mdata is not None:
-                getter = getattr(mdata, 'get', None)
-                if callable(getter):
-                    campaign_name = getter('name') or ''
-                    try:
-                        before_budget = int(getter('daily_budget') or 0)
-                    except Exception:
-                        before_budget = None
+                campaign_name = str(_fb_object_field(mdata, 'name', default='') or '')
+                before_status = _fb_object_field(mdata, 'status')
+                try:
+                    before_budget = int(_fb_object_field(mdata, 'daily_budget', default=0) or 0)
+                except Exception:
+                    before_budget = None
         except Exception:
             before_budget = None
 
@@ -8455,6 +8700,22 @@ class update_daily_budget_per_campaign(View):
             pass
 
         if (data or {}).get('daily_budget') is not None:
+            try:
+                changed = (before_budget is None) or (after_budget is None) or (before_budget != after_budget)
+                if changed:
+                    _log_master_ads_user_change(
+                        req,
+                        rs_data_account,
+                        campaign_id,
+                        campaign_name=campaign_name,
+                        budget_before=before_budget,
+                        budget_after=after_budget,
+                        status_before=before_status,
+                    )
+            except Exception:
+                pass
+
+        if (data or {}).get('daily_budget') is not None:
             from .utils import invalidate_cache_on_data_update
             invalidate_cache_on_data_update(rs_data_account['account_id'], campaign_id, 'budget_update')
 
@@ -8490,10 +8751,9 @@ class update_switch_campaign(View):
                         try:
                             meta = fetch_campaign_meta(str(account_data.get('access_token')), str(campaign_id))
                             mdata = meta.get('data') if isinstance(meta, dict) else None
-                            getter = getattr(mdata, 'get', None)
-                            if isinstance(meta, dict) and meta.get('status') and callable(getter):
-                                campaign_name = getter('name') or ''
-                                before_status = getter('status')
+                            if isinstance(meta, dict) and meta.get('status') and mdata is not None:
+                                campaign_name = str(_fb_object_field(mdata, 'name', default='') or '')
+                                before_status = _fb_object_field(mdata, 'status')
                         except Exception:
                             before_status = None
 
@@ -8534,6 +8794,19 @@ class update_switch_campaign(View):
                             except Exception:
                                 pass
 
+                            try:
+                                _log_master_ads_user_change(
+                                    req,
+                                    account_data,
+                                    campaign_id,
+                                    campaign_name=(data.get('name') or campaign_name),
+                                    status_before=before_status,
+                                    status_after=data.get('status'),
+                                    force_status_log=True,
+                                )
+                            except Exception:
+                                pass
+
                             return JsonResponse({
                                 'success': True,
                                 'status': data['status'],
@@ -8563,10 +8836,9 @@ class update_switch_campaign(View):
                 try:
                     meta = fetch_campaign_meta(str(rs_data_account.get('access_token')), str(campaign_id))
                     mdata = meta.get('data') if isinstance(meta, dict) else None
-                    getter = getattr(mdata, 'get', None)
-                    if isinstance(meta, dict) and meta.get('status') and callable(getter):
-                        campaign_name = getter('name') or ''
-                        before_status = getter('status')
+                    if isinstance(meta, dict) and meta.get('status') and mdata is not None:
+                        campaign_name = str(_fb_object_field(mdata, 'name', default='') or '')
+                        before_status = _fb_object_field(mdata, 'status')
                 except Exception:
                     before_status = None
 
@@ -8577,6 +8849,19 @@ class update_switch_campaign(View):
                         'success': False,
                         'message': f'Gagal mengupdate campaign: {data["error"]}'
                     })
+
+                try:
+                    _log_master_ads_user_change(
+                        req,
+                        rs_data_account,
+                        campaign_id,
+                        campaign_name=(data.get('name') or campaign_name),
+                        status_before=before_status,
+                        status_after=data.get('status'),
+                        force_status_log=True,
+                    )
+                except Exception:
+                    pass
 
                 try:
                     admin = req.session.get('hris_admin', {})
@@ -9614,6 +9899,17 @@ class bulk_update_campaign_status(View):
                     last_error = None
                     for account_data in all_accounts:
                         try:
+                            before_status = None
+                            campaign_name = ''
+                            try:
+                                meta = fetch_campaign_meta(str(account_data.get('access_token')), str(campaign_id))
+                                mdata = meta.get('data') if isinstance(meta, dict) else None
+                                if isinstance(meta, dict) and meta.get('status') and mdata is not None:
+                                    campaign_name = str(_fb_object_field(mdata, 'name', default='') or '')
+                                    before_status = _fb_object_field(mdata, 'status')
+                            except Exception:
+                                before_status = None
+
                             # Coba update campaign dengan account ini
                             data = fetch_status_per_campaign(
                                 str(account_data['access_token']), 
@@ -9623,6 +9919,18 @@ class bulk_update_campaign_status(View):
                             if 'error' not in data:
                                 success_count += 1
                                 campaign_updated = True
+                                try:
+                                    _log_master_ads_user_change(
+                                        req,
+                                        account_data,
+                                        campaign_id,
+                                        campaign_name=(data.get('name') or campaign_name),
+                                        status_before=before_status,
+                                        status_after=data.get('status'),
+                                        force_status_log=True,
+                                    )
+                                except Exception:
+                                    pass
                                 break  # Campaign berhasil diupdate, lanjut ke campaign berikutnya
                             else:
                                 last_error = data['error']
@@ -9646,6 +9954,17 @@ class bulk_update_campaign_status(View):
                 
                 for campaign_id in campaign_ids:
                     try:
+                        before_status = None
+                        campaign_name = ''
+                        try:
+                            meta = fetch_campaign_meta(str(rs_data_account.get('access_token')), str(campaign_id))
+                            mdata = meta.get('data') if isinstance(meta, dict) else None
+                            if isinstance(meta, dict) and meta.get('status') and mdata is not None:
+                                campaign_name = str(_fb_object_field(mdata, 'name', default='') or '')
+                                before_status = _fb_object_field(mdata, 'status')
+                        except Exception:
+                            before_status = None
+
                         data = fetch_status_per_campaign(
                             str(rs_data_account['access_token']), 
                             str(campaign_id), 
@@ -9653,6 +9972,18 @@ class bulk_update_campaign_status(View):
                         )
                         if 'error' not in data:
                             success_count += 1
+                            try:
+                                _log_master_ads_user_change(
+                                    req,
+                                    rs_data_account,
+                                    campaign_id,
+                                    campaign_name=(data.get('name') or campaign_name),
+                                    status_before=before_status,
+                                    status_after=data.get('status'),
+                                    force_status_log=True,
+                                )
+                            except Exception:
+                                pass
                         else:
                             failed_campaigns.append({'id': campaign_id, 'error': data['error']})
                     except Exception as e:
@@ -16495,12 +16826,49 @@ class RoiMonitoringDomainUpdateDailyBudgetCampaignView(View):
             if not access_token or not account_id:
                 return JsonResponse({'status': False, 'error': 'Access token / account_id kosong'})
 
+            before_budget = None
+            campaign_name = ''
+            before_status = None
+            try:
+                meta = fetch_campaign_meta(access_token, str(campaign_id))
+                mdata = meta.get('data') if isinstance(meta, dict) else None
+                if isinstance(meta, dict) and meta.get('status') and mdata is not None:
+                    campaign_name = str(_fb_object_field(mdata, 'name', default='') or '')
+                    before_status = _fb_object_field(mdata, 'status')
+                    try:
+                        before_budget = int(_fb_object_field(mdata, 'daily_budget', default=0) or 0)
+                    except Exception:
+                        before_budget = None
+            except Exception:
+                before_budget = None
+
             data = fetch_daily_budget_per_campaign(
                 access_token,
                 account_id,
                 str(campaign_id),
                 int(daily_budget),
             )
+
+            try:
+                after_budget = int((data or {}).get('daily_budget') or 0)
+            except Exception:
+                after_budget = None
+
+            if (data or {}).get('daily_budget') is not None:
+                try:
+                    changed = (before_budget is None) or (after_budget is None) or (before_budget != after_budget)
+                    if changed:
+                        _log_master_ads_user_change(
+                            req,
+                            match,
+                            campaign_id,
+                            campaign_name=campaign_name,
+                            budget_before=before_budget,
+                            budget_after=after_budget,
+                            status_before=before_status,
+                        )
+                except Exception:
+                    pass
 
             if (data or {}).get('daily_budget') is not None:
                 from .utils import invalidate_cache_on_data_update
@@ -16570,11 +16938,33 @@ class RoiMonitoringDomainUpdateCampaignStatusCampaignView(View):
             last_status = None
 
             for cid in campaign_ids:
+                before_status = None
+                campaign_name = ''
+                try:
+                    meta = fetch_campaign_meta(str(access_token), str(cid))
+                    mdata = meta.get('data') if isinstance(meta, dict) else None
+                    if isinstance(meta, dict) and meta.get('status') and mdata is not None:
+                        campaign_name = str(_fb_object_field(mdata, 'name', default='') or '')
+                        before_status = _fb_object_field(mdata, 'status')
+                except Exception:
+                    before_status = None
                 try:
                     data = fetch_status_per_campaign(str(access_token), str(cid), str(status))
                     if isinstance(data, dict) and ('error' not in data):
                         success_count += 1
                         last_status = data.get('status')
+                        try:
+                            _log_master_ads_user_change(
+                                req,
+                                match,
+                                cid,
+                                campaign_name=(data.get('name') or campaign_name),
+                                status_before=before_status,
+                                status_after=data.get('status'),
+                                force_status_log=True,
+                            )
+                        except Exception:
+                            pass
                         try:
                             from .utils import invalidate_cache_on_data_update
                             invalidate_cache_on_data_update(account_id, cid, 'status_update')
@@ -16599,6 +16989,81 @@ class RoiMonitoringDomainUpdateCampaignStatusCampaignView(View):
             }, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': _friendly_fb_campaign_error(e)})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LogMasterAdsRecentByDomainView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            domain = (req.GET.get('domain') or req.GET.get('site_name') or '').strip()
+            try:
+                limit = int(req.GET.get('limit') or 4)
+            except Exception:
+                limit = 4
+            if not domain:
+                return JsonResponse({'status': False, 'error': 'domain wajib diisi', 'data': []}, safe=False)
+
+            campaign_ids = []
+            campaign_ids_json = (req.GET.get('campaign_ids') or '').strip()
+            if campaign_ids_json:
+                try:
+                    import json
+                    parsed = json.loads(campaign_ids_json)
+                    if isinstance(parsed, list):
+                        campaign_ids = [str(x).strip() for x in parsed if str(x).strip()]
+                except Exception:
+                    campaign_ids = []
+
+            resp = data_mysql().list_log_master_ads_by_domain(
+                domain,
+                campaign_ids=campaign_ids or None,
+                limit=limit,
+            )
+            rows = _serialize_log_master_ads_rows((resp or {}).get('data') or [])
+            return JsonResponse({
+                'status': bool((resp or {}).get('status')),
+                'domain': domain,
+                'data': rows,
+                'error': (resp or {}).get('error'),
+            }, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e), 'data': []}, safe=False)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LogMasterAdsHistoryByCampaignView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            campaign_id = (req.GET.get('campaign_id') or '').strip()
+            try:
+                limit = int(req.GET.get('limit') or 200)
+            except Exception:
+                limit = 200
+            if not campaign_id:
+                return JsonResponse({'status': False, 'error': 'campaign_id wajib diisi', 'data': []}, safe=False)
+
+            resp = data_mysql().list_log_master_ads_by_campaign(
+                campaign_id,
+                limit=limit,
+            )
+            rows = _serialize_log_master_ads_rows((resp or {}).get('data') or [])
+            return JsonResponse({
+                'status': bool((resp or {}).get('status')),
+                'campaign_id': campaign_id,
+                'data': rows,
+                'error': (resp or {}).get('error'),
+            }, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e), 'data': []}, safe=False)
 
 # ===== ROI Monitoring Country =====
 

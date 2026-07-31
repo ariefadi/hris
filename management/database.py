@@ -234,7 +234,9 @@ class ClickHouseHttpCursor:
         q = self._normalize_sql(query)
         q = self._substitute_params(q, params)
         q = q.strip().rstrip(';')
-        if ' format ' not in q.lower():
+        q_lower = q.lower()
+        wants_json = q_lower.startswith('select') and ' format ' not in q_lower
+        if wants_json:
             q = q + '\nFORMAT JSON'
 
         base = f"http://{self.host}:{self.port}/"
@@ -256,8 +258,11 @@ class ClickHouseHttpCursor:
             timeout=self.timeout,
         )
         resp.raise_for_status()
-        js = resp.json()
-        self._rows = js.get('data') or []
+        if wants_json:
+            js = resp.json()
+            self._rows = js.get('data') or []
+        else:
+            self._rows = []
         return True
 
     def fetchall(self):
@@ -307,7 +312,8 @@ class data_mysql:
             'log_adsense_country',
             'log_adx_country',
             'master_account_ads',
-            'master_ads'
+            'master_ads',
+            'log_master_ads'
         ]
 
     def _extract_query_tables(self, query):
@@ -3173,6 +3179,236 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+
+    def get_latest_master_ads_by_campaign(self, campaign_id, account_ads_id=None):
+        try:
+            sql = """
+                SELECT
+                    account_ads_id,
+                    master_domain,
+                    master_campaign_id,
+                    master_campaign_nm,
+                    master_budget,
+                    master_date_start,
+                    master_date_end,
+                    master_status
+                FROM master_ads
+                WHERE master_campaign_id = %s
+            """
+            params = [str(campaign_id or '').strip()]
+            acc = str(account_ads_id or '').strip()
+            if acc:
+                sql += " AND account_ads_id = %s"
+                params.append(acc)
+            sql += " ORDER BY mdd DESC LIMIT 1"
+            if not self.execute_query(sql, tuple(params)):
+                return {'status': False, 'data': None}
+            row = self.cur_hris.fetchone() if self.cur_hris else None
+            return {'status': True, 'data': row}
+        except Exception as e:
+            return {'status': False, 'data': None, 'error': str(e)}
+
+    def insert_log_master_ads(self, data):
+        try:
+            import uuid as _uuid
+            from datetime import datetime as _dt
+
+            payload = dict(data or {})
+            log_id = str(payload.get('log_master_ads_id') or _uuid.uuid4())
+            now = payload.get('mdd') or _dt.now()
+            log_date = payload.get('log_master_date')
+            if not log_date:
+                try:
+                    log_date = now.date() if hasattr(now, 'date') else _dt.now().date()
+                except Exception:
+                    log_date = _dt.now().date()
+
+            row = (
+                log_id,
+                log_date,
+                payload.get('account_ads_id'),
+                payload.get('log_master_domain'),
+                payload.get('log_master_campaign_id'),
+                payload.get('log_master_campaign_nm'),
+                payload.get('log_master_action'),
+                payload.get('log_master_budget'),
+                payload.get('log_master_date_start'),
+                payload.get('log_master_date_end'),
+                payload.get('log_master_status'),
+                payload.get('mdb'),
+                payload.get('mdb_name'),
+                now,
+            )
+            sql_insert = """
+                INSERT INTO log_master_ads (
+                    log_master_ads_id,
+                    log_master_date,
+                    account_ads_id,
+                    log_master_domain,
+                    log_master_campaign_id,
+                    log_master_campaign_nm,
+                    log_master_action,
+                    log_master_budget,
+                    log_master_date_start,
+                    log_master_date_end,
+                    log_master_status,
+                    mdb,
+                    mdb_name,
+                    mdd
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """
+            if not self.execute_query(sql_insert, row):
+                raise pymysql.Error("Failed to insert log_master_ads")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit log_master_ads insert")
+
+            try:
+                self._ensure_report_connection()
+                ch_dt_default = _dt(1970, 1, 1)
+                ch_row = (
+                    log_id,
+                    log_date,
+                    payload.get('account_ads_id') or '',
+                    payload.get('log_master_domain') or '',
+                    payload.get('log_master_campaign_id') or '',
+                    payload.get('log_master_campaign_nm') or '',
+                    payload.get('log_master_action') or '',
+                    int(payload.get('log_master_budget') or 0),
+                    payload.get('log_master_date_start') or ch_dt_default,
+                    payload.get('log_master_date_end') or ch_dt_default,
+                    payload.get('log_master_status') or '',
+                    payload.get('mdb') or '',
+                    payload.get('mdb_name') or '',
+                    now,
+                )
+                ch_sql = """
+                    INSERT INTO log_master_ads (
+                        log_master_ads_id,
+                        log_master_date,
+                        account_ads_id,
+                        log_master_domain,
+                        log_master_campaign_id,
+                        log_master_campaign_nm,
+                        log_master_action,
+                        log_master_budget,
+                        log_master_date_start,
+                        log_master_date_end,
+                        log_master_status,
+                        mdb,
+                        mdb_name,
+                        mdd
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                """
+                self.report_cur.execute(ch_sql, ch_row)
+            except Exception as ch_exc:
+                print(f"log_master_ads ClickHouse insert failed: {ch_exc}")
+
+            return {'hasil': {'status': True, 'message': 'Log master ads berhasil disimpan', 'log_master_ads_id': log_id}}
+        except pymysql.Error as e:
+            return {'hasil': {'status': False, 'data': f'Terjadi error {e!r}'}}
+        except Exception as e:
+            return {'hasil': {'status': False, 'data': str(e)}}
+
+    def list_log_master_ads_by_domain(self, domain, *, account_ads_id=None, campaign_ids=None, limit=4):
+        try:
+            dom = str(domain or '').strip().lower()
+            if not dom:
+                return {'status': True, 'data': []}
+            lim = max(1, min(int(limit or 4), 100))
+            dom_like = f'%{dom}%'
+            domain_variants = [dom]
+            parts = [p for p in dom.split('.') if p]
+            if len(parts) >= 2:
+                base = '.'.join(parts[:2])
+                if base not in domain_variants:
+                    domain_variants.append(base)
+
+            where_parts = []
+            params = []
+            for variant in domain_variants:
+                where_parts.append("LOWER(TRIM(COALESCE(log_master_domain, ''))) = %s")
+                params.append(variant)
+                where_parts.append("LOWER(TRIM(COALESCE(log_master_campaign_nm, ''))) LIKE %s")
+                params.append(f'%{variant}%')
+            where_parts.append("LOWER(TRIM(COALESCE(log_master_campaign_nm, ''))) LIKE %s")
+            params.append(dom_like)
+
+            cid_list = []
+            for cid in (campaign_ids or []):
+                token = str(cid or '').strip()
+                if token and token not in cid_list:
+                    cid_list.append(token)
+            if cid_list:
+                placeholders = ','.join(['%s'] * len(cid_list))
+                where_parts.append(f"log_master_campaign_id IN ({placeholders})")
+                params.extend(cid_list)
+
+            sql = f"""
+                SELECT
+                    log_master_ads_id,
+                    log_master_date,
+                    account_ads_id,
+                    log_master_domain,
+                    log_master_campaign_id,
+                    log_master_campaign_nm,
+                    log_master_action,
+                    log_master_budget,
+                    log_master_date_start,
+                    log_master_date_end,
+                    log_master_status,
+                    mdb,
+                    mdb_name,
+                    mdd
+                FROM log_master_ads
+                WHERE ({' OR '.join(where_parts)})
+            """
+            sql += " ORDER BY mdd DESC LIMIT %s"
+            params.append(lim)
+            if not self.execute_query(sql, tuple(params)):
+                return {'status': False, 'data': [], 'error': getattr(self, 'last_error', None)}
+            rows = self.cur_hris.fetchall() if self.cur_hris else []
+            return {'status': True, 'data': rows or []}
+        except Exception as e:
+            return {'status': False, 'data': [], 'error': str(e)}
+
+    def list_log_master_ads_by_campaign(self, campaign_id, *, account_ads_id=None, limit=200):
+        try:
+            cid = str(campaign_id or '').strip()
+            if not cid:
+                return {'status': True, 'data': []}
+            lim = max(1, min(int(limit or 200), 500))
+            sql = """
+                SELECT
+                    log_master_ads_id,
+                    log_master_date,
+                    account_ads_id,
+                    log_master_domain,
+                    log_master_campaign_id,
+                    log_master_campaign_nm,
+                    log_master_action,
+                    log_master_budget,
+                    log_master_date_start,
+                    log_master_date_end,
+                    log_master_status,
+                    mdb,
+                    mdb_name,
+                    mdd
+                FROM log_master_ads
+                WHERE log_master_campaign_id = %s
+            """
+            params = [cid]
+            sql += " ORDER BY mdd DESC LIMIT %s"
+            params.append(lim)
+            if not self.execute_query(sql, tuple(params)):
+                return {'status': False, 'data': [], 'error': getattr(self, 'last_error', None)}
+            rows = self.cur_hris.fetchall() if self.cur_hris else []
+            return {'status': True, 'data': rows or []}
+        except Exception as e:
+            return {'status': False, 'data': [], 'error': str(e)}
 
     def insert_data_ads_campaign(self, data):
         try:
