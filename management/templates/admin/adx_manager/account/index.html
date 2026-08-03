@@ -645,7 +645,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                         title="Load Data Akun">
                                     <i class="bi bi-tv"></i>
                                 </button>
-                                {% if user.user_name == 'superadmin' %}
+                                {% if user.super_st == '1' %}
                                 <button class="btn btn-sm btn-info assign-account-data"
                                         data-email="{{ credential.user_mail }}"
                                         data-account-id="{{ credential.account_id }}"
