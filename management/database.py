@@ -3569,37 +3569,43 @@ class data_mysql:
             return {'status': False, 'data': [], 'error': str(e)}
 
     def summarize_master_ads_campaign_status(self, *, account_ads_id=None, subdomain=None, campaign=None):
+        """Ringkasan status campaign dari log terbaru per campaign (ACTIVE vs PAUSED/DELETED/ARCHIVED)."""
         try:
             parts = []
             params = []
             acc = str(account_ads_id or '').strip()
             if acc:
-                parts.append("ma.account_ads_id = %s")
+                parts.append("l.account_ads_id = %s")
                 params.append(acc)
             dom = str(subdomain or '').strip().lower()
             if dom:
-                parts.append("LOWER(TRIM(COALESCE(ma.master_domain, ''))) LIKE %s")
+                parts.append("LOWER(TRIM(COALESCE(l.log_master_domain, ''))) LIKE %s")
                 params.append(f'%{dom}%')
             camp = str(campaign or '').strip()
             if camp:
                 like = f'%{camp}%'
-                parts.append("(ma.master_campaign_id LIKE %s OR ma.master_campaign_nm LIKE %s)")
+                parts.append("(l.log_master_campaign_id LIKE %s OR l.log_master_campaign_nm LIKE %s)")
                 params.extend([like, like])
             where_extra = (' AND ' + ' AND '.join(parts)) if parts else ''
             sql = f"""
                 SELECT
-                    SUM(CASE WHEN UPPER(COALESCE(t.master_status, '')) = 'ACTIVE' THEN 1 ELSE 0 END) AS active_count,
-                    SUM(CASE WHEN UPPER(COALESCE(t.master_status, '')) != 'ACTIVE' THEN 1 ELSE 0 END) AS inactive_count,
+                    SUM(CASE WHEN UPPER(COALESCE(t.log_master_status, '')) = 'ACTIVE' THEN 1 ELSE 0 END) AS active_count,
+                    SUM(CASE WHEN UPPER(COALESCE(t.log_master_status, '')) IN ('PAUSED', 'DELETED', 'ARCHIVED') THEN 1 ELSE 0 END) AS inactive_count,
                     COUNT(*) AS total_count
                 FROM (
-                    SELECT ma.master_campaign_id, ma.master_status
-                    FROM master_ads ma
+                    SELECT l.log_master_campaign_id, l.log_master_status
+                    FROM log_master_ads l
                     INNER JOIN (
-                        SELECT master_campaign_id, MAX(mdd) AS max_mdd
-                        FROM master_ads
-                        GROUP BY master_campaign_id
-                    ) latest ON latest.master_campaign_id = ma.master_campaign_id
-                        AND latest.max_mdd = ma.mdd
+                        SELECT l2.log_master_campaign_id, MAX(l2.log_master_ads_id) AS max_id
+                        FROM log_master_ads l2
+                        INNER JOIN (
+                            SELECT log_master_campaign_id, MAX(mdd) AS max_mdd
+                            FROM log_master_ads
+                            GROUP BY log_master_campaign_id
+                        ) lm ON lm.log_master_campaign_id = l2.log_master_campaign_id
+                            AND lm.max_mdd = l2.mdd
+                        GROUP BY l2.log_master_campaign_id
+                    ) latest ON latest.max_id = l.log_master_ads_id
                     WHERE 1=1 {where_extra}
                 ) t
             """

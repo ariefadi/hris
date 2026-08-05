@@ -104,6 +104,34 @@ html[data-theme="dark"] {
   vertical-align: middle;
   border-color: var(--alc-border);
 }
+.alc-table-wrap .dataTables_wrapper .dataTables_length,
+.alc-table-wrap .dataTables_wrapper .dataTables_filter {
+  margin-bottom: 12px;
+}
+.alc-table-wrap .dataTables_wrapper .dataTables_filter input,
+.alc-table-wrap .dataTables_wrapper .dataTables_length select {
+  border-radius: 10px !important;
+  border: 1px solid var(--alc-border) !important;
+  min-height: 34px;
+}
+.alc-table-wrap .dataTables_wrapper .dataTables_info,
+.alc-table-wrap .dataTables_wrapper .dataTables_paginate {
+  margin-top: 12px;
+  font-size: 12px;
+}
+html[data-theme="dark"] .alc-table-wrap .dataTables_wrapper,
+html[data-theme="dark"] .alc-table-wrap .dataTables_wrapper .dataTables_filter input,
+html[data-theme="dark"] .alc-table-wrap .dataTables_wrapper .dataTables_length select {
+  color: #e5e7eb !important;
+}
+html[data-theme="dark"] .alc-table-wrap .dataTables_wrapper .dataTables_filter input,
+html[data-theme="dark"] .alc-table-wrap .dataTables_wrapper .dataTables_length select {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+html[data-theme="dark"] .alc-table-wrap .paginate_button {
+  color: #e5e7eb !important;
+}
 .alc-table-wrap tbody tr:nth-child(odd) td { background: rgba(248, 250, 252, 0.72); }
 html[data-theme="dark"] .alc-table-wrap tbody tr:nth-child(odd) td { background: rgba(15, 23, 42, 0.55); }
 html[data-theme="dark"] .alc-table-wrap tbody tr:nth-child(even) td { background: rgba(30, 41, 59, 0.45); }
@@ -111,6 +139,37 @@ html[data-theme="dark"] .alc-table-wrap tbody tr:hover td { background: rgba(30,
 .alc-badge-up { color: #15803d; font-weight: 700; }
 .alc-badge-down { color: #b91c1c; font-weight: 700; }
 .alc-badge-hold { color: #64748b; font-weight: 700; }
+.alc-status-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.alc-status-badge--active {
+  background: rgba(56, 189, 248, 0.18);
+  color: #0284c7;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+.alc-status-badge--inactive {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+html[data-theme="dark"] .alc-status-badge--active {
+  background: rgba(56, 189, 248, 0.22);
+  color: #7dd3fc;
+  border-color: rgba(125, 211, 252, 0.35);
+}
+html[data-theme="dark"] .alc-status-badge--inactive {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border-color: rgba(252, 165, 165, 0.35);
+}
 html[data-theme="dark"] .alc-badge-up { color: #86efac; }
 html[data-theme="dark"] .alc-badge-down { color: #fca5a5; }
 html[data-theme="dark"] .alc-badge-hold { color: #cbd5e1; }
@@ -313,12 +372,11 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
               <th class="text-end">Budget Sebelum</th>
               <th class="text-end">Budget Sesudah</th>
               <th class="text-end">Selisih Budget</th>
-              <th>Status Campaign</th>
+              <th class="text-center" style="width:88px;">Status Campaign</th>
               <th>Terakhir Diubah</th>
             </tr>
           </thead>
-          <tbody id="alcLogTableBody">
-          </tbody>
+          <tbody></tbody>
         </table>
       </div>
     </div>
@@ -332,6 +390,7 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
 <script>
 (function () {
   var chartInstance = null;
+  var alcLogTable = null;
 
   function fmtNum(n) {
     return (Number(n) || 0).toLocaleString('id-ID');
@@ -343,6 +402,13 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function statusBadgeHtml(row) {
+    var active = row && row.status_is_active === true;
+    var label = (row && row.status_badge_label) ? row.status_badge_label : (active ? 'Aktif' : 'Tidak Aktif');
+    var cls = active ? 'alc-status-badge--active' : 'alc-status-badge--inactive';
+    return '<span class="alc-status-badge ' + cls + '">' + escHtml(label) + '</span>';
   }
 
   function actionClass(label) {
@@ -432,7 +498,7 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
           tooltip: {
             callbacks: {
               label: function (ctx) {
-                return (ctx.dataset.label || '') + ': ' + fmtNum(ctx.parsed.y);
+                return (ctx.dataset.label || '') + ': ' + fmtNum(ctx.parsed.y) + ' Campaign';
               },
             },
           },
@@ -449,34 +515,120 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
     }
   }
 
+  function destroyAlcLogTable() {
+    if (!window.jQuery || !jQuery.fn.DataTable) return;
+    if (jQuery.fn.DataTable.isDataTable('#alcLogTable')) {
+      jQuery('#alcLogTable').DataTable().clear().destroy();
+    }
+    jQuery('#alcLogTable tbody').empty();
+    alcLogTable = null;
+  }
+
   function renderTable(rows) {
-    var body = document.getElementById('alcLogTableBody');
     var sub = document.getElementById('alcTableSub');
     var list = Array.isArray(rows) ? rows : [];
-    if (!body) return;
-    if (!list.length) {
-      body.innerHTML = '<tr><td colspan="11" class="alc-empty">Tidak ada log campaign untuk filter ini.</td></tr>';
-      if (sub) sub.textContent = '0 baris';
-      return;
-    }
-    var html = '';
-    list.forEach(function (row, idx) {
-      html += '<tr>';
-      html += '<td class="text-center">' + escHtml(String(idx + 1)) + '</td>';
-      html += '<td>' + escHtml(row.account_name || '-') + '</td>';
-      html += '<td>' + escHtml(row.subdomain || '-') + '</td>';
-      html += '<td title="' + escHtml(row.campaign_name || '-') + '">' + escHtml(row.campaign_name || '-') + '</td>';
-      html += '<td style="white-space:nowrap;">' + escHtml(row.change_date || '-') + '</td>';
-      html += '<td><span class="' + actionClass(row.change_label) + '">' + escHtml(row.change_label || '-') + '</span></td>';
-      html += '<td class="text-end" style="white-space:nowrap;">' + escHtml(row.budget_before_display || '-') + '</td>';
-      html += '<td class="text-end" style="white-space:nowrap;">' + escHtml(row.budget_after_display || '-') + '</td>';
-      html += '<td class="text-end" style="white-space:nowrap;">' + escHtml(row.budget_diff_display || '-') + '</td>';
-      html += '<td>' + escHtml(row.status_label || '-') + '</td>';
-      html += '<td><span class="alc-changed-cell__time">' + escHtml(row.changed_at || '-') + '</span>';
-      html += '<span class="alc-changed-cell__by">' + escHtml(row.changed_by || '-') + '</span></td>';
-      html += '</tr>';
+    destroyAlcLogTable();
+    if (!window.jQuery || !jQuery.fn.DataTable) return;
+    alcLogTable = jQuery('#alcLogTable').DataTable({
+      data: list,
+      responsive: false,
+      scrollX: true,
+      autoWidth: false,
+      pageLength: 25,
+      lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Semua']],
+      order: [[4, 'desc']],
+      language: {
+        search: 'Cari:',
+        lengthMenu: 'Tampilkan _MENU_ baris',
+        info: 'Menampilkan _START_ sampai _END_ dari _TOTAL_ log',
+        infoEmpty: 'Menampilkan 0 log',
+        zeroRecords: 'Tidak ada log yang cocok dengan pencarian',
+        emptyTable: 'Tidak ada log campaign untuk filter ini.',
+        paginate: { first: 'Awal', last: 'Akhir', next: '›', previous: '‹' },
+      },
+      columns: [
+        {
+          data: null,
+          className: 'text-center',
+          orderable: false,
+          searchable: false,
+          width: '48px',
+          render: function (_data, _type, _row, meta) {
+            return meta.row + meta.settings._iDisplayStart + 1;
+          },
+        },
+        { data: 'account_name', defaultContent: '-' },
+        { data: 'subdomain', defaultContent: '-' },
+        {
+          data: 'campaign_name',
+          defaultContent: '-',
+          render: function (d) {
+            var v = d || '-';
+            return '<span title="' + escHtml(v) + '">' + escHtml(v) + '</span>';
+          },
+        },
+        { data: 'change_date', defaultContent: '-' },
+        {
+          data: 'change_label',
+          defaultContent: '-',
+          render: function (d) {
+            return '<span class="' + actionClass(d) + '">' + escHtml(d || '-') + '</span>';
+          },
+        },
+        {
+          data: 'budget_before',
+          className: 'text-end',
+          defaultContent: '-',
+          render: function (d, type, row) {
+            if (type === 'sort' || type === 'type') {
+              return d != null && d !== '' ? Number(d) : -1;
+            }
+            return escHtml(row.budget_before_display || '-');
+          },
+        },
+        {
+          data: 'budget_after',
+          className: 'text-end',
+          defaultContent: '-',
+          render: function (d, type, row) {
+            if (type === 'sort' || type === 'type') return Number(d) || 0;
+            return escHtml(row.budget_after_display || '-');
+          },
+        },
+        {
+          data: 'budget_diff',
+          className: 'text-end',
+          defaultContent: '-',
+          render: function (d, type, row) {
+            if (type === 'sort' || type === 'type') {
+              return d != null && d !== '' ? Number(d) : -999999999;
+            }
+            return escHtml(row.budget_diff_display || '-');
+          },
+        },
+        {
+          data: 'status_badge_label',
+          className: 'text-center',
+          width: '88px',
+          defaultContent: '-',
+          render: function (_d, type, row) {
+            if (type === 'sort' || type === 'type') {
+              return row && row.status_is_active === true ? 1 : 0;
+            }
+            return statusBadgeHtml(row);
+          },
+        },
+        {
+          data: 'changed_at',
+          defaultContent: '-',
+          render: function (d, type, row) {
+            if (type === 'sort' || type === 'type') return d || '';
+            return '<span class="alc-changed-cell__time">' + escHtml(d || '-') + '</span>'
+              + '<span class="alc-changed-cell__by">' + escHtml(row.changed_by || '-') + '</span>';
+          },
+        },
+      ],
     });
-    body.innerHTML = html;
     if (sub) sub.textContent = fmtNum(list.length) + ' baris log';
   }
 

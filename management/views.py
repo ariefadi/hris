@@ -8628,6 +8628,16 @@ def _format_log_master_ads_report_row(row):
     budget_diff = None
     if budget_before is not None:
         budget_diff = budget_after - budget_before
+    else:
+        raw_budget = row.get('log_master_budget')
+        has_budget_value = raw_budget is not None and str(raw_budget).strip() != ''
+        if has_budget_value:
+            budget_diff = budget_after
+            item['change_label'] = 'Hold'
+
+    status_raw = str(row.get('log_master_status') or '').strip().upper()
+    item['status_is_active'] = status_raw == 'ACTIVE'
+    item['status_badge_label'] = 'Aktif' if status_raw == 'ACTIVE' else 'Tidak Aktif'
     item['account_name'] = str(row.get('account_name') or row.get('account_ads_id') or '-').strip() or '-'
     item['subdomain'] = str(row.get('log_master_domain') or '-').strip() or '-'
     item['campaign_name'] = str(row.get('log_master_campaign_nm') or row.get('log_master_campaign_id') or '-').strip() or '-'
@@ -8639,6 +8649,8 @@ def _format_log_master_ads_report_row(row):
     item['budget_after_display'] = _fmt_idr_budget(budget_after)
     if budget_diff is None:
         item['budget_diff_display'] = '-'
+    elif budget_before is None and row.get('log_master_budget') is not None and str(row.get('log_master_budget')).strip() != '':
+        item['budget_diff_display'] = '+' + _fmt_idr_budget(budget_diff)
     elif budget_diff > 0:
         item['budget_diff_display'] = '+' + _fmt_idr_budget(budget_diff)
     elif budget_diff < 0:
