@@ -1,50 +1,571 @@
 {% extends 'admin_base.html' %}
 
 {% block page_title %}Settings Overview{% endblock %}
-{% block page_heading %}Settings Overview{% endblock %}
+{% block page_heading %}Dashboard Pengaturan Sistem{% endblock %}
 
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Settings</li>
 <li class="breadcrumb-item active"><a href="/settings/overview">Overview</a></li>
 {% endblock %}
 
+{% block more_stylesheet %}
+<style>
+  .so-page { --so-accent: #6366f1; --so-accent-soft: rgba(99, 102, 241, 0.14); }
+  .so-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 991px) {
+    .so-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 575px) {
+    .so-summary-grid { grid-template-columns: 1fr; }
+  }
+  .so-stat-card {
+    border-radius: 16px;
+    padding: 16px 18px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: linear-gradient(145deg, rgba(255,255,255,0.98), rgba(248,250,252,0.92));
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+    min-height: 108px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .so-stat-card__label {
+    font-size: 12px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #64748b;
+    font-weight: 700;
+  }
+  .so-stat-card__value {
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 800;
+    color: #0f172a;
+    margin-top: 8px;
+  }
+  .so-stat-card__hint {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 6px;
+  }
+  .so-stat-card--total { border-color: rgba(99, 102, 241, 0.28); }
+  .so-stat-card--active { border-color: rgba(34, 197, 94, 0.28); }
+  .so-stat-card--inactive { border-color: rgba(239, 68, 68, 0.24); }
+  .so-stat-card--new { border-color: rgba(14, 165, 233, 0.28); }
+  .so-stat-card--total .so-stat-card__value { color: #4f46e5; }
+  .so-stat-card--active .so-stat-card__value { color: #16a34a; }
+  .so-stat-card--inactive .so-stat-card__value { color: #dc2626; }
+  .so-stat-card--new .so-stat-card__value { color: #0284c7; }
+
+  .so-panel {
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255,255,255,0.96);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+  }
+  .so-panel--fill { height: 100%; }
+  .so-panel__head {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .so-panel__title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+  }
+  .so-panel__sub {
+    font-size: 11px;
+    color: #64748b;
+    margin: 2px 0 0;
+  }
+  .so-panel__body { padding: 14px 16px 16px; }
+  .so-chart-box { position: relative; height: 220px; }
+  .so-chart-box--bar { height: 240px; margin-top: 14px; }
+
+  .so-login-list {
+    max-height: 360px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .so-current-list {
+    max-height: 120px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .so-current-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: rgba(248, 250, 252, 0.72);
+  }
+  .so-current-item:last-child { margin-bottom: 0; }
+  .so-current-item__dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .so-current-item__body { min-width: 0; flex: 1; }
+  .so-current-item__name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 2px;
+  }
+  .so-current-item__time {
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 6px;
+  }
+  .so-panel--compact {
+    margin-bottom: 0;
+    height: auto;
+    flex: 0 0 auto;
+  }
+  .so-panel--compact .so-panel__body {
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+  .so-right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: stretch;
+  }
+  .so-right-col > .so-panel { height: auto; }
+  .so-current-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.12);
+    color: #15803d;
+    border: 1px solid rgba(34, 197, 94, 0.22);
+  }
+  .so-login-item {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 12px;
+    padding: 12px 13px;
+    margin-bottom: 10px;
+    background: rgba(248, 250, 252, 0.72);
+  }
+  .so-login-item:last-child { margin-bottom: 0; }
+  .so-login-item__name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+  }
+  .so-login-item__time {
+    font-size: 12px;
+    color: #475569;
+    margin-bottom: 6px;
+  }
+  .so-login-item__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .so-login-chip {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #4338ca;
+    border: 1px solid rgba(99, 102, 241, 0.16);
+  }
+  .so-login-chip--ip {
+    background: rgba(14, 165, 233, 0.1);
+    color: #0369a1;
+    border-color: rgba(14, 165, 233, 0.16);
+  }
+  .so-empty {
+    font-size: 12px;
+    color: #94a3b8;
+    text-align: center;
+    padding: 28px 12px;
+  }
+
+  html[data-theme="dark"] .so-stat-card,
+  html[data-theme="dark"] .so-panel {
+    background: rgba(15, 23, 42, 0.72);
+    border-color: rgba(148, 163, 184, 0.16);
+    box-shadow: none;
+  }
+  html[data-theme="dark"] .so-stat-card__label,
+  html[data-theme="dark"] .so-panel__sub { color: #94a3b8; }
+  html[data-theme="dark"] .so-stat-card__value,
+  html[data-theme="dark"] .so-panel__title,
+  html[data-theme="dark"] .so-login-item__name { color: #e2e8f0; }
+  html[data-theme="dark"] .so-login-item {
+    background: rgba(30, 41, 59, 0.55);
+    border-color: rgba(148, 163, 184, 0.14);
+  }
+  html[data-theme="dark"] .so-login-item__time { color: #cbd5e1; }
+  html[data-theme="dark"] .so-panel__head { border-color: rgba(148, 163, 184, 0.14); }
+  html[data-theme="dark"] .so-current-item {
+    background: rgba(30, 41, 59, 0.55);
+    border-color: rgba(148, 163, 184, 0.14);
+  }
+  html[data-theme="dark"] .so-current-item__name { color: #e2e8f0; }
+  html[data-theme="dark"] .so-current-item__time { color: #94a3b8; }
+  html[data-theme="dark"] .so-current-badge {
+    background: rgba(34, 197, 94, 0.16);
+    color: #86efac;
+    border-color: rgba(34, 197, 94, 0.28);
+  }
+  html[data-theme="dark"] .so-login-chip {
+    background: rgba(129, 140, 248, 0.2);
+    color: #e0e7ff;
+    border-color: rgba(129, 140, 248, 0.35);
+  }
+  html[data-theme="dark"] .so-login-chip--ip {
+    background: rgba(56, 189, 248, 0.18);
+    color: #bae6fd;
+    border-color: rgba(56, 189, 248, 0.32);
+  }
+  html[data-theme="dark"] .so-login-chip i,
+  html[data-theme="dark"] .so-login-chip--ip i { color: inherit; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Current Context</h3>
-      </div>
-      <div class="card-body">
-        <p><strong>Active Portal ID:</strong> {{ active_portal_id }}</p>
-        <p><strong>User:</strong> {{ user.user_alias }}</p>
-        <p class="text-muted mb-0">Menus adapt by active portal and your role.</p>
-      </div>
+<div class="so-page">
+  <div class="so-summary-grid">
+    <div class="so-stat-card so-stat-card--total">
+      <div class="so-stat-card__label">Total User</div>
+      <div class="so-stat-card__value" id="soTotalUsers">0</div>
+      <div class="so-stat-card__hint">Seluruh user terdaftar</div>
+    </div>
+    <div class="so-stat-card so-stat-card--active">
+      <div class="so-stat-card__label">User Aktif</div>
+      <div class="so-stat-card__value" id="soActiveUsers">0</div>
+      <div class="so-stat-card__hint">Status aktif</div>
+    </div>
+    <div class="so-stat-card so-stat-card--inactive">
+      <div class="so-stat-card__label">User Tidak Aktif</div>
+      <div class="so-stat-card__value" id="soInactiveUsers">0</div>
+      <div class="so-stat-card__hint">Status nonaktif</div>
+    </div>
+    <div class="so-stat-card so-stat-card--new">
+      <div class="so-stat-card__label">User Baru</div>
+      <div class="so-stat-card__value" id="soNewUsers">0</div>
+      <div class="so-stat-card__hint">30 hari terakhir</div>
     </div>
   </div>
 
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Quick Actions</h3>
+  <div class="row">
+    <div class="col-lg-8 col-12 mb-3 mb-lg-0">
+      <div class="so-panel so-panel--fill">
+        <div class="so-panel__head">
+          <div>
+            <h4 class="so-panel__title">Aktivitas Login per Jam</h4>
+            <p class="so-panel__sub" id="soLoginHourSub">Agregat 7 hari terakhir</p>
+          </div>
+        </div>
+        <div class="so-panel__body">
+          <div class="so-chart-box">
+            <canvas id="soLoginHourChart"></canvas>
+          </div>
+          <div class="so-panel__head" style="border-top:1px solid rgba(148,163,184,.16); border-bottom:none; padding-left:0; padding-right:0; margin-top:4px;">
+            <div>
+              <h4 class="so-panel__title">Perbandingan User</h4>
+              <p class="so-panel__sub">Total, aktif, tidak aktif, dan user baru</p>
+            </div>
+          </div>
+          <div class="so-chart-box so-chart-box--bar">
+            <canvas id="soUserCompareChart"></canvas>
+          </div>
+        </div>
       </div>
-      <div class="card-body">
-        <ul class="list-unstyled">
-          <li><i class="bi bi-columns-gap mr-1"></i> Switch portal using the navbar dropdown</li>
-          <li><i class="bi bi-list-ul mr-1"></i> Explore menus in the sidebar</li>
-          <li><i class="bi bi-person mr-1"></i> Review your role default page via portal switch</li>
-        </ul>
+    </div>
+
+    <div class="col-lg-4 col-12 so-right-col">
+      <div class="so-panel so-panel--compact">
+        <div class="so-panel__head">
+          <div>
+            <h4 class="so-panel__title">User Aktif Saat Ini</h4>
+            <p class="so-panel__sub">User yang sedang login saat ini</p>
+          </div>
+          <span class="so-current-badge" id="soCurrentUserCount">0 online</span>
+        </div>
+        <div class="so-panel__body">
+          <div id="soCurrentUserList" class="so-current-list">
+            <div class="so-empty">Memuat user aktif...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="so-panel">
+        <div class="so-panel__head">
+          <div>
+            <h4 class="so-panel__title">Log Login User</h4>
+            <p class="so-panel__sub">15 login terbaru</p>
+          </div>
+          <a href="{% url 'users_login_activity' %}" class="btn btn-sm btn-outline-primary">Lihat Semua</a>
+        </div>
+        <div class="so-panel__body">
+          <div id="soLoginList" class="so-login-list">
+            <div class="so-empty">Memuat log login...</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="row">
-  <div class="col-12">
-    <div class="alert alert-info">
-      <i class="bi bi-info-circle-fill mr-2"></i>
-      This overview page uses the active portal to drive menus and defaults. Switching portals will redirect to the role’s default page.
-    </div>
-  </div>
-</div>
+{{ overview_data|json_script:"settings-overview-data" }}
+{% endblock %}
+
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function () {
+  function readOverviewData() {
+    var el = document.getElementById('settings-overview-data');
+    if (!el) return null;
+    try {
+      var parsed = JSON.parse(el.textContent || '{}');
+      if (typeof parsed === 'string') {
+        try { parsed = JSON.parse(parsed); } catch (e2) { return null; }
+      }
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (e) { return null; }
+  }
+
+  async function loadOverviewData() {
+    var embedded = readOverviewData();
+    if (embedded && embedded.summary) return embedded;
+    try {
+      var resp = await fetch('/settings/overview/data', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+      });
+      if (!resp.ok) return embedded;
+      var json = await resp.json();
+      if (json && json.status && json.data) return json.data;
+    } catch (e) {}
+    return embedded;
+  }
+
+  function fmtNum(n) {
+    var v = Number(n) || 0;
+    return v.toLocaleString('id-ID');
+  }
+
+  function escHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderSummary(summary) {
+    var s = summary || {};
+    var map = [
+      ['soTotalUsers', s.total_users],
+      ['soActiveUsers', s.active_users],
+      ['soInactiveUsers', s.inactive_users],
+      ['soNewUsers', s.new_users],
+    ];
+    map.forEach(function (pair) {
+      var node = document.getElementById(pair[0]);
+      if (node) node.textContent = fmtNum(pair[1]);
+    });
+  }
+
+  function renderLoginMetaHtml(item) {
+    var html = '<div class="so-login-item__meta">';
+    html += '<span class="so-login-chip"><i class="bi bi-geo-alt mr-1"></i>' + escHtml(item.lokasi || '-') + '</span>';
+    html += '<span class="so-login-chip so-login-chip--ip"><i class="bi bi-hdd-network mr-1"></i>' + escHtml(item.ip_address || '-') + '</span>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderCurrentUsers(items, count) {
+    var wrap = document.getElementById('soCurrentUserList');
+    var badge = document.getElementById('soCurrentUserCount');
+    var list = Array.isArray(items) ? items : [];
+    var total = Number(count);
+    if (!Number.isFinite(total)) total = list.length;
+    if (badge) badge.textContent = total + ' online';
+    if (!wrap) return;
+    if (!list.length) {
+      wrap.innerHTML = '<div class="so-empty">Tidak ada user yang sedang online.</div>';
+      return;
+    }
+    var html = '';
+    list.forEach(function (item) {
+      html += '<div class="so-current-item">';
+      html += '<span class="so-current-item__dot" aria-hidden="true"></span>';
+      html += '<div class="so-current-item__body">';
+      html += '<div class="so-current-item__name">' + escHtml(item.user_name || '-') + '</div>';
+      html += '<div class="so-current-item__time"><i class="bi bi-clock mr-1"></i>Login ' + escHtml(item.login_at || '-') + '</div>';
+      html += renderLoginMetaHtml(item);
+      html += '</div></div>';
+    });
+    wrap.innerHTML = html;
+  }
+
+  function renderLoginList(items) {
+    var wrap = document.getElementById('soLoginList');
+    if (!wrap) return;
+    var list = Array.isArray(items) ? items : [];
+    if (!list.length) {
+      wrap.innerHTML = '<div class="so-empty">Belum ada log login.</div>';
+      return;
+    }
+    var html = '';
+    list.forEach(function (item) {
+      html += '<div class="so-login-item">';
+      html += '<div class="so-login-item__name">' + escHtml(item.user_name || '-') + '</div>';
+      html += '<div class="so-login-item__time"><i class="bi bi-clock mr-1"></i>' + escHtml(item.login_at || '-') + '</div>';
+      html += renderLoginMetaHtml(item);
+      html += '</div>';
+    });
+    wrap.innerHTML = html;
+  }
+
+  var loginHourChart = null;
+  var userCompareChart = null;
+
+  function chartColors() {
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    return {
+      text: dark ? '#cbd5e1' : '#475569',
+      grid: dark ? 'rgba(148,163,184,0.14)' : 'rgba(148,163,184,0.22)',
+    };
+  }
+
+  function renderLoginHourChart(series, days) {
+    var canvas = document.getElementById('soLoginHourChart');
+    var sub = document.getElementById('soLoginHourSub');
+    if (sub) sub.textContent = 'Agregat ' + (days || 7) + ' hari terakhir';
+    if (!canvas || !window.Chart) return;
+    var rows = Array.isArray(series) ? series : [];
+    var labels = rows.map(function (r) { return r.label; });
+    var values = rows.map(function (r) { return Number(r.count) || 0; });
+    var colors = chartColors();
+    if (loginHourChart) loginHourChart.destroy();
+    loginHourChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Jumlah Login',
+          data: values,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99, 102, 241, 0.12)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            ticks: { color: colors.text, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+            grid: { color: colors.grid },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: colors.text, precision: 0 },
+            grid: { color: colors.grid },
+          },
+        },
+      },
+    });
+  }
+
+  function renderUserCompareChart(summary) {
+    var canvas = document.getElementById('soUserCompareChart');
+    if (!canvas || !window.Chart) return;
+    var s = summary || {};
+    var labels = ['Total User', 'User Aktif', 'Tidak Aktif', 'User Baru'];
+    var values = [
+      Number(s.total_users) || 0,
+      Number(s.active_users) || 0,
+      Number(s.inactive_users) || 0,
+      Number(s.new_users) || 0,
+    ];
+    var colors = chartColors();
+    if (userCompareChart) userCompareChart.destroy();
+    userCompareChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Jumlah User',
+          data: values,
+          backgroundColor: ['#6366f1', '#22c55e', '#ef4444', '#0ea5e9'],
+          borderRadius: 8,
+          maxBarThickness: 56,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            ticks: { color: colors.text },
+            grid: { display: false },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: colors.text, precision: 0 },
+            grid: { color: colors.grid },
+          },
+        },
+      },
+    });
+  }
+
+  function renderOverview(data) {
+    var payload = data || {};
+    renderSummary(payload.summary || {});
+    renderLoginHourChart(payload.login_by_hour || [], payload.login_hour_days || 7);
+    renderUserCompareChart(payload.summary || {});
+    renderCurrentUsers(payload.current_users || [], payload.current_users_count);
+    renderLoginList(payload.recent_logins || []);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    loadOverviewData().then(function (data) {
+      renderOverview(data);
+    });
+    document.addEventListener('themechange', function () {
+      loadOverviewData().then(function (data) {
+        if (!data) return;
+        renderLoginHourChart(data.login_by_hour || [], data.login_hour_days || 7);
+        renderUserCompareChart(data.summary || {});
+      });
+    });
+  });
+})();
+</script>
 {% endblock %}

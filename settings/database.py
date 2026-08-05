@@ -386,6 +386,118 @@ class SettingsDB(ManagementDB):
                 'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
-    
+
+    def get_overview_user_summary(self):
+        sql = '''
+            SELECT
+                COUNT(*) AS total_users,
+                SUM(CASE WHEN CAST(COALESCE(user_st, '0') AS CHAR) = '1' THEN 1 ELSE 0 END) AS active_users,
+                SUM(CASE WHEN CAST(COALESCE(user_st, '0') AS CHAR) <> '1' THEN 1 ELSE 0 END) AS inactive_users,
+                SUM(CASE WHEN mdd >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS new_users
+            FROM app_users
+        '''
+        try:
+            if not self.execute_query(sql):
+                raise pymysql.Error("Failed to fetch user summary")
+            row = self.cur_hris.fetchone() or {}
+            return {
+                'status': True,
+                'data': {
+                    'total_users': int(row.get('total_users') or 0),
+                    'active_users': int(row.get('active_users') or 0),
+                    'inactive_users': int(row.get('inactive_users') or 0),
+                    'new_users': int(row.get('new_users') or 0),
+                },
+            }
+        except pymysql.Error as e:
+            return {'status': False, 'data': {}, 'message': str(e)}
+
+    def get_overview_login_by_hour(self, days=7):
+        try:
+            days_i = max(1, min(int(days or 7), 30))
+        except Exception:
+            days_i = 7
+        sql = '''
+            SELECT
+                HOUR(login_date) AS login_hour,
+                COUNT(*) AS login_count
+            FROM app_user_login
+            WHERE login_date >= DATE_SUB(NOW(), INTERVAL %s DAY)
+            GROUP BY HOUR(login_date)
+            ORDER BY login_hour ASC
+        '''
+        try:
+            if not self.execute_query(sql, (days_i,)):
+                raise pymysql.Error("Failed to fetch login by hour")
+            rows = self.cur_hris.fetchall() or []
+            hour_map = {int(r.get('login_hour') or 0): int(r.get('login_count') or 0) for r in rows}
+            series = [{'hour': h, 'label': f'{h:02d}:00', 'count': hour_map.get(h, 0)} for h in range(24)]
+            return {'status': True, 'data': series, 'days': days_i}
+        except pymysql.Error as e:
+            return {'status': False, 'data': [], 'message': str(e)}
+
+    def get_overview_recent_login_logs(self, limit=15):
+        try:
+            lim = max(1, min(int(limit or 15), 50))
+        except Exception:
+            lim = 15
+        sql = '''
+            SELECT
+                a.login_id,
+                COALESCE(b.user_alias, b.user_name, '-') AS user_name,
+                a.login_date,
+                COALESCE(a.lokasi, '-') AS lokasi,
+                COALESCE(a.ip_address, '-') AS ip_address
+            FROM app_user_login a
+            INNER JOIN app_users b ON b.user_id = a.user_id
+            ORDER BY a.login_date DESC
+            LIMIT %s
+        '''
+        try:
+            if not self.execute_query(sql, (lim,)):
+                raise pymysql.Error("Failed to fetch recent login logs")
+            rows = self.cur_hris.fetchall() or []
+            return {'status': True, 'data': rows}
+        except pymysql.Error as e:
+            return {'status': False, 'data': [], 'message': str(e)}
+
+    def get_overview_current_online_users(self, limit=20, login_ids=None):
+        """Return users whose Django session is still active (sedang login saat ini)."""
+        try:
+            lim = max(1, min(int(limit or 20), 50))
+        except Exception:
+            lim = 20
+        ids = [str(x).strip() for x in (login_ids or []) if str(x).strip()]
+        if not ids:
+            return {'status': True, 'data': [], 'count': 0}
+        placeholders = ','.join(['%s'] * len(ids))
+        sql = f'''
+            SELECT
+                a.login_id,
+                COALESCE(b.user_alias, b.user_name, '-') AS user_name,
+                a.login_date,
+                COALESCE(a.lokasi, '-') AS lokasi,
+                COALESCE(a.ip_address, '-') AS ip_address
+            FROM app_user_login a
+            INNER JOIN app_users b ON b.user_id = a.user_id
+            INNER JOIN (
+                SELECT user_id, MAX(login_date) AS max_login
+                FROM app_user_login
+                WHERE login_id IN ({placeholders})
+                GROUP BY user_id
+            ) cur ON cur.user_id = a.user_id AND cur.max_login = a.login_date
+            WHERE a.login_id IN ({placeholders})
+            ORDER BY a.login_date DESC
+            LIMIT %s
+        '''
+        params = tuple(ids + ids + [lim])
+        try:
+            if not self.execute_query(sql, params):
+                raise pymysql.Error("Failed to fetch current online users")
+            rows = self.cur_hris.fetchall() or []
+            return {'status': True, 'data': rows, 'count': len(rows)}
+        except pymysql.Error as e:
+            return {'status': False, 'data': [], 'count': 0, 'message': str(e)}
+
 # Re-export with the same name so existing code can import from settings.database
 data_mysql = SettingsDB

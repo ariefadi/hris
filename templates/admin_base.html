@@ -35,6 +35,67 @@
             z-index: 1090;
         }
 
+        /* SweetAlert2 — sync with light/dark theme */
+        html[data-theme="dark"] .swal2-popup {
+            background: #0f172a !important;
+            color: #e2e8f0 !important;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45) !important;
+        }
+        html[data-theme="dark"] .swal2-title {
+            color: #f8fafc !important;
+        }
+        html[data-theme="dark"] .swal2-html-container,
+        html[data-theme="dark"] .swal2-content {
+            color: #cbd5e1 !important;
+        }
+        html[data-theme="dark"] .swal2-close {
+            color: #94a3b8 !important;
+        }
+        html[data-theme="dark"] .swal2-cancel {
+            background-color: #334155 !important;
+            color: #e2e8f0 !important;
+            border: 1px solid rgba(148, 163, 184, 0.25) !important;
+        }
+        html[data-theme="dark"] .swal2-cancel:hover {
+            background-color: #475569 !important;
+        }
+        html[data-theme="dark"] .swal2-icon.swal2-question {
+            border-color: #60a5fa !important;
+            color: #60a5fa !important;
+        }
+        html[data-theme="dark"] .swal2-icon.swal2-success {
+            border-color: #4ade80 !important;
+        }
+        html[data-theme="dark"] .swal2-icon.swal2-success .swal2-success-line {
+            background-color: #4ade80 !important;
+        }
+        html[data-theme="dark"] .swal2-icon.swal2-success .swal2-success-ring {
+            border-color: rgba(74, 222, 128, 0.28) !important;
+        }
+        html[data-theme="dark"] .swal2-icon.swal2-error {
+            border-color: #f87171 !important;
+        }
+        html[data-theme="dark"] .swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
+            background-color: #f87171 !important;
+        }
+        html[data-theme="dark"] .swal2-timer-progress-bar {
+            background: rgba(96, 165, 250, 0.65) !important;
+        }
+        html:not([data-theme="dark"]) .swal2-popup {
+            background: #ffffff !important;
+            color: #1e293b !important;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16) !important;
+        }
+        html:not([data-theme="dark"]) .swal2-title {
+            color: #0f172a !important;
+        }
+        html:not([data-theme="dark"]) .swal2-html-container,
+        html:not([data-theme="dark"]) .swal2-content {
+            color: #475569 !important;
+        }
+
         html[data-theme="dark"] body {
             background: #121212;
             color: #e9ecef;
@@ -72,10 +133,26 @@
         html[data-theme="dark"] .table {
             color: #e9ecef;
         }
-        html[data-theme="dark"] .table thead th,
+        html[data-theme="dark"] .table thead th {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-color: #334155;
+        }
         html[data-theme="dark"] .table td,
         html[data-theme="dark"] .table th {
             border-color: #2b2b2b;
+        }
+        html[data-theme="dark"] .thead-light th,
+        html[data-theme="dark"] .table .thead-light th {
+            background-color: #1e293b !important;
+            color: #e2e8f0 !important;
+            border-color: #334155 !important;
+        }
+        html[data-theme="dark"] .thead-dark th,
+        html[data-theme="dark"] .table .thead-dark th {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+            border-color: #334155 !important;
         }
         html[data-theme="dark"] .table-striped tbody tr:nth-of-type(odd) {
             background-color: rgba(255,255,255,.03);
@@ -1127,6 +1204,48 @@
         <script src="{% static 'plugins/datatables-fixedcolumns/js/dataTables.fixedColumns.min.js' %}"></script>
         <!-- SweetAlert -->
         <script src="{% static 'plugins/sweetalert2/sweetalert2.min.js' %}"></script>
+        <script>
+        (function() {
+            function isDarkTheme() {
+                return document.documentElement.getAttribute('data-theme') === 'dark';
+            }
+
+            window.hrisIsDarkTheme = isDarkTheme;
+
+            window.hrisSwalThemeOptions = function() {
+                if (isDarkTheme()) {
+                    return {
+                        background: '#0f172a',
+                        color: '#e2e8f0',
+                        confirmButtonColor: '#2563eb',
+                        cancelButtonColor: '#475569'
+                    };
+                }
+                return {
+                    background: '#ffffff',
+                    color: '#1e293b',
+                    confirmButtonColor: '#2563eb',
+                    cancelButtonColor: '#64748b'
+                };
+            };
+
+            window.hrisSwalFire = function(options) {
+                if (!window.Swal || typeof window.Swal.fire !== 'function') {
+                    return Promise.resolve({ isConfirmed: false, isDismissed: true });
+                }
+                var opts = Object.assign({}, window.hrisSwalThemeOptions(), options || {});
+                var userDidOpen = opts.didOpen;
+                var zIndex = opts.zIndex || '30100';
+                delete opts.zIndex;
+                opts.didOpen = function(popup) {
+                    var container = Swal.getContainer();
+                    if (container) container.style.zIndex = zIndex;
+                    if (typeof userDidOpen === 'function') userDidOpen(popup);
+                };
+                return Swal.fire(opts);
+            };
+        })();
+        </script>
         <!-- Datetime Picker -->
         <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>

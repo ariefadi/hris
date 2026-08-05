@@ -209,6 +209,8 @@ urlpatterns = [
     path('admin/update_campaign_status_monitoring_domain_campaign', views.RoiMonitoringDomainUpdateCampaignStatusCampaignView.as_view()),
     path('admin/log_master_ads_recent_by_domain', views.LogMasterAdsRecentByDomainView.as_view()),
     path('admin/log_master_ads_history_by_campaign', views.LogMasterAdsHistoryByCampaignView.as_view()),
+    path('admin/ads_log_campaign', views.AdsLogCampaignView.as_view(), name='ads_log_campaign'),
+    path('admin/page_ads_log_campaign', views.AdsLogCampaignDataView.as_view()),
     # Menu ROI Monitoring Country
     path('admin/monitoring_country', views.RoiMonitoringCountryView.as_view(), name='roi_monitoring_country'),
     path('admin/page_monitoring_country', views.RoiMonitoringCountryDataView.as_view()),

@@ -3410,6 +3410,214 @@ class data_mysql:
         except Exception as e:
             return {'status': False, 'data': [], 'error': str(e)}
 
+    def _log_master_ads_filter_clause(self, *, date_from=None, date_to=None, account_ads_id=None,
+                                      subdomain=None, campaign=None, action=None, status=None, alias='l'):
+        parts = []
+        params = []
+        a = alias
+        if date_from:
+            parts.append(f"DATE(COALESCE({a}.log_master_date, {a}.mdd)) >= %s")
+            params.append(str(date_from).strip())
+        if date_to:
+            parts.append(f"DATE(COALESCE({a}.log_master_date, {a}.mdd)) <= %s")
+            params.append(str(date_to).strip())
+        acc = str(account_ads_id or '').strip()
+        if acc:
+            parts.append(f"{a}.account_ads_id = %s")
+            params.append(acc)
+        dom = str(subdomain or '').strip().lower()
+        if dom:
+            parts.append(f"LOWER(TRIM(COALESCE({a}.log_master_domain, ''))) LIKE %s")
+            params.append(f'%{dom}%')
+        camp = str(campaign or '').strip()
+        if camp:
+            like = f'%{camp}%'
+            parts.append(
+                f"({a}.log_master_campaign_id LIKE %s OR {a}.log_master_campaign_nm LIKE %s)"
+            )
+            params.extend([like, like])
+        act = str(action or '').strip().lower()
+        if act:
+            if act in ('status_change', 'status'):
+                parts.append(f"({a}.log_master_action IS NULL OR TRIM({a}.log_master_action) = '')")
+            else:
+                parts.append(f"LOWER(COALESCE({a}.log_master_action, '')) = %s")
+                params.append(act)
+        st = str(status or '').strip().upper()
+        if st:
+            parts.append(f"UPPER(COALESCE({a}.log_master_status, '')) = %s")
+            params.append(st)
+        where_sql = (' AND ' + ' AND '.join(parts)) if parts else ''
+        return where_sql, params
+
+    def _attach_budget_before_to_log_rows(self, rows):
+        if not rows:
+            return rows
+        campaign_ids = []
+        seen = set()
+        for r in rows:
+            cid = str((r or {}).get('log_master_campaign_id') or '').strip()
+            if cid and cid not in seen:
+                seen.add(cid)
+                campaign_ids.append(cid)
+        if not campaign_ids:
+            return rows
+
+        placeholders = ','.join(['%s'] * len(campaign_ids))
+        sql = f"""
+            SELECT log_master_ads_id, log_master_campaign_id, log_master_budget
+            FROM log_master_ads
+            WHERE log_master_campaign_id IN ({placeholders})
+            ORDER BY log_master_campaign_id ASC, mdd ASC, log_master_ads_id ASC
+        """
+        if not self.execute_query(sql, tuple(campaign_ids)):
+            return rows
+        history = self.cur_hris.fetchall() if self.cur_hris else []
+
+        prev_budget_by_campaign = {}
+        before_map = {}
+        for h in (history or []):
+            lid = str(h.get('log_master_ads_id') or '')
+            cid = str(h.get('log_master_campaign_id') or '')
+            if cid in prev_budget_by_campaign:
+                before_map[lid] = prev_budget_by_campaign[cid]
+            prev_budget_by_campaign[cid] = h.get('log_master_budget')
+
+        out = []
+        for r in rows:
+            item = dict(r or {})
+            lid = str(item.get('log_master_ads_id') or '')
+            if lid in before_map:
+                item['budget_before_val'] = before_map[lid]
+            out.append(item)
+        return out
+
+    def list_log_master_ads_report(self, *, date_from=None, date_to=None, account_ads_id=None,
+                                   subdomain=None, campaign=None, action=None, status=None, limit=1000):
+        try:
+            lim = max(1, min(int(limit or 1000), 5000))
+            where_sql, params = self._log_master_ads_filter_clause(
+                date_from=date_from,
+                date_to=date_to,
+                account_ads_id=account_ads_id,
+                subdomain=subdomain,
+                campaign=campaign,
+                action=action,
+                status=status,
+                alias='l',
+            )
+            sql = f"""
+                SELECT
+                    l.log_master_ads_id,
+                    l.log_master_date,
+                    l.account_ads_id,
+                    l.log_master_domain,
+                    l.log_master_campaign_id,
+                    l.log_master_campaign_nm,
+                    l.log_master_action,
+                    l.log_master_budget,
+                    l.log_master_date_start,
+                    l.log_master_date_end,
+                    l.log_master_status,
+                    l.mdb,
+                    l.mdb_name,
+                    l.mdd,
+                    COALESCE(a.account_name, '') AS account_name
+                FROM log_master_ads l
+                LEFT JOIN master_account_ads a ON a.account_ads_id = l.account_ads_id
+                WHERE 1=1 {where_sql}
+                ORDER BY l.mdd DESC, l.log_master_ads_id DESC
+                LIMIT %s
+            """
+            qparams = tuple(params + [lim])
+            if not self.execute_query(sql, qparams):
+                return {'status': False, 'data': [], 'error': getattr(self, 'last_error', None)}
+            rows = self.cur_hris.fetchall() if self.cur_hris else []
+            rows = self._attach_budget_before_to_log_rows(rows or [])
+            return {'status': True, 'data': rows}
+        except Exception as e:
+            return {'status': False, 'data': [], 'error': str(e)}
+
+    def aggregate_log_master_ads_daily(self, *, date_from=None, date_to=None, account_ads_id=None,
+                                       subdomain=None, campaign=None, action=None, status=None):
+        try:
+            where_sql, params = self._log_master_ads_filter_clause(
+                date_from=date_from,
+                date_to=date_to,
+                account_ads_id=account_ads_id,
+                subdomain=subdomain,
+                campaign=campaign,
+                action=action,
+                status=status,
+                alias='l',
+            )
+            sql = f"""
+                SELECT
+                    DATE(COALESCE(l.log_master_date, l.mdd)) AS day_key,
+                    SUM(CASE WHEN LOWER(COALESCE(l.log_master_action, '')) = 'scale_up' THEN 1 ELSE 0 END) AS scale_up_count,
+                    SUM(CASE WHEN LOWER(COALESCE(l.log_master_action, '')) = 'scale_down' THEN 1 ELSE 0 END) AS scale_down_count
+                FROM log_master_ads l
+                WHERE 1=1 {where_sql}
+                GROUP BY day_key
+                ORDER BY day_key ASC
+            """
+            if not self.execute_query(sql, tuple(params)):
+                return {'status': False, 'data': [], 'error': getattr(self, 'last_error', None)}
+            rows = self.cur_hris.fetchall() if self.cur_hris else []
+            return {'status': True, 'data': rows or []}
+        except Exception as e:
+            return {'status': False, 'data': [], 'error': str(e)}
+
+    def summarize_master_ads_campaign_status(self, *, account_ads_id=None, subdomain=None, campaign=None):
+        try:
+            parts = []
+            params = []
+            acc = str(account_ads_id or '').strip()
+            if acc:
+                parts.append("ma.account_ads_id = %s")
+                params.append(acc)
+            dom = str(subdomain or '').strip().lower()
+            if dom:
+                parts.append("LOWER(TRIM(COALESCE(ma.master_domain, ''))) LIKE %s")
+                params.append(f'%{dom}%')
+            camp = str(campaign or '').strip()
+            if camp:
+                like = f'%{camp}%'
+                parts.append("(ma.master_campaign_id LIKE %s OR ma.master_campaign_nm LIKE %s)")
+                params.extend([like, like])
+            where_extra = (' AND ' + ' AND '.join(parts)) if parts else ''
+            sql = f"""
+                SELECT
+                    SUM(CASE WHEN UPPER(COALESCE(t.master_status, '')) = 'ACTIVE' THEN 1 ELSE 0 END) AS active_count,
+                    SUM(CASE WHEN UPPER(COALESCE(t.master_status, '')) != 'ACTIVE' THEN 1 ELSE 0 END) AS inactive_count,
+                    COUNT(*) AS total_count
+                FROM (
+                    SELECT ma.master_campaign_id, ma.master_status
+                    FROM master_ads ma
+                    INNER JOIN (
+                        SELECT master_campaign_id, MAX(mdd) AS max_mdd
+                        FROM master_ads
+                        GROUP BY master_campaign_id
+                    ) latest ON latest.master_campaign_id = ma.master_campaign_id
+                        AND latest.max_mdd = ma.mdd
+                    WHERE 1=1 {where_extra}
+                ) t
+            """
+            if not self.execute_query(sql, tuple(params)):
+                return {'status': False, 'data': {}, 'error': getattr(self, 'last_error', None)}
+            row = self.cur_hris.fetchone() if self.cur_hris else {}
+            data = dict(row or {})
+            return {
+                'status': True,
+                'data': {
+                    'active_count': int(data.get('active_count') or 0),
+                    'inactive_count': int(data.get('inactive_count') or 0),
+                    'total_count': int(data.get('total_count') or 0),
+                },
+            }
+        except Exception as e:
+            return {'status': False, 'data': {}, 'error': str(e)}
+
     def insert_data_ads_campaign(self, data):
         try:
             sql_insert = """

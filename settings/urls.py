@@ -4,6 +4,7 @@ from . import users
 
 urlpatterns = [
     path('overview', sistem.Overview.as_view(), name='overview'),
+    path('overview/data', sistem.OverviewDataView.as_view(), name='overview_data'),
     # Sistem / Portal CRUD
     path('sistem/portal', sistem.PortalIndexView.as_view(), name='portal'),
     path('sistem/portal/create', sistem.PortalCreateView.as_view(), name='portal_create'),

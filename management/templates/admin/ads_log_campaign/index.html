@@ -1,0 +1,447 @@
+{% extends "admin_base.html" %}
+{% load static %}
+
+{% block page_title %}Log Campaign Ads{% endblock %}
+{% block page_heading %}Log Campaign Ads{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Log Campaign Ads</li>
+{% endblock %}
+
+{% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<style>
+:root {
+  --alc-surface: #ffffff;
+  --alc-surface-2: #f8fafc;
+  --alc-border: rgba(15, 23, 42, 0.08);
+  --alc-text: #0f172a;
+  --alc-muted: #64748b;
+  --alc-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --alc-radius: 16px;
+  --alc-accent: #2563eb;
+  --alc-up: #16a34a;
+  --alc-down: #dc2626;
+}
+html[data-theme="dark"] {
+  --alc-surface: #1e293b;
+  --alc-surface-2: #0f172a;
+  --alc-border: rgba(148, 163, 184, 0.18);
+  --alc-text: #e2e8f0;
+  --alc-muted: #94a3b8;
+  --alc-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.alc-page .card {
+  border: 1px solid var(--alc-border);
+  border-radius: var(--alc-radius);
+  box-shadow: var(--alc-shadow);
+  margin-bottom: 16px;
+  background: var(--alc-surface);
+}
+.alc-page .card-header {
+  background: var(--alc-surface);
+  border-bottom: 1px solid var(--alc-border);
+  padding: 14px 18px;
+}
+.alc-page .card-title { color: var(--alc-text); font-weight: 800; margin: 0; }
+.alc-page .card-subtitle { color: var(--alc-muted); font-size: 0.85rem; margin: 0; }
+.alc-filter-field label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--alc-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.alc-filter-field .form-control,
+.alc-filter-field .select2-container .select2-selection--single {
+  min-height: 38px;
+  border-radius: 10px;
+  border-color: var(--alc-border);
+}
+.alc-filter-field .select2-container { width: 100% !important; }
+.alc-summary-grid {
+  display: grid;
+  gap: 12px;
+}
+.alc-summary-card {
+  border: 1px solid var(--alc-border);
+  border-radius: 14px;
+  padding: 16px;
+  background: var(--alc-surface-2);
+}
+.alc-summary-card__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--alc-muted);
+  margin-bottom: 6px;
+}
+.alc-summary-card__value {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.alc-summary-card--active .alc-summary-card__value { color: var(--alc-up); }
+.alc-summary-card--inactive .alc-summary-card__value { color: var(--alc-down); }
+.alc-summary-card--total .alc-summary-card__value { color: var(--alc-accent); }
+.alc-chart-wrap { position: relative; height: 320px; }
+.alc-table-wrap .table { margin: 0; font-size: 12px; }
+.alc-table-wrap thead th {
+  background: linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%);
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.alc-table-wrap tbody td {
+  vertical-align: middle;
+  border-color: var(--alc-border);
+}
+.alc-table-wrap tbody tr:nth-child(odd) td { background: rgba(248, 250, 252, 0.72); }
+html[data-theme="dark"] .alc-table-wrap tbody tr:nth-child(odd) td { background: rgba(15, 23, 42, 0.55); }
+html[data-theme="dark"] .alc-table-wrap tbody tr:nth-child(even) td { background: rgba(30, 41, 59, 0.45); }
+html[data-theme="dark"] .alc-table-wrap tbody tr:hover td { background: rgba(30, 58, 95, 0.55) !important; }
+.alc-badge-up { color: #15803d; font-weight: 700; }
+.alc-badge-down { color: #b91c1c; font-weight: 700; }
+.alc-badge-hold { color: #64748b; font-weight: 700; }
+html[data-theme="dark"] .alc-badge-up { color: #86efac; }
+html[data-theme="dark"] .alc-badge-down { color: #fca5a5; }
+html[data-theme="dark"] .alc-badge-hold { color: #cbd5e1; }
+.alc-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--alc-muted);
+  font-size: 13px;
+}
+@media (min-width: 992px) {
+  .alc-chart-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 16px;
+    align-items: stretch;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid alc-page">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h3 class="card-title"><i class="bi bi-journal-text"></i> Filter Log Campaign Ads</h3>
+        <p class="card-subtitle">Riwayat perubahan budget dan status campaign Facebook Ads</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-3 col-sm-6 mb-3 alc-filter-field">
+          <label for="alcDateFrom">Tanggal Dari</label>
+          <input type="text" class="form-control" id="alcDateFrom" value="{{ default_start_date }}">
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3 alc-filter-field">
+          <label for="alcDateTo">Tanggal Sampai</label>
+          <input type="text" class="form-control" id="alcDateTo" value="{{ default_end_date }}">
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3 alc-filter-field">
+          <label for="alcAccount">Filter Account</label>
+          <select class="form-control select2" id="alcAccount" data-placeholder="Semua account">
+            <option value=""></option>
+            {% for acc in data_account %}
+            <option value="{{ acc.account_ads_id }}">{{ acc.account_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3 alc-filter-field">
+          <label for="alcSubdomain">Filter Subdomain</label>
+          <input type="text" class="form-control" id="alcSubdomain" placeholder="contoh: example.com">
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3 alc-filter-field">
+          <label for="alcCampaign">Filter Campaign</label>
+          <input type="text" class="form-control" id="alcCampaign" placeholder="Nama atau ID campaign">
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3 alc-filter-field">
+          <label for="alcAction">Aksi Campaign</label>
+          <select class="form-control" id="alcAction">
+            <option value="">Semua aksi</option>
+            <option value="scale_up">Scale Up</option>
+            <option value="scale_down">Scale Down</option>
+            <option value="hold">Hold</option>
+            <option value="status_change">Perubahan Status</option>
+          </select>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3 alc-filter-field">
+          <label for="alcStatus">Status Campaign</label>
+          <select class="form-control" id="alcStatus">
+            <option value="">Semua status</option>
+            <option value="ACTIVE">Aktif</option>
+            <option value="PAUSED">Pause</option>
+            <option value="DELETED">Deleted</option>
+            <option value="ARCHIVED">Archived</option>
+          </select>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3 alc-filter-field d-flex align-items-end">
+          <button type="button" class="btn btn-primary btn-block" id="alcLoadBtn">
+            <i class="bi bi-arrow-repeat"></i> Muat Data
+          </button>
+        </div>
+      </div>
+      <div id="alcStatusMsg" class="small text-muted mt-1"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Perbandingan Scale Up vs Scale Down (Harian)</h3>
+      <p class="card-subtitle" id="alcChartSub">Klik Muat Data untuk menampilkan grafik</p>
+    </div>
+    <div class="card-body">
+      <div class="alc-chart-layout">
+        <div class="alc-chart-wrap">
+          <canvas id="alcDailyChart"></canvas>
+        </div>
+        <div class="alc-summary-grid">
+          <div class="alc-summary-card alc-summary-card--active">
+            <div class="alc-summary-card__label">Campaign Aktif</div>
+            <div class="alc-summary-card__value" id="alcActiveCount">0</div>
+          </div>
+          <div class="alc-summary-card alc-summary-card--inactive">
+            <div class="alc-summary-card__label">Campaign Tidak Aktif</div>
+            <div class="alc-summary-card__value" id="alcInactiveCount">0</div>
+          </div>
+          <div class="alc-summary-card alc-summary-card--total">
+            <div class="alc-summary-card__label">Total Campaign</div>
+            <div class="alc-summary-card__value" id="alcTotalCount">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h3 class="card-title">Data Log Campaign</h3>
+        <p class="card-subtitle" id="alcTableSub">Belum ada data</p>
+      </div>
+    </div>
+    <div class="card-body alc-table-wrap">
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped" id="alcLogTable">
+          <thead>
+            <tr>
+              <th class="text-center" style="width:48px;">No</th>
+              <th>Nama Account</th>
+              <th>Subdomain</th>
+              <th>Nama Campaign</th>
+              <th>Tanggal Perubahan</th>
+              <th>Status Aksi</th>
+              <th class="text-end">Budget Sebelum</th>
+              <th class="text-end">Budget Sesudah</th>
+              <th class="text-end">Selisih Budget</th>
+              <th>Status Campaign</th>
+              <th>Terakhir Diubah</th>
+              <th>Diubah Oleh</th>
+            </tr>
+          </thead>
+          <tbody id="alcLogTableBody">
+            <tr><td colspan="12" class="alc-empty">Klik Muat Data untuk menampilkan log campaign.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function () {
+  var chartInstance = null;
+
+  function fmtNum(n) {
+    return (Number(n) || 0).toLocaleString('id-ID');
+  }
+
+  function escHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function actionClass(label) {
+    var v = String(label || '').toLowerCase();
+    if (v.indexOf('scale up') >= 0) return 'alc-badge-up';
+    if (v.indexOf('scale down') >= 0 || v.indexOf('pause') >= 0) return 'alc-badge-down';
+    return 'alc-badge-hold';
+  }
+
+  function setStatus(msg) {
+    var el = document.getElementById('alcStatusMsg');
+    if (el) el.textContent = String(msg || '');
+  }
+
+  function getFilters() {
+    return {
+      date_from: document.getElementById('alcDateFrom').value.trim(),
+      date_to: document.getElementById('alcDateTo').value.trim(),
+      account_ads_id: document.getElementById('alcAccount').value.trim(),
+      subdomain: document.getElementById('alcSubdomain').value.trim(),
+      campaign: document.getElementById('alcCampaign').value.trim(),
+      action: document.getElementById('alcAction').value.trim(),
+      status: document.getElementById('alcStatus').value.trim(),
+    };
+  }
+
+  function renderSummary(summary) {
+    var s = summary || {};
+    document.getElementById('alcActiveCount').textContent = fmtNum(s.active_count);
+    document.getElementById('alcInactiveCount').textContent = fmtNum(s.inactive_count);
+    document.getElementById('alcTotalCount').textContent = fmtNum(s.total_count);
+  }
+
+  function renderChart(series, filters) {
+    var canvas = document.getElementById('alcDailyChart');
+    if (!canvas || !window.Chart) return;
+    var list = Array.isArray(series) ? series : [];
+    var labels = list.map(function (x) { return x.label || x.date; });
+    var up = list.map(function (x) { return Number(x.scale_up_count) || 0; });
+    var down = list.map(function (x) { return Number(x.scale_down_count) || 0; });
+    if (chartInstance && typeof chartInstance.destroy === 'function') {
+      try { chartInstance.destroy(); } catch (e) {}
+    }
+    chartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Scale Up',
+            data: up,
+            backgroundColor: 'rgba(22, 163, 74, 0.78)',
+            borderColor: '#16a34a',
+            borderWidth: 1,
+            borderRadius: 6,
+          },
+          {
+            label: 'Scale Down',
+            data: down,
+            backgroundColor: 'rgba(220, 38, 38, 0.78)',
+            borderColor: '#dc2626',
+            borderWidth: 1,
+            borderRadius: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                return (ctx.dataset.label || '') + ': ' + fmtNum(ctx.parsed.y);
+              },
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+        },
+      },
+    });
+    var sub = document.getElementById('alcChartSub');
+    if (sub) {
+      sub.textContent = 'Periode ' + filters.date_from + ' s/d ' + filters.date_to + ' • ' + list.length + ' hari';
+    }
+  }
+
+  function renderTable(rows) {
+    var body = document.getElementById('alcLogTableBody');
+    var sub = document.getElementById('alcTableSub');
+    var list = Array.isArray(rows) ? rows : [];
+    if (!body) return;
+    if (!list.length) {
+      body.innerHTML = '<tr><td colspan="12" class="alc-empty">Tidak ada log campaign untuk filter ini.</td></tr>';
+      if (sub) sub.textContent = '0 baris';
+      return;
+    }
+    var html = '';
+    list.forEach(function (row, idx) {
+      html += '<tr>';
+      html += '<td class="text-center">' + escHtml(String(idx + 1)) + '</td>';
+      html += '<td>' + escHtml(row.account_name || '-') + '</td>';
+      html += '<td>' + escHtml(row.subdomain || '-') + '</td>';
+      html += '<td title="' + escHtml(row.campaign_name || '-') + '">' + escHtml(row.campaign_name || '-') + '</td>';
+      html += '<td style="white-space:nowrap;">' + escHtml(row.change_date || '-') + '</td>';
+      html += '<td><span class="' + actionClass(row.change_label) + '">' + escHtml(row.change_label || '-') + '</span></td>';
+      html += '<td class="text-end" style="white-space:nowrap;">' + escHtml(row.budget_before_display || '-') + '</td>';
+      html += '<td class="text-end" style="white-space:nowrap;">' + escHtml(row.budget_after_display || '-') + '</td>';
+      html += '<td class="text-end" style="white-space:nowrap;">' + escHtml(row.budget_diff_display || '-') + '</td>';
+      html += '<td>' + escHtml(row.status_label || '-') + '</td>';
+      html += '<td style="white-space:nowrap;">' + escHtml(row.changed_at || '-') + '</td>';
+      html += '<td>' + escHtml(row.changed_by || '-') + '</td>';
+      html += '</tr>';
+    });
+    body.innerHTML = html;
+    if (sub) sub.textContent = fmtNum(list.length) + ' baris log';
+  }
+
+  async function loadData() {
+    var filters = getFilters();
+    if (!filters.date_from || !filters.date_to) {
+      setStatus('Tanggal Dari dan Tanggal Sampai wajib diisi.');
+      return;
+    }
+    var btn = document.getElementById('alcLoadBtn');
+    if (btn) btn.disabled = true;
+    setStatus('Memuat data...');
+    try {
+      var qs = new URLSearchParams(filters);
+      var resp = await fetch('/management/admin/page_ads_log_campaign?' + qs.toString(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var json = await resp.json();
+      if (!json || !json.status) throw new Error(json.error || 'Gagal memuat data');
+      renderSummary(json.summary || {});
+      renderChart(json.daily_chart || [], filters);
+      renderTable(json.rows || []);
+      setStatus('Data berhasil dimuat • ' + fmtNum(json.total_rows || 0) + ' log');
+    } catch (e) {
+      setStatus(String(e.message || e || 'Gagal memuat data'));
+      renderTable([]);
+      renderSummary({ active_count: 0, inactive_count: 0, total_count: 0 });
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  document.getElementById('alcLoadBtn').addEventListener('click', loadData);
+
+  if (window.jQuery && jQuery.fn.select2) {
+    jQuery('#alcAccount').select2({ theme: 'bootstrap4', width: '100%', allowClear: true, placeholder: 'Semua account' });
+  }
+
+  if (window.flatpickr) {
+    var fpOpts = { dateFormat: 'Y-m-d', allowInput: true };
+    flatpickr('#alcDateFrom', fpOpts);
+    flatpickr('#alcDateTo', fpOpts);
+  }
+})();
+</script>
+{% endblock %}

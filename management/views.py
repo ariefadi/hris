@@ -8601,6 +8601,90 @@ def _serialize_log_master_ads_rows(rows):
     return out
 
 
+def _fmt_idr_budget(val):
+    try:
+        n = int(val)
+    except Exception:
+        return '-'
+    return 'Rp ' + f'{n:,}'.replace(',', '.')
+
+
+def _format_log_master_ads_report_row(row):
+    item = _format_log_master_ads_row(row)
+    try:
+        budget_after = int(row.get('log_master_budget') or 0)
+    except Exception:
+        budget_after = 0
+    budget_before = None
+    if row.get('budget_before_val') is not None:
+        try:
+            budget_before = int(row.get('budget_before_val'))
+        except Exception:
+            budget_before = None
+    budget_diff = None
+    if budget_before is not None:
+        budget_diff = budget_after - budget_before
+    item['account_name'] = str(row.get('account_name') or row.get('account_ads_id') or '-').strip() or '-'
+    item['subdomain'] = str(row.get('log_master_domain') or '-').strip() or '-'
+    item['campaign_name'] = str(row.get('log_master_campaign_nm') or row.get('log_master_campaign_id') or '-').strip() or '-'
+    item['change_date'] = item.get('changed_at') or item.get('log_master_date') or '-'
+    item['budget_before'] = budget_before
+    item['budget_after'] = budget_after
+    item['budget_diff'] = budget_diff
+    item['budget_before_display'] = _fmt_idr_budget(budget_before) if budget_before is not None else '-'
+    item['budget_after_display'] = _fmt_idr_budget(budget_after)
+    if budget_diff is None:
+        item['budget_diff_display'] = '-'
+    elif budget_diff > 0:
+        item['budget_diff_display'] = '+' + _fmt_idr_budget(budget_diff)
+    elif budget_diff < 0:
+        item['budget_diff_display'] = '-' + _fmt_idr_budget(abs(budget_diff))
+    else:
+        item['budget_diff_display'] = _fmt_idr_budget(0)
+    return item
+
+
+def _serialize_log_master_ads_report_rows(rows):
+    out = []
+    for row in (rows or []):
+        out.append(_format_log_master_ads_report_row(row))
+    return out
+
+
+def _fill_daily_log_series(rows, date_from, date_to):
+    from datetime import datetime, timedelta
+    try:
+        start = datetime.strptime(str(date_from), '%Y-%m-%d').date()
+        end = datetime.strptime(str(date_to), '%Y-%m-%d').date()
+    except Exception:
+        return rows or []
+    if end < start:
+        start, end = end, start
+    day_map = {}
+    for r in (rows or []):
+        key = str(r.get('day_key') or '')
+        if not key:
+            continue
+        day_map[key] = {
+            'date': key,
+            'scale_up_count': int(r.get('scale_up_count') or 0),
+            'scale_down_count': int(r.get('scale_down_count') or 0),
+        }
+    out = []
+    cur = start
+    while cur <= end:
+        key = cur.strftime('%Y-%m-%d')
+        hit = day_map.get(key) or {}
+        out.append({
+            'date': key,
+            'label': cur.strftime('%d/%m'),
+            'scale_up_count': int(hit.get('scale_up_count') or 0),
+            'scale_down_count': int(hit.get('scale_down_count') or 0),
+        })
+        cur += timedelta(days=1)
+    return out
+
+
 def _resolve_monitoring_account_row(account_ads):
     key = str(account_ads or '').strip()
     if not key:
@@ -17064,6 +17148,101 @@ class LogMasterAdsHistoryByCampaignView(View):
             }, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e), 'data': []}, safe=False)
+
+
+class AdsLogCampaignView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        accounts_resp = data_mysql().master_account_ads()
+        accounts = (accounts_resp or {}).get('data') or []
+        if not isinstance(accounts, list):
+            accounts = []
+        today = datetime.now().strftime('%Y-%m-%d')
+        start_default = (datetime.now() - timedelta(days=6)).strftime('%Y-%m-%d')
+        context = {
+            'title': 'Log Campaign Ads',
+            'user': req.session.get('hris_admin', {}),
+            'data_account': accounts,
+            'default_start_date': start_default,
+            'default_end_date': today,
+        }
+        return render(req, 'admin/ads_log_campaign/index.html', context)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdsLogCampaignDataView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            date_from = (req.GET.get('date_from') or req.GET.get('start_date') or '').strip()
+            date_to = (req.GET.get('date_to') or req.GET.get('end_date') or '').strip()
+            account_ads_id = (req.GET.get('account_ads_id') or req.GET.get('account') or '').strip()
+            subdomain = (req.GET.get('subdomain') or req.GET.get('domain') or '').strip()
+            campaign = (req.GET.get('campaign') or '').strip()
+            action = (req.GET.get('action') or req.GET.get('campaign_action') or '').strip()
+            status = (req.GET.get('status') or req.GET.get('campaign_status') or '').strip()
+
+            if not date_from or not date_to:
+                return JsonResponse({
+                    'status': False,
+                    'error': 'Tanggal Dari dan Tanggal Sampai wajib diisi',
+                }, safe=False)
+
+            db = data_mysql()
+            daily_resp = db.aggregate_log_master_ads_daily(
+                date_from=date_from,
+                date_to=date_to,
+                account_ads_id=account_ads_id or None,
+                subdomain=subdomain or None,
+                campaign=campaign or None,
+                action=action or None,
+                status=status or None,
+            )
+            summary_resp = db.summarize_master_ads_campaign_status(
+                account_ads_id=account_ads_id or None,
+                subdomain=subdomain or None,
+                campaign=campaign or None,
+            )
+            rows_resp = db.list_log_master_ads_report(
+                date_from=date_from,
+                date_to=date_to,
+                account_ads_id=account_ads_id or None,
+                subdomain=subdomain or None,
+                campaign=campaign or None,
+                action=action or None,
+                status=status or None,
+            )
+
+            daily_series = _fill_daily_log_series(
+                (daily_resp or {}).get('data') or [],
+                date_from,
+                date_to,
+            )
+            table_rows = _serialize_log_master_ads_report_rows((rows_resp or {}).get('data') or [])
+            summary = (summary_resp or {}).get('data') or {}
+
+            return JsonResponse({
+                'status': bool((rows_resp or {}).get('status')),
+                'daily_chart': daily_series,
+                'summary': {
+                    'active_count': int(summary.get('active_count') or 0),
+                    'inactive_count': int(summary.get('inactive_count') or 0),
+                    'total_count': int(summary.get('total_count') or 0),
+                },
+                'rows': table_rows,
+                'total_rows': len(table_rows),
+                'error': (rows_resp or {}).get('error') or (daily_resp or {}).get('error'),
+            }, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, safe=False)
 
 # ===== ROI Monitoring Country =====
 

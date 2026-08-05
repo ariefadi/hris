@@ -92,8 +92,69 @@
                       .ql-font-roboto { font-family: 'Roboto', sans-serif; }
                       .ql-font-inconsolata { font-family: 'Inconsolata', monospace; }
                       .ql-font-ubuntu { font-family: 'Ubuntu', sans-serif; }
+
+                      #quill-editor {
+                        height: 250px;
+                        background: #fff;
+                      }
+                      html[data-theme="dark"] #quill-editor {
+                        background: #1e1e1e;
+                      }
+                      html[data-theme="dark"] .ql-toolbar.ql-snow {
+                        background: #1e293b;
+                        border-color: #334155;
+                      }
+                      html[data-theme="dark"] .ql-container.ql-snow {
+                        background: #1e1e1e;
+                        border-color: #334155;
+                        color: #e9ecef;
+                      }
+                      html[data-theme="dark"] .ql-editor {
+                        color: #e9ecef;
+                      }
+                      html[data-theme="dark"] .ql-editor.ql-blank::before {
+                        color: #94a3b8;
+                      }
+                      html[data-theme="dark"] .ql-snow .ql-stroke {
+                        stroke: #cbd5e1;
+                      }
+                      html[data-theme="dark"] .ql-snow .ql-fill,
+                      html[data-theme="dark"] .ql-snow .ql-stroke.ql-fill {
+                        fill: #cbd5e1;
+                      }
+                      html[data-theme="dark"] .ql-snow .ql-picker {
+                        color: #e2e8f0;
+                      }
+                      html[data-theme="dark"] .ql-snow .ql-picker-label {
+                        color: #e2e8f0;
+                      }
+                      html[data-theme="dark"] .ql-snow .ql-picker-label:hover,
+                      html[data-theme="dark"] .ql-snow .ql-picker-label.ql-active {
+                        color: #f8fafc;
+                      }
+                      html[data-theme="dark"] .ql-snow .ql-picker-options {
+                        background: #1e293b;
+                        border-color: #334155;
+                      }
+                      html[data-theme="dark"] .ql-snow .ql-picker-item {
+                        color: #e2e8f0;
+                      }
+                      html[data-theme="dark"] .ql-snow .ql-picker-item:hover {
+                        color: #ffffff;
+                      }
+                      html[data-theme="dark"] .ql-snow .ql-tooltip {
+                        background: #1e293b;
+                        border-color: #334155;
+                        color: #e2e8f0;
+                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+                      }
+                      html[data-theme="dark"] .ql-snow .ql-tooltip input[type=text] {
+                        background: #0f172a;
+                        color: #e2e8f0;
+                        border-color: #475569;
+                      }
                     </style>
-                    <div id="quill-editor" style="height: 250px; background: #fff;"></div>
+                    <div id="quill-editor"></div>
                     <!-- Hidden input to submit HTML -->
                     <input type="hidden" name="body" id="body-html" />
                     <div class="form-check mt-2">

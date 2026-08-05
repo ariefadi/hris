@@ -18552,6 +18552,55 @@ function initDashboardRecap() {
             if (logModalEl) logModalEl.hidden = true;
         }
 
+        async function confirmBudgetUpdate(cid, budgetValue, btn) {
+            const budgetText = fmtBudgetDisplay(budgetValue);
+            const message = 'Apakah Anda ingin merubah budget dengan nilai ' + budgetText + '?';
+            const swalFire = window.hrisSwalFire || function(opts) {
+                return window.Swal.fire(Object.assign({}, (window.hrisSwalThemeOptions && window.hrisSwalThemeOptions()) || {}, opts || {}));
+            };
+            let confirmed = false;
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                const result = await swalFire({
+                    icon: 'question',
+                    title: 'Konfirmasi Ubah Budget',
+                    text: message,
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya',
+                    cancelButtonText: 'Tidak',
+                    reverseButtons: true,
+                    focusCancel: true
+                });
+                confirmed = !!(result && result.isConfirmed);
+            } else {
+                confirmed = window.confirm(message);
+            }
+            if (!confirmed) return;
+            if (btn) btn.disabled = true;
+            try {
+                setStatus('Updating daily budget...');
+                await updateBudget(cid, budgetValue);
+                setStatus('OK: update daily budget (' + cid + ')');
+                if (window.Swal && typeof window.Swal.fire === 'function') {
+                    await swalFire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: 'Daily budget berhasil diperbarui menjadi ' + budgetText,
+                        timer: 1800,
+                        showConfirmButton: false
+                    });
+                }
+                await loadRecentLogs();
+            } catch (er) {
+                const errMsg = String(er?.message || er || 'Gagal eksekusi campaign');
+                setStatus(errMsg);
+                if (window.Swal && typeof window.Swal.fire === 'function') {
+                    await swalFire({ icon: 'error', title: 'Gagal', text: errMsg });
+                }
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
         if (logModalCloseEl) logModalCloseEl.onclick = closeCampaignLogModal;
         if (logModalEl) {
             logModalEl.addEventListener('click', function(ev){
@@ -18765,27 +18814,24 @@ function initDashboardRecap() {
             if (!btn) return;
             const cid = String(btn.getAttribute('data-cid') || '');
             const action = String(btn.getAttribute('data-action') || 'HOLD').toUpperCase();
-            btn.disabled = true;
-            try {
-                if (action === 'STOP' || action === 'PAUSE') {
+            if (action === 'STOP' || action === 'PAUSE') {
+                btn.disabled = true;
+                try {
                     const status = (action === 'STOP' || action === 'PAUSE') ? 'PAUSED' : 'ACTIVE';
                     setStatus('Updating status campaign...');
                     await updateStatus([cid], status);
                     setStatus(`OK: status campaign ${status} (${cid})`);
                     await refresh();
-                } else {
-                    const inp = document.getElementById(`sdBud_${cid}`);
-                    const raw = String(inp ? inp.value : '').trim();
-                    const cleaned = raw.replace('Rp','').replace(/\./g,'').replace(/,/g,'').trim();
-                    const n = parseInt(cleaned, 10);
-                    if (!cid || !isFinite(n) || n <= 0) { setStatus('daily budget tidak valid'); return; }
-                    setStatus('Updating daily budget...');
-                    await updateBudget(cid, n);
-                    setStatus(`OK: update daily budget (${cid})`);
-                    await loadRecentLogs();
-                }
-            } catch (er) { setStatus(String(er?.message || er || 'Gagal eksekusi campaign')); }
-            finally { btn.disabled = false; }
+                } catch (er) { setStatus(String(er?.message || er || 'Gagal eksekusi campaign')); }
+                finally { btn.disabled = false; }
+                return;
+            }
+            const inp = document.getElementById(`sdBud_${cid}`);
+            const raw = String(inp ? inp.value : '').trim();
+            const cleaned = raw.replace('Rp','').replace(/\./g,'').replace(/,/g,'').trim();
+            const n = parseInt(cleaned, 10);
+            if (!cid || !isFinite(n) || n <= 0) { setStatus('daily budget tidak valid'); return; }
+            await confirmBudgetUpdate(cid, n, btn);
         });
 
         refresh();

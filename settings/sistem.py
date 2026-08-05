@@ -1,12 +1,13 @@
 from django.views import View
 from django.shortcuts import render, redirect
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.contrib import messages
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from settings.database import data_mysql
-from datetime import datetime
+from datetime import datetime, date, time
 from hris.mail import send_mail, Mail
+import json
 import re
 import os
 try:
@@ -15,17 +16,117 @@ except Exception:
     load_dotenv = None
     find_dotenv = None
 
+
+def _overview_json_safe(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        try:
+            return value.strftime('%Y-%m-%d %H:%M:%S')
+        except Exception:
+            return str(value)
+    if isinstance(value, date):
+        try:
+            return value.isoformat()
+        except Exception:
+            return str(value)
+    if isinstance(value, time):
+        try:
+            return value.isoformat(timespec='seconds')
+        except Exception:
+            return str(value)
+    if isinstance(value, dict):
+        return {str(k): _overview_json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_overview_json_safe(v) for v in value]
+    return value
+
+
+def _get_active_session_login_ids():
+    """Collect login_id from Django sessions that are still valid (user sedang login)."""
+    try:
+        from django.contrib.sessions.models import Session
+        from django.utils import timezone
+
+        login_ids = []
+        for session in Session.objects.filter(expire_date__gt=timezone.now()).iterator():
+            try:
+                data = session.get_decoded()
+                admin = data.get('hris_admin') or {}
+                login_id = admin.get('login_id')
+                if login_id:
+                    login_ids.append(str(login_id))
+            except Exception:
+                continue
+        # unique, preserve order
+        return list(dict.fromkeys(login_ids))
+    except Exception:
+        return []
+
+
+def _build_settings_overview_payload(db=None):
+    db = db or data_mysql()
+    summary_resp = db.get_overview_user_summary()
+    summary = (summary_resp or {}).get('data') or {}
+    hour_resp = db.get_overview_login_by_hour(days=7)
+    login_by_hour = (hour_resp or {}).get('data') or []
+    logs_resp = db.get_overview_recent_login_logs(limit=15)
+    active_login_ids = _get_active_session_login_ids()
+    online_resp = db.get_overview_current_online_users(limit=20, login_ids=active_login_ids)
+    recent_logins = []
+    for row in ((logs_resp or {}).get('data') or []):
+        item = dict(row or {})
+        recent_logins.append({
+            'user_name': str(item.get('user_name') or '-'),
+            'login_at': _overview_json_safe(item.get('login_date')),
+            'lokasi': str(item.get('lokasi') or '-'),
+            'ip_address': str(item.get('ip_address') or '-'),
+        })
+    current_users = []
+    for row in ((online_resp or {}).get('data') or []):
+        item = dict(row or {})
+        current_users.append({
+            'user_name': str(item.get('user_name') or '-'),
+            'login_at': _overview_json_safe(item.get('login_date')),
+            'lokasi': str(item.get('lokasi') or '-'),
+            'ip_address': str(item.get('ip_address') or '-'),
+        })
+    return _overview_json_safe({
+        'summary': {
+            'total_users': int(summary.get('total_users') or 0),
+            'active_users': int(summary.get('active_users') or 0),
+            'inactive_users': int(summary.get('inactive_users') or 0),
+            'new_users': int(summary.get('new_users') or 0),
+        },
+        'login_by_hour': login_by_hour,
+        'login_hour_days': int((hour_resp or {}).get('days') or 7),
+        'recent_logins': recent_logins,
+        'current_users': current_users,
+        'current_users_count': int((online_resp or {}).get('count') or len(current_users)),
+    })
+
+
 class Overview(View):
     def get(self, request):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         admin = request.session.get('hris_admin', {})
         active_portal_id = request.session.get('active_portal_id', '12')
+        overview_data = _build_settings_overview_payload()
         context = {
             'user': admin,
             'active_portal_id': active_portal_id,
+            'overview_data': overview_data,
         }
         return render(request, 'settings/overview.html', context)
+
+
+class OverviewDataView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        payload = _build_settings_overview_payload()
+        return JsonResponse({'status': True, 'data': payload})
 
 # Helpers
 
