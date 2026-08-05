@@ -182,6 +182,56 @@ def get_user_refresh_token(email):
 # Initialize geocoder if available; else use None and handle in callers
 geocode = Nominatim(user_agent="hris_trendHorizone") if Nominatim else None
 
+
+def get_client_ip(request):
+    """Resolve client IP, honoring common reverse-proxy headers."""
+    forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    for header in ('HTTP_X_REAL_IP', 'HTTP_CF_CONNECTING_IP'):
+        ip = request.META.get(header)
+        if ip:
+            return ip.strip()
+    return (request.META.get('REMOTE_ADDR') or '').strip()
+
+
+def resolve_ip_location(ip_address):
+    """Lookup geolocation for a specific client IP via ipinfo.io."""
+    lat_long = [None, None]
+    location_address = None
+    resolved_ip = ip_address
+
+    if not ip_address or ip_address in ('127.0.0.1', '::1'):
+        return resolved_ip, lat_long, location_address
+
+    try:
+        resp = requests.get(f"https://ipinfo.io/{ip_address}/json", timeout=5)
+        if resp.ok:
+            data = resp.json()
+            if isinstance(data, dict):
+                loc_val = data.get('loc')
+                if loc_val:
+                    tmp = loc_val.split(',')
+                    if len(tmp) == 2:
+                        lat_long = [tmp[0].strip(), tmp[1].strip()]
+                resolved_ip = data.get('ip', ip_address) or ip_address
+                parts = [data.get('city'), data.get('region'), data.get('country')]
+                location_address = ', '.join(p for p in parts if p) or None
+    except Exception:
+        pass
+
+    try:
+        if geocode and lat_long[0] and lat_long[1]:
+            lat_f = float(lat_long[0])
+            lon_f = float(lat_long[1])
+            loc = geocode.reverse((lat_f, lon_f), language='id')
+            if loc and hasattr(loc, 'address'):
+                location_address = loc.address
+    except Exception:
+        pass
+
+    return resolved_ip, lat_long, location_address
+
 data_bulan = {
     1: 'Januari',
     2: 'Februari',
@@ -574,24 +624,8 @@ class OAuthRedirectView(View):
         
         # Insert login record
         login_id = str(uuid.uuid4())
-        try:
-            # Get location data
-            response = requests.get("https://ipinfo.io/json")
-            data = response.json()
-            lat_long = data["loc"].split(",") if "loc" in data else [None, None]
-            ip_address = data.get("ip", request.META.get('REMOTE_ADDR'))
-            location = None
-            if lat_long[0] and lat_long[1]:
-                try:
-                    geocode = Nominatim(user_agent="hris_trendHorizone")
-                    location = geocode.reverse((lat_long), language='id')
-                    location = location.address if location else None
-                except:
-                    location = None
-        except:
-            lat_long = [None, None]
-            ip_address = request.META.get('REMOTE_ADDR')
-            location = None
+        ip_address = get_client_ip(request)
+        ip_address, lat_long, location = resolve_ip_location(ip_address)
 
         data_insert = {
             'login_id': login_id,
@@ -702,38 +736,8 @@ class LoginProcess(View):
                     'message': "Silahkan cek kembali username dan password anda."
                 }
             else:
-                # Get IP and location with robust fallbacks
-                lat_long = [None, None]
-                ip_address = req.META.get('REMOTE_ADDR', '')
-                location_address = None
-                try:
-                    resp = requests.get("https://ipinfo.io/json", timeout=5)
-                    if resp.ok:
-                        data_ipinfo = resp.json()
-                        if isinstance(data_ipinfo, dict):
-                            loc_val = data_ipinfo.get("loc")
-                            if loc_val:
-                                tmp = loc_val.split(",")
-                                if len(tmp) == 2:
-                                    lat_long = [tmp[0], tmp[1]]
-                            ip_address = data_ipinfo.get('ip', ip_address) or ip_address
-                except Exception:
-                    pass
-                try:
-                    if not ip_address or ip_address in ("127.0.0.1", "::1"):
-                        ip_resp = requests.get("https://api.ipify.org", timeout=5)
-                        if ip_resp.status_code == 200 and ip_resp.text:
-                            ip_address = ip_resp.text.strip()
-                except Exception:
-                    pass
-                try:
-                    if geocode and lat_long[0] and lat_long[1]:
-                        lat_f = float(lat_long[0])
-                        lon_f = float(lat_long[1])
-                        loc = geocode.reverse((lat_f, lon_f), language='id')
-                        location_address = loc.address if hasattr(loc, 'address') else None
-                except Exception:
-                    location_address = None
+                ip_address = get_client_ip(req)
+                ip_address, lat_long, location_address = resolve_ip_location(ip_address)
                 # insert user login
                 data_insert = {
                     'login_id': str(uuid.uuid4()),
