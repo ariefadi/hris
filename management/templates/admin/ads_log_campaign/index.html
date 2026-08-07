@@ -108,6 +108,14 @@ html[data-theme="dark"] {
 .alc-table-wrap .dataTables_wrapper .dataTables_filter {
   margin-bottom: 12px;
 }
+.alc-table-wrap .dt-buttons { margin-bottom: 12px; }
+.alc-table-wrap .dt-buttons .btn {
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
 .alc-table-wrap .dataTables_wrapper .dataTables_filter input,
 .alc-table-wrap .dataTables_wrapper .dataTables_length select {
   border-radius: 10px !important;
@@ -391,6 +399,15 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
 (function () {
   var chartInstance = null;
   var alcLogTable = null;
+  var alcExportMeta = null;
+
+  function buildExportMeta(filters) {
+    var f = filters || getFilters();
+    return {
+      title: 'Log Campaign Ads — ' + (f.date_from || '-') + ' s/d ' + (f.date_to || '-'),
+      filename: 'ads_log_campaign_' + String(f.date_from || '').replace(/-/g, '') + '_' + String(f.date_to || '').replace(/-/g, ''),
+    };
+  }
 
   function fmtNum(n) {
     return (Number(n) || 0).toLocaleString('id-ID');
@@ -529,6 +546,8 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
     var list = Array.isArray(rows) ? rows : [];
     destroyAlcLogTable();
     if (!window.jQuery || !jQuery.fn.DataTable) return;
+    var exportMeta = alcExportMeta || buildExportMeta(getFilters());
+    var hasDtButtons = !!(jQuery.fn.dataTable && jQuery.fn.dataTable.Buttons);
     alcLogTable = jQuery('#alcLogTable').DataTable({
       data: list,
       responsive: false,
@@ -537,6 +556,18 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
       pageLength: 25,
       lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Semua']],
       order: [[4, 'desc']],
+      orthogonal: { export: 'export' },
+      dom: hasDtButtons
+        ? '<"row mb-2"<"col-sm-12 col-md-auto"B><"col-sm-12 col-md"f>>rt<"row mt-2"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"p>>i'
+        : undefined,
+      buttons: hasDtButtons ? [
+        { extend: 'copyHtml5', text: 'Copy', className: 'btn btn-sm btn-info', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportMeta.title },
+        { extend: 'excelHtml5', text: 'Export Excel', className: 'btn btn-sm btn-success', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportMeta.title, filename: exportMeta.filename },
+        { extend: 'pdfHtml5', text: 'Export PDF', className: 'btn btn-sm btn-danger', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportMeta.title, filename: exportMeta.filename, orientation: 'landscape', pageSize: 'A4' },
+        { extend: 'csvHtml5', text: 'Export CSV', className: 'btn btn-sm btn-secondary', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportMeta.title, filename: exportMeta.filename },
+        { extend: 'print', text: 'Print', className: 'btn btn-sm btn-warning', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportMeta.title },
+        { extend: 'colvis', text: 'Column Visibility', className: 'btn btn-sm btn-light' },
+      ] : [],
       language: {
         search: 'Cari:',
         lengthMenu: 'Tampilkan _MENU_ baris',
@@ -546,6 +577,13 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
         emptyTable: 'Tidak ada log campaign untuk filter ini.',
         paginate: { first: 'Awal', last: 'Akhir', next: '›', previous: '‹' },
       },
+      drawCallback: function () {
+        var api = this.api();
+        var info = api.page.info();
+        api.column(0, { page: 'current' }).nodes().each(function (cell, i) {
+          cell.innerHTML = String(info.start + i + 1);
+        });
+      },
       columns: [
         {
           data: null,
@@ -553,17 +591,30 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
           orderable: false,
           searchable: false,
           width: '48px',
-          render: function (_data, _type, _row, meta) {
-            return meta.row + meta.settings._iDisplayStart + 1;
+          render: function (_data, type, _row, meta) {
+            var n = meta.row + meta.settings._iDisplayStart + 1;
+            if (type === 'export' || type === 'sort' || type === 'type') return n;
+            return '';
           },
         },
-        { data: 'account_name', defaultContent: '-' },
-        { data: 'subdomain', defaultContent: '-' },
+        { data: 'account_name', defaultContent: '-',
+          render: function (d, type) {
+            if (type === 'export') return d || '-';
+            return escHtml(d || '-');
+          },
+        },
+        { data: 'subdomain', defaultContent: '-',
+          render: function (d, type) {
+            if (type === 'export') return d || '-';
+            return escHtml(d || '-');
+          },
+        },
         {
           data: 'campaign_name',
           defaultContent: '-',
-          render: function (d) {
+          render: function (d, type) {
             var v = d || '-';
+            if (type === 'export') return v;
             return '<span title="' + escHtml(v) + '">' + escHtml(v) + '</span>';
           },
         },
@@ -571,7 +622,8 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
         {
           data: 'change_label',
           defaultContent: '-',
-          render: function (d) {
+          render: function (d, type) {
+            if (type === 'export') return d || '-';
             return '<span class="' + actionClass(d) + '">' + escHtml(d || '-') + '</span>';
           },
         },
@@ -583,6 +635,7 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
             if (type === 'sort' || type === 'type') {
               return d != null && d !== '' ? Number(d) : -1;
             }
+            if (type === 'export') return row.budget_before_display || '-';
             return escHtml(row.budget_before_display || '-');
           },
         },
@@ -592,6 +645,7 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
           defaultContent: '-',
           render: function (d, type, row) {
             if (type === 'sort' || type === 'type') return Number(d) || 0;
+            if (type === 'export') return row.budget_after_display || '-';
             return escHtml(row.budget_after_display || '-');
           },
         },
@@ -603,6 +657,7 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
             if (type === 'sort' || type === 'type') {
               return d != null && d !== '' ? Number(d) : -999999999;
             }
+            if (type === 'export') return row.budget_diff_display || '-';
             return escHtml(row.budget_diff_display || '-');
           },
         },
@@ -611,7 +666,8 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
           className: 'text-center',
           width: '88px',
           defaultContent: '-',
-          render: function (_d, type, row) {
+          render: function (d, type, row) {
+            if (type === 'export') return d || (row && row.status_badge_label) || '-';
             if (type === 'sort' || type === 'type') {
               return row && row.status_is_active === true ? 1 : 0;
             }
@@ -622,6 +678,9 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
           data: 'changed_at',
           defaultContent: '-',
           render: function (d, type, row) {
+            if (type === 'export') {
+              return (d || '-') + ' | ' + (row.changed_by || '-');
+            }
             if (type === 'sort' || type === 'type') return d || '';
             return '<span class="alc-changed-cell__time">' + escHtml(d || '-') + '</span>'
               + '<span class="alc-changed-cell__by">' + escHtml(row.changed_by || '-') + '</span>';
@@ -651,6 +710,7 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
       var json = await resp.json();
       if (!json || !json.status) throw new Error(json.error || 'Gagal memuat data');
       showResultsPanel();
+      alcExportMeta = buildExportMeta(filters);
       renderSummary(json.summary || {});
       renderChart(json.daily_chart || [], filters);
       renderTable(json.rows || []);

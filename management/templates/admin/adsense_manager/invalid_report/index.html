@@ -27,14 +27,56 @@ html[data-theme="dark"] {
 .irs-page .card-title { font-weight: 800; color: var(--irs-text); }
 .irs-filter-row { align-items: flex-end; gap: 10px 0; }
 .irs-filter-row label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--irs-muted); }
-.irs-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+.irs-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
 @media (max-width: 991px) { .irs-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.irs-summary-grid.is-compare { grid-template-columns: repeat(5, minmax(0,1fr)); }
+@media (max-width: 1199px) { .irs-summary-grid.is-compare { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 767px) { .irs-summary-grid.is-compare { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 .irs-summary-box { border: 1px solid var(--irs-border); border-radius: 12px; padding: 12px; background: var(--irs-surface); }
 .irs-summary-box .k { font-size: 11px; color: var(--irs-muted); text-transform: uppercase; font-weight: 700; }
 .irs-summary-box .v { font-size: 22px; font-weight: 800; margin-top: 2px; color: var(--irs-text); }
 .irs-summary-box.is-invalid .v { color: #dc2626; }
 .irs-summary-box.is-warn .v { color: #d97706; }
+.irs-summary-box.is-revenue .v { color: #7c3aed; }
+.irs-summary-box.is-impresi .v { color: #0891b2; }
+.irs-summary-box.is-spend .v { color: #ea580c; }
 .irs-summary-box.is-ok .v { color: #1d4ed8; }
+.irs-accordion-wrap { border: 1px solid var(--irs-border); border-radius: 12px; padding: 12px 14px; background: var(--irs-surface); margin-bottom: 14px; }
+.irs-accordion-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--irs-border); border-radius: 10px;
+  background: rgba(52,168,83,.08); color: var(--irs-text);
+  font-size: 12px; font-weight: 800; padding: 8px 12px;
+}
+.irs-accordion-toggle:hover { background: rgba(52,168,83,.14); color: var(--irs-text); text-decoration: none; }
+.irs-accordion-toggle i { transition: transform .2s ease; }
+.irs-accordion-toggle[aria-expanded="false"] i { transform: rotate(-90deg); }
+.irs-accordion-body { margin-top: 12px; }
+.irs-accordion-body.is-collapsed { display: none; }
+.irs-dt-wrap .dt-buttons { margin-bottom: 12px; }
+.irs-dt-wrap .dt-buttons .btn { border-radius: 8px; font-size: 12px; font-weight: 600; margin-right: 6px; margin-bottom: 6px; }
+.irs-dt-wrap .dataTables_wrapper .dataTables_length,
+.irs-dt-wrap .dataTables_wrapper .dataTables_filter { margin-bottom: 10px; }
+.irs-dt-wrap .dataTables_wrapper .dataTables_filter input,
+.irs-dt-wrap .dataTables_wrapper .dataTables_length select {
+  border-radius: 8px !important; border: 1px solid var(--irs-border) !important; min-height: 34px;
+}
+.irs-dt-wrap .dataTables_wrapper .dataTables_info,
+.irs-dt-wrap .dataTables_wrapper .dataTables_paginate { margin-top: 10px; font-size: 12px; }
+html[data-theme="dark"] .irs-dt-wrap .dataTables_wrapper,
+html[data-theme="dark"] .irs-dt-wrap .dataTables_wrapper .dataTables_filter input,
+html[data-theme="dark"] .irs-dt-wrap .dataTables_wrapper .dataTables_length select { color: #e5e7eb !important; }
+html[data-theme="dark"] .irs-dt-wrap .dataTables_wrapper .dataTables_filter input,
+html[data-theme="dark"] .irs-dt-wrap .dataTables_wrapper .dataTables_length select {
+  background: #1e293b !important; border-color: #334155 !important;
+}
+.irs-dt-table thead th {
+  background: rgba(52,168,83,.10); color: var(--irs-text); font-size: 11px;
+  text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; vertical-align: middle;
+}
+.irs-dt-table tbody td { font-size: 12px; vertical-align: middle; color: var(--irs-text); }
+.irs-dt-wrap table.dataTable > tbody > tr > td.dtr-control,
+.irs-dt-wrap table.dataTable > tbody > tr > th.dtr-control { display: none !important; }
 .irs-table-wrap { overflow: auto; border: 1px solid var(--irs-border); border-radius: 12px; }
 .irs-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .irs-table thead th { position: sticky; top: 0; z-index: 1; background: rgba(52,168,83,.10); color: var(--irs-text); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 8px; border-bottom: 1px solid var(--irs-border); white-space: nowrap; }
@@ -153,10 +195,22 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
     <div class="card-body position-relative">
         <div id="irsOverlay" class="hris-loader-stub" style="display:none" data-loader-message="Memuat laporan invalid AdSense..." aria-hidden="true"></div>
         <div id="irsSummary"></div>
-        <div id="irsAggregate"></div>
+        <div id="irsAggregateWrap" class="irs-accordion-wrap" style="display:none;">
+            <button type="button" class="irs-accordion-toggle" id="irsAggregateToggle" aria-expanded="true">
+                <i class="fas fa-chevron-down"></i>
+                <span id="irsAggregateToggleLabel">Rekap Bulanan — Agregat Semua Domain</span>
+            </button>
+            <div id="irsAggregateBody" class="irs-accordion-body">
+                <div id="irsAggregate"></div>
+            </div>
+        </div>
         <div id="irsMeta" class="irs-lead mb-3"></div>
-        <div id="irsTableWrap" class="irs-table-wrap">
-            <div class="irs-empty">Pilih periode lalu klik <strong>Muat Data</strong>.</div>
+        <div id="irsTableWrap" class="irs-table-wrap irs-dt-wrap">
+            <div id="irsTableEmpty" class="irs-empty">Pilih periode lalu klik <strong>Muat Data</strong>.</div>
+            <table id="irsMainTable" class="table table-bordered table-striped irs-dt-table" style="width:100%; display:none;">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -297,6 +351,186 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
         return renderRekapOnlyTable(metrics, 'Rekap Bulanan — Agregat Semua Domain', note);
     }
 
+    function updateAggregateAccordion(aggregate, compareMode) {
+        const wrap = document.getElementById('irsAggregateWrap');
+        const body = document.getElementById('irsAggregateBody');
+        const label = document.getElementById('irsAggregateToggleLabel');
+        const toggle = document.getElementById('irsAggregateToggle');
+        const aggregateEl = document.getElementById('irsAggregate');
+        const html = renderAggregateCompare(aggregate, compareMode);
+        if (!wrap || !aggregateEl) return;
+        if (!html) {
+            wrap.style.display = 'none';
+            aggregateEl.innerHTML = '';
+            return;
+        }
+        wrap.style.display = '';
+        aggregateEl.innerHTML = html;
+        if (label) {
+            label.textContent = compareMode
+                ? 'Perbandingan Agregat — Harian vs Rekap Bulanan'
+                : 'Rekap Bulanan — Agregat Semua Domain';
+        }
+        if (body) body.classList.remove('is-collapsed');
+        if (toggle) toggle.setAttribute('aria-expanded', 'true');
+    }
+
+    function getAggregateTotals(aggregate) {
+        const agg = aggregate || {};
+        const rekap = agg.rekap_derived || {};
+        const metrics = agg.metrics || [];
+        const rev = findMetric(metrics, 'revenue');
+        const imp = findMetric(metrics, 'impresi');
+        const spend = findMetric(metrics, 'spend');
+        return {
+            revenue: Number(rekap.revenue != null ? rekap.revenue : (rev && rev.rekap) || 0),
+            impresi: Number(rekap.impresi != null ? rekap.impresi : (imp && imp.rekap) || 0),
+            spend: Number(rekap.spend != null ? rekap.spend : (spend && spend.rekap) || 0),
+        };
+    }
+
+    let irsDt = null;
+
+    function destroyMainTable() {
+        if (!window.jQuery || !jQuery.fn.DataTable) return;
+        if (jQuery.fn.DataTable.isDataTable('#irsMainTable')) {
+            jQuery('#irsMainTable').DataTable().clear().destroy();
+        }
+        jQuery('#irsMainTable tbody').empty();
+        jQuery('#irsMainTable thead').empty();
+        irsDt = null;
+    }
+
+    function metricExportValue(metrics, key, compareMode) {
+        const m = findMetric(metrics, key);
+        if (!m) return '-';
+        const kind = metricKind(m);
+        if (compareMode) {
+            return fmtMetricValue(m.daily, kind) + ' / ' + fmtMetricValue(m.rekap, kind) + ' (' + fmtSignedPct(m.delta_pct) + ')';
+        }
+        return fmtMetricValue(m.rekap, kind);
+    }
+
+    function metricSortValue(metrics, key) {
+        const m = findMetric(metrics, key);
+        return m ? Number(m.rekap || 0) : 0;
+    }
+
+    function buildMainTableColumns(compareMode) {
+        const cols = [
+            {
+                data: null, title: 'No', className: 'text-center', width: '48px',
+                orderable: false, searchable: false,
+                render: function (_d, type, _row, meta) {
+                    const n = meta.row + meta.settings._iDisplayStart + 1;
+                    if (type === 'export' || type === 'sort' || type === 'type') return n;
+                    return '';
+                },
+            },
+            {
+                data: 'domain', title: 'Domain',
+                render: function (d, type) {
+                    if (type === 'sort' || type === 'type') return d || '';
+                    if (type === 'export') return d || '-';
+                    return `<strong>${esc(d || '-')}</strong>`;
+                },
+            },
+        ];
+        if (compareMode) {
+            cols.push({
+                data: 'status', title: 'Status',
+                render: function (d, type) {
+                    if (type === 'export') return statusLabel[String(d || 'missing').toLowerCase()] || d || '-';
+                    return pill(d);
+                },
+            });
+        }
+        mainTableMetrics.forEach(function (def) {
+            cols.push({
+                data: null,
+                title: def.label + (compareMode ? ' (H/R)' : ' Rekap'),
+                className: 'text-right',
+                render: function (_d, type, row) {
+                    if (type === 'sort' || type === 'type') return metricSortValue(row.metrics, def.key);
+                    if (type === 'export') return metricExportValue(row.metrics, def.key, compareMode);
+                    return compareMode
+                        ? renderMetricCompareCell(row.metrics, def.key)
+                        : renderMetricRekapCell(row.metrics, def.key);
+                },
+            });
+        });
+        cols.push({
+            data: null, title: 'Sumber',
+            render: function (_d, type, row) {
+                const src = [];
+                if (row.has_daily) src.push('Harian');
+                if (row.has_rekap) src.push('Rekap');
+                const val = compareMode ? (src.join(' + ') || '-') : 'Rekap';
+                return type === 'export' ? val : `<small class="text-muted">${esc(val)}</small>`;
+            },
+        });
+        return cols;
+    }
+
+    function initMainTable(rows, compareMode) {
+        const tableEl = document.getElementById('irsMainTable');
+        const emptyEl = document.getElementById('irsTableEmpty');
+        if (!tableEl || !window.jQuery || !jQuery.fn.DataTable) return;
+        destroyMainTable();
+        const list = Array.isArray(rows) ? rows : [];
+        if (!list.length) {
+            if (emptyEl) {
+                emptyEl.style.display = '';
+                emptyEl.innerHTML = 'Tidak ada domain untuk filter ini.';
+            }
+            tableEl.style.display = 'none';
+            return;
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
+        tableEl.style.display = '';
+        const hasDtButtons = !!(jQuery.fn.dataTable && jQuery.fn.dataTable.Buttons);
+        const exportBase = 'invalid_report_adsense_' + String(document.getElementById('irsYear').value || '') + String(document.getElementById('irsMonth').value || '');
+        const exportTitle = 'Invalid Report AdSense' + (cachedMeta && cachedMeta.base ? ' — ' + cachedMeta.base : '');
+        irsDt = jQuery(tableEl).DataTable({
+            data: list,
+            columns: buildMainTableColumns(compareMode),
+            responsive: false,
+            scrollX: true,
+            autoWidth: false,
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Semua']],
+            order: [[1, 'asc']],
+            orthogonal: { export: 'export' },
+            dom: hasDtButtons
+                ? '<"row mb-2"<"col-sm-12 col-md-auto"B><"col-sm-12 col-md"f>>rt<"row mt-2"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"p>>i'
+                : undefined,
+            buttons: hasDtButtons ? [
+                { extend: 'copyHtml5', text: 'Copy', className: 'btn btn-sm btn-info', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportTitle },
+                { extend: 'excelHtml5', text: 'Export Excel', className: 'btn btn-sm btn-success', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportTitle, filename: exportBase },
+                { extend: 'pdfHtml5', text: 'Export PDF', className: 'btn btn-sm btn-danger', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportTitle, filename: exportBase, orientation: 'landscape', pageSize: 'A4' },
+                { extend: 'csvHtml5', text: 'Export CSV', className: 'btn btn-sm btn-secondary', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportTitle, filename: exportBase },
+                { extend: 'print', text: 'Print', className: 'btn btn-sm btn-warning', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportTitle },
+                { extend: 'colvis', text: 'Column Visibility', className: 'btn btn-sm btn-light' },
+            ] : [],
+            language: {
+                search: 'Cari:',
+                lengthMenu: 'Tampilkan _MENU_ baris',
+                info: 'Menampilkan _START_ sampai _END_ dari _TOTAL_ domain',
+                infoEmpty: 'Menampilkan 0 domain',
+                zeroRecords: 'Tidak ada domain yang cocok dengan pencarian',
+                emptyTable: 'Tidak ada domain untuk filter ini.',
+                paginate: { first: 'Awal', last: 'Akhir', next: '›', previous: '‹' },
+            },
+            drawCallback: function () {
+                const api = this.api();
+                const info = api.page.info();
+                api.column(0, { page: 'current' }).nodes().each(function (cell, i) {
+                    cell.innerHTML = String(info.start + i + 1);
+                });
+            },
+        });
+    }
+
     function getMonthDateRange() {
         const year = String(document.getElementById('irsYear').value || '').trim();
         const month = String(document.getElementById('irsMonth').value || '').trim();
@@ -359,71 +593,27 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
         });
     }
 
-    function renderSummary(summary, compareMode) {
+    function renderSummary(summary, aggregate, compareMode) {
         const s = summary || {};
-        const items = compareMode ? [
-            { key: 'total', label: 'Total Domain', cls: '' },
-            { key: 'invalid', label: 'Tidak Selaras', cls: 'is-invalid' },
-            { key: 'warn', label: 'Perlu Dicek', cls: 'is-warn' },
-            { key: 'ok', label: 'Selaras', cls: 'is-ok' },
-            { key: 'missing', label: 'Kosong', cls: '' },
-        ] : [
-            { key: 'total', label: 'Total Domain', cls: '' },
+        const totals = getAggregateTotals(aggregate);
+        const items = [
+            { label: 'Total Domain', value: fmtNum(s.total || 0), cls: '' },
+            { label: 'Total Revenue', value: fmtIdr(totals.revenue), cls: 'is-revenue' },
+            { label: 'Total Impresi', value: fmtNum(totals.impresi), cls: 'is-impresi' },
+            { label: 'Total Spend', value: fmtIdr(totals.spend), cls: 'is-spend' },
         ];
-        return `<div class="irs-summary-grid"${compareMode ? '' : ' style="grid-template-columns:minmax(0,1fr);"'}>${items.map(function(it) {
-            return `<div class="irs-summary-box ${it.cls}"><div class="k">${esc(it.label)}</div><div class="v">${esc(fmtNum(s[it.key] || 0))}</div></div>`;
-        }).join('')}</div>`;
-    }
-
-    function renderMetricMiniTable(metrics, note, compareMode) {
-        if (!metrics || !metrics.length) return '<div class="text-muted small">Tidak ada metrik.</div>';
         if (compareMode) {
-            return renderCompareTable(metrics, 'Perbandingan Semua Komponen (Harian vs Rekap)', note || '', true);
+            items.push(
+                { label: 'Tidak Selaras', value: fmtNum(s.invalid || 0), cls: 'is-invalid' },
+                { label: 'Perlu Dicek', value: fmtNum(s.warn || 0), cls: 'is-warn' },
+                { label: 'Selaras', value: fmtNum(s.ok || 0), cls: 'is-ok' },
+                { label: 'Kosong', value: fmtNum(s.missing || 0), cls: '' },
+            );
         }
-        return renderRekapOnlyTable(metrics, 'Rekap Bulanan — Semua Komponen', note || '');
-    }
-
-    function renderDailyTable(rows) {
-        if (!rows || !rows.length) return '<div class="text-muted small">Tidak ada data harian untuk bulan ini.</div>';
-        let html = '<table class="irs-mini-table"><thead><tr><th>Tanggal</th><th class="text-right">Spend</th><th class="text-right">Revenue</th><th class="text-right">Impresi</th><th class="text-right">Click</th><th class="text-right">CTR</th><th class="text-right">CPC</th><th class="text-right">eCPM</th><th class="text-right">RPM</th><th class="text-right">Profit</th><th class="text-right">ROI</th><th class="text-right">CPR</th></tr></thead><tbody>';
-        rows.forEach(function(r) {
-            const imp = Number(r.impresi) || 0;
-            const clk = Number(r.click) || 0;
-            const rev = Number(r.revenue) || 0;
-            const pv = Number(r.page_views) || 0;
-            const ctr = imp > 0 ? (clk / imp * 100) : 0;
-            const cpc = clk > 0 ? (rev / clk) : 0;
-            const ecpm = imp > 0 ? (rev / imp * 1000) : 0;
-            const rpm = pv > 0 ? (rev / pv * 1000) : 0;
-            html += `<tr><td>${esc(r.date)}</td><td class="text-right">${esc(fmtIdr(r.spend))}</td><td class="text-right">${esc(fmtIdr(r.revenue))}</td><td class="text-right">${esc(fmtNum(r.impresi))}</td><td class="text-right">${esc(fmtNum(r.click))}</td><td class="text-right">${esc(fmtPct(ctr))}</td><td class="text-right">${esc(fmtIdr(cpc))}</td><td class="text-right">${esc(fmtIdr(ecpm))}</td><td class="text-right">${esc(fmtIdr(r.rpm != null ? r.rpm : rpm))}</td><td class="text-right">${esc(fmtIdr(r.profit))}</td><td class="text-right">${esc(fmtPct(r.roi))}</td><td class="text-right">${esc(fmtIdr(r.cpr))}</td></tr>`;
-        });
-        html += '</tbody></table>';
-        return html;
-    }
-
-    function renderMainTable(rows, compareMode) {
-        if (!rows.length) return '<div class="irs-empty">Tidak ada domain untuk filter ini.</div>';
-        let html = '<table class="irs-table"><thead><tr><th></th><th>Domain</th>';
-        if (compareMode) html += '<th>Status</th>';
-        mainTableMetrics.forEach(function(def) {
-            html += `<th class="text-right">${esc(def.label)}<span class="metric-sub">${compareMode ? ' H / R • Δ%' : ' Rekap'}</span></th>`;
-        });
-        html += '<th>Sumber</th></tr></thead><tbody>';
-        rows.forEach(function(row, idx) {
-            const src = [];
-            if (row.has_daily) src.push('Harian');
-            if (row.has_rekap) src.push('Rekap');
-            html += `<tr><td><button type="button" class="btn btn-xs btn-outline-success irs-toggle-detail" data-domain="${esc(row.domain)}" data-idx="${idx}"><i class="fas fa-chevron-down"></i></button></td>`;
-            html += `<td><strong>${esc(row.domain)}</strong></td>`;
-            if (compareMode) html += `<td>${pill(row.status)}</td>`;
-            mainTableMetrics.forEach(function(def) {
-                html += `<td class="text-right">${compareMode ? renderMetricCompareCell(row.metrics, def.key) : renderMetricRekapCell(row.metrics, def.key)}</td>`;
-            });
-            html += `<td><small class="text-muted">${esc(compareMode ? (src.join(' + ') || '-') : 'Rekap')}</small></td></tr>`;
-            html += `<tr class="irs-detail-row" id="irsDetail${idx}" style="display:none;"><td colspan="${mainTableMetrics.length + (compareMode ? 4 : 3)}"><div class="irs-detail-panel"><div class="text-center text-muted py-3">Memuat detail...</div></div></td></tr>`;
-        });
-        html += '</tbody></table>';
-        return html;
+        const gridCls = compareMode ? 'irs-summary-grid is-compare' : 'irs-summary-grid';
+        return `<div class="${gridCls}">${items.map(function(it) {
+            return `<div class="irs-summary-box ${it.cls}"><div class="k">${esc(it.label)}</div><div class="v">${esc(it.value)}</div></div>`;
+        }).join('')}</div>`;
     }
 
     function populateTarik(dates, selected) {
@@ -434,40 +624,6 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
             html += `<option value="${esc(d)}"${String(d) === String(selected || '') ? ' selected' : ''}>${esc(d)}</option>`;
         });
         el.innerHTML = html;
-    }
-
-    async function loadDetail(domain, idx, row, compareMode) {
-        const panel = document.querySelector('#irsDetail' + idx + ' .irs-detail-panel');
-        if (!panel) return;
-        const metrics = (row && row.metrics) ? row.metrics : [];
-        if (!compareMode) {
-            panel.innerHTML = `<div class="irs-detail-block">${renderMetricMiniTable(metrics, 'Nilai rekap bulanan untuk domain ini.', false)}</div>`;
-            return;
-        }
-        panel.innerHTML = `<div class="text-center text-muted py-2"><i class="fas fa-spinner fa-spin"></i> Memuat rincian harian...</div>`;
-        const params = new URLSearchParams({
-            domain: domain,
-            year: document.getElementById('irsYear').value,
-            month: document.getElementById('irsMonth').value,
-            tanggal_tarik: document.getElementById('irsTarik').value || ''
-        });
-        let dailyBreakdown = [];
-        let period = {};
-        try {
-            const res = await fetch('/management/admin/page_invalid_report_adsense_detail?' + params.toString(), {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-            const json = await res.json();
-            if (json && json.status) {
-                const data = json.data || {};
-                dailyBreakdown = data.daily_breakdown || [];
-                period = data.period || {};
-            }
-        } catch (e) { /* metrik dari cache baris tetap tampil */ }
-        panel.innerHTML = `<div class="irs-detail-grid">
-            <div class="irs-detail-block" style="grid-column: 1 / -1;">${renderMetricMiniTable(metrics, 'Metrik AdSense, FB, dan turunan bisnis — bandingkan agregat harian vs rekap bulanan.', true)}</div>
-            <div class="irs-detail-block" style="grid-column: 1 / -1;"><h6>Rincian Harian (${esc(period.start || '-')} s/d ${esc(period.end || '-')})</h6>${renderDailyTable(dailyBreakdown)}</div>
-        </div>`;
     }
 
     let cachedRows = [];
@@ -491,55 +647,27 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
         }
     }
 
-    function bindDetailHandlers(compareMode) {
-        const tableWrap = document.getElementById('irsTableWrap');
-        if (!tableWrap) return;
-        tableWrap.querySelectorAll('.irs-toggle-detail').forEach(function(btn) {
-            btn.addEventListener('click', async function() {
-                const idx = btn.getAttribute('data-idx');
-                const domain = btn.getAttribute('data-domain');
-                const detailRow = document.getElementById('irsDetail' + idx);
-                if (!detailRow) return;
-                if (detailRow.style.display !== 'none') {
-                    detailRow.style.display = 'none';
-                    btn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-                    return;
-                }
-                detailRow.style.display = '';
-                btn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                await loadDetail(domain, idx, cachedRows[idx], compareMode);
-            });
-        });
-    }
-
     function renderReportFromCache() {
         const compareMode = isCompareDataEnabled();
         const summaryEl = document.getElementById('irsSummary');
-        const aggregateEl = document.getElementById('irsAggregate');
         const metaEl = document.getElementById('irsMeta');
-        const tableWrap = document.getElementById('irsTableWrap');
         if (!reportLoaded) return;
         updateStatusFilterState();
-        if (summaryEl) summaryEl.innerHTML = renderSummary(cachedSummary, compareMode);
-        if (aggregateEl) aggregateEl.innerHTML = renderAggregateCompare(cachedAggregate, compareMode);
+        if (summaryEl) summaryEl.innerHTML = renderSummary(cachedSummary, cachedAggregate, compareMode);
+        updateAggregateAccordion(cachedAggregate, compareMode);
         if (metaEl && cachedMeta) {
             let meta = cachedMeta.base || '';
             if (compareMode) meta += ' • mode perbandingan harian vs rekap';
             else meta += ' • mode rekap bulanan';
             metaEl.textContent = meta;
         }
-        if (tableWrap) {
-            tableWrap.innerHTML = renderMainTable(cachedRows, compareMode);
-            bindDetailHandlers(compareMode);
-        }
+        initMainTable(cachedRows, compareMode);
     }
 
     async function loadReport() {
         const overlay = document.getElementById('irsOverlay');
         const summaryEl = document.getElementById('irsSummary');
-        const aggregateEl = document.getElementById('irsAggregate');
         const metaEl = document.getElementById('irsMeta');
-        const tableWrap = document.getElementById('irsTableWrap');
         if (overlay) overlay.style.display = 'block';
         try {
             const compareMode = isCompareDataEnabled();
@@ -568,9 +696,17 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
             reportLoaded = true;
             renderReportFromCache();
         } catch (e) {
-            if (tableWrap) tableWrap.innerHTML = `<div class="irs-empty text-danger">${esc(e.message || 'Gagal memuat')}</div>`;
+            const emptyEl = document.getElementById('irsTableEmpty');
+            if (emptyEl) {
+                emptyEl.style.display = '';
+                emptyEl.innerHTML = `<span class="text-danger">${esc(e.message || 'Gagal memuat')}</span>`;
+            }
+            destroyMainTable();
+            const tableEl = document.getElementById('irsMainTable');
+            if (tableEl) tableEl.style.display = 'none';
             if (summaryEl) summaryEl.innerHTML = '';
-            if (aggregateEl) aggregateEl.innerHTML = '';
+            const aggWrap = document.getElementById('irsAggregateWrap');
+            if (aggWrap) aggWrap.style.display = 'none';
             if (metaEl) metaEl.textContent = '';
         } finally {
             if (overlay) overlay.style.display = 'none';
@@ -578,6 +714,15 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
     }
 
     document.getElementById('irsLoadBtn').addEventListener('click', loadReport);
+    const aggToggle = document.getElementById('irsAggregateToggle');
+    if (aggToggle) {
+        aggToggle.addEventListener('click', function () {
+            const body = document.getElementById('irsAggregateBody');
+            if (!body) return;
+            const collapsed = body.classList.toggle('is-collapsed');
+            aggToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        });
+    }
     const irsCompareEl = document.getElementById('irsCompareData');
     if (irsCompareEl) {
         irsCompareEl.addEventListener('change', function() {
