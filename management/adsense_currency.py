@@ -17,6 +17,7 @@ def convert_to_idr(amount, currency_code):
             'EUR': float(os.getenv('EUR_IDR_RATE', '17500')),
             'SGD': float(os.getenv('SGD_IDR_RATE', '12000')),
             'HKG': float(os.getenv('HKG_IDR_RATE', '3000')),
+            'HKD': float(os.getenv('HKD_IDR_RATE', os.getenv('HKG_IDR_RATE', '2050'))),
             'GBP': float(os.getenv('GBP_IDR_RATE', '20000')),
         }
         rate = default_rates.get(code)
@@ -25,18 +26,8 @@ def convert_to_idr(amount, currency_code):
         return float(amount or 0.0)
 
 
-def force_usd_by_domain(domain):
-    d = str(domain or '').strip().lower()
-    if not d:
-        return False
-    usd_domains = ('uaetiming', 'valoranewspekanbaru', 'sharpdrivers')
-    extra = os.getenv('ADSENSE_FORCE_USD_DOMAIN_SUBSTR', '')
-    keys = list(usd_domains) + [x.strip().lower() for x in extra.split(',') if x.strip()]
-    return any(k in d for k in keys)
-
-
 def resolve_adsense_report_currency(res):
-    """Mata uang dari respons fetch AdSense (account + laporan). Tanpa fallback AdX."""
+    """Mata uang dari respons fetch AdSense (METRIC_CURRENCY di header laporan)."""
     if not isinstance(res, dict):
         return 'IDR'
     c = str(res.get('currency_code') or '').strip().upper()
@@ -44,11 +35,9 @@ def resolve_adsense_report_currency(res):
 
 
 def effective_currency_for_row(report_currency, domain, revenue=0.0, impressions=0):
-    del revenue, impressions  # hanya currency API / daftar domain, tanpa tebak-tebakan CPM
-    if force_usd_by_domain(domain):
-        return 'USD'
-    cur = str(report_currency or 'IDR').strip().upper() or 'IDR'
-    return cur
+    """Gunakan mata uang dari laporan AdSense; IDR tidak dikonversi lagi."""
+    del domain, revenue, impressions
+    return str(report_currency or 'IDR').strip().upper() or 'IDR'
 
 
 def revenue_amount_to_idr(revenue, report_currency, domain, impressions=0):
