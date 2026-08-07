@@ -20397,11 +20397,6 @@ function initDashboardRecap() {
                 const chipCls = dsDecisionChipClass(d);
                 return `<span class="ds-decision-chip ${chipCls}" style="display:inline-flex;align-items:center;justify-content:center;min-width:74px;white-space:nowrap;line-height:1.1;">${esc(d || '-')}</span>`;
             };
-            const daysBadge = function(days) {
-                const d = Math.max(0, Math.floor(Number(days || 0)));
-                return `<span class="ds-tag ds-tag--days">${d} hari</span>`;
-            };
-
             const agg = new Map();
             (Array.isArray(scoredRows) ? scoredRows : []).forEach(function(it){
                 const backendScore = scoreFromMetrics(it?.meta?.score);
@@ -20465,15 +20460,15 @@ function initDashboardRecap() {
                     return;
                 }
                 targetBody.innerHTML = list.map(function(r, idx){
-                    return `<tr><td class="text-center">${idx + 1}</td><td><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;"><span style="display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.campaign)}</span>${daysBadge(r.days_active)}</div></td><td class="text-end">${esc(fmtIdr(r.spend))}</td><td class="text-end">${esc(fmtIdr(r.revenue))}</td><td class="text-center">${esc(fmtPct(r.roi))}</td><td class="text-center" style="font-weight:800;">${esc(r.score_text)}</td><td class="text-center">${pill(r.decision)}</td></tr>`;
+                    return `<tr><td class="text-center">${idx + 1}</td><td><span style="display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.campaign)}</span></td><td class="text-end">${esc(fmtIdr(r.spend))}</td><td class="text-end">${esc(fmtIdr(r.revenue))}</td><td class="text-center">${esc(fmtPct(r.roi))}</td><td class="text-center" style="font-weight:800;">${esc(r.score_text)}</td><td class="text-center">${pill(r.decision)}</td></tr>`;
                 }).join('');
             };
 
             const top5 = campaigns.slice(0, 5);
             const bottom5 = campaigns.slice().sort(function(x, y){ return x.score - y.score; }).slice(0, 5);
-            draw(topBody, top5, `Belum ada campaign dengan umur minimal ${WINNING_MIN_DAYS} hari.`);
-            draw(bottomBody, bottom5, `Belum ada campaign dengan umur minimal ${WINNING_MIN_DAYS} hari.`);
-            if (metaEl) metaEl.textContent = `${campaigns.length} campaign (umur ≥ ${WINNING_MIN_DAYS} hari, score mengikuti Detail Scoring)`;
+            draw(topBody, top5, 'Belum ada campaign yang memenuhi kriteria.');
+            draw(bottomBody, bottom5, 'Belum ada campaign yang memenuhi kriteria.');
+            if (metaEl) metaEl.textContent = `${campaigns.length} campaign (score mengikuti Detail Scoring)`;
         }
 
         window.dashboardRecapScoreDetails = {};
