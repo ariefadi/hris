@@ -27,20 +27,54 @@ html[data-theme="dark"] {
 .irs-page .card-title { font-weight: 800; color: var(--irs-text); }
 .irs-filter-row { align-items: flex-end; gap: 10px 0; }
 .irs-filter-row label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--irs-muted); }
-.irs-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+.irs-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin-bottom: 16px; }
 @media (max-width: 991px) { .irs-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-.irs-summary-grid.is-compare { grid-template-columns: repeat(5, minmax(0,1fr)); }
-@media (max-width: 1199px) { .irs-summary-grid.is-compare { grid-template-columns: repeat(3, minmax(0,1fr)); } }
-@media (max-width: 767px) { .irs-summary-grid.is-compare { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-.irs-summary-box { border: 1px solid var(--irs-border); border-radius: 12px; padding: 12px; background: var(--irs-surface); }
-.irs-summary-box .k { font-size: 11px; color: var(--irs-muted); text-transform: uppercase; font-weight: 700; }
-.irs-summary-box .v { font-size: 22px; font-weight: 800; margin-top: 2px; color: var(--irs-text); }
-.irs-summary-box.is-invalid .v { color: #dc2626; }
-.irs-summary-box.is-warn .v { color: #d97706; }
-.irs-summary-box.is-revenue .v { color: #7c3aed; }
-.irs-summary-box.is-impresi .v { color: #0891b2; }
-.irs-summary-box.is-spend .v { color: #ea580c; }
-.irs-summary-box.is-ok .v { color: #1d4ed8; }
+@media (max-width: 575px) { .irs-summary-grid { grid-template-columns: 1fr; } }
+.irs-summary-box {
+  position: relative; overflow: hidden;
+  border-radius: 16px; padding: 16px 18px;
+  min-height: 92px; color: #fff;
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 10px 28px rgba(15,23,42,.16);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.irs-summary-box:hover { transform: translateY(-3px); box-shadow: 0 16px 36px rgba(15,23,42,.22); }
+.irs-summary-box::after {
+  content: ""; position: absolute; right: -34px; top: -34px;
+  width: 120px; height: 120px; border-radius: 999px;
+  background: rgba(255,255,255,.16); pointer-events: none;
+}
+.irs-summary-inner {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.irs-summary-content { min-width: 0; flex: 1; }
+.irs-summary-box .k {
+  font-size: 11px; color: rgba(255,255,255,.86);
+  text-transform: uppercase; font-weight: 700; letter-spacing: .04em;
+}
+.irs-summary-box .v {
+  font-size: 22px; font-weight: 800; margin-top: 4px; color: #fff;
+  line-height: 1.15; word-break: break-word;
+}
+.irs-summary-icon {
+  width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.22);
+}
+.irs-summary-icon i { font-size: 1.35rem; color: #fff; line-height: 1; }
+.irs-summary-box.is-domain { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); box-shadow: 0 10px 28px rgba(99,102,241,.32); }
+.irs-summary-box.is-revenue { background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%); box-shadow: 0 10px 28px rgba(124,58,237,.32); }
+.irs-summary-box.is-impresi { background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%); box-shadow: 0 10px 28px rgba(8,145,178,.32); }
+.irs-summary-box.is-spend { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); box-shadow: 0 10px 28px rgba(234,88,12,.32); }
+.irs-summary-box.is-invalid { background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); box-shadow: 0 10px 28px rgba(220,38,38,.32); }
+.irs-summary-box.is-warn { background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); box-shadow: 0 10px 28px rgba(217,119,6,.32); }
+.irs-summary-box.is-ok { background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); box-shadow: 0 10px 28px rgba(37,99,235,.32); }
+.irs-summary-box.is-missing { background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%); box-shadow: 0 10px 28px rgba(100,116,139,.28); }
+html[data-theme="dark"] .irs-summary-box { border-color: rgba(255,255,255,.1); }
+html[data-theme="dark"] .irs-summary-box:hover { box-shadow: 0 16px 36px rgba(0,0,0,.35); }
+@keyframes irs-spin { to { transform: rotate(360deg); } }
+.irs-page .spin { display: inline-block; animation: irs-spin .8s linear infinite; }
 .irs-accordion-wrap { border: 1px solid var(--irs-border); border-radius: 12px; padding: 12px 14px; background: var(--irs-surface); margin-bottom: 14px; }
 .irs-accordion-toggle {
   display: inline-flex; align-items: center; gap: 8px;
@@ -182,7 +216,7 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
             </div>
             <div class="col-md-2 col-12 mb-2 mb-md-0">
                 <label class="d-none d-md-block">&nbsp;</label>
-                <button type="button" class="btn btn-success btn-block" id="irsLoadBtn"><i class="fas fa-sync-alt mr-1"></i> Muat Data</button>
+                <button type="button" class="btn btn-success btn-block" id="irsLoadBtn"><i class="bi bi-arrow-repeat mr-1"></i> Muat Data</button>
             </div>
         </div>
         <p class="irs-filter-note mb-0">
@@ -197,7 +231,7 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
         <div id="irsSummary"></div>
         <div id="irsAggregateWrap" class="irs-accordion-wrap" style="display:none;">
             <button type="button" class="irs-accordion-toggle" id="irsAggregateToggle" aria-expanded="true">
-                <i class="fas fa-chevron-down"></i>
+                <i class="bi bi-chevron-down"></i>
                 <span id="irsAggregateToggleLabel">Rekap Bulanan — Agregat Semua Domain</span>
             </button>
             <div id="irsAggregateBody" class="irs-accordion-body">
@@ -593,27 +627,29 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
         });
     }
 
+    function renderSummaryBox(it) {
+        const icon = it.icon || 'bi-bar-chart';
+        return `<div class="irs-summary-box ${esc(it.cls || '')}"><div class="irs-summary-inner"><div class="irs-summary-content"><div class="k">${esc(it.label)}</div><div class="v">${esc(it.value)}</div></div><div class="irs-summary-icon" aria-hidden="true"><i class="bi ${esc(icon)}"></i></div></div></div>`;
+    }
+
     function renderSummary(summary, aggregate, compareMode) {
         const s = summary || {};
         const totals = getAggregateTotals(aggregate);
         const items = [
-            { label: 'Total Domain', value: fmtNum(s.total || 0), cls: '' },
-            { label: 'Total Revenue', value: fmtIdr(totals.revenue), cls: 'is-revenue' },
-            { label: 'Total Impresi', value: fmtNum(totals.impresi), cls: 'is-impresi' },
-            { label: 'Total Spend', value: fmtIdr(totals.spend), cls: 'is-spend' },
+            { label: 'Total Domain', value: fmtNum(s.total || 0), cls: 'is-domain', icon: 'bi-globe2' },
+            { label: 'Total Revenue', value: fmtIdr(totals.revenue), cls: 'is-revenue', icon: 'bi-currency-dollar' },
+            { label: 'Total Impresi', value: fmtNum(totals.impresi), cls: 'is-impresi', icon: 'bi-eye' },
+            { label: 'Total Spend', value: fmtIdr(totals.spend), cls: 'is-spend', icon: 'bi-wallet2' },
         ];
         if (compareMode) {
             items.push(
-                { label: 'Tidak Selaras', value: fmtNum(s.invalid || 0), cls: 'is-invalid' },
-                { label: 'Perlu Dicek', value: fmtNum(s.warn || 0), cls: 'is-warn' },
-                { label: 'Selaras', value: fmtNum(s.ok || 0), cls: 'is-ok' },
-                { label: 'Kosong', value: fmtNum(s.missing || 0), cls: '' },
+                { label: 'Tidak Selaras', value: fmtNum(s.invalid || 0), cls: 'is-invalid', icon: 'bi-x-circle' },
+                { label: 'Perlu Dicek', value: fmtNum(s.warn || 0), cls: 'is-warn', icon: 'bi-exclamation-circle' },
+                { label: 'Selaras', value: fmtNum(s.ok || 0), cls: 'is-ok', icon: 'bi-check-circle' },
+                { label: 'Kosong', value: fmtNum(s.missing || 0), cls: 'is-missing', icon: 'bi-inbox' },
             );
         }
-        const gridCls = compareMode ? 'irs-summary-grid is-compare' : 'irs-summary-grid';
-        return `<div class="${gridCls}">${items.map(function(it) {
-            return `<div class="irs-summary-box ${it.cls}"><div class="k">${esc(it.label)}</div><div class="v">${esc(it.value)}</div></div>`;
-        }).join('')}</div>`;
+        return `<div class="irs-summary-grid">${items.map(renderSummaryBox).join('')}</div>`;
     }
 
     function populateTarik(dates, selected) {
