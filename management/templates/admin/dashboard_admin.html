@@ -9927,6 +9927,11 @@ async function executeDecisionCampaignInline(storeKey) {
             const j = await postForm('/management/admin/update_daily_budget_monitoring_domain_campaign', { account_ads: accountAds, campaign_id: cid, daily_budget: n });
             if (!j || !j.status) throw new Error(j?.error || 'Gagal update daily budget');
             setDecisionInlineState(sk, { lastMsg: `OK: Daily Budget tersimpan (${n})` });
+            if (action === 'SCALE DOWN' && typeof window.markDashboardCampaignAlertResolved === 'function') {
+                const entry = window.detailKeputusanStore && window.detailKeputusanStore[sk];
+                const domain = String(entry?.row?.name || entry?.row?.domain || '').trim();
+                window.markDashboardCampaignAlertResolved(domain, campaignName);
+            }
             await scxShowCampaignSwal({
                 icon: 'success',
                 title: 'Berhasil',
@@ -9940,6 +9945,11 @@ async function executeDecisionCampaignInline(storeKey) {
         const j = await postForm('/management/admin/update_campaign_status_monitoring_domain_campaign', { account_ads: accountAds, status: status, campaign_ids: JSON.stringify([cid]) });
         if (!j || !j.status) throw new Error(j?.error || 'Gagal update status campaign');
         setDecisionInlineState(sk, { lastMsg: `OK: status campaign ${status}` });
+        if ((action === 'STOP' || action === 'PAUSE') && typeof window.markDashboardCampaignAlertResolved === 'function') {
+            const entry = window.detailKeputusanStore && window.detailKeputusanStore[sk];
+            const domain = String(entry?.row?.name || entry?.row?.domain || '').trim();
+            window.markDashboardCampaignAlertResolved(domain, campaignName);
+        }
         const statusText = (status === 'PAUSED')
             ? 'Campaign "' + campaignName + '" berhasil di-stop.'
             : 'Campaign "' + campaignName + '" berhasil di-hold (aktif).';
@@ -16166,6 +16176,43 @@ function initDashboardRecap() {
         return (a === 'SCALE DOWN') ? 'is-scale-down' : 'is-stop';
     }
 
+    function loadDashboardCampaignAlertsResolved() {
+        if (window.dashboardCampaignAlertsResolved instanceof Set) return window.dashboardCampaignAlertsResolved;
+        const set = new Set();
+        try {
+            const raw = sessionStorage.getItem('dashboardCampaignAlertsResolved');
+            if (raw) JSON.parse(raw).forEach(function(k) { if (k) set.add(String(k)); });
+        } catch (_) {}
+        window.dashboardCampaignAlertsResolved = set;
+        return set;
+    }
+
+    function persistDashboardCampaignAlertsResolved() {
+        try {
+            const set = window.dashboardCampaignAlertsResolved;
+            if (set) sessionStorage.setItem('dashboardCampaignAlertsResolved', JSON.stringify(Array.from(set)));
+        } catch (_) {}
+    }
+
+    function isDashboardCampaignAlertResolved(dedupe) {
+        const set = loadDashboardCampaignAlertsResolved();
+        return set.has(String(dedupe || ''));
+    }
+
+    function markDashboardCampaignAlertResolved(domain, campaignNames) {
+        const set = loadDashboardCampaignAlertsResolved();
+        const domainKey = String(domain || '').toLowerCase();
+        const names = Array.isArray(campaignNames) ? campaignNames : [campaignNames];
+        names.forEach(function(name) {
+            const cn = String(name || '').trim();
+            if (!cn) return;
+            set.add(scxCampaignNormName(cn) + '|' + domainKey);
+        });
+        persistDashboardCampaignAlertsResolved();
+        rebuildDashboardCampaignAlerts();
+    }
+    window.markDashboardCampaignAlertResolved = markDashboardCampaignAlertResolved;
+
     function rebuildDashboardCampaignAlerts() {
         const store = window.dashboardRecapScoreDetails || {};
         const alerts = [];
@@ -16195,6 +16242,7 @@ function initDashboardRecap() {
                 const campaignName = nameByNorm.get(normKey) || normKey;
                 const dedupe = normKey + '|' + String(row?.name || row?.domain || '').toLowerCase();
                 if (seen.has(dedupe)) return;
+                if (isDashboardCampaignAlertResolved(dedupe)) return;
                 seen.add(dedupe);
                 alerts.push({
                     id: dedupe,
@@ -16265,6 +16313,7 @@ function initDashboardRecap() {
     }
 
     function initDashboardCampaignNotif() {
+        loadDashboardCampaignAlertsResolved();
         const itemsEl = document.getElementById('dashboardCampaignNotifItems');
         if (!itemsEl || itemsEl.dataset.bound === '1') return;
         itemsEl.dataset.bound = '1';
@@ -16645,6 +16694,7 @@ function initDashboardRecap() {
                     });
                     if (!j || !j.status) throw new Error(j?.error || 'Gagal update status campaign');
                     if (statusEl) statusEl.textContent = `OK: campaign di-pause (${cid})`;
+                    markDashboardCampaignAlertResolved(cache.siteName, campaignName);
                     await scxShowCampaignSwal({
                         icon: 'success',
                         title: 'Berhasil',
@@ -16664,6 +16714,7 @@ function initDashboardRecap() {
                     });
                     if (!j || !j.status) throw new Error(j?.error || 'Gagal update daily budget');
                     if (statusEl) statusEl.textContent = `OK: daily budget diperbarui (${cid})`;
+                    if (action === 'SCALE DOWN') markDashboardCampaignAlertResolved(cache.siteName, campaignName);
                     await scxShowCampaignSwal({
                         icon: 'success',
                         title: 'Berhasil',
@@ -18872,7 +18923,7 @@ function initDashboardRecap() {
             return scxConfirmCampaignAction(title, message);
         }
 
-        async function confirmBudgetUpdate(cid, budgetValue, btn) {
+        async function confirmBudgetUpdate(cid, budgetValue, btn, action) {
             const budgetText = fmtBudgetDisplay(budgetValue);
             const message = 'Apakah Anda ingin merubah budget dengan nilai ' + budgetText + '?';
             const confirmed = await confirmCampaignAction('Konfirmasi Ubah Budget', message);
@@ -18882,6 +18933,11 @@ function initDashboardRecap() {
                 setStatus('Updating daily budget...');
                 await updateBudget(cid, budgetValue);
                 setStatus('OK: update daily budget (' + cid + ')');
+                if (String(action || '').toUpperCase() === 'SCALE DOWN') {
+                    const camp = byId(cid);
+                    const campName = String(camp?.campaign_name || camp?.name || cid || '-');
+                    markDashboardCampaignAlertResolved(siteName, campName);
+                }
                 await scxShowCampaignSwal({
                     icon: 'success',
                     title: 'Berhasil',
@@ -19048,6 +19104,13 @@ function initDashboardRecap() {
             try {
                 await updateStatus(ids, status);
                 setStatus('OK: status ' + status + ' (' + ids.length + ' campaign)');
+                if (status === 'PAUSED') {
+                    const names = ids.map(function(id) {
+                        const c = byId(id);
+                        return String(c?.campaign_name || c?.name || id || '').trim();
+                    }).filter(Boolean);
+                    markDashboardCampaignAlertResolved(siteName, names);
+                }
                 const successText = (status === 'PAUSED')
                     ? (ids.length + ' campaign berhasil di-stop.')
                     : (ids.length + ' campaign berhasil di-hold (aktif).');
@@ -19085,6 +19148,11 @@ function initDashboardRecap() {
                     if (inp) inp.value = String(next);
                 }
                 setStatus(`OK: update budget (${ids.length} campaign)`);
+                const scaleDownNames = ids.map(function(id) {
+                    const c = byId(id);
+                    return String(c?.campaign_name || c?.name || id || '').trim();
+                }).filter(Boolean);
+                markDashboardCampaignAlertResolved(siteName, scaleDownNames);
                 await scxShowCampaignSwal({
                     icon: 'success',
                     title: 'Berhasil',
@@ -19155,6 +19223,7 @@ function initDashboardRecap() {
                     setStatus('Updating status campaign...');
                     await updateStatus([cid], status);
                     setStatus(`OK: status campaign ${status} (${cid})`);
+                    markDashboardCampaignAlertResolved(siteName, campaignName);
                     await scxShowCampaignSwal({
                         icon: 'success',
                         title: 'Berhasil',
@@ -19175,7 +19244,7 @@ function initDashboardRecap() {
             const cleaned = raw.replace('Rp','').replace(/\./g,'').replace(/,/g,'').trim();
             const n = parseInt(cleaned, 10);
             if (!cid || !isFinite(n) || n <= 0) { setStatus('daily budget tidak valid'); return; }
-            await confirmBudgetUpdate(cid, n, btn);
+            await confirmBudgetUpdate(cid, n, btn, action);
         });
 
         refresh();
