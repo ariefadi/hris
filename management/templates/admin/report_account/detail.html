@@ -238,7 +238,8 @@ html[data-theme="dark"] .rad-roi-neg { background: rgba(239,68,68,.18); color: #
      data-init-end="{{ init_end_date }}"
      data-init-compare="{{ init_compare_rekap|yesno:'1,0' }}"
      data-init-tarik="{{ init_rekap_tarik }}"
-     data-init-domain="{{ init_domain_q|escapejs }}">
+     data-init-domain="{{ init_domain_q|escapejs }}"
+     data-init-revenue-source="{{ init_revenue_source|default:'both'|escapejs }}">
 <div class="card">
     <div class="card-header rad-card-header">
         <div class="rad-card-header-main">
@@ -285,6 +286,14 @@ html[data-theme="dark"] .rad-roi-neg { background: rgba(239,68,68,.18); color: #
                 <label>Cari Subdomain</label>
                 <select class="form-control" id="radDomainQ"><option value=""></option></select>
             </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Sumber Revenue</label>
+                <select class="form-control" id="radRevenueSource">
+                    <option value="both">Keduanya</option>
+                    <option value="adx">AdX</option>
+                    <option value="adsense">AdSense</option>
+                </select>
+            </div>
             <div class="col-md-2 col-6 mb-2 mb-md-0 rad-mode-panel is-active" id="radPanelCompare">
                 <label>Bandingkan Rekap</label>
                 <div class="switch-toggle">
@@ -303,7 +312,7 @@ html[data-theme="dark"] .rad-roi-neg { background: rgba(239,68,68,.18); color: #
                 <button type="button" class="btn btn-primary btn-block" id="radLoadBtn"><i class="fas fa-sync-alt mr-1"></i> Muat Data</button>
             </div>
         </div>
-        <p class="text-muted mb-0" style="font-size:12px;"><i class="bi bi-info-circle mr-1"></i>Label <strong>AdX</strong> / <strong>AdSense</strong> menunjukkan platform monetisasi subdomain. Mode bulanan mendukung perbandingan dengan rekap resmi.</p>
+        <p class="text-muted mb-0" style="font-size:12px;"><i class="bi bi-info-circle mr-1"></i>Label <strong>AdX</strong> / <strong>AdSense</strong> menunjukkan platform monetisasi subdomain. <strong>Sumber Revenue</strong> memfilter kolom dan perhitungan profit/ROI. Mode bulanan mendukung perbandingan dengan rekap resmi.</p>
     </div>
 </div>
 

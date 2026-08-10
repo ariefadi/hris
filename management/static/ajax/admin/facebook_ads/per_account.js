@@ -9,6 +9,65 @@ function normalizeDomainFilter(selected_domain) {
     return String(selected_domain || '').trim();
 }
 
+function fbPerAccountSwalFire(opts) {
+    if (window.hrisSwalFire && typeof window.hrisSwalFire === 'function') {
+        return window.hrisSwalFire(opts || {});
+    }
+    if (typeof Swal === 'undefined' || typeof Swal.fire !== 'function') {
+        return Promise.resolve(null);
+    }
+    const base = (window.hrisSwalThemeOptions && window.hrisSwalThemeOptions()) || {};
+    return Swal.fire(Object.assign({}, base, opts || {}));
+}
+
+async function fbPerAccountConfirm(title, message) {
+    const result = await fbPerAccountSwalFire({
+        icon: 'question',
+        title: String(title || 'Konfirmasi'),
+        text: String(message || ''),
+        showCancelButton: true,
+        confirmButtonText: 'Ya',
+        cancelButtonText: 'Tidak',
+        reverseButtons: true,
+        focusCancel: true
+    });
+    return !!(result && result.isConfirmed);
+}
+
+function fbPerAccountSuccess(text, title) {
+    return fbPerAccountSwalFire({
+        icon: 'success',
+        title: String(title || 'Berhasil'),
+        text: String(text || ''),
+        timer: 1800,
+        showConfirmButton: false
+    });
+}
+
+function fbPerAccountError(text, title) {
+    return fbPerAccountSwalFire({
+        icon: 'error',
+        title: String(title || 'Gagal'),
+        text: String(text || ''),
+        confirmButtonText: 'OK'
+    });
+}
+
+function fbPerAccountParseBudget(raw) {
+    const n = parseInt(String(raw || '').replace(/\./g, '').replace(/,/g, '').replace(/Rp/gi, '').trim(), 10);
+    return isFinite(n) ? n : 0;
+}
+
+function fbPerAccountFmtBudget(n) {
+    const val = Math.max(0, Math.round(Number(n) || 0));
+    return 'Rp ' + String(val).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function fbPerAccountFmtBudgetInput(n) {
+    const val = Math.max(0, Math.round(Number(n) || 0));
+    return String(val).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 function showHrisFacebookLoader(message) {
     var msg = String(message || 'Memuat data...').trim() || 'Memuat data...';
     if (window.HrisLoader && typeof window.HrisLoader.show === 'function') {
@@ -744,144 +803,167 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                                     '<span id="autosave-button_'+value.campaign_id+'" class="badge badge-danger" style="color: white; font-size:10px;"></span>'
                                 '</td>';
                 event_data += '</tr>';  
-                $("#table_data_per_account_facebook tbody").append(event_data)
-                let timeout = null;
-                $(`#daily_budget_${value.campaign_id}`).on('input', function () {
-                    clearTimeout(timeout); // Reset timer
-                    timeout = setTimeout(function () {
-                        let formData = new FormData();
-                        let content = $(`#daily_budget_${value.campaign_id}`).val();
-                        var data_account = $("#select_account option:selected").val();
-                        formData.append('account_id', data_account);
-                        formData.append('campaign_id', value.campaign_id);
-                        formData.append('daily_budget', content);
-                        $.ajax({
-                            url: '/management/admin/update_daily_budget_per_campaign',
-                            method: 'POST',
-                            data: formData,
-                            headers: { 
-                                "X-CSRFToken": csrftoken 
-                            },
-                            processData: false,
-                            contentType: false,
-                            dataType: "json",
-                            success: function (data) {
-                                $(`#autosave-status_${value.campaign_id}`).text('Daily Budget Diubah');
-                                setTimeout(function () {
-                                    var tanggal_dari = $("#tanggal_dari").val();
-                                    var tanggal_sampai = $("#tanggal_sampai").val();
-                                    var data_sub_domain = normalizeDomainFilter($("#select_domain").val()) || '%';
-                                    table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
-                                }, 1000);;
+                $("#table_data_per_account_facebook tbody").append(event_data);
+                (function bindPerAccountCampaignControls(row) {
+                    const campaignId = row.campaign_id;
+                    const campaignName = String(row.campaign_name || '-');
+                    const originalBudget = formattedBudget;
+                    const $budgetInput = $('#daily_budget_' + campaignId);
+                    const $switchInput = $('#switch_campaign_' + campaignId);
+
+                    $budgetInput.data('original-budget', originalBudget);
+
+                    $budgetInput.off('keydown.fbBudget blur.fbBudget').on('keydown.fbBudget', function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            $(this).blur();
+                        }
+                    }).on('blur.fbBudget', function () {
+                        const $inp = $(this);
+                        const raw = String($inp.val() || '').trim();
+                        const original = String($inp.data('original-budget') || '').trim();
+                        if (raw === original) return;
+
+                        const n = fbPerAccountParseBudget(raw);
+                        if (!n || n <= 0) {
+                            $inp.val(original);
+                            fbPerAccountError('Daily budget tidak valid.');
+                            return;
+                        }
+
+                        const budgetText = fbPerAccountFmtBudget(n);
+                        fbPerAccountConfirm(
+                            'Konfirmasi Ubah Budget',
+                            'Apakah Anda ingin merubah budget campaign "' + campaignName + '" menjadi ' + budgetText + '?'
+                        ).then(function (confirmed) {
+                            if (!confirmed) {
+                                $inp.val(original);
+                                return;
                             }
-                        });    
-                    });
-                });
-                $(`#switch_campaign_${value.campaign_id}`).on('change', function () {
-                    clearTimeout(timeout); // Reset timer
-                    timeout = setTimeout(function () {
-                        let formData = new FormData();
-                        let isChecked = $(`#switch_campaign_${value.campaign_id}`).prop('checked');
-                        let status = isChecked ? 'ACTIVE' : 'PAUSED';
-                        let data_account = $("#select_account option:selected").val() || '%';
-                        formData.append('account_id', data_account);
-                        formData.append('campaign_id', value.campaign_id);
-                        formData.append('switch_campaign', status);
-                        
-                        // Tampilkan SweetAlert loading untuk individual switch
-                        const loadingAlert = Swal.fire({
-                            title: 'Mengupdate Status',
-                            text: 'Mohon tunggu...',
-                            icon: 'info',
-                            allowOutsideClick: false,
-                            allowEscapeKey: false,
-                            showConfirmButton: false,
-                            didOpen: () => {
-                                Swal.showLoading();
-                            }
-                        });
-                        
-                        $.ajax({
-                            url: '/management/admin/update_switch_campaign',
-                            method: 'POST',
-                            data: formData,
-                            headers: { 
-                                "X-CSRFToken": csrftoken 
-                            },
-                            processData: false,
-                            contentType: false,
-                            dataType: "json",
-                            success: function (data) {
-                                Swal.close();
-                                
-                                if (data.success) {
-                                    // Tampilkan success alert
-                                    Swal.fire({
-                                        title: 'Berhasil!',
-                                        text: data.message || 'Status campaign berhasil diubah',
-                                        icon: 'success',
-                                        timer: 1500,
-                                        showConfirmButton: false
-                                    });
-                                    
+
+                            const formData = new FormData();
+                            const dataAccount = $("#select_account option:selected").val();
+                            formData.append('account_id', dataAccount);
+                            formData.append('campaign_id', campaignId);
+                            formData.append('daily_budget', String(n));
+
+                            $.ajax({
+                                url: '/management/admin/update_daily_budget_per_campaign',
+                                method: 'POST',
+                                data: formData,
+                                headers: { "X-CSRFToken": csrftoken },
+                                processData: false,
+                                contentType: false,
+                                dataType: 'json',
+                                success: function (data) {
+                                    if (!data || data.daily_budget == null) {
+                                        $inp.val(original);
+                                        fbPerAccountError((data && data.message) ? data.message : 'Gagal update daily budget');
+                                        return;
+                                    }
+                                    const savedBudget = fbPerAccountFmtBudgetInput(n);
+                                    $inp.val(savedBudget).data('original-budget', savedBudget);
+                                    $('#autosave-status_' + campaignId).text('');
+                                    fbPerAccountSuccess('Daily budget campaign "' + campaignName + '" berhasil diperbarui menjadi ' + budgetText + '.');
                                     setTimeout(function () {
                                         var tanggal_dari = $("#tanggal_dari").val();
                                         var tanggal_sampai = $("#tanggal_sampai").val();
-                                        var data_account = $("#select_account option:selected").val() || '%';
                                         var data_sub_domain = normalizeDomainFilter($("#select_domain").val()) || '%';
-                                        table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
-                                        // Update header switch after individual switch update
-                                        updateHeaderSwitch();
+                                        table_data_per_account_facebook(tanggal_dari, tanggal_sampai, dataAccount, data_sub_domain);
                                     }, 1000);
-                                } else {
-                                    // Tampilkan error alert dengan pesan dari server
-                                    Swal.fire({
-                                        title: 'Error!',
-                                        text: data.message || 'Terjadi kesalahan saat mengubah status campaign',
-                                        icon: 'error',
-                                        confirmButtonText: 'OK'
-                                    });
-                                    
-                                    // Kembalikan switch ke posisi sebelumnya
-                                    $(`#switch_campaign_${value.campaign_id}`).prop('checked', !$(`#switch_campaign_${value.campaign_id}`).prop('checked'));
+                                },
+                                error: function (xhr) {
+                                    $inp.val(original);
+                                    let errorMessage = 'Gagal update daily budget';
+                                    try {
+                                        const response = JSON.parse(xhr.responseText || '{}');
+                                        if (response.message) errorMessage = response.message;
+                                    } catch (e) {}
+                                    fbPerAccountError(errorMessage);
                                 }
-                            },
-                            error: function(xhr, status, error) {
-                                Swal.close();
-                                
-                                let errorMessage = 'Terjadi kesalahan saat mengubah status campaign';
-                                
-                                // Coba parse response JSON untuk mendapatkan pesan error yang lebih spesifik
-                                try {
-                                    const response = JSON.parse(xhr.responseText);
-                                    if (response.message) {
-                                        errorMessage = response.message;
-                                    }
-                                } catch (e) {
-                                    // Jika tidak bisa parse JSON, gunakan pesan default
-                                    if (xhr.status === 500) {
-                                        errorMessage = 'Terjadi kesalahan server internal';
-                                    } else if (xhr.status === 404) {
-                                        errorMessage = 'Endpoint tidak ditemukan';
-                                    } else if (xhr.status === 403) {
-                                        errorMessage = 'Akses ditolak';
-                                    }
-                                }
-                                
-                                // Tampilkan error alert
-                                Swal.fire({
-                                    title: 'Error!',
-                                    text: errorMessage,
-                                    icon: 'error',
-                                    confirmButtonText: 'OK'
-                                });
-                                
-                                // Kembalikan switch ke posisi sebelumnya
-                                $(`#switch_campaign_${value.campaign_id}`).prop('checked', !$(`#switch_campaign_${value.campaign_id}`).prop('checked'));
+                            });
+                        });
+                    });
+
+                    $switchInput.off('change.fbSwitch').on('change.fbSwitch', function () {
+                        const $switch = $(this);
+                        const isChecked = $switch.prop('checked');
+                        const status = isChecked ? 'ACTIVE' : 'PAUSED';
+                        const actionLabel = isChecked ? 'mengaktifkan' : 'mematikan';
+
+                        fbPerAccountConfirm(
+                            'Konfirmasi Ubah Status',
+                            'Apakah Anda yakin ingin ' + actionLabel + ' campaign "' + campaignName + '"?'
+                        ).then(function (confirmed) {
+                            if (!confirmed) {
+                                $switch.prop('checked', !isChecked);
+                                return;
                             }
-                        });    
-                    }); // Delay 1 detik sebelum mengirim permintaan
-                });
+
+                            const formData = new FormData();
+                            const dataAccount = $("#select_account option:selected").val() || '%';
+                            formData.append('account_id', dataAccount);
+                            formData.append('campaign_id', campaignId);
+                            formData.append('switch_campaign', status);
+
+                            fbPerAccountSwalFire({
+                                title: 'Mengupdate Status',
+                                text: 'Mohon tunggu...',
+                                icon: 'info',
+                                allowOutsideClick: false,
+                                allowEscapeKey: false,
+                                showConfirmButton: false,
+                                didOpen: function () {
+                                    Swal.showLoading();
+                                }
+                            });
+
+                            $.ajax({
+                                url: '/management/admin/update_switch_campaign',
+                                method: 'POST',
+                                data: formData,
+                                headers: { "X-CSRFToken": csrftoken },
+                                processData: false,
+                                contentType: false,
+                                dataType: 'json',
+                                success: function (data) {
+                                    Swal.close();
+                                    if (data && data.success) {
+                                        const successText = isChecked
+                                            ? 'Campaign "' + campaignName + '" berhasil diaktifkan.'
+                                            : 'Campaign "' + campaignName + '" berhasil dimatikan.';
+                                        fbPerAccountSuccess(data.message || successText);
+                                        setTimeout(function () {
+                                            var tanggal_dari = $("#tanggal_dari").val();
+                                            var tanggal_sampai = $("#tanggal_sampai").val();
+                                            var data_account = $("#select_account option:selected").val() || '%';
+                                            var data_sub_domain = normalizeDomainFilter($("#select_domain").val()) || '%';
+                                            table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
+                                            updateHeaderSwitch();
+                                        }, 1000);
+                                    } else {
+                                        fbPerAccountError((data && data.message) ? data.message : 'Terjadi kesalahan saat mengubah status campaign');
+                                        $switch.prop('checked', !isChecked);
+                                    }
+                                },
+                                error: function (xhr) {
+                                    Swal.close();
+                                    let errorMessage = 'Terjadi kesalahan saat mengubah status campaign';
+                                    try {
+                                        const response = JSON.parse(xhr.responseText || '{}');
+                                        if (response.message) errorMessage = response.message;
+                                    } catch (e) {
+                                        if (xhr.status === 500) errorMessage = 'Terjadi kesalahan server internal';
+                                        else if (xhr.status === 404) errorMessage = 'Endpoint tidak ditemukan';
+                                        else if (xhr.status === 403) errorMessage = 'Akses ditolak';
+                                    }
+                                    fbPerAccountError(errorMessage);
+                                    $switch.prop('checked', !isChecked);
+                                }
+                            });
+                        });
+                    });
+                })(value);
             })
             $.each(data_per_account.total_per_account, function (index, value) {
                 // Budget
@@ -1044,12 +1126,18 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
             window.toggleAllCampaigns = function() {
                 const headerSwitch = $('#headerSwitch');
                 const isChecked = headerSwitch.is(':checked');
-                const action = isChecked ? 'mengaktifkan' : 'menonaktifkan';
-                
-                if (confirm(`Apakah Anda yakin ingin ${action} semua campaign yang ditampilkan?`)) {
+                const action = isChecked ? 'mengaktifkan' : 'mematikan';
+
+                fbPerAccountConfirm(
+                    'Konfirmasi Ubah Status',
+                    'Apakah Anda yakin ingin ' + action + ' semua campaign yang ditampilkan?'
+                ).then(function (confirmed) {
+                    if (!confirmed) {
+                        headerSwitch.prop('checked', !isChecked);
+                        return;
+                    }
                     const campaignIds = [];
                     const targetStatus = isChecked ? 'ACTIVE' : 'PAUSED';
-                    // Get all campaign IDs from the form-switch elements
                     $('input[id^="switch_campaign_"]').each(function() {
                         const switchId = $(this).attr('id');
                         const campaignId = switchId.replace('switch_campaign_', '');
@@ -1058,14 +1146,10 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                     if (campaignIds.length > 0) {
                         bulkUpdateCampaignStatus(campaignIds, targetStatus);
                     } else {
-                        alert('Tidak ada campaign yang ditemukan.');
-                        // Revert header switch if no campaigns found
+                        fbPerAccountError('Tidak ada campaign yang ditemukan.');
                         headerSwitch.prop('checked', !isChecked);
                     }
-                } else {
-                    // Revert header switch if user cancels
-                    headerSwitch.prop('checked', !isChecked);
-                }
+                });
             };
             
             // Fungsi untuk menampilkan/menyembunyikan loading indicator dengan SweetAlert2
@@ -1154,14 +1238,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                         showBulkUpdateLoader(false);
                         
                         if (response.success) {
-                            // Show success message with SweetAlert2
-                            Swal.fire({
-                                title: 'Berhasil!',
-                                text: response.message || 'Status campaign berhasil diupdate!',
-                                icon: 'success',
-                                timer: 1500,
-                                showConfirmButton: false
-                            });
+                            fbPerAccountSuccess(response.message || 'Status campaign berhasil diupdate!');
                             
                             // Refresh the table
                             setTimeout(function() {
@@ -1174,28 +1251,20 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                                 updateHeaderSwitch();
                             }, 1000);
                         } else {
-                            Swal.fire({
-                                title: 'Error!',
-                                text: response.message || 'Gagal mengupdate status campaign',
-                                icon: 'error',
-                                confirmButtonText: 'OK'
-                            });
+                            fbPerAccountError(response.message || 'Gagal mengupdate status campaign');
                         }
                     },
                     error: function(xhr, status, error) {
-                        // Sembunyikan loading indicator
                         showBulkUpdateLoader(false);
                         
                         let errorMessage = 'Terjadi kesalahan saat mengupdate status campaign';
                         
-                        // Coba parse response JSON untuk mendapatkan pesan error yang lebih spesifik
                         try {
                             const response = JSON.parse(xhr.responseText);
                             if (response.message) {
                                 errorMessage = response.message;
                             }
                         } catch (e) {
-                            // Jika tidak bisa parse JSON, gunakan pesan default
                             if (xhr.status === 500) {
                                 errorMessage = 'Terjadi kesalahan server internal';
                             } else if (xhr.status === 404) {
@@ -1205,12 +1274,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                             }
                         }
                         
-                        Swal.fire({
-                            title: 'Error!',
-                            text: errorMessage,
-                            icon: 'error',
-                            confirmButtonText: 'OK'
-                        });
+                        fbPerAccountError(errorMessage);
                     }
                 });
             }

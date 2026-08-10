@@ -18003,6 +18003,7 @@ class ReportAccountDetailPageView(View):
             'init_compare_rekap': req.GET.get('compare_rekap') in ('1', 'true', 'yes', 'on'),
             'init_rekap_tarik': req.GET.get('rekap_tanggal_tarik') or '',
             'init_domain_q': req.GET.get('domain_q') or '',
+            'init_revenue_source': req.GET.get('revenue_source') or 'both',
         }
         return render(req, 'admin/report_account/detail.html', data)
 

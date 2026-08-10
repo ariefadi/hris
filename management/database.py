@@ -13538,10 +13538,11 @@ class data_mysql:
                 while cur <= d1:
                     ds = cur.isoformat()
                     day_spend = 0.0
-                    day_revenue = 0.0
+                    day_adx = 0.0
+                    day_adsense = 0.0
                     for ak in account_keys:
                         day_spend += float((spend_daily.get(ds) or {}).get(ak) or 0)
-                        day_revenue += float((adx_daily_by_account.get(ds) or {}).get(ak) or 0)
+                        day_adx += float((adx_daily_by_account.get(ds) or {}).get(ak) or 0)
                         acct = next((a for a in accounts if a.get('account_key') == ak), None)
                         cred_ids = self._report_account_cred_ids_for_account(
                             acct or {}, owner_cred_map, email_cred_map
@@ -13550,10 +13551,13 @@ class data_mysql:
                         for cid in cred_ids:
                             domains |= set((adx_rev_by_cred.get(cid) or {}).keys())
                         for dk in domains:
-                            day_revenue += float((adsense_daily.get(ds) or {}).get(dk) or 0)
+                            day_adsense += float((adsense_daily.get(ds) or {}).get(dk) or 0)
+                    day_revenue = day_adx + day_adsense
                     chart.append({
                         'date': ds,
                         'spend': round(day_spend, 2),
+                        'adx_revenue': round(day_adx, 2),
+                        'adsense_revenue': round(day_adsense, 2),
                         'revenue': round(day_revenue, 2),
                         'profit': round(day_revenue - day_spend, 2),
                     })
@@ -13857,6 +13861,8 @@ class data_mysql:
                         'revenue': self._report_account_compare_block(metrics['revenue'], r_metrics['revenue']),
                         'profit': self._report_account_compare_block(metrics['profit'], r_metrics['profit']),
                         'roi': self._report_account_compare_block(metrics['roi'], r_metrics['roi']),
+                        'rekap_adx_revenue': round(r_adx, 2),
+                        'rekap_adsense_revenue': round(r_adsense, 2),
                     }
                 if spend > 0 or revenue > 0 or dk in domains:
                     detail_rows.append(item)
@@ -13907,12 +13913,16 @@ class data_mysql:
                 while cur <= d1:
                     ds = cur.isoformat()
                     day_spend = float((spend_daily.get(ds) or {}).get(account_key) or 0)
-                    day_revenue = float((adx_daily_by_account.get(ds) or {}).get(account_key) or 0)
+                    day_adx = float((adx_daily_by_account.get(ds) or {}).get(account_key) or 0)
+                    day_adsense = 0.0
                     for dk in domain_set:
-                        day_revenue += float((adsense_daily.get(ds) or {}).get(dk) or 0)
+                        day_adsense += float((adsense_daily.get(ds) or {}).get(dk) or 0)
+                    day_revenue = day_adx + day_adsense
                     chart.append({
                         'date': ds,
                         'spend': round(day_spend, 2),
+                        'adx_revenue': round(day_adx, 2),
+                        'adsense_revenue': round(day_adsense, 2),
                         'revenue': round(day_revenue, 2),
                         'profit': round(day_revenue - day_spend, 2),
                     })

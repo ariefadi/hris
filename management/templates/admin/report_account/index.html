@@ -238,6 +238,14 @@ html[data-theme="dark"] .rac-delta.down { background: rgba(239,68,68,.22); color
                     <option value=""></option>
                 </select>
             </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Sumber Revenue</label>
+                <select class="form-control" id="racRevenueSource">
+                    <option value="both" selected>Keduanya</option>
+                    <option value="adx">AdX</option>
+                    <option value="adsense">AdSense</option>
+                </select>
+            </div>
             <div class="col-md-2 col-6 mb-2 mb-md-0 rac-mode-panel is-active" id="racPanelCompare">
                 <label>Bandingkan Rekap</label>
                 <div class="switch-toggle">
@@ -265,7 +273,7 @@ html[data-theme="dark"] .rac-delta.down { background: rgba(239,68,68,.22); color
                 <button type="button" class="btn btn-primary btn-block" id="racLoadBtn"><i class="fas fa-sync-alt mr-1"></i> Muat Data</button>
             </div>
         </div>
-        <p class="rac-filter-note mb-0"><i class="bi bi-info-circle mr-1"></i>Mode <strong>Bulanan</strong> mengagregat data harian sepanjang bulan. Aktifkan <strong>Bandingkan Rekap</strong> untuk melihat selisih % terhadap data rekap bulanan resmi. Toggle <strong>Sembunyikan Nol</strong> menyembunyikan account dengan spend, revenue AdX, AdSense, profit, dan ROI semuanya 0.</p>
+        <p class="rac-filter-note mb-0"><i class="bi bi-info-circle mr-1"></i>Mode <strong>Bulanan</strong> mengagregat data harian sepanjang bulan. <strong>Sumber Revenue</strong> memfilter kolom dan perhitungan profit/ROI. Aktifkan <strong>Bandingkan Rekap</strong> untuk melihat selisih % terhadap data rekap bulanan resmi. Toggle <strong>Sembunyikan Nol</strong> menyembunyikan account dengan spend, revenue, profit, dan ROI semuanya 0 sesuai sumber terpilih.</p>
     </div>
 </div>
 

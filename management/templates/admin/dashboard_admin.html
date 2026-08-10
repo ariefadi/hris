@@ -9825,6 +9825,7 @@ async function executeDecisionCampaignInline(storeKey) {
     const action = String(st.targetAction || 'HOLD').toUpperCase();
     const cid = String(st.targetCampaignId || '');
     const accountAds = String(st.accountAds || '');
+    const campaignName = String(st.targetCampaign || cid || '-');
     if (!cid || !accountAds) { setDecisionInlineState(sk, { lastMsg: 'Campaign ID/account belum siap, buka ulang Jalankan.' }); return; }
     const postForm = async function(url, data){ const b = new URLSearchParams(); Object.keys(data||{}).forEach(k=>b.append(k, String((data||{})[k]))); const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8', 'X-Requested-With':'XMLHttpRequest' }, body:b.toString() }); return await r.json(); };
     try {
@@ -9835,14 +9836,33 @@ async function executeDecisionCampaignInline(storeKey) {
             const j = await postForm('/management/admin/update_daily_budget_monitoring_domain_campaign', { account_ads: accountAds, campaign_id: cid, daily_budget: n });
             if (!j || !j.status) throw new Error(j?.error || 'Gagal update daily budget');
             setDecisionInlineState(sk, { lastMsg: `OK: Daily Budget tersimpan (${n})` });
+            await scxShowCampaignSwal({
+                icon: 'success',
+                title: 'Berhasil',
+                text: 'Daily budget campaign "' + campaignName + '" berhasil diperbarui menjadi ' + fmtIdr(n) + '.',
+                timer: 1800,
+                showConfirmButton: false
+            });
             return;
         }
         const status = (action === 'PAUSE' || action === 'STOP') ? 'PAUSED' : 'ACTIVE';
         const j = await postForm('/management/admin/update_campaign_status_monitoring_domain_campaign', { account_ads: accountAds, status: status, campaign_ids: JSON.stringify([cid]) });
         if (!j || !j.status) throw new Error(j?.error || 'Gagal update status campaign');
         setDecisionInlineState(sk, { lastMsg: `OK: status campaign ${status}` });
+        const statusText = (status === 'PAUSED')
+            ? 'Campaign "' + campaignName + '" berhasil di-stop.'
+            : 'Campaign "' + campaignName + '" berhasil di-hold (aktif).';
+        await scxShowCampaignSwal({
+            icon: 'success',
+            title: 'Berhasil',
+            text: statusText,
+            timer: 1800,
+            showConfirmButton: false
+        });
     } catch (e) {
-        setDecisionInlineState(sk, { lastMsg: String(e?.message || e || 'Gagal eksekusi campaign') });
+        const errMsg = String(e?.message || e || 'Gagal eksekusi campaign');
+        setDecisionInlineState(sk, { lastMsg: errMsg });
+        await scxShowCampaignSwal({ icon: 'error', title: 'Gagal', text: errMsg });
     }
 }
 
@@ -16362,6 +16382,28 @@ function initDashboardRecap() {
             const action = String(btn.getAttribute('data-action') || 'HOLD').toUpperCase();
             const inputId = String(btn.getAttribute('data-bud-input') || '');
             const statusEl = pane.querySelector('.scx-campaign-status');
+            const campaignRow = (cache.allRows || []).find(function(r) {
+                return String(r?.campaign_id || '').trim() === cid;
+            });
+            const campaignName = String(campaignRow?.campaign_name || cid || '-');
+            let confirmed = false;
+            let budgetText = '';
+            if (action === 'STOP' || action === 'PAUSE') {
+                const message = 'Apakah Anda yakin ingin Stop campaign "' + campaignName + '"?';
+                confirmed = await scxConfirmCampaignAction('Konfirmasi Stop', message);
+            } else {
+                const inp = inputId ? document.getElementById(inputId) : null;
+                const raw = String(inp ? inp.value : '').replace('Rp', '').replace(/\./g, '').replace(/,/g, '').trim();
+                const n = parseInt(raw, 10);
+                if (!cid || !isFinite(n) || n <= 0) {
+                    if (statusEl) statusEl.textContent = 'Daily budget tidak valid';
+                    return;
+                }
+                budgetText = fmtIdr(n);
+                const message = 'Apakah Anda ingin merubah budget dengan nilai ' + budgetText + '?';
+                confirmed = await scxConfirmCampaignAction('Konfirmasi Ubah Budget', message);
+            }
+            if (!confirmed) return;
             btn.disabled = true;
             const postForm = async function(url, data) {
                 const body = new URLSearchParams();
@@ -16382,6 +16424,13 @@ function initDashboardRecap() {
                     });
                     if (!j || !j.status) throw new Error(j?.error || 'Gagal update status campaign');
                     if (statusEl) statusEl.textContent = `OK: campaign di-pause (${cid})`;
+                    await scxShowCampaignSwal({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: 'Campaign "' + campaignName + '" berhasil di-stop.',
+                        timer: 1800,
+                        showConfirmButton: false
+                    });
                 } else {
                     const inp = inputId ? document.getElementById(inputId) : null;
                     const raw = String(inp ? inp.value : '').replace('Rp', '').replace(/\./g, '').replace(/,/g, '').trim();
@@ -16394,9 +16443,18 @@ function initDashboardRecap() {
                     });
                     if (!j || !j.status) throw new Error(j?.error || 'Gagal update daily budget');
                     if (statusEl) statusEl.textContent = `OK: daily budget diperbarui (${cid})`;
+                    await scxShowCampaignSwal({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: 'Daily budget berhasil diperbarui menjadi ' + (budgetText || fmtIdr(n)),
+                        timer: 1800,
+                        showConfirmButton: false
+                    });
                 }
             } catch (er) {
-                if (statusEl) statusEl.textContent = String(er?.message || er || 'Gagal eksekusi aksi campaign');
+                const errMsg = String(er?.message || er || 'Gagal eksekusi aksi campaign');
+                if (statusEl) statusEl.textContent = errMsg;
+                await scxShowCampaignSwal({ icon: 'error', title: 'Gagal', text: errMsg });
             } finally {
                 btn.disabled = false;
             }
@@ -18416,6 +18474,36 @@ function initDashboardRecap() {
         draw('score');
     }
 
+    async function scxConfirmCampaignAction(title, message) {
+        const swalFire = window.hrisSwalFire || function(opts) {
+            return window.Swal.fire(Object.assign({}, (window.hrisSwalThemeOptions && window.hrisSwalThemeOptions()) || {}, opts || {}));
+        };
+        if (window.Swal && typeof window.Swal.fire === 'function') {
+            const result = await swalFire({
+                icon: 'question',
+                title: String(title || 'Konfirmasi'),
+                text: String(message || ''),
+                showCancelButton: true,
+                confirmButtonText: 'Ya',
+                cancelButtonText: 'Tidak',
+                reverseButtons: true,
+                focusCancel: true
+            });
+            return !!(result && result.isConfirmed);
+        }
+        return window.confirm(String(message || title || 'Lanjutkan?'));
+    }
+
+    async function scxShowCampaignSwal(opts) {
+        const swalFire = window.hrisSwalFire || function(o) {
+            return window.Swal.fire(Object.assign({}, (window.hrisSwalThemeOptions && window.hrisSwalThemeOptions()) || {}, o || {}));
+        };
+        if (window.Swal && typeof window.Swal.fire === 'function') {
+            return await swalFire(opts || {});
+        }
+        return null;
+    }
+
     function bindScoreCampaignControls(row, ymd, scoringData) {
         const pauseBtn = document.getElementById('sdPauseSelectedBtn');
         const actBtn = document.getElementById('sdActivateSelectedBtn');
@@ -18552,50 +18640,32 @@ function initDashboardRecap() {
             if (logModalEl) logModalEl.hidden = true;
         }
 
+        async function confirmCampaignAction(title, message) {
+            return scxConfirmCampaignAction(title, message);
+        }
+
         async function confirmBudgetUpdate(cid, budgetValue, btn) {
             const budgetText = fmtBudgetDisplay(budgetValue);
             const message = 'Apakah Anda ingin merubah budget dengan nilai ' + budgetText + '?';
-            const swalFire = window.hrisSwalFire || function(opts) {
-                return window.Swal.fire(Object.assign({}, (window.hrisSwalThemeOptions && window.hrisSwalThemeOptions()) || {}, opts || {}));
-            };
-            let confirmed = false;
-            if (window.Swal && typeof window.Swal.fire === 'function') {
-                const result = await swalFire({
-                    icon: 'question',
-                    title: 'Konfirmasi Ubah Budget',
-                    text: message,
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya',
-                    cancelButtonText: 'Tidak',
-                    reverseButtons: true,
-                    focusCancel: true
-                });
-                confirmed = !!(result && result.isConfirmed);
-            } else {
-                confirmed = window.confirm(message);
-            }
+            const confirmed = await confirmCampaignAction('Konfirmasi Ubah Budget', message);
             if (!confirmed) return;
             if (btn) btn.disabled = true;
             try {
                 setStatus('Updating daily budget...');
                 await updateBudget(cid, budgetValue);
                 setStatus('OK: update daily budget (' + cid + ')');
-                if (window.Swal && typeof window.Swal.fire === 'function') {
-                    await swalFire({
-                        icon: 'success',
-                        title: 'Berhasil',
-                        text: 'Daily budget berhasil diperbarui menjadi ' + budgetText,
-                        timer: 1800,
-                        showConfirmButton: false
-                    });
-                }
+                await scxShowCampaignSwal({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: 'Daily budget berhasil diperbarui menjadi ' + budgetText,
+                    timer: 1800,
+                    showConfirmButton: false
+                });
                 await loadRecentLogs();
             } catch (er) {
                 const errMsg = String(er?.message || er || 'Gagal eksekusi campaign');
                 setStatus(errMsg);
-                if (window.Swal && typeof window.Swal.fire === 'function') {
-                    await swalFire({ icon: 'error', title: 'Gagal', text: errMsg });
-                }
+                await scxShowCampaignSwal({ icon: 'error', title: 'Gagal', text: errMsg });
             } finally {
                 if (btn) btn.disabled = false;
             }
@@ -18739,21 +18809,43 @@ function initDashboardRecap() {
             }
         }
 
-        async function bulkStatus(status) {
+        async function bulkStatus(status, actionLabel) {
             const ids = selectedIds();
             if (!ids.length) { setStatus('Pilih minimal 1 campaign'); return; }
+            const label = String(actionLabel || status || 'ubah status');
+            const message = 'Apakah Anda yakin ingin ' + label + ' untuk ' + ids.length + ' campaign terpilih?';
+            const confirmed = await confirmCampaignAction('Konfirmasi ' + label, message);
+            if (!confirmed) return;
             setStatus('Updating status...');
             try {
                 await updateStatus(ids, status);
-                setStatus(`OK: status ${status} (${ids.length} campaign)`);
+                setStatus('OK: status ' + status + ' (' + ids.length + ' campaign)');
+                const successText = (status === 'PAUSED')
+                    ? (ids.length + ' campaign berhasil di-stop.')
+                    : (ids.length + ' campaign berhasil di-hold (aktif).');
+                await scxShowCampaignSwal({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: successText,
+                    timer: 1800,
+                    showConfirmButton: false
+                });
                 await refresh();
+            } catch (e) {
+                const errMsg = String(e?.message || e || 'Gagal update status');
+                setStatus(errMsg);
+                await scxShowCampaignSwal({ icon: 'error', title: 'Gagal', text: errMsg });
             }
-            catch (e) { setStatus(String(e?.message || e || 'Gagal update status')); }
         }
 
-        async function bulkBudget(mult) {
+        async function bulkBudget(mult, actionLabel, pctLabel) {
             const ids = selectedIds();
             if (!ids.length) { setStatus('Pilih minimal 1 campaign'); return; }
+            const label = String(actionLabel || 'ubah budget');
+            const pct = String(pctLabel || '');
+            const message = 'Apakah Anda yakin ingin ' + label + (pct ? ' (' + pct + ')' : '') + ' budget untuk ' + ids.length + ' campaign terpilih?';
+            const confirmed = await confirmCampaignAction('Konfirmasi ' + label, message);
+            if (!confirmed) return;
             setStatus('Updating daily budget...');
             try {
                 for (const cid of ids) {
@@ -18765,16 +18857,25 @@ function initDashboardRecap() {
                     if (inp) inp.value = String(next);
                 }
                 setStatus(`OK: update budget (${ids.length} campaign)`);
+                await scxShowCampaignSwal({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: 'Budget ' + ids.length + ' campaign berhasil di-' + label.toLowerCase() + (pct ? ' (' + pct + ')' : '') + '.',
+                    timer: 1800,
+                    showConfirmButton: false
+                });
                 await refresh();
             } catch (e) {
-                setStatus(String(e?.message || e || 'Gagal update budget'));
+                const errMsg = String(e?.message || e || 'Gagal update budget');
+                setStatus(errMsg);
+                await scxShowCampaignSwal({ icon: 'error', title: 'Gagal', text: errMsg });
             }
         }
 
-        if (pauseBtn) pauseBtn.onclick = function(){ bulkStatus('PAUSED'); };
-        if (actBtn) actBtn.onclick = function(){ bulkStatus('ACTIVE'); };
-        if (scaleBtn) scaleBtn.onclick = function(){ bulkBudget(1.15); };
-        if (optBtn) optBtn.onclick = function(){ bulkBudget(0.90); };
+        if (pauseBtn) pauseBtn.onclick = function(){ bulkStatus('PAUSED', 'Stop'); };
+        if (actBtn) actBtn.onclick = function(){ bulkStatus('ACTIVE', 'Hold'); };
+        if (scaleBtn) scaleBtn.onclick = function(){ bulkBudget(1.15, 'Scale Up', '+15%'); };
+        if (optBtn) optBtn.onclick = function(){ bulkBudget(0.90, 'Scale Down', '-10%'); };
 
         wrapEl.addEventListener('change', function(e) {
             const t = e.target;
@@ -18815,15 +18916,30 @@ function initDashboardRecap() {
             const cid = String(btn.getAttribute('data-cid') || '');
             const action = String(btn.getAttribute('data-action') || 'HOLD').toUpperCase();
             if (action === 'STOP' || action === 'PAUSE') {
+                const statusLabel = (action === 'STOP' || action === 'PAUSE') ? 'Stop' : 'Hold';
+                const status = (action === 'STOP' || action === 'PAUSE') ? 'PAUSED' : 'ACTIVE';
+                const campaignName = String(byId(cid)?.campaign_name || byId(cid)?.name || cid || '-');
+                const message = 'Apakah Anda yakin ingin ' + statusLabel + ' campaign "' + campaignName + '"?';
+                const confirmed = await confirmCampaignAction('Konfirmasi ' + statusLabel, message);
+                if (!confirmed) return;
                 btn.disabled = true;
                 try {
-                    const status = (action === 'STOP' || action === 'PAUSE') ? 'PAUSED' : 'ACTIVE';
                     setStatus('Updating status campaign...');
                     await updateStatus([cid], status);
                     setStatus(`OK: status campaign ${status} (${cid})`);
+                    await scxShowCampaignSwal({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: 'Campaign "' + campaignName + '" berhasil di-stop.',
+                        timer: 1800,
+                        showConfirmButton: false
+                    });
                     await refresh();
-                } catch (er) { setStatus(String(er?.message || er || 'Gagal eksekusi campaign')); }
-                finally { btn.disabled = false; }
+                } catch (er) {
+                    const errMsg = String(er?.message || er || 'Gagal eksekusi campaign');
+                    setStatus(errMsg);
+                    await scxShowCampaignSwal({ icon: 'error', title: 'Gagal', text: errMsg });
+                } finally { btn.disabled = false; }
                 return;
             }
             const inp = document.getElementById(`sdBud_${cid}`);
@@ -19239,7 +19355,7 @@ function initDashboardRecap() {
             const invalidDataTabBtn = isCountryScoringDetail ? '' : '<button type="button" class="scx-modal-tab" data-scx-tab-btn="invalid_data">Invalid data</button>';
             const campaignTabBtn = isCountryScoringDetail ? '' : '<button type="button" class="scx-modal-tab" data-scx-tab-btn="campaign">Campaign</button>';
             const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">Navigasi hasil scoring</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="decision">Hasil Keputusan</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="analytic">Analytic</button>${invalidDataTabBtn}<button type="button" class="scx-modal-tab" data-scx-tab-btn="monitoring">Monitoring</button>${campaignTabBtn}</div></div>`;
-            const actionPanel = canAct ? `<div class="scx-section-gap scx-action-panel"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div><div id="sdCampaignLogCard" class="sd-campaign-log-card"><div class="scx-title" style="font-size:14px;margin-bottom:4px;">Riwayat Perubahan Campaign</div><div class="scx-sub" style="margin-bottom:8px;">4 perubahan terbaru untuk domain ini.</div><div id="sdCampaignLogTable"><div class="text-muted" style="font-size:12px;">Memuat riwayat...</div></div></div><div id="sdCampaignLogModal" class="sd-campaign-log-modal" hidden><div class="sd-campaign-log-modal__dialog"><div class="sd-campaign-log-modal__header"><div><div class="scx-title" style="font-size:15px;margin-bottom:2px;" id="sdCampaignLogModalTitle">Riwayat Campaign</div><div class="scx-sub" id="sdCampaignLogModalSub">Log perubahan lengkap</div></div><button type="button" class="btn btn-sm btn-outline-secondary" id="sdCampaignLogModalClose">Tutup</button></div><div class="sd-campaign-log-modal__body"><div id="sdCampaignLogModalTable"><div class="text-muted" style="font-size:12px;padding:12px 0;">Memuat riwayat...</div></div></div></div></div></div>` : '';
+            const actionPanel = canAct ? `<div class="scx-section-gap scx-action-panel"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-white" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div><div id="sdCampaignLogCard" class="sd-campaign-log-card"><div class="scx-title" style="font-size:14px;margin-bottom:4px;">Riwayat Perubahan Campaign</div><div class="scx-sub" style="margin-bottom:8px;">4 perubahan terbaru untuk domain ini.</div><div id="sdCampaignLogTable"><div class="text-muted" style="font-size:12px;">Memuat riwayat...</div></div></div><div id="sdCampaignLogModal" class="sd-campaign-log-modal" hidden><div class="sd-campaign-log-modal__dialog"><div class="sd-campaign-log-modal__header"><div><div class="scx-title" style="font-size:15px;margin-bottom:2px;" id="sdCampaignLogModalTitle">Riwayat Campaign</div><div class="scx-sub" id="sdCampaignLogModalSub">Log perubahan lengkap</div></div><button type="button" class="btn btn-sm btn-outline-secondary" id="sdCampaignLogModalClose">Tutup</button></div><div class="sd-campaign-log-modal__body"><div id="sdCampaignLogModalTable"><div class="text-muted" style="font-size:12px;padding:12px 0;">Memuat riwayat...</div></div></div></div></div></div>` : '';
 
             let html = '';
             html += tabButtons;
