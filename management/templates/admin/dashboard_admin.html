@@ -6030,7 +6030,98 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
 }
 
 /* ...existing code... */
+
+/* Dashboard campaign notification bell */
+#dashboardCampaignNotif .nav-link {
+    position: relative;
+}
+#dashboardCampaignNotif .navbar-badge {
+    position: absolute;
+    top: 4px;
+    right: 2px;
+    font-size: 10px;
+    padding: 2px 5px;
+}
+#dashboardCampaignNotifMenu {
+    min-width: 360px;
+    max-width: min(420px, calc(100vw - 24px));
+    max-height: min(70vh, 520px);
+    overflow: auto;
+}
+.dashboard-campaign-notif-item {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+.dashboard-campaign-notif-item:hover,
+.dashboard-campaign-notif-item:focus {
+    background: rgba(99, 102, 241, 0.08);
+    outline: none;
+}
+.dashboard-campaign-notif-item__title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.35;
+    word-break: break-word;
+}
+.dashboard-campaign-notif-item__meta {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 3px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.dashboard-campaign-notif-action {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+.dashboard-campaign-notif-action.is-stop {
+    background: rgba(239, 68, 68, 0.14);
+    color: #b91c1c;
+}
+.dashboard-campaign-notif-action.is-scale-down {
+    background: rgba(245, 158, 11, 0.16);
+    color: #b45309;
+}
+html[data-theme="dark"] .dashboard-campaign-notif-item__title {
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .dashboard-campaign-notif-item__meta {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .dashboard-campaign-notif-item:hover,
+html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
+    background: rgba(99, 102, 241, 0.16);
+}
 </style>
+{% endblock %}
+
+{% block navbar_extra_items %}
+<li class="nav-item dropdown" id="dashboardCampaignNotif">
+    <a class="nav-link" data-toggle="dropdown" href="#" aria-expanded="false" aria-label="Notifikasi campaign perlu tindakan" title="Campaign perlu Stop / Scale Down">
+        <i class="bi bi-bell"></i>
+        <span class="badge badge-danger navbar-badge" id="dashboardCampaignNotifCount" style="display:none">0</span>
+    </a>
+    <div class="dropdown-menu dropdown-menu-right" id="dashboardCampaignNotifMenu">
+        <span class="dropdown-item dropdown-header" id="dashboardCampaignNotifHeader">Campaign Perlu Tindakan (0)</span>
+        <div class="dropdown-divider"></div>
+        <div id="dashboardCampaignNotifItems">
+            <span class="dropdown-item text-muted">Memuat data scoring...</span>
+        </div>
+    </div>
+</li>
 {% endblock %}
 
 {% block content %}
@@ -9901,6 +9992,7 @@ function initDashboardRecap() {
     if (!root || !dateEl || !sourceEl) return showError('UI rekap tidak lengkap');
     if (typeof Chart === 'undefined') return showError('Chart.js library is not loaded.');
     initDetailKeputusanModal();
+    initDashboardCampaignNotif();
     bindDashboardRecapAlertTabs();
 
     const fmtIdr = (v) => (Math.round(Number(v)||0)).toLocaleString('id-ID', { style:'currency', currency:'IDR', maximumFractionDigits:0 });
@@ -16015,14 +16107,16 @@ function initDashboardRecap() {
                 const tableWrap = document.getElementById('scxCampaignTableWrap');
                 if (tableWrap) tableWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 const q = String(campaignName || '').trim().toLowerCase();
+                const qNorm = scxCampaignNormName(campaignName);
                 if (!q || !tableWrap) return;
                 const rows = Array.from(tableWrap.querySelectorAll('tbody tr'));
                 const hit = rows.find(function(tr) {
                     const cell = tr.querySelector('td:nth-child(2)');
-                    return cell && String(cell.textContent || '').trim().toLowerCase() === q;
-                }) || rows.find(function(tr) {
-                    const cell = tr.querySelector('td:nth-child(2)');
-                    return cell && String(cell.textContent || '').trim().toLowerCase().includes(q);
+                    const txt = String(cell?.textContent || '').trim();
+                    if (!txt) return false;
+                    if (txt.toLowerCase() === q) return true;
+                    if (scxCampaignNormName(txt) === qNorm) return true;
+                    return txt.toLowerCase().includes(q);
                 });
                 if (!hit) return;
                 hit.classList.add('scx-campaign-row-focus');
@@ -16057,6 +16151,132 @@ function initDashboardRecap() {
         }
         const btn = document.querySelector('[data-scx-tab-btn="campaign"]');
         if (btn) btn.click();
+    }
+
+    function dashboardCampaignActionLabel(action) {
+        const a = String(action || '').toUpperCase();
+        if (a === 'STOP') return 'Stop';
+        if (a === 'PAUSE') return 'Pause';
+        if (a === 'SCALE DOWN') return 'Scale Down';
+        return a || '-';
+    }
+
+    function dashboardCampaignActionClass(action) {
+        const a = String(action || '').toUpperCase();
+        return (a === 'SCALE DOWN') ? 'is-scale-down' : 'is-stop';
+    }
+
+    function rebuildDashboardCampaignAlerts() {
+        const store = window.dashboardRecapScoreDetails || {};
+        const alerts = [];
+        const seen = new Set();
+        const pri = { 'STOP': 1, 'PAUSE': 2, 'SCALE DOWN': 3 };
+        Object.keys(store).forEach(function(key) {
+            const p = store[key];
+            const row = p?.row;
+            const meta = p?.meta;
+            const st = p?.state;
+            if (!row || !meta) return;
+            if (String(st?.dim || '').toLowerCase() === 'country') return;
+            const scoringData = (meta?.breakdown && meta.breakdown.meta) ? meta.breakdown.meta : (meta?.breakdown || {});
+            const details = Array.isArray(scoringData?.country_details)
+                ? scoringData.country_details
+                : (Array.isArray(scoringData?.statuses) ? scoringData.statuses : []);
+            const nameByNorm = new Map();
+            details.forEach(function(d) {
+                const cn = String(d?.meta_campaign || d?.campaign || d?.campaign_name || '').trim();
+                if (cn) nameByNorm.set(scxCampaignNormName(cn), cn);
+            });
+            const maps = scxBuildCampaignScoringMaps(scoringData);
+            const recoMap = maps?.recoMap || new Map();
+            recoMap.forEach(function(rec, normKey) {
+                const action = String(rec?.action || 'HOLD').toUpperCase();
+                if (action !== 'STOP' && action !== 'PAUSE' && action !== 'SCALE DOWN') return;
+                const campaignName = nameByNorm.get(normKey) || normKey;
+                const dedupe = normKey + '|' + String(row?.name || row?.domain || '').toLowerCase();
+                if (seen.has(dedupe)) return;
+                seen.add(dedupe);
+                alerts.push({
+                    id: dedupe,
+                    campaignName: campaignName,
+                    action: action,
+                    actionLabel: dashboardCampaignActionLabel(action),
+                    pct: Number(rec?.pct || 0),
+                    domain: String(row?.name || row?.domain || '-'),
+                    payload: { row: row, state: st, meta: meta, scoreKey: key }
+                });
+            });
+        });
+        alerts.sort(function(a, b) {
+            const pa = pri[a.action] || 9;
+            const pb = pri[b.action] || 9;
+            if (pa !== pb) return pa - pb;
+            return String(a.domain || '').localeCompare(String(b.domain || ''));
+        });
+        window.dashboardCampaignAlerts = alerts;
+        renderDashboardCampaignNotif(alerts);
+    }
+
+    function renderDashboardCampaignNotif(alerts) {
+        const countEl = document.getElementById('dashboardCampaignNotifCount');
+        const headerEl = document.getElementById('dashboardCampaignNotifHeader');
+        const itemsEl = document.getElementById('dashboardCampaignNotifItems');
+        if (!countEl || !headerEl || !itemsEl) return;
+        const list = Array.isArray(alerts) ? alerts : [];
+        const total = list.length;
+        headerEl.textContent = 'Campaign Perlu Tindakan (' + total + ')';
+        if (total > 0) {
+            countEl.style.display = '';
+            countEl.textContent = String(total > 99 ? '99+' : total);
+        } else {
+            countEl.style.display = 'none';
+            countEl.textContent = '0';
+        }
+        if (!total) {
+            itemsEl.innerHTML = '<span class="dropdown-item text-muted">Tidak ada campaign yang perlu Stop / Scale Down.</span>';
+            return;
+        }
+        itemsEl.innerHTML = list.map(function(item) {
+            const pct = Number(item.pct || 0);
+            const pctTxt = (pct > 0 ? '+' : '') + pct.toFixed(2) + '%';
+            const actionCls = dashboardCampaignActionClass(item.action);
+            return '<button type="button" class="dropdown-item dashboard-campaign-notif-item" data-alert-id="' + esc(item.id) + '">' +
+                '<div class="dashboard-campaign-notif-item__title">' + esc(item.campaignName) + '</div>' +
+                '<div class="dashboard-campaign-notif-item__meta">' +
+                '<span>' + esc(item.domain) + '</span>' +
+                '<span class="dashboard-campaign-notif-action ' + actionCls + '">' + esc(item.actionLabel) + ' · ' + esc(pctTxt) + '</span>' +
+                '</div></button>';
+        }).join('');
+    }
+
+    function openDashboardCampaignAlert(alertId) {
+        const list = window.dashboardCampaignAlerts || [];
+        const alert = list.find(function(it) { return String(it.id) === String(alertId); });
+        if (!alert || !alert.payload) return;
+        const campaignName = String(alert.campaignName || '').trim();
+        const payload = alert.payload;
+        window.__scoreDetailPendingCampaignFocus = campaignName;
+        window.scxCampaignTabPendingFocus = campaignName;
+        window.__scoreDetailOpenCampaignTab = true;
+        if (window.jQuery) {
+            try { jQuery('#dashboardCampaignNotif').find('[data-toggle="dropdown"]').dropdown('hide'); } catch (_) {}
+        }
+        openScoreDetailFromDashboardData(payload.row, payload.state, payload.meta);
+    }
+
+    function initDashboardCampaignNotif() {
+        const itemsEl = document.getElementById('dashboardCampaignNotifItems');
+        if (!itemsEl || itemsEl.dataset.bound === '1') return;
+        itemsEl.dataset.bound = '1';
+        itemsEl.addEventListener('mousedown', function(e) {
+            const btn = e.target && e.target.closest ? e.target.closest('.dashboard-campaign-notif-item') : null;
+            if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const alertId = btn.getAttribute('data-alert-id') || '';
+            if (alertId) openDashboardCampaignAlert(alertId);
+        });
+        renderDashboardCampaignNotif([]);
     }
 
     function scxSummarizeCampaignRows(rows) {
@@ -16262,7 +16482,8 @@ function initDashboardRecap() {
             const maps = scxBuildCampaignScoringMaps(scoringData || {});
             const payload = await scxFetchCampaignTabRows(row, state, startYmd, endYmd);
             const contextKey = scxCampaignTabContextKey(row, state);
-            const pendingFocus = String(window.scxCampaignTabPendingFocus || '').trim();
+            const pendingFocus = String(window.__scoreDetailPendingCampaignFocus || window.scxCampaignTabPendingFocus || '').trim();
+            if (window.__scoreDetailPendingCampaignFocus) window.__scoreDetailPendingCampaignFocus = '';
             if (pendingFocus) window.scxCampaignTabPendingFocus = '';
             const oldCache = window.scxCampaignTabCache;
             let prevSearch = pendingFocus;
@@ -16481,7 +16702,9 @@ function initDashboardRecap() {
             b.onclick = function() { act(String(b.getAttribute('data-scx-tab-btn') || 'summary')).catch(function(){}); };
         });
         window.scoreDetailModalTabActivate = act;
-        act('summary').catch(function(){});
+        const initialTab = window.__scoreDetailOpenCampaignTab ? 'campaign' : 'summary';
+        if (window.__scoreDetailOpenCampaignTab) window.__scoreDetailOpenCampaignTab = false;
+        act(initialTab).catch(function(){});
     }
 
     function scxRenderCountryPane(group, tabKey, timeline) {
@@ -17569,7 +17792,12 @@ function initDashboardRecap() {
         const body = document.getElementById('scoreDetailBody');
         const ttl = document.getElementById('scoreDetailTitle');
         if (!modal || !body || !ttl) return;
+        const preserveCampaignFocus = String(window.__scoreDetailPendingCampaignFocus || window.scxCampaignTabPendingFocus || '').trim();
         scxResetCampaignTabState(true);
+        if (preserveCampaignFocus) {
+            window.__scoreDetailPendingCampaignFocus = preserveCampaignFocus;
+            window.scxCampaignTabPendingFocus = preserveCampaignFocus;
+        }
         if (modal.parentNode !== document.body) {
             document.body.appendChild(modal);
         }
@@ -20708,6 +20936,8 @@ function initDashboardRecap() {
                 detailBtn,
             ];
         });
+
+        rebuildDashboardCampaignAlerts();
 
         setDetailScoringMeta(`${rows.length} baris`);
 

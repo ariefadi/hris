@@ -878,6 +878,7 @@
             <!--end::Start Navbar Links-->
             <!--begin::End Navbar Links-->
             <ul class="navbar-nav ms-auto">
+                {% block navbar_extra_items %}{% endblock %}
                 <li class="nav-item">
                     <a class="nav-link" href="#" id="themeToggle" role="button" aria-label="Toggle dark mode">
                         <i class="bi bi-moon-stars" id="themeToggleIcon"></i>
