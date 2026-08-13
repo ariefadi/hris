@@ -6274,6 +6274,8 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                             <th class="text-center">No</th>
                                             <th id="dashboardRecapThName" class="text-center">Sub <br> Negara</th>
                                             <th class="text-center">Account <br> Ads</th>
+                                            <th class="text-center">Campaign <br> Aktif</th>
+                                            <th class="text-center">Daily <br> Budget</th>
                                             <th class="text-center">Spend</th>
                                             <th class="text-center">Pendapatan</th>
                                             <th class="text-center">ROI</th>
@@ -10092,8 +10094,8 @@ function initDashboardRecap() {
             if (target === 'all') return true;
             const aoRow = settings.aoData && settings.aoData[dataIndex] ? settings.aoData[dataIndex] : null;
             const rawRow = aoRow && Array.isArray(aoRow._aData) ? aoRow._aData : null;
-            const levelFromData = rawRow && rawRow[7] && typeof rawRow[7] === 'object'
-                ? String(rawRow[7].decisionKey || 'belum_siap').toLowerCase()
+            const levelFromData = rawRow && rawRow[9] && typeof rawRow[9] === 'object'
+                ? String(rawRow[9].decisionKey || 'belum_siap').toLowerCase()
                 : '';
             const rowNode = aoRow ? aoRow.nTr : null;
             const level = String(levelFromData || rowNode?.dataset?.decisionKey || 'belum_siap').toLowerCase();
@@ -20387,6 +20389,123 @@ function initDashboardRecap() {
         return '';
     }
 
+    async function fetchDashboardActiveCampaignStats(rows, state, metaByDomain) {
+        const endYmd = String(state?.date || '').trim();
+        const startYmd = endYmd ? ymdShift(endYmd, -6) : endYmd;
+        const statsByDomain = {};
+        const tasks = [];
+        const seen = new Set();
+
+        function buildCampaignSourceMapFromMeta(meta) {
+            const map = new Map();
+            const scoringData = (meta?.breakdown && meta.breakdown.meta) ? meta.breakdown.meta : (meta?.breakdown || {});
+            const details = Array.isArray(scoringData?.country_details)
+                ? scoringData.country_details
+                : (Array.isArray(scoringData?.statuses) ? scoringData.statuses : []);
+            details.forEach(function(d) {
+                const name = scxCampaignNormName(d?.meta_campaign || d?.campaign || d?.campaign_name || '');
+                if (!name) return;
+                const srcRaw = String(d?.mapped_revenue_source || d?.source_mode || '').toUpperCase();
+                const adxRev = Number(d?.adx_revenue ?? d?.data_adx_country_revenue ?? 0) || 0;
+                const adsRev = Number(d?.adsense_estimated_earnings ?? d?.adsense_revenue ?? d?.data_adsense_country_revenue ?? 0) || 0;
+                let kind = '';
+                if (srcRaw.includes('ADSENSE')) kind = 'adsense';
+                else if (srcRaw.includes('ADX')) kind = 'adx';
+                else if (adsRev > 0 && adxRev <= 0) kind = 'adsense';
+                else if (adxRev > 0 && adsRev <= 0) kind = 'adx';
+                if (kind) map.set(name, kind);
+            });
+            return map;
+        }
+
+        function inferCampaignRevenueSource(campaignName, sourceMap, rowFallback) {
+            const key = scxCampaignNormName(campaignName);
+            const mapped = sourceMap.get(key);
+            if (mapped === 'adsense') return 'adsense';
+            if (mapped === 'adx') return 'adx';
+            const upper = String(campaignName || '').toUpperCase();
+            if (upper.includes('ADSENSE')) return 'adsense';
+            if (upper.includes('ADX')) return 'adx';
+            const srcs = rowFallback && rowFallback.sources;
+            if (srcs && srcs.adsense && !srcs.adx) return 'adsense';
+            if (srcs && srcs.adx && !srcs.adsense) return 'adx';
+            const src = String(rowFallback?.source || '').toLowerCase();
+            if (src === 'adsense') return 'adsense';
+            if (src === 'adx') return 'adx';
+            return '';
+        }
+
+        (rows || []).forEach(function(r) {
+            const siteName = String(r?.name || r?.domain || '').trim();
+            const accountAds = String(r?.account_ads || '').trim();
+            const domainKey = siteName.toLowerCase();
+            if (!siteName) return;
+            if (seen.has(domainKey)) return;
+            seen.add(domainKey);
+            if (!accountAds) {
+                statsByDomain[domainKey] = { adsense: 0, adx: 0, totalBudget: 0 };
+                return;
+            }
+            tasks.push({ siteName: siteName, accountAds: accountAds, domainKey: domainKey, row: r });
+        });
+
+        const fetchOne = async function(task) {
+            const domainKey = task.domainKey;
+            try {
+                const qs = new URLSearchParams({
+                    account_ads: task.accountAds,
+                    site_name: task.siteName,
+                    start_date: startYmd,
+                    end_date: endYmd
+                });
+                const resp = await fetch('/management/admin/page_monitoring_domain_campaigns?' + qs.toString(), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const json = await resp.json();
+                const campaigns = (json && json.status && Array.isArray(json.campaigns)) ? json.campaigns : [];
+                const meta = metaByDomain instanceof Map ? metaByDomain.get(domainKey) : null;
+                const sourceMap = buildCampaignSourceMapFromMeta(meta || {});
+                let adsense = 0;
+                let adx = 0;
+                let totalBudget = 0;
+                campaigns.forEach(function(c) {
+                    const status = String(c?.status || c?.effective_status || '').trim().toUpperCase();
+                    if (status !== 'ACTIVE') return;
+                    totalBudget += Number(c?.daily_budget || 0) || 0;
+                    const src = inferCampaignRevenueSource(c?.campaign_name || c?.name || '', sourceMap, task.row);
+                    if (src === 'adsense') adsense += 1;
+                    else if (src === 'adx') adx += 1;
+                });
+                statsByDomain[domainKey] = { adsense: adsense, adx: adx, totalBudget: totalBudget };
+            } catch (_) {
+                statsByDomain[domainKey] = { adsense: 0, adx: 0, totalBudget: 0 };
+            }
+        };
+
+        const concurrency = 6;
+        for (let i = 0; i < tasks.length; i += concurrency) {
+            await Promise.all(tasks.slice(i, i + concurrency).map(fetchOne));
+        }
+        return statsByDomain;
+    }
+
+    function buildActiveCampaignCellData(stats) {
+        const adsense = Number(stats?.adsense || 0);
+        const adx = Number(stats?.adx || 0);
+        const total = adsense + adx;
+        const parts = [];
+        if (adsense > 0) parts.push('<span class="ds-tag ds-tag--adsense">AdSense ' + esc(String(adsense)) + '</span>');
+        if (adx > 0) parts.push('<span class="ds-tag ds-tag--adx">AdX ' + esc(String(adx)) + '</span>');
+        const html = parts.length
+            ? '<div class="ds-domain-badges" style="justify-content:center;">' + parts.join('') + '</div>'
+            : '<span class="text-muted">0</span>';
+        return {
+            html: html,
+            sort: total,
+            search: 'adsense ' + adsense + ' adx ' + adx + ' campaign aktif ' + total
+        };
+    }
+
     async function renderTable(dim, rows, state) {
         const recapDim = String(dim || 'domain').toLowerCase() === 'country' ? 'country' : 'domain';
         const thName = document.getElementById('dashboardRecapThName');
@@ -20397,6 +20516,8 @@ function initDashboardRecap() {
             if (!dt || typeof dt.column !== 'function') return;
             try {
                 if (dt.column(2).length) dt.column(2).visible(!isCountry, false);
+                if (dt.column(3).length) dt.column(3).visible(!isCountry, false);
+                if (dt.column(4).length) dt.column(4).visible(!isCountry, false);
             } catch (e) {}
         }
 
@@ -20954,6 +21075,15 @@ function initDashboardRecap() {
             return { r, meta };
         });
 
+        const metaByDomain = new Map();
+        scored.forEach(function(x) {
+            const dk = String(x.r?.name || x.r?.domain || '').trim().toLowerCase();
+            if (dk && !metaByDomain.has(dk)) metaByDomain.set(dk, x.meta);
+        });
+        const campaignStatsByDomain = recapDim === 'country'
+            ? {}
+            : await fetchDashboardActiveCampaignStats(rows, state, metaByDomain);
+
         const scores = scored.map(x => Number(x?.meta?.score) || 0);
         const minScore = scores.length ? Math.min.apply(null, scores) : null;
         const maxScore = scores.length ? Math.max.apply(null, scores) : null;
@@ -20992,11 +21122,15 @@ function initDashboardRecap() {
                 : `<button type="button" class="btn btn-sm ds-detail-btn" disabled title="Scoring belum tersedia">Detail</button>`;
 
             const activeDays = Number(r?.active_days || 0);
+            const domainKey = String(r?.name || r?.domain || '').trim().toLowerCase();
+            const campStats = campaignStatsByDomain[domainKey] || { adsense: 0, adx: 0, totalBudget: 0 };
 
             return [
                 i + 1,
                 domainCell(r, k, !!meta),
                 esc(r.account_ads || '-'),
+                buildActiveCampaignCellData(campStats),
+                Number(campStats.totalBudget) || 0,
                 Number(r.spend) || 0,
                 Number(r.revenue) || 0,
                 Number(r.roi) || 0,
@@ -21023,9 +21157,9 @@ function initDashboardRecap() {
             }
             data.forEach(row => {
                 const tr = document.createElement('tr');
-                const scoreVal = Number(row[6]?.value) || 0;
-                tr.dataset.alertLevel = String(row[6]?.alertLevel || 'normal').toLowerCase();
-                tr.dataset.decisionKey = String(row[7]?.decisionKey || 'belum_siap').toLowerCase();
+                const scoreVal = Number(row[8]?.value) || 0;
+                tr.dataset.alertLevel = String(row[8]?.alertLevel || 'normal').toLowerCase();
+                tr.dataset.decisionKey = String(row[9]?.decisionKey || 'belum_siap').toLowerCase();
                 const isCountry = recapDim === 'country';
                 if (hasRange && scoreVal === minScore) tr.classList.add('ds-row-highlight-worst');
                 else if (hasRange && scoreVal === maxScore) tr.classList.add('ds-row-highlight-best');
@@ -21033,12 +21167,14 @@ function initDashboardRecap() {
                     <td class="text-center">${row[0]}</td>
                     <td>${row[1]}</td>
                     <td class="text-left"${isCountry ? ' style="display:none;"' : ''}>${row[2]}</td>
-                    <td class="text-right">${renderMoneyCell(row[3], 'display')}</td>
-                    <td class="text-right">${renderMoneyCell(row[4], 'display')}</td>
-                    <td class="text-center">${renderRoiCell(row[5], 'display')}</td>
-                    <td class="text-center">${renderScoreCell(row[6], 'display')}</td>
-                    <td class="text-center ds-keputusan-cell">${row[7]?.html || ''}</td>
-                    <td class="text-center">${row[8]}</td>
+                    <td class="text-center"${isCountry ? ' style="display:none;"' : ''}>${row[3]?.html || row[3] || '-'}</td>
+                    <td class="text-right"${isCountry ? ' style="display:none;"' : ''}>${renderMoneyCell(row[4], 'display')}</td>
+                    <td class="text-right">${renderMoneyCell(row[5], 'display')}</td>
+                    <td class="text-right">${renderMoneyCell(row[6], 'display')}</td>
+                    <td class="text-center">${renderRoiCell(row[7], 'display')}</td>
+                    <td class="text-center">${renderScoreCell(row[8], 'display')}</td>
+                    <td class="text-center ds-keputusan-cell">${row[9]?.html || ''}</td>
+                    <td class="text-center">${row[10]}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -21086,7 +21222,7 @@ function initDashboardRecap() {
                 searching: true,
                 info: true,
                 ordering: true,
-                order: [[6, 'desc']],
+                order: [[8, 'desc']],
                 autoWidth: false,
                 responsive: false,
                 dom: hasDtButtons
@@ -21110,14 +21246,14 @@ function initDashboardRecap() {
                 },
                 rowCallback: function(row, rowData) {
                     const hasRange = !!(tableEl && tableEl.dataset && tableEl.dataset.hasRange === '1');
-                    row.dataset.alertLevel = String(rowData && rowData[6] && rowData[6].alertLevel || 'normal').toLowerCase();
-                    row.dataset.decisionKey = String(rowData && rowData[7] && rowData[7].decisionKey || 'belum_siap').toLowerCase();
+                    row.dataset.alertLevel = String(rowData && rowData[8] && rowData[8].alertLevel || 'normal').toLowerCase();
+                    row.dataset.decisionKey = String(rowData && rowData[9] && rowData[9].decisionKey || 'belum_siap').toLowerCase();
                     jQuery(row).removeClass('table-danger table-info ds-row-highlight-best ds-row-highlight-worst');
                     if (!hasRange) return;
 
                     const minScore = Number(tableEl.dataset.minScore);
                     const maxScore = Number(tableEl.dataset.maxScore);
-                    const sc = Number(rowData && rowData[6] && rowData[6].value) || 0;
+                    const sc = Number(rowData && rowData[8] && rowData[8].value) || 0;
 
                     if (sc === minScore) jQuery(row).addClass('ds-row-highlight-worst');
                     else if (sc === maxScore) jQuery(row).addClass('ds-row-highlight-best');
@@ -21139,34 +21275,56 @@ function initDashboardRecap() {
                     { targets: 2, className: 'text-left', visible: recapDim !== 'country' },
                     {
                         targets: 3,
-                        className: 'text-right',
+                        className: 'text-center',
+                        visible: recapDim !== 'country',
+                        orderable: true,
                         render: function (data, type) {
-                            return renderMoneyCell(data, type);
+                            const sortVal = data && typeof data === 'object' ? Number(data.sort || 0) : Number(data || 0);
+                            const html = data && typeof data === 'object' ? String(data.html || '') : String(data || '-');
+                            const searchText = data && typeof data === 'object' ? String(data.search || sortVal) : String(sortVal);
+                            if (type === 'display') return html || '<span class="text-muted">0</span>';
+                            if (type === 'filter') return searchText;
+                            return sortVal;
                         }
                     },
                     {
                         targets: 4,
                         className: 'text-right',
+                        visible: recapDim !== 'country',
                         render: function (data, type) {
                             return renderMoneyCell(data, type);
                         }
                     },
                     {
                         targets: 5,
+                        className: 'text-right',
+                        render: function (data, type) {
+                            return renderMoneyCell(data, type);
+                        }
+                    },
+                    {
+                        targets: 6,
+                        className: 'text-right',
+                        render: function (data, type) {
+                            return renderMoneyCell(data, type);
+                        }
+                    },
+                    {
+                        targets: 7,
                         className: 'text-center',
                         render: function (data, type) {
                             return renderRoiCell(data, type);
                         }
                     },
                     {
-                        targets: 6,
+                        targets: 8,
                         className: 'text-center',
                         render: function (data, type) {
                             return renderScoreCell(data, type);
                         }
                     },
                     {
-                        targets: 7,
+                        targets: 9,
                         className: 'text-center ds-keputusan-cell',
                         orderable: false,
                         render: function (data, type) {
@@ -21180,7 +21338,7 @@ function initDashboardRecap() {
                             return key;
                         }
                     },
-                    { targets: 8, className: 'text-center', orderable: false, searchable: false }
+                    { targets: 10, className: 'text-center', orderable: false, searchable: false }
                 ]
             });
             bindNoColumn(window.dashboardRecapDt);
