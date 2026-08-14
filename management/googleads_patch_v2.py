@@ -15,6 +15,8 @@ import yaml
 from django.conf import settings
 from .database import data_mysql  # Mengubah import path
 
+AD_MANAGER_API_VERSION = 'v202508'
+
 # Store original methods
 _original_load_from_storage = (
     getattr(getattr(googleads, "common", None), "LoadFromStorage", None) if googleads else None
@@ -255,7 +257,7 @@ def apply_make_soap_request_patch(client):
     # Patch the MakeSoapRequest method in the client's service classes
     for service_name in ['NetworkService', 'InventoryService', 'UserService', 'ReportService']:
         try:
-            service = client.GetService(service_name, version='v202508')
+            service = client.GetService(service_name, version=AD_MANAGER_API_VERSION)
             if hasattr(service, 'MakeSoapRequest'):
                 original_method = service.MakeSoapRequest
                 
@@ -318,7 +320,8 @@ def apply_make_soap_request_patch(client):
 
 def patch_get_current_network(client):
     """Patch getCurrentNetwork to handle TypeError"""
-    original_get_current_network = client.GetService('NetworkService').getCurrentNetwork
+    network_service = client.GetService('NetworkService', version=AD_MANAGER_API_VERSION)
+    original_get_current_network = network_service.getCurrentNetwork
     
     def patched_get_current_network(*args, **kwargs):
         """Patched getCurrentNetwork to handle TypeError"""
@@ -349,11 +352,12 @@ def patch_get_current_network(client):
             print(f"[PATCH] getCurrentNetwork patch handling error: {e}")
             raise
 
-    client.GetService('NetworkService').getCurrentNetwork = patched_get_current_network
+    network_service.getCurrentNetwork = patched_get_current_network
 
 def patch_get_all_networks(client):
     """Patch getAllNetworks to handle TypeError"""
-    original_get_all_networks = client.GetService('NetworkService').getAllNetworks
+    network_service = client.GetService('NetworkService', version=AD_MANAGER_API_VERSION)
+    original_get_all_networks = network_service.getAllNetworks
     
     def patched_get_all_networks(*args, **kwargs):
         """Patched getAllNetworks to handle TypeError"""
@@ -384,11 +388,12 @@ def patch_get_all_networks(client):
             print(f"[PATCH] getAllNetworks patch handling error: {e}")
             raise
     
-    client.GetService('NetworkService').getAllNetworks = patched_get_all_networks
+    network_service.getAllNetworks = patched_get_all_networks
 
 def patch_run_report_job(client):
     """Patch runReportJob in ReportService"""
-    original_run_report_job = client.GetService('ReportService').runReportJob
+    report_service = client.GetService('ReportService', version=AD_MANAGER_API_VERSION)
+    original_run_report_job = report_service.runReportJob
     
     def patched_run_report_job(*args, **kwargs):
         """Patched runReportJob to handle various errors"""
@@ -407,11 +412,12 @@ def patch_run_report_job(client):
                     return original_run_report_job(*args, **kwargs)
             raise
     
-    client.GetService('ReportService').runReportJob = patched_run_report_job
+    report_service.runReportJob = patched_run_report_job
 
 def patch_get_report_job_status(client):
     """Patch getReportJobStatus in ReportService"""
-    original_get_report_job_status = client.GetService('ReportService').getReportJobStatus
+    report_service = client.GetService('ReportService', version=AD_MANAGER_API_VERSION)
+    original_get_report_job_status = report_service.getReportJobStatus
     
     def patched_get_report_job_status(*args, **kwargs):
         """Patched getReportJobStatus to handle various errors"""
@@ -430,12 +436,12 @@ def patch_get_report_job_status(client):
                     return original_get_report_job_status(*args, **kwargs)
             raise
     
-    client.GetService('ReportService').getReportJobStatus = patched_get_report_job_status
+    report_service.getReportJobStatus = patched_get_report_job_status
 
 def patch_download_report(client):
     """Patch DownloadReportToString in GetDataDownloader"""
     try:
-        data_downloader = client.GetDataDownloader()
+        data_downloader = client.GetDataDownloader(version=AD_MANAGER_API_VERSION)
         if not hasattr(data_downloader, 'DownloadReportToString'):
             print("[PATCH] DataDownloader does not have DownloadReportToString method, skipping patch")
             return
@@ -467,7 +473,7 @@ def patch_download_report(client):
 def patch_user_service(client):
     """Patch UserService methods to handle data type conversion errors"""
     try:
-        user_service = client.GetService('UserService', version='v202508')
+        user_service = client.GetService('UserService', version=AD_MANAGER_API_VERSION)
         if not hasattr(user_service, 'getUsersByStatement'):
             print("[PATCH] UserService does not have getUsersByStatement method, skipping patch")
             return
@@ -499,7 +505,7 @@ def patch_user_service(client):
 def patch_inventory_service(client):
     """Patch InventoryService methods to handle data type conversion errors"""
     try:
-        inventory_service = client.GetService('InventoryService', version='v202508')
+        inventory_service = client.GetService('InventoryService', version=AD_MANAGER_API_VERSION)
         if not hasattr(inventory_service, 'getAdUnitsByStatement'):
             print("[PATCH] InventoryService does not have getAdUnitsByStatement method, skipping patch")
             return
