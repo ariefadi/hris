@@ -7,6 +7,7 @@ import uuid
 from management.database import data_mysql
 from management.rekap_month import month_bounds, parse_pull_date, resolve_rekap_target_month
 from management.utils import fetch_adx_traffic_account_by_user, fetch_user_adx_account_data
+from management.ad_manager_api import ensure_ad_manager_api_ready
 
 
 def convert_to_idr(amount, currency_code):
@@ -179,6 +180,8 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(
             f"Mulai rekap AdX: periode {start_date} s/d {end_date}, tanggal tarik={pull_date_str}"
         ))
+        active_version = ensure_ad_manager_api_ready()
+        self.stdout.write(self.style.SUCCESS(f"Ad Manager API version: {active_version}"))
 
         db = data_mysql()
         creds = db.get_all_app_credentials()

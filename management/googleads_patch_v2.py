@@ -14,8 +14,7 @@ except Exception:
 import yaml
 from django.conf import settings
 from .database import data_mysql  # Mengubah import path
-
-AD_MANAGER_API_VERSION = 'v202508'
+from management.ad_manager_api import get_ad_manager_api_version
 
 # Store original methods
 _original_load_from_storage = (
@@ -257,7 +256,7 @@ def apply_make_soap_request_patch(client):
     # Patch the MakeSoapRequest method in the client's service classes
     for service_name in ['NetworkService', 'InventoryService', 'UserService', 'ReportService']:
         try:
-            service = client.GetService(service_name, version=AD_MANAGER_API_VERSION)
+            service = client.GetService(service_name, version=get_ad_manager_api_version())
             if hasattr(service, 'MakeSoapRequest'):
                 original_method = service.MakeSoapRequest
                 
@@ -320,7 +319,7 @@ def apply_make_soap_request_patch(client):
 
 def patch_get_current_network(client):
     """Patch getCurrentNetwork to handle TypeError"""
-    network_service = client.GetService('NetworkService', version=AD_MANAGER_API_VERSION)
+    network_service = client.GetService('NetworkService', version=get_ad_manager_api_version())
     original_get_current_network = network_service.getCurrentNetwork
     
     def patched_get_current_network(*args, **kwargs):
@@ -356,7 +355,7 @@ def patch_get_current_network(client):
 
 def patch_get_all_networks(client):
     """Patch getAllNetworks to handle TypeError"""
-    network_service = client.GetService('NetworkService', version=AD_MANAGER_API_VERSION)
+    network_service = client.GetService('NetworkService', version=get_ad_manager_api_version())
     original_get_all_networks = network_service.getAllNetworks
     
     def patched_get_all_networks(*args, **kwargs):
@@ -392,7 +391,7 @@ def patch_get_all_networks(client):
 
 def patch_run_report_job(client):
     """Patch runReportJob in ReportService"""
-    report_service = client.GetService('ReportService', version=AD_MANAGER_API_VERSION)
+    report_service = client.GetService('ReportService', version=get_ad_manager_api_version())
     original_run_report_job = report_service.runReportJob
     
     def patched_run_report_job(*args, **kwargs):
@@ -416,7 +415,7 @@ def patch_run_report_job(client):
 
 def patch_get_report_job_status(client):
     """Patch getReportJobStatus in ReportService"""
-    report_service = client.GetService('ReportService', version=AD_MANAGER_API_VERSION)
+    report_service = client.GetService('ReportService', version=get_ad_manager_api_version())
     original_get_report_job_status = report_service.getReportJobStatus
     
     def patched_get_report_job_status(*args, **kwargs):
@@ -441,7 +440,7 @@ def patch_get_report_job_status(client):
 def patch_download_report(client):
     """Patch DownloadReportToString in GetDataDownloader"""
     try:
-        data_downloader = client.GetDataDownloader(version=AD_MANAGER_API_VERSION)
+        data_downloader = client.GetDataDownloader(version=get_ad_manager_api_version())
         if not hasattr(data_downloader, 'DownloadReportToString'):
             print("[PATCH] DataDownloader does not have DownloadReportToString method, skipping patch")
             return
@@ -473,7 +472,7 @@ def patch_download_report(client):
 def patch_user_service(client):
     """Patch UserService methods to handle data type conversion errors"""
     try:
-        user_service = client.GetService('UserService', version=AD_MANAGER_API_VERSION)
+        user_service = client.GetService('UserService', version=get_ad_manager_api_version())
         if not hasattr(user_service, 'getUsersByStatement'):
             print("[PATCH] UserService does not have getUsersByStatement method, skipping patch")
             return
@@ -505,7 +504,7 @@ def patch_user_service(client):
 def patch_inventory_service(client):
     """Patch InventoryService methods to handle data type conversion errors"""
     try:
-        inventory_service = client.GetService('InventoryService', version=AD_MANAGER_API_VERSION)
+        inventory_service = client.GetService('InventoryService', version=get_ad_manager_api_version())
         if not hasattr(inventory_service, 'getAdUnitsByStatement'):
             print("[PATCH] InventoryService does not have getAdUnitsByStatement method, skipping patch")
             return

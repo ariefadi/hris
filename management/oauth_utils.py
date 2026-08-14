@@ -524,8 +524,9 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
                     wrapped_credentials = CredentialsWrapper(credentials)
                     
                     from googleads import ad_manager
+                    from management.ad_manager_api import get_ad_manager_api_version
                     ad_manager_client = ad_manager.AdManagerClient(wrapped_credentials, 'HRIS AdX Integration')
-                    network_service = ad_manager_client.GetService('NetworkService', version='v202508')
+                    network_service = ad_manager_client.GetService('NetworkService', version=get_ad_manager_api_version())
                     current_network = network_service.getCurrentNetwork()
                     
                     print(f"[DEBUG] getCurrentNetwork() with wrapper returned: {current_network}")

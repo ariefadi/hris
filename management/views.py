@@ -84,6 +84,7 @@ from .oauth_utils import (
     exchange_code_for_refresh_token,
     handle_oauth_callback
 )
+from management.ad_manager_api import get_ad_manager_api_version
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12259,7 +12260,7 @@ class AdxAccountOAuthCallbackView(View):
                 ad_manager_client = ad_manager.AdManagerClient(credentials, 'HRIS AdX Integration')
                 # Coba dapatkan semua networks yang dapat diakses
                 try:
-                    network_service = ad_manager_client.GetService('NetworkService', version='v202508')
+                    network_service = ad_manager_client.GetService('NetworkService', version=get_ad_manager_api_version())
                     networks = network_service.getAllNetworks()
                     if networks:
                         first = networks[0]
@@ -12273,7 +12274,7 @@ class AdxAccountOAuthCallbackView(View):
                 except Exception:
                     # Fallback ke getCurrentNetwork jika getAllNetworks gagal
                     try:
-                        network_service = ad_manager_client.GetService('NetworkService', version='v202508')
+                        network_service = ad_manager_client.GetService('NetworkService', version=get_ad_manager_api_version())
                         current_network = network_service.getCurrentNetwork()
                         network_code = (
                             getattr(current_network, 'networkCode', None)

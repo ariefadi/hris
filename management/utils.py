@@ -69,29 +69,63 @@ from functools import wraps
 if apply_googleads_patches:
     apply_googleads_patches()
 
-AD_MANAGER_API_VERSION = 'v202508'
-AD_MANAGER_API_VERSIONS = (AD_MANAGER_API_VERSION,)
+from management.ad_manager_api import (
+    ensure_ad_manager_service_map,
+    get_ad_manager_api_version,
+    get_ad_manager_api_versions,
+    invalidate_ad_manager_api_cache,
+    is_api_version_error,
+)
 
-if ad_manager and AD_MANAGER_API_VERSION not in ad_manager._SERVICE_MAP:
-    _fallback_version = sorted(ad_manager._SERVICE_MAP.keys())[-1]
-    ad_manager._SERVICE_MAP[AD_MANAGER_API_VERSION] = ad_manager._SERVICE_MAP[_fallback_version]
+try:
+    _boot_version = get_ad_manager_api_version()
+    ensure_ad_manager_service_map(_boot_version)
+except Exception:
+    _boot_version = 'v202508'
+    ensure_ad_manager_service_map(_boot_version)
+
+
+def _resolve_ad_manager_api_version(force_refresh: bool = False) -> str:
+    return get_ad_manager_api_version(force_refresh=force_refresh)
+
 
 def _get_ad_manager_service(client, service_name):
     last_error = None
-    for version in AD_MANAGER_API_VERSIONS:
-        try:
-            return client.GetService(service_name, version=version), version
-        except Exception as e:
-            last_error = e
+    for attempt in range(2):
+        versions = get_ad_manager_api_versions(force_refresh=attempt > 0)
+        for version in versions:
+            try:
+                ensure_ad_manager_service_map(version)
+                return client.GetService(service_name, version=version), version
+            except Exception as exc:
+                last_error = exc
+                if is_api_version_error(exc):
+                    continue
+                raise
+        if attempt == 0:
+            invalidate_ad_manager_api_cache()
+            continue
+        break
     raise last_error or RuntimeError(f'Gagal inisialisasi {service_name}')
+
 
 def _get_ad_manager_downloader(client):
     last_error = None
-    for version in AD_MANAGER_API_VERSIONS:
-        try:
-            return client.GetDataDownloader(version=version), version
-        except Exception as e:
-            last_error = e
+    for attempt in range(2):
+        versions = get_ad_manager_api_versions(force_refresh=attempt > 0)
+        for version in versions:
+            try:
+                ensure_ad_manager_service_map(version)
+                return client.GetDataDownloader(version=version), version
+            except Exception as exc:
+                last_error = exc
+                if is_api_version_error(exc):
+                    continue
+                raise
+        if attempt == 0:
+            invalidate_ad_manager_api_cache()
+            continue
+        break
     raise last_error or RuntimeError('Gagal inisialisasi report downloader')
 
 def with_user_credentials(view_func):
@@ -2203,7 +2237,7 @@ def fetch_ad_manager_inventory():
         inventory_service, _inventory_version = _get_ad_manager_service(client, 'InventoryService')
         
         # Get ad units
-        statement = ad_manager.StatementBuilder(version=AD_MANAGER_API_VERSION)
+        statement = ad_manager.StatementBuilder(version=_resolve_ad_manager_api_version())
         ad_units = inventory_service.getAdUnitsByStatement(statement.ToStatement())
         
         return {
@@ -2781,7 +2815,7 @@ def fetch_adx_active_sites():
         inventory_service, _inventory_version = _get_ad_manager_service(client, 'InventoryService')
         
         # Get active ad units
-        statement = ad_manager.StatementBuilder(version=AD_MANAGER_API_VERSION)
+        statement = ad_manager.StatementBuilder(version=_resolve_ad_manager_api_version())
         statement.Where('status = :status')
         statement.WithBindVariable('status', 'ACTIVE')
         
@@ -2982,7 +3016,7 @@ def fetch_user_adx_account_data(user_mail):
         # Get current user information
         current_user = None
         try:
-            statement = ad_manager.StatementBuilder(version=AD_MANAGER_API_VERSION)
+            statement = ad_manager.StatementBuilder(version=_resolve_ad_manager_api_version())
             statement.Where('email = :email')
             statement.WithBindVariable('email', user_mail)
             users = user_service.getUsersByStatement(statement.ToStatement())
@@ -3001,7 +3035,7 @@ def fetch_user_adx_account_data(user_mail):
         # Count active ad units
         active_ad_units_count = 0
         try:
-            statement = ad_manager.StatementBuilder(version=AD_MANAGER_API_VERSION)
+            statement = ad_manager.StatementBuilder(version=_resolve_ad_manager_api_version())
             statement.Where('status = :status')
             statement.WithBindVariable('status', 'ACTIVE')
             ad_units = inventory_service.getAdUnitsByStatement(statement.ToStatement())
@@ -3086,7 +3120,7 @@ def check_email_in_ad_manager(user_mail):
         user_service, _user_version = _get_ad_manager_service(client, 'UserService')
         
         # Search for user by email
-        statement = ad_manager.StatementBuilder(version=AD_MANAGER_API_VERSION)
+        statement = ad_manager.StatementBuilder(version=_resolve_ad_manager_api_version())
         statement.Where('email = :email')
         statement.WithBindVariable('email', user_mail)
         
@@ -4167,7 +4201,7 @@ def _map_ad_unit_ids_to_site_names(client, ad_unit_ids, only_top_level_name=None
         for _ in range(min(500, len(pending))):
             batch.append(pending.pop())
 
-        statement = ad_manager.StatementBuilder(version=AD_MANAGER_API_VERSION)
+        statement = ad_manager.StatementBuilder(version=_resolve_ad_manager_api_version())
         statement.Where(f"id IN ({','.join(batch)})")
         resp = inventory_service.getAdUnitsByStatement(statement.ToStatement())
 
@@ -5969,7 +6003,7 @@ def fetch_roi_active_sites():
         inventory_service, _inventory_version = _get_ad_manager_service(client, 'InventoryService')
         
         # Get active ad units
-        statement = ad_manager.StatementBuilder(version=AD_MANAGER_API_VERSION)
+        statement = ad_manager.StatementBuilder(version=_resolve_ad_manager_api_version())
         statement.Where('status = :status')
         statement.WithBindVariable('status', 'ACTIVE')
         

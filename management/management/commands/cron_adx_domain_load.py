@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from management.database import data_mysql
 from management.utils import fetch_adx_traffic_account_by_user
 from management.utils import fetch_user_adx_account_data
+from management.ad_manager_api import ensure_ad_manager_api_ready
 import os
 import uuid
 
@@ -53,6 +54,8 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(
             f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date}."
         ))
+        active_version = ensure_ad_manager_api_ready()
+        self.stdout.write(self.style.SUCCESS(f"Ad Manager API version: {active_version}"))
         db = data_mysql()
         # Ambil semua kredensial dari app_credentials
         creds = db.get_all_app_credentials()
