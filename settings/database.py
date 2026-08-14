@@ -393,7 +393,7 @@ class SettingsDB(ManagementDB):
                 COUNT(*) AS total_users,
                 SUM(CASE WHEN CAST(COALESCE(user_st, '0') AS CHAR) = '1' THEN 1 ELSE 0 END) AS active_users,
                 SUM(CASE WHEN CAST(COALESCE(user_st, '0') AS CHAR) <> '1' THEN 1 ELSE 0 END) AS inactive_users,
-                SUM(CASE WHEN mdd >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS new_users
+                SUM(CASE WHEN DATE(COALESCE(mdd, '1970-01-01')) = CURDATE() THEN 1 ELSE 0 END) AS new_users
             FROM app_users
         '''
         try:
