@@ -2154,123 +2154,107 @@ class data_mysql:
             }
         return hasil
 
-    def get_last_update_ads_traffic_country(self):
-        sql = '''
-            SELECT MAX(mdd) AS 'last_update'
-            FROM `data_ads_country`
-        '''
+    def get_last_update_max_mdd(self, table_name):
+        allowed = {
+            'data_ads_country',
+            'data_ads_campaign',
+            'data_adx_country',
+            'data_adx_domain',
+            'data_adsense_country',
+            'data_adsense_domain',
+        }
+        table = str(table_name or '').strip().lower()
+        if table not in allowed:
+            return {'status': False, 'data': {}, 'message': 'invalid table'}
+        sql = f"SELECT MAX(mdd) AS last_update FROM {table}"
         try:
-            self.cur_hris.execute(sql)
-            datanya = self.cur_hris.fetchone()
-            hasil = {
-                "status": True,
-                "data": datanya
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return hasil
+            if not self.execute_query(sql):
+                raise pymysql.Error('Failed to fetch last update')
+            datanya = self.cur_hris.fetchone() if self.cur_hris else None
+            if self.db_hris:
+                self.commit()
+            return {'status': True, 'data': datanya or {}}
+        except Exception as e:
+            return {'status': False, 'data': {}, 'message': str(e)}
+
+    def get_last_update_ads_traffic_country(self):
+        return self.get_last_update_max_mdd('data_ads_country')
 
     def get_last_update_ads_traffic_per_domain(self):
-        sql = '''
-            SELECT MAX(mdd) AS 'last_update'
-            FROM `data_ads_campaign`
-        '''
-        try:
-            self.cur_hris.execute(sql)
-            datanya = self.cur_hris.fetchone()
-            hasil = {
-                "status": True,
-                "data": datanya
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return hasil
+        return self.get_last_update_max_mdd('data_ads_campaign')
 
     def get_last_update_adx_traffic_country(self):
-        sql = '''
-            SELECT MAX(mdd) AS 'last_update'
-            FROM `data_adx_country`
-        '''
-        try:
-            if not self.execute_query(sql):
-                raise pymysql.Error('Failed to fetch last update')
-            datanya = self.cur_hris.fetchone() if self.cur_hris else None
-            hasil = {
-                "status": True,
-                "data": datanya
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return hasil
+        return self.get_last_update_max_mdd('data_adx_country')
 
     def get_last_update_adsense_traffic_country(self):
-        sql = '''
-            SELECT MAX(mdd) AS 'last_update'
-            FROM `data_adsense_country`
-        '''
-        try:
-            if not self.execute_query(sql):
-                raise pymysql.Error('Failed to fetch last update')
-            datanya = self.cur_hris.fetchone() if self.cur_hris else None
-            hasil = {
-                "status": True,
-                "data": datanya
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return hasil
+        return self.get_last_update_max_mdd('data_adsense_country')
 
     def get_last_update_adx_traffic_per_domain(self):
-        sql = '''
-            SELECT MAX(mdd) AS 'last_update'
-            FROM `data_adx_domain`
-        '''
-        try:
-            if not self.execute_query(sql):
-                raise pymysql.Error('Failed to fetch last update')
-            datanya = self.cur_hris.fetchone() if self.cur_hris else None
-            hasil = {
-                "status": True,
-                "data": datanya
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return hasil
+        return self.get_last_update_max_mdd('data_adx_domain')
 
     def get_last_update_adsense_traffic_per_domain(self):
-        sql = '''
-            SELECT MAX(mdd) AS 'last_update'
-            FROM `data_adsense_domain`
-        '''
+        return self.get_last_update_max_mdd('data_adsense_domain')
+
+    def get_last_update_ads_campaign_by_params(self, start_date, end_date, selected_account_list=None, selected_domain_list=None):
         try:
-            if not self.execute_query(sql):
-                raise pymysql.Error('Failed to fetch last update')
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [
+                str(a).strip() for a in selected_account_list
+                if str(a).strip() and str(a).strip() != '%'
+            ]
+
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [
+                str(d).strip() for d in selected_domain_list
+                if str(d).strip() and str(d).strip() != '%'
+            ]
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+            account_col = "replaceRegexpAll(lowerUTF8(toString(b.account_ads_id)), '^act_', '')" if use_clickhouse else "b.account_ads_id"
+
+            base_sql = [
+                "SELECT",
+                "\tMAX(b.mdd) AS last_update",
+                "FROM data_ads_campaign b",
+                "WHERE",
+            ]
+            params = []
+            if use_clickhouse:
+                base_sql.append("\ttoDate(b.data_ads_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
+            else:
+                base_sql.append("\tb.data_ads_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+
+            if data_account_list:
+                like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend([f"%{self._normalize_fb_account_key(account)}%" for account in data_account_list])
+            if data_domain_list:
+                domain_col = "lowerUTF8(b.data_ads_domain)" if use_clickhouse else "b.data_ads_domain"
+                like_conditions_domain = " OR ".join([f"{domain_col} LIKE %s"] * len(data_domain_list))
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend([f"%{domain.lower()}%" for domain in data_domain_list])
+
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error('Failed to fetch last update ads campaign')
             datanya = self.cur_hris.fetchone() if self.cur_hris else None
-            hasil = {
-                "status": True,
-                "data": datanya
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return hasil
+            if self.db_hris:
+                self.commit()
+            return {'status': True, 'data': datanya or {}}
+        except Exception as e:
+            return {'status': False, 'data': {}, 'message': str(e)}
 
     def get_last_update_adx_monitoring_by_params(self, start_date, end_date, selected_account_list=None):
         try:

@@ -302,6 +302,9 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 return;
             }
             showFacebookSummaryResults();
+            if (window.HrisLastUpdate) {
+                window.HrisLastUpdate.set('#hrisLastUpdateValue', data_campaign.last_update || '');
+            }
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Campaign Facebook";
 

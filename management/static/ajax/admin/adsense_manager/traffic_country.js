@@ -343,6 +343,9 @@ $(document).ready(function () {
             success: function (response) {
                 hideAdsenseTrafficLoader();
                 if (response && response.status) {
+                    if (window.HrisLastUpdate) {
+                        window.HrisLastUpdate.set('#hrisLastUpdateValue', response.last_update || '');
+                    }
                     showAdsenseTrafficResults();
                     updateSummaryBoxes(response.summary);
                     initializeDataTable(response.data);

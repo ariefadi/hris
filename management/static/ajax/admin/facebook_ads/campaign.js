@@ -636,6 +636,9 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
         dataType: 'json',
         success: function (data_campaign) {
             showFbTrafficTable();
+            if (window.HrisLastUpdate) {
+                window.HrisLastUpdate.set('#hrisLastUpdateValue', data_campaign.last_update || '');
+            }
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Campaign Facebook";
 

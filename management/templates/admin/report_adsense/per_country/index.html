@@ -371,7 +371,7 @@ html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-negative { color: #
             <h3 class="card-title"><i class="bi bi-globe-americas text-success"></i> Data ROI Per Negara</h3>
             <span class="adsense-rekap-country-last-update" id="adsenseRekapCountryLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui.">
                 <i class="bi bi-clock-history"></i>
-                Terakhir diupdate <b>{{ last_update|date:"d F Y" }} {{ last_update|date:"H:i:s" }}</b>
+                Terakhir diupdate <b>{% if last_update %}{{ last_update|date:"d F Y" }} {{ last_update|date:"H:i:s" }}{% else %}-{% endif %}</b>
             </span>
         </div>
     </div>

@@ -322,6 +322,9 @@ $(document).ready(function () {
             success: function (response) {
                 hideAdxTrafficLoader();
                 if (response && response.status) {
+                    if (window.HrisLastUpdate) {
+                        window.HrisLastUpdate.set('#hrisLastUpdateValue', response.last_update || '');
+                    }
                     showAdxTrafficResults();
                     updateSummaryBoxes(response.summary);
                     initializeDataTable(response.data);

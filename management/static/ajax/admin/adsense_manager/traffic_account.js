@@ -163,6 +163,9 @@ function load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selecte
         success: function (response) {
             hideAdsenseTrafficLoader();
             if (response && response.status) {
+                if (window.HrisLastUpdate) {
+                    window.HrisLastUpdate.set('#hrisLastUpdateValue', response.last_update || '');
+                }
                 showAdsenseTrafficResults();
                 updateSummaryBoxes(response.summary);
                 initializeDataTable(response.data);

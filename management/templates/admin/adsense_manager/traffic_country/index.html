@@ -51,6 +51,15 @@ html[data-theme="dark"] {
     border-bottom: 1px solid var(--adsense-border);
 }
 .adsense-traffic-page .card-title { color: var(--adsense-text); font-weight: 800; }
+.adsense-traffic-page .adsense-last-update {
+    font-size: 12px;
+    color: var(--adsense-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+.adsense-traffic-page .adsense-last-update b { color: var(--adsense-text); font-weight: 800; }
 .adsense-traffic-tour-btn {
     border-radius: 999px; padding: 6px 14px; font-weight: 700; border: 0 !important;
     color: #fff !important; background: var(--tour-next-grad) !important;
@@ -350,7 +359,13 @@ html[data-theme="dark"] .adsense-detail-metric.highlight .adsense-detail-metric-
 
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title mb-0"><i class="bi bi-globe mr-1"></i> Data Traffic Per Negara</h3>
+        <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+            <h3 class="card-title mb-0"><i class="bi bi-globe mr-1"></i> Data Traffic Per Negara</h3>
+            <span class="adsense-last-update">
+                <i class="bi bi-clock-history"></i>
+                Update terakhir <b id="hrisLastUpdateValue">{% if last_update %}{{ last_update|date:"d M Y H:i" }}{% else %}-{% endif %}</b>
+            </span>
+        </div>
     </div>
     <div class="card-body position-relative">
         <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Memuat data traffic per negara..." aria-hidden="true"></div>

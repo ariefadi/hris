@@ -1108,6 +1108,30 @@
 
             window.HrisLoader = HrisLoader;
 
+            window.HrisLastUpdate = {
+                format: function(value) {
+                    if (value == null || value === '') return '-';
+                    var s = String(value).trim();
+                    if (!s) return '-';
+                    var dt = new Date(s.includes('T') ? s : s.replace(' ', 'T'));
+                    if (!isNaN(dt.getTime())) {
+                        return dt.toLocaleString('id-ID', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                    return s;
+                },
+                set: function(selector, value) {
+                    var el = typeof selector === 'string' ? document.querySelector(selector) : selector;
+                    if (!el) return;
+                    el.textContent = window.HrisLastUpdate.format(value);
+                }
+            };
+
             function normalizeLoaderMessage(el) {
                 var msg = el.getAttribute('data-loader-message') || el.textContent || '';
                 msg = String(msg).replace(/\s+/g, ' ').trim();

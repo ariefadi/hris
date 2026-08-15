@@ -41,7 +41,7 @@ from .utils_adsense import (
     generate_cache_key_adsense,
     get_cached_data_adsense,
 )
-from .list_adsense_policy_events import list_adsense_policy_events
+from .last_update_utils import resolve_adsense_last_update, serialize_last_update
 from .sync_adsense_policy_events import sync_adsense_policy_events
 from management.views import (
     attach_kiwipixel_visitors_to_country_result,
@@ -87,7 +87,8 @@ class AdsenseTrafficAccountView(View):
             'title': 'AdSense Traffic Per Account',
             'user': req.session['hris_admin'],
             'data_account_adsense': data_account_adsense['data'],
-            'data_domain_adsense': data_domain_adsense.get('data', [])
+            'data_domain_adsense': data_domain_adsense.get('data', []),
+            'last_update': resolve_adsense_last_update(),
         }
         return render(req, 'admin/adsense_manager/traffic_account/index.html', data)
 
@@ -242,7 +243,13 @@ class AdsenseTrafficAccountDataView(View):
                 'status': True,
                 'message': 'Data adsense traffic account berhasil diambil',
                 'summary': summary,
-                'data': result_rows
+                'data': result_rows,
+                'last_update': serialize_last_update(resolve_adsense_last_update(
+                    start_date_formatted,
+                    end_date_formatted,
+                    selected_account_list,
+                    selected_domain_list,
+                )),
             }, safe=False)
         except Exception as e:
             return JsonResponse({
@@ -684,7 +691,7 @@ class AdsenseTrafficPerCountryView(View):
             })
         if not data_domain_adsense.get('status'):
             data_domain_adsense = {'status': True, 'data': []}
-        last_update = data_mysql().get_last_update_adsense_traffic_country()['data']['last_update']
+        last_update = resolve_adsense_last_update()
         data = {
             'title': 'AdSense Traffic Per Country',
             'user': req.session['hris_admin'],
@@ -734,13 +741,14 @@ class AdsenseTrafficPerCountryDataView(View):
                 countries_list = [c.strip() for c in country_filter.split(',') if c.strip()]
             # Fetch AdSense traffic data per country
             result = data_mysql().get_all_adsense_traffic_country_by_params(start_date, end_date, selected_account_list, countries_list, selected_domain_list)
-            print(f"[DEBUG] get_all_adsense_traffic_country_by_params result: {result}")
             if isinstance(result, dict):
-                if 'data' in result:
-                    if result['data']:
-                        print(f"[DEBUG] First data item: {result['data'][0]}")
-                if 'summary' in result:
-                    print(f"[DEBUG] Summary: {result['summary']}")
+                result = dict(result)
+                result['last_update'] = serialize_last_update(resolve_adsense_last_update(
+                    start_date,
+                    end_date,
+                    selected_account_list,
+                    selected_domain_list,
+                ))
             return JsonResponse(result, safe=False)
         except Exception as e:
             print(f"[ERROR] Exception in AdsenseTrafficPerCountryDataView: {str(e)}")
@@ -887,7 +895,7 @@ class RekapAdsenseSummaryView(View):
     def get(self, req):
         admin = req.session.get('hris_admin', {})
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adsense_traffic_per_domain()['data']['last_update']
+        last_update = resolve_adsense_last_update()
         if admin.get('super_st') == '0':
             data_account_adsense = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
             data_domain_adsense = data_mysql().get_all_adsense_domain_data_user(admin.get('user_id'))
@@ -919,7 +927,7 @@ class RekapTrafficPerDomainView(View):
             data_account_adsense = data_mysql().get_all_adsense_account_data()['data']
             data_domain_adsense = data_mysql().get_all_adsense_domain_data()['data']
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adsense_traffic_per_domain()['data']['last_update']
+        last_update = resolve_adsense_last_update()
         data = {
             'title': 'ROI Per Domain',
             'user': req.session['hris_admin'],
@@ -1765,7 +1773,7 @@ class RekapTrafficPerCountryAdsenseView(View):
                 'error': data_account_adsense['data']
             })
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adsense_traffic_country()['data']['last_update']
+        last_update = resolve_adsense_last_update()
         data = {
             'title': 'ROI Per Country',
             'user': req.session['hris_admin'],
@@ -2397,7 +2405,7 @@ class RoiMonitoringDomainAdsenseView(View):
     def get(self, req):
         admin = req.session.get('hris_admin', {})
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adsense_traffic_per_domain()['data']['last_update']
+        last_update = resolve_adsense_last_update()
         if admin.get('super_st') == '0':
             data_account_adsense = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
             data_domain_adsense = data_mysql().get_all_adsense_domain_data_user(admin.get('user_id'))
@@ -2907,7 +2915,7 @@ class RoiMonitoringCountryAdsenseView(View):
     def get(self, req):
         admin = req.session.get('hris_admin', {})
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adsense_traffic_per_domain()['data']['last_update']
+        last_update = resolve_adsense_last_update()
         if admin.get('super_st') == '0':
             data_account_adsense = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
             data_domain_adsense = data_mysql().get_all_adsense_domain_data_user(admin.get('user_id'))
@@ -3572,7 +3580,7 @@ class AdsenseRekapitulasiView(View):
     def get(self, req):
         admin = req.session.get('hris_admin', {})
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adsense_traffic_per_domain()['data']['last_update']
+        last_update = resolve_adsense_last_update()
         if admin.get('super_st') == '0':
             data_account_adsense = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
             data_domain_adsense = data_mysql().get_all_adsense_domain_data_user(admin.get('user_id'))

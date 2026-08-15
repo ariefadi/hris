@@ -256,6 +256,9 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
         success: function (data_country) {
             $('#overlay').hide();
             showFbTrafficTable();
+            if (window.HrisLastUpdate) {
+                window.HrisLastUpdate.set('#hrisLastUpdateValue', data_country.last_update || '');
+            }
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Country Facebook";
 

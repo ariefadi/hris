@@ -162,6 +162,9 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
         success: function (response) {
             hideAdxTrafficLoader();
             if (response && response.status) {
+                if (window.HrisLastUpdate) {
+                    window.HrisLastUpdate.set('#hrisLastUpdateValue', response.last_update || '');
+                }
                 showAdxTrafficResults();
                 updateSummaryBoxes(response.summary);
                 initializeDataTable(response.data);

@@ -351,7 +351,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             <h3 class="card-title"><i class="bi bi-globe2 text-success"></i> Data ROI Per Domain</h3>
             <span class="roi-domain-last-update" id="roiPerDomainLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui.">
                 <i class="bi bi-clock-history"></i>
-                Terakhir diupdate <b>{{ last_update|date:"d F Y" }} {{ last_update|date:"H:i:s" }}</b>
+                Terakhir diupdate <b>{% if last_update %}{{ last_update|date:"d F Y" }} {{ last_update|date:"H:i:s" }}{% else %}-{% endif %}</b>
             </span>
         </div>
     </div>

@@ -6043,7 +6043,7 @@ class SummaryFacebookAds(View):
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
         data_domain = data_mysql().master_domain_ads()['data']
-        last_update = data_mysql().get_last_update_ads_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_ads_campaign_last_update()
         data = {
             'title': 'Data Summary Facebook Ads',
             'user': req.session['hris_admin'],  
@@ -6275,6 +6275,12 @@ class page_summary_facebook(View):
                 'total_pageviews': total_pageviews_sum,
             }],
             'monitoring_campaign': monitor_rows,
+            'last_update': _serialize_last_update(_resolve_ads_campaign_last_update(
+                tanggal_dari,
+                tanggal_sampai,
+                selected_account_list,
+                selected_domain_list,
+            )),
         }
         # Jika terjadi kegagalan di layer DB, kirimkan respons kosong agar frontend tidak error
         if not status_ok:
@@ -10220,7 +10226,7 @@ class PerCampaignFacebookAds(View):
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
         data_domain = data_mysql().master_domain_ads()['data']
-        last_update = data_mysql().get_last_update_ads_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_ads_campaign_last_update()
         data = {
             'title': 'Data Traffic Per Campaign Facebook Ads',
             'user': req.session['hris_admin'],  
@@ -10364,6 +10370,12 @@ class page_per_campaign_facebook(View):
                 'unique_visitor': total_unique_sum,
                 'total_pageviews': total_pageviews_sum,
             }],
+            'last_update': _serialize_last_update(_resolve_ads_campaign_last_update(
+                tanggal_dari,
+                tanggal_sampai,
+                selected_account_list,
+                selected_domain_list,
+            )),
         }
         # Jika terjadi kegagalan di layer DB, kirimkan respons kosong agar frontend tidak error
         if not status_ok:
@@ -10956,7 +10968,7 @@ class PerCountryFacebookAds(View):
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
         data_domain = data_mysql().master_domain_ads()['data']
-        last_update = data_mysql().get_last_update_ads_traffic_country()['data']['last_update']
+        last_update = _last_update_from_resp(data_mysql().get_last_update_ads_traffic_country())
         data = {
             'title': 'Data Traffic Per Country Facebook Ads',
             'user': req.session['hris_admin'],
@@ -11145,6 +11157,12 @@ class page_per_country_facebook(View):
             'hasil': "Data Traffic Per Country",
             'data_country': data['data'],
             'total_country': data['total'],
+            'last_update': _serialize_last_update(_resolve_ads_campaign_last_update(
+                tanggal_dari,
+                tanggal_sampai,
+                selected_account_list,
+                selected_domain_list,
+            )),
         }
         return JsonResponse(hasil)
 
@@ -12032,6 +12050,13 @@ class SaveOAuthCredentialsView(View):
 # OAuth views telah dipindahkan ke oauth_views_package untuk konsistensi
 # Gunakan oauth_views_package.oauth_views untuk semua operasi OAuth
 
+from .last_update_utils import (
+    last_update_from_resp as _last_update_from_resp,
+    resolve_adx_last_update as _resolve_adx_last_update,
+    resolve_adsense_last_update as _resolve_adsense_last_update,
+    resolve_ads_campaign_last_update as _resolve_ads_campaign_last_update,
+    serialize_last_update as _serialize_last_update,
+)
 class AdxTrafficPerAccountView(View):
     """View untuk AdX Traffic Per Account"""
     def dispatch(self, request, *args, **kwargs):
@@ -12051,7 +12076,7 @@ class AdxTrafficPerAccountView(View):
                 'status': False,
                 'error': data_domain_adx['data']
             })
-        last_update = data_mysql().get_last_update_adx_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_adx_last_update()
         data = {
             'title': 'AdX Traffic Per Account',
             'user': req.session['hris_admin'],
@@ -12539,7 +12564,13 @@ class AdxTrafficPerAccountDataView(View):
                 'status': True,
                 'message': 'Data adx traffic account berhasil diambil',
                 'summary': summary,
-                'data': result_rows
+                'data': result_rows,
+                'last_update': _serialize_last_update(_resolve_adx_last_update(
+                    start_date_formatted,
+                    end_date_formatted,
+                    selected_account_list,
+                    selected_domain_list
+                )),
             }, safe=False)
         except Exception as e:
             return JsonResponse({
@@ -12737,7 +12768,7 @@ class AdxTrafficPerCountryView(View):
                 'status': False,
                 'error': data_domain_adx['data']
             })
-        last_update = data_mysql().get_last_update_adx_traffic_country()['data']['last_update']
+        last_update = _resolve_adx_last_update()
         data = {
             'title': 'AdX Traffic Per Country',
             'user': req.session['hris_admin'],
@@ -12786,11 +12817,13 @@ class AdxTrafficPerCountryDataView(View):
             # result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)    
             result = data_mysql().get_all_adx_traffic_country_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list, countries_list, force_clickhouse=True)
             if isinstance(result, dict):
-                if 'data' in result:
-                    if result['data']:
-                        print(f"[DEBUG] First data item: {result['data'][0]}")
-                if 'summary' in result:
-                    print(f"[DEBUG] Summary: {result['summary']}")
+                result = dict(result)
+                result['last_update'] = _serialize_last_update(_resolve_adx_last_update(
+                    start_date_formatted,
+                    end_date_formatted,
+                    selected_account_list,
+                    selected_domain_list,
+                ))
             return JsonResponse(result, safe=False)
             
         except Exception as e:
@@ -12877,7 +12910,7 @@ class RoiTrafficPerCountryView(View):
                 'error': data_domain_adx['data']
             })
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adx_traffic_country()['data']['last_update']
+        last_update = _resolve_adx_last_update()
         data = {
             'title': 'ROI Per Country',
             'user': req.session['hris_admin'],
@@ -13851,7 +13884,7 @@ class RoiTrafficPerDomainView(View):
             data_account_adx = data_mysql().get_all_adx_account_data()
             data_domain_adx = data_mysql().get_all_adx_domain_data()
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adx_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_adx_last_update()
         data = {
             'title': 'ROI Per Domain',
             'user': req.session['hris_admin'],
@@ -15892,7 +15925,7 @@ class RoiSummaryView(View):
     def get(self, req):
         admin = req.session.get('hris_admin', {})
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adx_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_adx_last_update()
         if admin.get('super_st') == '0':
             data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
             data_domain_adx = data_mysql().get_all_adx_domain_data_user(admin.get('user_id'))
@@ -16129,7 +16162,7 @@ class RoiMonitoringDomainView(View):
     def get(self, req):
         admin = req.session.get('hris_admin', {})
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adx_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_adx_last_update()
         if admin.get('super_st') == '0':
             data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
             data_domain_adx = data_mysql().get_all_adx_domain_data_user(admin.get('user_id'))
@@ -17272,7 +17305,7 @@ class RoiMonitoringCountryView(View):
     def get(self, req):
         admin = req.session.get('hris_admin', {})
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adx_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_adx_last_update()
         if admin.get('super_st') == '0':
             data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
             data_domain_adx = data_mysql().get_all_adx_domain_data_user(admin.get('user_id'))
@@ -17880,7 +17913,7 @@ class ReportAccountView(View):
         month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
         months = [(f'{i:02d}', month_names[i - 1]) for i in range(1, 13)]
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_ads_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_ads_campaign_last_update()
         data = {
             'title': 'Report Account',
             'user': req.session['hris_admin'],
@@ -17988,7 +18021,7 @@ class ReportAccountDetailPageView(View):
         prev_month = today.replace(day=1) - timedelta(days=1)
         month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
         months = [(f'{i:02d}', month_names[i - 1]) for i in range(1, 13)]
-        last_update = db.get_last_update_ads_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_ads_campaign_last_update()
 
         data = {
             'title': f"Detail Account — {acct.get('account_name') or account_key}",
@@ -18211,7 +18244,7 @@ class DashboardAccountDetailPageView(View):
         prev_month = today.replace(day=1) - timedelta(days=1)
         month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
         months = [(f'{i:02d}', month_names[i - 1]) for i in range(1, 13)]
-        last_update = db.get_last_update_ads_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_ads_campaign_last_update()
 
         data = {
             'title': f"Dashboard Detail Account — {acct.get('account_name') or account_key}",
@@ -18375,7 +18408,7 @@ class RoiRekapitulasiView(View):
     def get(self, req):
         admin = req.session.get('hris_admin', {})
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_adx_traffic_per_domain()['data']['last_update']
+        last_update = _resolve_adx_last_update()
         if admin.get('super_st') == '0':
             data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
             data_domain_adx = data_mysql().get_all_adx_domain_data_user(admin.get('user_id'))

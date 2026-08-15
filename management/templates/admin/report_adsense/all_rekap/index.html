@@ -284,7 +284,7 @@ html[data-theme="dark"] {
             <h3 class="card-title"><i class="bi bi-graph-up text-success"></i> ROI Summary Data</h3>
             <span class="adsense-summary-last-update" id="adsenseRekapSummaryLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui.">
                 <i class="bi bi-clock-history"></i>
-                Terakhir diupdate <b>{{ last_update|date:"d F Y" }} {{ last_update|date:"H:i:s" }}</b>
+                Terakhir diupdate <b>{% if last_update %}{{ last_update|date:"d F Y" }} {{ last_update|date:"H:i:s" }}{% else %}-{% endif %}</b>
             </span>
         </div>
     </div>

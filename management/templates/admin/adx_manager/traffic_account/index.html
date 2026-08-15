@@ -340,7 +340,7 @@ html[data-theme="dark"] .adx-detail-metric.highlight .adx-detail-metric-value { 
             <h3 class="card-title mb-0"><i class="bi bi-table mr-1"></i> Data Traffic Per Akun</h3>
             <span class="adx-last-update">
                 <i class="bi bi-clock-history"></i>
-                Update terakhir {{ last_update|date:"d M Y H:i" }}
+                Update terakhir <b id="hrisLastUpdateValue">{% if last_update %}{{ last_update|date:"d M Y H:i" }}{% else %}-{% endif %}</b>
             </span>
         </div>
     </div>

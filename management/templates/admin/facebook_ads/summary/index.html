@@ -101,6 +101,12 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
       border-color: #2b2b2b;
       box-shadow: none;
   }
+  html[data-theme="dark"] .summary-section-title {
+      color: #e2e8f0;
+  }
+  html[data-theme="dark"] .summary-section-title i {
+      color: #93c5fd;
+  }
   .summary-empty-state {
       text-align: center;
       padding: 48px 24px;
@@ -119,6 +125,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
       margin-bottom: 6px;
   }
   html[data-theme="dark"] .summary-empty-state-title { color: #e2e8f0; }
+  html[data-theme="dark"] .summary-empty-state { color: #94a3b8; }
 </style>
 <div class="card">
     <div class="card-header">
@@ -172,7 +179,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Tabel Traffic Per Campaign (Ads)</b></h3>
             </div>
             <div class="col-6 d-flex justify-content-end">
-                <span id="facebookCampaignLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui."><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>{{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}</b></span>
+                <span id="facebookCampaignLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui."><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b id="hrisLastUpdateValue">{% if last_update %}{{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}{% else %}-{% endif %}</b></span>
             </div>
         </div>
     </div>
