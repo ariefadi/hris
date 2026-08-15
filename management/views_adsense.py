@@ -42,6 +42,7 @@ from .utils_adsense import (
     get_cached_data_adsense,
 )
 from .last_update_utils import resolve_adsense_last_update, serialize_last_update
+from .list_adsense_policy_events import list_adsense_policy_events
 from .sync_adsense_policy_events import sync_adsense_policy_events
 from management.views import (
     attach_kiwipixel_visitors_to_country_result,
