@@ -184,7 +184,20 @@ html[data-theme="dark"] {
     background: linear-gradient(135deg, rgba(5,150,105,0.15), rgba(16,185,129,0.12));
     color: var(--adsense-accent); font-size: 0.85rem;
 }
-.adsense-chart-wrap { padding: 12px 16px 16px; min-height: 280px; position: relative; }
+.adsense-monitor-domain-page .adsense-chart-tabs {
+    border-bottom: 1px solid var(--adsense-border);
+    padding: 0 12px; background: var(--adsense-surface-2);
+}
+.adsense-monitor-domain-page .adsense-chart-tabs .nav-link {
+    border: 0; border-radius: 0; font-size: 0.82rem; font-weight: 700;
+    color: var(--adsense-muted); padding: 10px 14px;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.adsense-monitor-domain-page .adsense-chart-tabs .nav-link.active {
+    color: var(--adsense-accent); background: transparent;
+    border-bottom-color: var(--adsense-accent);
+}
+.adsense-chart-wrap { padding: 12px 16px 16px; min-height: 340px; position: relative; }
 .adsense-traffic-table-wrap { overflow-x: auto; margin-top: 14px; }
 .adsense-traffic-table-wrap .dt-buttons { margin-bottom: 12px; }
 .adsense-traffic-table-wrap .dt-buttons .btn {
@@ -461,13 +474,30 @@ html[data-theme="dark"] #roiAdsenseCampaignBreakdownModal .page-item.active .pag
             </div>
         </div>
 
-        <div id="charts_section" style="display: none;" data-title="Grafik" data-intro="Grafik traffic ROI harian berdasarkan hasil filter. Akan muncul setelah data dimuat.">
+        <div id="charts_section" style="display: none;" data-title="Grafik" data-intro="Grafik total (semua domain) per tanggal untuk membandingkan Spend, Earning, Net Profit, dan ROI. Akan muncul setelah data dimuat.">
             <div class="adsense-chart-section">
                 <div class="adsense-chart-section-header">
-                    <i class="bi bi-bar-chart-line"></i> Traffic ROI Harian
+                    <i class="bi bi-bar-chart-line"></i> Perbandingan Spend, Earning, Net Profit &amp; ROI (Daily)
                 </div>
-                <div class="adsense-chart-wrap">
-                    <canvas id="chart_roi_daily" width="400" height="60" style="max-height: 300px;"></canvas>
+                <ul class="nav nav-tabs adsense-chart-tabs" id="adsenseMonitoringDomainChartTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link active" id="adsenseMonitoringDomainTabSpendEarning" data-toggle="tab" href="#adsenseMonitoringDomainPaneSpendEarning" role="tab" aria-controls="adsenseMonitoringDomainPaneSpendEarning" aria-selected="true">Spend, Earning &amp; Net Profit</a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="adsenseMonitoringDomainTabRoi" data-toggle="tab" href="#adsenseMonitoringDomainPaneRoi" role="tab" aria-controls="adsenseMonitoringDomainPaneRoi" aria-selected="false">ROI Harian</a>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="adsenseMonitoringDomainPaneSpendEarning" role="tabpanel" aria-labelledby="adsenseMonitoringDomainTabSpendEarning">
+                        <div class="adsense-chart-wrap">
+                            <div id="adsenseMonitoringDomainSpendEarningChart" style="height: 320px;"></div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="adsenseMonitoringDomainPaneRoi" role="tabpanel" aria-labelledby="adsenseMonitoringDomainTabRoi">
+                        <div class="adsense-chart-wrap">
+                            <div id="adsenseMonitoringDomainRoiChart" style="height: 320px;"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -498,7 +528,9 @@ html[data-theme="dark"] #roiAdsenseCampaignBreakdownModal .page-item.active .pag
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.js"></script>
 <script src="{% static 'ajax/admin/report_adsense/monitoring_domain.js'%}?v={%now 'u'%}"></script>
 <script>
 (function() {

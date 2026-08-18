@@ -2630,7 +2630,7 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     if not fb_data:
                         fb_data = facebook_map_by_domain.get(base_subdomain)
                     account_ads = str((fb_data or {}).get('account_name', '') or '')
-                    spend = 0.0
+                    spend = float((fb_data or {}).get('spend', 0) or 0)
                     revenue = float(adsense_item.get('revenue', 0))
                     impressions = int(adsense_item.get('impressions', 0) or 0)
                     clicks = int(adsense_item.get('clicks', 0) or 0)
