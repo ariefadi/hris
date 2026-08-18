@@ -18397,6 +18397,124 @@ class ReportAccountDomainSuggestView(View):
         results = [{'id': row['domain'], 'text': row['domain']} for row in (result.get('data') or []) if row.get('domain')]
         return JsonResponse({'results': results})
 
+# ===== Report Account AdSense (app_credentials) =====
+
+class ReportAccountAdsenseView(View):
+    """Halaman rekapan performa per kredensial AdX/AdSense (app_credentials)."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        from .last_update_utils import resolve_adx_last_update, resolve_adsense_last_update, parse_last_update
+
+        today = datetime.now().date()
+        prev_month = today.replace(day=1) - timedelta(days=1)
+        month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+        months = [(f'{i:02d}', month_names[i - 1]) for i in range(1, 13)]
+        lu_adx = parse_last_update(resolve_adx_last_update())
+        lu_ads = parse_last_update(resolve_adsense_last_update())
+        last_update = lu_adx
+        if lu_ads and (not last_update or lu_ads > last_update):
+            last_update = lu_ads
+        data = {
+            'title': 'Report Account AdSense',
+            'user': req.session['hris_admin'],
+            'last_update': last_update,
+            'default_year': prev_month.year,
+            'default_month': f'{prev_month.month:02d}',
+            'months': months,
+        }
+        return render(req, 'admin/report_account_adsense/index.html', data)
+
+
+class ReportAccountAdsenseDataView(View):
+    """API data rekapan per kredensial app_credentials."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        from .report_account_adsense_db import list_report_account_adsense_summary
+
+        try:
+            import calendar
+
+            admin = req.session.get('hris_admin', {})
+            is_super = str(admin.get('super_st') or '0') != '0'
+            user_id = admin.get('user_id')
+
+            periode_mode = (req.GET.get('periode_mode') or 'bulanan').strip().lower()
+            account_q = (req.GET.get('account_q') or '').strip()
+
+            if periode_mode == 'bulanan':
+                year = req.GET.get('year')
+                month = req.GET.get('month')
+                if not year or not month:
+                    raise ValueError('Tahun dan bulan wajib diisi untuk mode bulanan')
+                y = int(str(year).strip())
+                m = int(str(month).strip())
+                last_day = calendar.monthrange(y, m)[1]
+                start_date = datetime(y, m, 1).date()
+                end_date = datetime(y, m, last_day).date()
+            else:
+                start_date = req.GET.get('start_date')
+                end_date = req.GET.get('end_date')
+                if not start_date or not end_date:
+                    raise ValueError('start_date dan end_date wajib diisi')
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                if start_date > end_date:
+                    raise ValueError('start_date tidak boleh lebih besar dari end_date')
+
+            db = data_mysql()
+            result = list_report_account_adsense_summary(
+                db,
+                start_date.isoformat(),
+                end_date.isoformat(),
+                account_q=account_q or None,
+                user_id=user_id,
+                is_super=is_super,
+            )
+            if not result.get('status'):
+                return JsonResponse({'status': False, 'error': result.get('data') or 'Gagal memuat data'})
+            return JsonResponse({'status': True, 'data': result.get('data') or {}})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+
+class ReportAccountAdsenseSuggestView(View):
+    """Autocomplete account kredensial untuk filter report."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'results': []}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        from .report_account_adsense_db import search_report_account_adsense_suggest
+
+        q = (req.GET.get('q') or '').strip()
+        admin = req.session.get('hris_admin', {})
+        is_super = str(admin.get('super_st') or '0') != '0'
+        user_id = admin.get('user_id')
+        result = search_report_account_adsense_suggest(
+            data_mysql(), q, limit=20, user_id=user_id, is_super=is_super,
+        )
+        if not result.get('status'):
+            return JsonResponse({'results': []})
+        results = []
+        for row in (result.get('data') or []):
+            name = str(row.get('account_name') or '').strip()
+            if not name:
+                continue
+            results.append({'id': name, 'text': row.get('text') or name})
+        return JsonResponse({'results': results})
+
 # ===== ROI Rekapitulasi =====
 
 class RoiRekapitulasiView(View):

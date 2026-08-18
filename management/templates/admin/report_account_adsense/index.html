@@ -1,0 +1,316 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Report Account AdSense{% endblock %}
+{% block page_heading %}Report Account AdSense{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Report Account AdSense</li>
+{% endblock %}
+{% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<style>
+:root {
+    --raa-accent: #2563eb;
+    --raa-accent-2: #0d9488;
+    --raa-border: rgba(15, 23, 42, 0.08);
+    --raa-text: #0f172a;
+    --raa-muted: #64748b;
+    --raa-surface: #ffffff;
+    --raa-surface-2: #f8fafc;
+    --raa-radius: 14px;
+}
+html[data-theme="dark"] {
+    --raa-border: rgba(255,255,255,0.08);
+    --raa-text: #e2e8f0;
+    --raa-muted: #94a3b8;
+    --raa-surface: #1e293b;
+    --raa-surface-2: #0f172a;
+}
+.raa-page .card { border-radius: var(--raa-radius); border: 1px solid var(--raa-border); margin-bottom: 16px; }
+.raa-page .card-title { font-weight: 800; color: var(--raa-text); }
+.raa-filter-row { align-items: flex-end; }
+.raa-filter-row label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--raa-muted); }
+.raa-filter-note { font-size: 12px; color: var(--raa-muted); margin-top: 8px; }
+.raa-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 991px) { .raa-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 575px) { .raa-summary-grid { grid-template-columns: 1fr; } }
+.raa-metric-card { color: #fff; border-radius: 14px; padding: 16px; min-height: 96px; box-shadow: 0 6px 18px rgba(15,23,42,.12); }
+.raa-metric-card .k { font-size: 11px; opacity: .92; text-transform: uppercase; font-weight: 700; letter-spacing: .04em; }
+.raa-metric-card .v { font-size: 1.35rem; font-weight: 800; margin-top: 4px; line-height: 1.2; }
+.raa-metric-compare {
+    margin-top: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.raa-metric-compare-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+.raa-metric-compare-label {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    opacity: .92;
+    flex-shrink: 0;
+    line-height: 1.2;
+}
+.raa-metric-compare-val {
+    font-size: 10px;
+    font-weight: 700;
+    text-align: right;
+    line-height: 1.2;
+    word-break: break-word;
+}
+.raa-metric-card .raa-delta {
+    font-size: 9px;
+    padding: 2px 7px;
+    background: rgba(255, 255, 255, 0.96) !important;
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.12);
+    line-height: 1.2;
+}
+.raa-metric-card .raa-delta.up { color: #15803d !important; }
+.raa-metric-card .raa-delta.down { color: #b91c1c !important; }
+.raa-metric-card .raa-delta.flat { color: #1d4ed8 !important; }
+.raa-metric-card.spend { background: linear-gradient(135deg,#dc2626,#f97316); }
+.raa-metric-card.revenue { background: linear-gradient(135deg,#7c3aed,#ec4899); }
+.raa-metric-card.profit { background: linear-gradient(135deg,#4338ca,#6366f1); }
+.raa-metric-card.roi { background: linear-gradient(135deg,#047857,#10b981); }
+.raa-metric-card.domains { background: linear-gradient(135deg,#2563eb,#0891b2); }
+.raa-chart-wrap { padding: 12px 16px 16px; min-height: 360px; position: relative; }
+.raa-chart-wrap canvas { max-height: 340px; }
+.raa-table-wrap { border: 1px solid var(--raa-border); border-radius: 12px; overflow-x: auto; }
+.raa-table-wrap .dataTables_wrapper { padding: 0; }
+.raa-table-wrap .dataTables_length,
+.raa-table-wrap .dataTables_filter { padding: 12px 16px 0; color: var(--raa-text); }
+.raa-table-wrap .dataTables_info,
+.raa-table-wrap .dataTables_paginate { padding: 8px 16px 12px; color: var(--raa-muted); }
+.raa-table-wrap .dt-buttons {
+    padding: 12px 16px 0;
+    margin-bottom: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.raa-table-wrap .dt-buttons .btn,
+.raa-table-wrap .dt-buttons .dt-button {
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    padding: 6px 12px !important;
+    line-height: 1.3 !important;
+    border: none !important;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1) !important;
+    white-space: nowrap;
+}
+.raa-table-wrap .dt-buttons .btn.active {
+    box-shadow: inset 0 2px 6px rgba(15, 23, 42, 0.22) !important;
+}
+.raa-table-wrap .dt-buttons .btn-info { background: #0891b2 !important; color: #fff !important; }
+.raa-table-wrap .dt-buttons .btn-success { background: #16a34a !important; color: #fff !important; }
+.raa-table-wrap .dt-buttons .btn-danger { background: #dc2626 !important; color: #fff !important; }
+.raa-table-wrap .dt-buttons .btn-primary { background: #475569 !important; color: #fff !important; }
+.raa-table-wrap .dt-buttons .btn-warning { background: #fbbf24 !important; color: #0f172a !important; }
+.raa-table-wrap .dt-buttons .btn-default,
+.raa-table-wrap .dt-buttons .btn-light {
+    background: #fff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08) !important;
+}
+html[data-theme="dark"] .raa-table-wrap .dt-buttons .btn-secondary {
+    background: #0f172a !important;
+    border: 1px solid #fbbf24 !important;
+    color: #f8fafc !important;
+}
+html[data-theme="dark"] .raa-table-wrap .dt-buttons .btn-secondary.active {
+    background: #1e293b !important;
+    border-color: #f59e0b !important;
+}
+html[data-theme="dark"] .raa-table-wrap .dt-buttons .btn-default,
+html[data-theme="dark"] .raa-table-wrap .dt-buttons .btn-light {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+}
+.raa-page .form-check-input.row-select { cursor: pointer; }
+.raa-page #raaSelectAll { cursor: pointer; }
+.raa-table .checkbox-cell { width: 44px; text-align: center; }
+.raa-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 0 !important; }
+.raa-table thead th { position: sticky; top: 0; z-index: 2; background: var(--raa-surface-2); color: var(--raa-text); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 26px 10px 8px; border-bottom: 1px solid var(--raa-border); white-space: nowrap; cursor: default; }
+.raa-table thead th.sorting,
+.raa-table thead th.sorting_asc,
+.raa-table thead th.sorting_desc { cursor: pointer; }
+.raa-table thead th.sorting_disabled { cursor: default; padding-right: 8px; }
+html[data-theme="dark"] .raa-table thead th.sorting:before,
+html[data-theme="dark"] .raa-table thead th.sorting_asc:before,
+html[data-theme="dark"] .raa-table thead th.sorting_desc:before,
+html[data-theme="dark"] .raa-table thead th.sorting:after,
+html[data-theme="dark"] .raa-table thead th.sorting_asc:after,
+html[data-theme="dark"] .raa-table thead th.sorting_desc:after { opacity: 0.55; }
+.raa-table tbody td { padding: 10px 8px; border-bottom: 1px solid var(--raa-border); color: var(--raa-text); vertical-align: middle; white-space: nowrap; }
+.raa-table tbody tr:hover td { background: rgba(37,99,235,.05); }
+.raa-delta { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.raa-delta.up { background: rgba(22,163,74,.15); color: #15803d; }
+.raa-delta.down { background: rgba(220,38,38,.14); color: #b91c1c; }
+.raa-delta.flat { background: rgba(59,130,246,.14); color: #1d4ed8; }
+html[data-theme="dark"] .raa-delta.up { background: rgba(34,197,94,.22); color: #86efac; }
+html[data-theme="dark"] .raa-delta.down { background: rgba(239,68,68,.22); color: #fca5a5; }
+.raa-compare-pair { font-size: 11px; line-height: 1.35; }
+.raa-compare-pair .sep { color: var(--raa-muted); margin: 0 3px; }
+.raa-empty { text-align: center; padding: 40px 16px; color: var(--raa-muted); }
+.raa-mode-panel { display: none; }
+.raa-mode-panel.is-active { display: block; }
+.raa-page .switch-toggle { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.raa-page .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
+.raa-page .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
+.raa-page .switch-toggle .slider { position: absolute; cursor: pointer; inset: 0; background: #cbd5e1; transition: .25s; border-radius: 999px; }
+.raa-page .switch-toggle .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.raa-page .switch-toggle input:checked + .slider { background: var(--raa-accent); }
+.raa-page .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
+.raa-last-update { font-size: 12px; color: var(--raa-muted); background: var(--raa-surface-2); border: 1px solid var(--raa-border); border-radius: 999px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.raa-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.raa-card-header-main { flex: 1 1 auto; min-width: 0; }
+.raa-card-header-action {
+    flex: 0 0 auto;
+    margin-left: auto;
+    align-self: flex-start;
+}
+.raa-page #raaAccountQ + .select2-container { width: 100% !important; }
+.raa-page #raaAccountQ + .select2-container .select2-selection--single { min-height: 38px; }
+</style>
+{% endblock %}
+{% block content %}
+{% csrf_token %}
+<div class="raa-page">
+<div class="card">
+    <div class="card-header raa-card-header">
+        <div class="raa-card-header-main">
+            <h3 class="card-title mb-0">Rekapan Data Per Kredensial AdX/AdSense</h3>
+            <br><small class="text-muted d-block mt-1">Agregat per account kredensial dari menu AdX Account: spend Facebook Ads (domain terkait), revenue AdX + AdSense, profit, dan ROI.</small>
+        </div>
+        <div class="raa-card-header-action">
+            <span class="raa-last-update"><i class="bi bi-clock-history"></i> Update terakhir <b>{% if last_update %}{{ last_update|date:"d M Y H:i" }}{% else %}-{% endif %}</b></span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="form-row raa-filter-row">
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Mode Periode</label>
+                <select class="form-control" id="raaMode">
+                    <option value="bulanan" selected>Bulanan</option>
+                    <option value="tanggal">Range Tanggal</option>
+                </select>
+            </div>
+            <div class="col-md-2 col-12 mb-2 mb-md-0 raa-mode-panel is-active" id="raaPanelBulanan">
+                <label>Tahun</label>
+                <input type="number" class="form-control" id="raaYear" value="{{ default_year }}" min="2020" max="2099">
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 raa-mode-panel is-active" id="raaPanelBulan">
+                <label>Bulan</label>
+                <select class="form-control" id="raaMonth">
+                    {% for m, name in months %}
+                    <option value="{{ m }}"{% if m == default_month %} selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 raa-mode-panel" id="raaPanelStart">
+                <label>Dari</label>
+                <input type="text" class="form-control datepicker-input" id="raaStartDate" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0 raa-mode-panel" id="raaPanelEnd">
+                <label>Sampai</label>
+                <input type="text" class="form-control datepicker-input" id="raaEndDate" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="col-md-3 col-12 mb-2 mb-md-0">
+                <label>Cari Nama Account</label>
+                <select class="form-control" id="raaAccountQ">
+                    <option value=""></option>
+                </select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0">
+                <label>Sumber Revenue</label>
+                <select class="form-control" id="raaRevenueSource">
+                    <option value="both" selected>Keduanya</option>
+                    <option value="adx">AdX</option>
+                    <option value="adsense">AdSense</option>
+                </select>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0" id="raaPanelHideZero">
+                <label>Sembunyikan Nol</label>
+                <div class="switch-toggle" title="Sembunyikan account dengan spend, revenue, profit, dan ROI semuanya 0">
+                    <label class="switch mb-0">
+                        <input type="checkbox" id="raaHideZero">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-2 col-6 mb-2 mb-md-0" id="raaPanelOnlyWithSpend">
+                <label>Hanya Dengan Spend</label>
+                <div class="switch-toggle" title="Tampilkan hanya account yang spend-nya lebih dari 0">
+                    <label class="switch mb-0">
+                        <input type="checkbox" id="raaOnlyWithSpend">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-2 col-12 mb-2 mb-md-0">
+                <label class="d-none d-md-block">&nbsp;</label>
+                <button type="button" class="btn btn-primary btn-block" id="raaLoadBtn"><i class="fas fa-sync-alt mr-1"></i> Muat Data</button>
+            </div>
+        </div>
+        <p class="raa-filter-note mb-0"><i class="bi bi-info-circle mr-1"></i>Data diambil dari <strong>app_credentials</strong> (menu AdX Account). Revenue = total AdX + AdSense per kredensial. Spend = Facebook Ads pada subdomain yang terhubung ke kredensial tersebut. Toggle <strong>Hanya Dengan Spend</strong> menyembunyikan account yang spend-nya 0.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body position-relative">
+        <div id="raaOverlay" class="hris-loader-stub" style="display:none" data-loader-message="Menyiapkan data..." aria-hidden="true"></div>
+
+        <div class="raa-empty" id="raaEmpty">
+            <div class="mb-2"><i class="bi bi-bar-chart-line" style="font-size:2rem;color:var(--raa-accent);"></i></div>
+            <div style="font-weight:800;color:var(--raa-text);">Belum ada data</div>
+            <p class="mb-0">Atur filter lalu klik <strong>Muat Data</strong>.</p>
+        </div>
+
+        <div id="raaContent" style="display:none;">
+            <div class="raa-summary-grid" id="raaSummary"></div>
+
+            <div class="card mb-3">
+                <div class="card-header py-2"><strong><i class="bi bi-graph-up mr-1"></i> Grafik Trend Harian</strong></div>
+                <div class="raa-chart-wrap"><canvas id="raaChart"></canvas></div>
+            </div>
+
+            <div class="card mb-0">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <strong><i class="bi bi-table mr-1"></i> Tabel Rekap Per Kredensial</strong>
+                    <small class="text-muted" id="raaPeriodLabel"></small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="raa-table-wrap">
+                        <table class="raa-table table table-sm table-hover mb-0" id="raaTable">
+                            <thead id="raaTableHead"></thead>
+                            <tbody id="raaTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'ajax/admin/report_account_adsense/index.js' %}?v={% now 'u' %}"></script>
+{% endblock %}

@@ -182,6 +182,10 @@ urlpatterns = [
     path('admin/report_account_suggest', views.ReportAccountSuggestView.as_view(), name='report_account_suggest'),
     path('admin/report_account_domain_suggest', views.ReportAccountDomainSuggestView.as_view(), name='report_account_domain_suggest'),
     path('admin/report_account_lookup', views.ReportAccountLookupView.as_view(), name='report_account_lookup'),
+    # Menu Report Account AdSense (app_credentials)
+    path('admin/report_account_adsense', views.ReportAccountAdsenseView.as_view(), name='report_account_adsense'),
+    path('admin/page_report_account_adsense', views.ReportAccountAdsenseDataView.as_view(), name='report_account_adsense_data'),
+    path('admin/report_account_adsense_suggest', views.ReportAccountAdsenseSuggestView.as_view(), name='report_account_adsense_suggest'),
     # Menu Report ROI
     path('admin/roi_summary', views.RoiSummaryView.as_view(), name='roi_summary'),
     # Menu ROI Per Domain

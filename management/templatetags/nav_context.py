@@ -4,6 +4,27 @@ from management.database import data_mysql
 
 register = template.Library()
 
+def _normalize_nav_path(path):
+    path = str(path or '').strip()
+    if not path:
+        return ''
+    if not path.startswith('/'):
+        path = '/' + path
+    if len(path) > 1:
+        path = path.rstrip('/')
+    return path
+
+def _nav_path_is_active(current_path, nav_url):
+    """Match menu URL to current path without false positives on shared prefixes."""
+    nav_url = str(nav_url or '').strip().strip('/')
+    if not nav_url:
+        return False
+    current = _normalize_nav_path(current_path)
+    target = _normalize_nav_path(nav_url)
+    if current == target:
+        return True
+    return current.startswith(target + '/')
+
 def _get_user_id_from_context(context):
     try:
         request = context.get('request')
@@ -91,7 +112,7 @@ def render_menu_tree(items, current_path='/', level=1, max_depth=3):
     """Render a nested menu tree with active/open states up to max_depth levels."""
     def mark_states(node):
         url = (node.get('nav_url') or '').strip()
-        own_active = ('/' + url) in (current_path or '') if url else False
+        own_active = _nav_path_is_active(current_path, url) if url and url != '#' else False
         children = node.get('children') or []
         any_child_open = False
         for child in children:
