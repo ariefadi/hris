@@ -156,6 +156,58 @@ html[data-theme="dark"] .raa-table thead th.sorting_asc:after,
 html[data-theme="dark"] .raa-table thead th.sorting_desc:after { opacity: 0.55; }
 .raa-table tbody td { padding: 10px 8px; border-bottom: 1px solid var(--raa-border); color: var(--raa-text); vertical-align: middle; white-space: nowrap; }
 .raa-table tbody tr:hover td { background: rgba(37,99,235,.05); }
+.raa-table tbody tr.raa-expanded > td { background: rgba(37,99,235,.08); border-bottom-color: transparent; }
+.raa-account-toggle {
+    color: var(--raa-text) !important;
+    text-decoration: none !important;
+    font-weight: inherit;
+    line-height: 1.35;
+    max-width: 100%;
+    white-space: normal;
+}
+.raa-account-toggle:hover { color: var(--raa-accent) !important; text-decoration: none !important; }
+.raa-account-toggle .raa-chevron {
+    display: inline-block;
+    transition: transform .2s ease;
+    font-size: 12px;
+    color: var(--raa-muted);
+}
+.raa-table tbody tr.raa-expanded .raa-account-toggle .raa-chevron { transform: rotate(90deg); color: var(--raa-accent); }
+.raa-subdomain-panel {
+    padding: 8px 12px 12px 44px;
+    background: var(--raa-surface-2);
+    border-left: 3px solid var(--raa-accent);
+}
+.raa-subdomain-table thead th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--raa-muted);
+    border-bottom: 1px solid var(--raa-border);
+    padding: 6px 8px;
+    background: transparent;
+}
+.raa-subdomain-table tbody td {
+    padding: 7px 8px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--raa-border);
+    color: var(--raa-text);
+}
+.raa-subdomain-name {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
+    font-weight: 600;
+}
+.raa-subdomain-empty {
+    padding: 12px 16px;
+    color: var(--raa-muted);
+    font-size: 12px;
+}
+table.dataTable tbody tr.child td {
+    padding: 0 !important;
+    background: var(--raa-surface-2);
+    border-bottom: 1px solid var(--raa-border);
+}
 .raa-delta { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; }
 .raa-delta.up { background: rgba(22,163,74,.15); color: #15803d; }
 .raa-delta.down { background: rgba(220,38,38,.14); color: #b91c1c; }
@@ -269,7 +321,7 @@ html[data-theme="dark"] .raa-delta.down { background: rgba(239,68,68,.22); color
                 <button type="button" class="btn btn-primary btn-block" id="raaLoadBtn"><i class="fas fa-sync-alt mr-1"></i> Muat Data</button>
             </div>
         </div>
-        <p class="raa-filter-note mb-0"><i class="bi bi-info-circle mr-1"></i>Data diambil dari <strong>app_credentials</strong> (menu AdX Account). Revenue = total AdX + AdSense per kredensial. Spend = Facebook Ads pada subdomain yang terhubung ke kredensial tersebut. Toggle <strong>Hanya Dengan Spend</strong> menyembunyikan account yang spend-nya 0.</p>
+        <p class="raa-filter-note mb-0"><i class="bi bi-info-circle mr-1"></i>Data diambil dari <strong>app_credentials</strong> (menu AdX Account). Revenue = total AdX + AdSense per kredensial. Spend = Facebook Ads pada subdomain yang terhubung ke kredensial tersebut. Klik <strong>nama account</strong> pada tabel untuk melihat rincian per subdomain.</p>
     </div>
 </div>
 

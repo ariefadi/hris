@@ -200,6 +200,89 @@ def _report_cred_adsense_cred_domain_keys(db, cred_id, adx_by_cred, adsense_by_c
     return domains
 
 
+def _report_cred_adsense_fetch_revenue_by_account_subdomain(
+    db, table, date_col, revenue_col, domain_col, start_date, end_date, account_ids=None,
+):
+    """Revenue per account + subdomain key (tanpa double-count normalisasi ganda)."""
+    params = [start_date, end_date]
+    where_extra = ''
+    if account_ids:
+        ids = [str(i).strip() for i in account_ids if str(i).strip()]
+        if ids:
+            placeholders = ','.join(['%s'] * len(ids))
+            where_extra = f' AND account_id IN ({placeholders})'
+            params.extend(ids)
+    sql = f"""
+        SELECT account_id, {domain_col} AS raw_domain,
+               COALESCE(SUM(CAST({revenue_col} AS DECIMAL(18,4))), 0) AS revenue
+        FROM {table}
+        WHERE DATE({date_col}) BETWEEN %s AND %s{where_extra}
+        GROUP BY account_id, raw_domain
+    """
+    if not db.execute_query(sql, tuple(params)):
+        return {}
+    out = {}
+    for row in (db.cur_hris.fetchall() or []):
+        cid = str(row.get('account_id') or '').strip()
+        key = db._normalize_subdomain_key(row.get('raw_domain'))
+        if not cid or not key:
+            continue
+        out.setdefault(cid, {})
+        out[cid][key] = round(out[cid].get(key, 0.0) + float(row.get('revenue') or 0), 2)
+    return out
+
+
+def _report_cred_adsense_lookup_domain_spend(db, subdomain_key, spend_by_domain):
+    total = 0.0
+    used = set()
+    candidates = {
+        str(subdomain_key or '').strip(),
+        db._normalize_domain_match_key(subdomain_key),
+        db._report_account_normalize_campaign_domain(subdomain_key),
+    }
+    for key in candidates:
+        if not key or key in used:
+            continue
+        if key in (spend_by_domain or {}):
+            total += float(spend_by_domain.get(key) or 0)
+            used.add(key)
+    return round(total, 2)
+
+
+def _report_cred_adsense_build_subdomain_rows(
+    db, cred_id, subdomain_summary, adx_by_sub, adsense_by_sub, spend_by_domain,
+):
+    cid = str(cred_id or '').strip()
+    keys = set()
+    for item in (subdomain_summary.get(cid) or []):
+        k = str((item or {}).get('subdomain') or '').strip()
+        if k:
+            keys.add(k)
+    for k in ((adx_by_sub or {}).get(cid) or {}).keys():
+        keys.add(str(k))
+    for k in ((adsense_by_sub or {}).get(cid) or {}).keys():
+        keys.add(str(k))
+
+    rows = []
+    for key in sorted(keys):
+        adx_rev = float((adx_by_sub.get(cid) or {}).get(key) or 0)
+        adsense_rev = float((adsense_by_sub.get(cid) or {}).get(key) or 0)
+        spend = _report_cred_adsense_lookup_domain_spend(db, key, spend_by_domain)
+        revenue = adx_rev + adsense_rev
+        metrics = db._report_account_build_row_metrics(spend, revenue, 0)
+        rows.append({
+            'subdomain': key,
+            'adx_revenue': adx_rev,
+            'adsense_revenue': adsense_rev,
+            'spend': metrics['spend'],
+            'revenue': metrics['revenue'],
+            'profit': metrics['profit'],
+            'roi': metrics['roi'],
+        })
+    rows.sort(key=lambda r: float(r.get('revenue') or 0), reverse=True)
+    return rows
+
+
 def _report_cred_adsense_sum_spend_for_domains(db, domain_keys, spend_by_domain):
     total = 0.0
     used = set()
@@ -271,6 +354,14 @@ def list_report_account_adsense_summary(
             db, 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue',
             start_date, end_date, account_ids,
         )
+        adx_by_sub = _report_cred_adsense_fetch_revenue_by_account_subdomain(
+            db, 'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain',
+            start_date, end_date, account_ids,
+        )
+        adsense_by_sub = _report_cred_adsense_fetch_revenue_by_account_subdomain(
+            db, 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain',
+            start_date, end_date, account_ids,
+        )
         spend_by_domain = _report_cred_adsense_fetch_spend_by_domain(db, start_date, end_date)
         spend_daily_by_domain = _report_cred_adsense_fetch_spend_daily_by_domain(db, start_date, end_date)
 
@@ -287,6 +378,9 @@ def list_report_account_adsense_summary(
             spend = _report_cred_adsense_sum_spend_for_domains(db, domains, spend_by_domain)
             revenue = adx_rev + adsense_rev
             metrics = db._report_account_build_row_metrics(spend, revenue, len(domains))
+            subdomains = _report_cred_adsense_build_subdomain_rows(
+                db, cid, subdomain_summary, adx_by_sub, adsense_by_sub, spend_by_domain,
+            )
             rows_out.append({
                 'account_id': cid,
                 'account_key': cid,
@@ -300,6 +394,7 @@ def list_report_account_adsense_summary(
                 'profit': metrics['profit'],
                 'roi': metrics['roi'],
                 'subdomain_count': metrics['subdomain_count'],
+                'subdomains': subdomains,
             })
             totals['spend'] += metrics['spend']
             totals['revenue'] += metrics['revenue']
