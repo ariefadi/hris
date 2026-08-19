@@ -14435,8 +14435,7 @@ class RoiTrafficPerDomainDataView(View):
                     date_key = str(fb_item.get('date', ''))
                     subdomain = str(fb_item.get('domain', ''))
                     country_code = normalize_country_code(fb_item.get('country_code', ''))
-                    key = f"{date_key}_{extract_base_subdomain(subdomain)}_{country_code}"
-                    facebook_map[key] = fb_item
+                    accumulate_facebook_monitoring_map(facebook_map, fb_item, date_key, subdomain, country_code)
             if adx_result and adx_result['hasil']['data']:
                  # --- NEW: siapkan raw_rows + dua grup agregasi (per date+domain)
                 grouped_all = {}
@@ -14794,6 +14793,35 @@ def extract_base_subdomain(full_string):
         main_domain = full_string
     # jika tidak ada titik, kembalikan string asli
     return main_domain
+
+
+def accumulate_facebook_monitoring_map(facebook_map, fb_item, date_key, subdomain, country_code):
+    """Agregasi spend FB per date+subdomain+negara (jangan overwrite antar account)."""
+    base_subdomain = extract_base_subdomain(str(subdomain or ''))
+    cc = str(country_code or '').strip().upper()
+    key = f"{date_key}_{base_subdomain}_{cc}"
+    spend = float((fb_item or {}).get('spend', 0) or 0)
+    impressions = float((fb_item or {}).get('impressions', 0) or 0)
+    clicks = float((fb_item or {}).get('clicks', 0) or 0)
+    cur = facebook_map.get(key)
+    if not cur:
+        facebook_map[key] = {
+            'date': date_key,
+            'domain': str(subdomain or ''),
+            'country_code': cc,
+            'account_name': str((fb_item or {}).get('account_name', '') or ''),
+            'account_id': (fb_item or {}).get('account_id'),
+            'spend': spend,
+            'impressions': impressions,
+            'clicks': clicks,
+        }
+    else:
+        cur['spend'] = float(cur.get('spend', 0) or 0) + spend
+        cur['impressions'] = float(cur.get('impressions', 0) or 0) + impressions
+        cur['clicks'] = float(cur.get('clicks', 0) or 0) + clicks
+        if not str(cur.get('account_name') or '').strip():
+            cur['account_name'] = str((fb_item or {}).get('account_name', '') or '')
+    return key
 
 
 def build_domain_filter_terms(selected_domains, include_original=True, include_base=True):
@@ -16220,7 +16248,7 @@ class RoiMonitoringDomainDataView(View):
                 selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
 
             response_cache_key = generate_cache_key(
-                'roi_domain_response_v2',
+                'roi_domain_response_v3',
                 admin.get('user_id') or '',
                 admin.get('super_st') or '',
                 start_date_formatted,
@@ -16342,8 +16370,7 @@ class RoiMonitoringDomainDataView(View):
                     date_key = str(fb_item.get('date', ''))
                     subdomain = str(fb_item.get('domain', ''))
                     country_code = normalize_country_code(fb_item.get('country_code', ''))
-                    key = f"{date_key}_{extract_base_subdomain(subdomain)}_{country_code}"
-                    facebook_map[key] = fb_item
+                    accumulate_facebook_monitoring_map(facebook_map, fb_item, date_key, subdomain, country_code)
             if adx_result and adx_result['hasil']['data']:
                 # --- NEW: siapkan raw_rows + dua grup agregasi
                 grouped_all = {}
@@ -16467,7 +16494,8 @@ class RoiMonitoringDomainDataView(View):
                     spend = float(fb_item.get('spend', 0) or 0)
 
                     date_key = str(fb_item.get('date', ''))
-                    row_key = f"{date_key}_{site_key}_{country_code}"
+                    fb_country_code = normalize_country_code(fb_item.get('country_code', ''))
+                    row_key = f"{date_key}_{site_key}_{fb_country_code}"
                     cur_row = raw_rows_map.get(row_key)
                     if not cur_row:
                         cur_row = {
