@@ -20389,6 +20389,58 @@ function initDashboardRecap() {
         return '';
     }
 
+    function recomputeDashboardRowProfit(r) {
+        const spendNow = Number(r?.spend) || 0;
+        const revenueNow = Number(r?.revenue) || 0;
+        r.net = revenueNow - spendNow;
+        r.roi = spendNow > 0 ? ((revenueNow - spendNow) / spendNow * 100) : 0;
+        return r;
+    }
+
+    async function enrichDashboardSpendFromAdxMonitoring(rows, state) {
+        const dim = String(state?.dim || '').toLowerCase();
+        if (dim === 'country') return;
+        const date = String(state?.date || '').trim();
+        if (!date || !Array.isArray(rows) || !rows.length) return;
+
+        const src = String(state?.source || 'all').toLowerCase();
+        if (src === 'adsense') return;
+
+        try {
+            const qs = new URLSearchParams({
+                start_date: date,
+                end_date: date,
+                selected_account_adx: '',
+                selected_domains: ''
+            });
+            const resp = await fetch('/management/admin/page_monitoring_domain?' + qs.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const json = await resp.json();
+            if (!json || !json.status) return;
+
+            const list = (Array.isArray(json.data) && json.data.length)
+                ? json.data
+                : (Array.isArray(json.data_filtered) ? json.data_filtered : []);
+            const spendByDomain = {};
+            list.forEach(function(item) {
+                const key = String(item?.site_name || item?.site || item?.subdomain || '').trim().toLowerCase();
+                if (!key) return;
+                spendByDomain[key] = Number(item?.spend) || 0;
+            });
+
+            rows.forEach(function(r) {
+                const hasAdx = !!(r?.sources?.adx) || src === 'adx' || src === 'all';
+                if (!hasAdx) return;
+                const key = String(r?.name || r?.domain || '').trim().toLowerCase();
+                const adxSpend = Number(spendByDomain[key]);
+                if (!Number.isFinite(adxSpend) || adxSpend <= 0) return;
+                r.spend = adxSpend;
+                recomputeDashboardRowProfit(r);
+            });
+        } catch (_) {}
+    }
+
     async function fetchDashboardActiveCampaignStats(rows, state) {
         const endYmd = String(state?.date || '').trim();
         const startYmd = endYmd ? ymdShift(endYmd, -6) : endYmd;
@@ -20976,29 +21028,8 @@ function initDashboardRecap() {
         window.dashboardRecapStoredScoring = normalizedStore;
         window.dashboardRecapCampaignAccountMap = buildCampaignAccountLookup(window.dashboardRecapSiteAccountMap || {});
 
-        const sourceNow = String(state?.source || '').toLowerCase();
-        const dimNow = String(state?.dim || '').toLowerCase();
-        const shouldOverrideSpendFromScoring = (sourceNow === 'adsense' && dimNow === 'domain');
-
-        if (shouldOverrideSpendFromScoring) {
-            (rows || []).forEach(function(r) {
-                const meta = storedScoringForRow(r, state);
-                const details = Array.isArray(meta?.breakdown?.meta?.country_details) ? meta.breakdown.meta.country_details : [];
-                if (!details.length) return;
-
-                const spendScoring = details.reduce(function(acc, cd){ return acc + (Number(scxSpendValue(cd)) || 0); }, 0);
-                const revenueScoring = details.reduce(function(acc, cd){ return acc + (Number(scxRevenueValue(cd)) || 0); }, 0);
-
-                if (spendScoring > 0) r.spend = spendScoring;
-                if (revenueScoring > 0) r.revenue = revenueScoring;
-                const spendNow = Number(r.spend) || 0;
-                const revenueNow = Number(r.revenue) || 0;
-                r.net = revenueNow - spendNow;
-                r.roi = spendNow > 0 ? ((revenueNow - spendNow) / spendNow * 100) : 0;
-            });
-
-            renderSummary(summarize(rows));
-        }
+        await enrichDashboardSpendFromAdxMonitoring(rows, state);
+        renderSummary(summarize(rows));
 
         (rows || []).forEach(function(r) {
             const dkey = normalizeTrafficDomainKey(r?.name || r?.domain || r?.site || '');
@@ -21739,7 +21770,13 @@ function initDashboardRecap() {
             const activeDays = Number(r?.active_days ?? r?.days_running ?? r?.running_days ?? 0) || 0;
             const src = String(r?.source || '').toLowerCase();
 
-            cur.spend = Math.max(Number(cur.spend)||0, spend);
+            if (src === 'adx') {
+                cur.spend = spend;
+            } else if (src === 'adsense' && !cur.sources.adx) {
+                cur.spend = Math.max(Number(cur.spend) || 0, spend);
+            } else if (!cur.sources.adx && !cur.sources.adsense) {
+                cur.spend = Math.max(Number(cur.spend) || 0, spend);
+            }
             cur.revenue = (Number(cur.revenue)||0) + revenue;
             cur.active_days = Math.max(Number(cur.active_days) || 0, activeDays);
             if (src === 'adx') {
