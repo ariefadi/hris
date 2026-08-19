@@ -20397,7 +20397,15 @@ function initDashboardRecap() {
         return r;
     }
 
-    async function enrichDashboardSpendFromAdxMonitoring(rows, state) {
+    function dashboardDomainSpendKey(name) {
+        const raw = String(name || '').trim().toLowerCase().replace(/^www\./i, '');
+        if (!raw) return '';
+        const parts = raw.split('.').filter(Boolean);
+        if (parts.length >= 2) return parts.slice(0, 2).join('.');
+        return raw;
+    }
+
+    async function enrichDashboardSpendFromCampaignBreakdown(rows, state) {
         const dim = String(state?.dim || '').toLowerCase();
         if (dim === 'country') return;
         const date = String(state?.date || '').trim();
@@ -20406,39 +20414,58 @@ function initDashboardRecap() {
         const src = String(state?.source || 'all').toLowerCase();
         if (src === 'adsense') return;
 
-        try {
-            const qs = new URLSearchParams({
-                start_date: date,
-                end_date: date,
-                selected_account_adx: '',
-                selected_domains: ''
-            });
-            const resp = await fetch('/management/admin/page_monitoring_domain?' + qs.toString(), {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-            const json = await resp.json();
-            if (!json || !json.status) return;
+        const tasks = [];
+        const seen = new Set();
+        (rows || []).forEach(function(r) {
+            const siteName = String(r?.name || r?.domain || '').trim();
+            const domainKey = dashboardDomainSpendKey(siteName);
+            if (!siteName || !domainKey || seen.has(domainKey)) return;
+            seen.add(domainKey);
+            const hasAdx = !!(r?.sources?.adx) || src === 'adx' || src === 'all';
+            if (!hasAdx) return;
+            tasks.push({ siteName: siteName, domainKey: domainKey });
+        });
+        if (!tasks.length) return;
 
-            const list = (Array.isArray(json.data) && json.data.length)
-                ? json.data
-                : (Array.isArray(json.data_filtered) ? json.data_filtered : []);
-            const spendByDomain = {};
-            list.forEach(function(item) {
-                const key = String(item?.site_name || item?.site || item?.subdomain || '').trim().toLowerCase();
-                if (!key) return;
-                spendByDomain[key] = Number(item?.spend) || 0;
-            });
+        const fetchOne = async function(task) {
+            try {
+                const qs = new URLSearchParams({
+                    site_name: task.siteName,
+                    start_date: date,
+                    end_date: date
+                });
+                const resp = await fetch('/management/admin/page_monitoring_domain_campaign_breakdown?' + qs.toString(), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const json = await resp.json();
+                if (!json || !json.status) return null;
+                const breakdown = Array.isArray(json.data) ? json.data : [];
+                const total = breakdown.reduce(function(acc, item) {
+                    return acc + (Number(item?.spend) || 0);
+                }, 0);
+                return { domainKey: task.domainKey, spend: total };
+            } catch (_) {
+                return null;
+            }
+        };
 
-            rows.forEach(function(r) {
-                const hasAdx = !!(r?.sources?.adx) || src === 'adx' || src === 'all';
-                if (!hasAdx) return;
-                const key = String(r?.name || r?.domain || '').trim().toLowerCase();
-                const adxSpend = Number(spendByDomain[key]);
-                if (!Number.isFinite(adxSpend) || adxSpend <= 0) return;
-                r.spend = adxSpend;
-                recomputeDashboardRowProfit(r);
+        const spendByDomain = {};
+        const concurrency = 6;
+        for (let i = 0; i < tasks.length; i += concurrency) {
+            const results = await Promise.all(tasks.slice(i, i + concurrency).map(fetchOne));
+            results.forEach(function(res) {
+                if (!res || !Number.isFinite(res.spend) || res.spend <= 0) return;
+                spendByDomain[res.domainKey] = res.spend;
             });
-        } catch (_) {}
+        }
+
+        rows.forEach(function(r) {
+            const key = dashboardDomainSpendKey(r?.name || r?.domain || '');
+            const spend = Number(spendByDomain[key]);
+            if (!Number.isFinite(spend) || spend <= 0) return;
+            r.spend = spend;
+            recomputeDashboardRowProfit(r);
+        });
     }
 
     async function fetchDashboardActiveCampaignStats(rows, state) {
@@ -21028,7 +21055,7 @@ function initDashboardRecap() {
         window.dashboardRecapStoredScoring = normalizedStore;
         window.dashboardRecapCampaignAccountMap = buildCampaignAccountLookup(window.dashboardRecapSiteAccountMap || {});
 
-        await enrichDashboardSpendFromAdxMonitoring(rows, state);
+        await enrichDashboardSpendFromCampaignBreakdown(rows, state);
         renderSummary(summarize(rows));
 
         (rows || []).forEach(function(r) {
