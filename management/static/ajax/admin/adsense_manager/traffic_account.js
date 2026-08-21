@@ -55,6 +55,55 @@ function hideAdsenseTrafficResults() {
     $('#adsenseTrafficEmptyState').show();
 }
 
+var ADSENSE_ACCOUNT_CHART_VISIBLE_KEY = 'adsenseTrafficAccountChartVisible';
+
+function isAdsenseAccountChartVisible() {
+    try {
+        return localStorage.getItem(ADSENSE_ACCOUNT_CHART_VISIBLE_KEY) !== '0';
+    } catch (e) {
+        return true;
+    }
+}
+
+function reflowAdsenseAccountChart() {
+    if (adsenseRevenueChart && typeof adsenseRevenueChart.reflow === 'function') {
+        try { adsenseRevenueChart.reflow(); } catch (e) { }
+    }
+}
+
+function setAdsenseAccountChartVisible(visible, animate) {
+    window.__adsenseAccountChartVisible = !!visible;
+    try {
+        localStorage.setItem(ADSENSE_ACCOUNT_CHART_VISIBLE_KEY, visible ? '1' : '0');
+    } catch (e) { }
+
+    var $section = $('#revenue_chart_row');
+    var $wrap = $section.find('.adsense-chart-wrap');
+    var $btn = $('#btnToggleAccountChart');
+    if (!$section.length || !$wrap.length || !$btn.length) return;
+
+    $btn.attr('aria-expanded', visible ? 'true' : 'false');
+    if (visible) {
+        $btn.html('<i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Grafik');
+        $section.removeClass('chart-collapsed');
+    } else {
+        $btn.html('<i class="fas fa-eye" aria-hidden="true"></i> Tampilkan Grafik');
+        $section.addClass('chart-collapsed');
+    }
+
+    if (animate) {
+        if (visible) {
+            $wrap.stop(true, true).slideDown(200, reflowAdsenseAccountChart);
+        } else {
+            $wrap.stop(true, true).slideUp(200);
+        }
+        return;
+    }
+
+    $wrap.toggle(visible);
+    if (visible) reflowAdsenseAccountChart();
+}
+
 $(document).ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -122,6 +171,11 @@ $(document).ready(function () {
     });
     hideAdsenseTrafficResults();
 
+    $('#btnToggleAccountChart').on('click', function (e) {
+        e.preventDefault();
+        setAdsenseAccountChartVisible(!window.__adsenseAccountChartVisible, true);
+    });
+
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
@@ -172,8 +226,11 @@ function load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selecte
                 if (response.data && response.data.length > 0) {
                     create_revenue_line_chart(response.data);
                     $('#revenue_chart_row').show();
+                    $('#btnToggleAccountChart').show();
+                    setAdsenseAccountChartVisible(isAdsenseAccountChartVisible(), false);
                 } else {
                     $('#revenue_chart_row').hide();
+                    $('#btnToggleAccountChart').hide();
                 }
                 showSuccessMessage('Data traffic berhasil dimuat.');
             } else {
@@ -250,19 +307,24 @@ function formatDateID(d) {
     }
 }
 
+function adsenseTrafficAccountPdfWidths(headers) {
+    if (!headers || headers.length !== 8) return null;
+    return [98, 178, 165, 58, 62, 62, 50, 82];
+}
+
 function getExportMetaTrafficAccount() {
     var start = $('#tanggal_dari').val();
     var end = $('#tanggal_sampai').val();
-    var titleText = 'Traffic Adsense Per Account';
-    var periodText = 'Periode ' + formatDateID(start) + ' s/d ' + formatDateID(end);
+    var titleText = 'Traffic AdSense Per Account';
     var accounts = getSelectedTextList('#account_filter');
     var domainsRaw = String($('#domain_filter').val() || '').trim();
     var domains = domainsRaw ? domainsRaw.split(',').map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }) : [];
     return {
         titleText: titleText,
-        periodText: periodText,
+        periodText: 'Periode: ' + formatDateID(start) + ' s/d ' + formatDateID(end),
         accountText: accounts.length ? ('Account: ' + accounts.join(', ')) : '',
-        domainText: domains.length ? ('Subdomain: ' + domains.join(', ')) : ''
+        domainText: domains.length ? ('Subdomain: ' + domains.join(', ')) : '',
+        filenameBase: 'adsense_traffic_account_' + String(start || 'data').replace(/-/g, '') + '_' + String(end || 'data').replace(/-/g, '')
     };
 }
 function initializeDataTable(data) {
@@ -351,134 +413,15 @@ function initializeDataTable(data) {
             }
         },
         dom: 'Blfrtip',
-        buttons: [
-            {
-                extend: 'excel',
-                text: 'Export Excel',
-                className: 'btn btn-success',
-                exportOptions: { columns: ':visible:not(.no-export)' },
-                title: function () { 
-                    var meta = getExportMetaTrafficAccount();
-                    let title = 'Traffic AdSense Per Account';
-                    if (meta.periodText) title += ' ' + meta.periodText;
-                    if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
-                    return title;
-                },
-                customize: function (xlsx) {
-                    var meta = getExportMetaTrafficAccount();
-                    var headerRows = [meta.titleText, meta.periodText];
-                    if (meta.accountText) headerRows.push(meta.accountText);
-                    if (meta.domainText) headerRows.push(meta.domainText);
-
-                    var sheet = xlsx.xl.worksheets['sheet1.xml'];
-                    var numrows = headerRows.length;
-
-                    $('row', sheet).each(function () {
-                        var r = parseInt($(this).attr('r'));
-                        $(this).attr('r', r + numrows);
-                    });
-                    $('row c', sheet).each(function () {
-                        var attr = $(this).attr('r');
-                        var col = attr.replace(/[0-9]/g, '');
-                        var row = parseInt(attr.replace(/[A-Z]/g, ''));
-                        $(this).attr('r', col + (row + numrows));
-                    });
-
-                    for (var i = headerRows.length; i >= 1; i--) {
-                        var txt = escapeXmlText(headerRows[i - 1]);
-                        var rowXml = '<row r="' + i + '"><c t="inlineStr" r="A' + i + '" s="51"><is><t>' + txt + '</t></is></c></row>';
-                        $('sheetData', sheet).prepend(rowXml);
-                    }
-
-                    var merges = $('mergeCells', sheet);
-                    var mergeXml = '';
-                    for (var m = 1; m <= headerRows.length; m++) {
-                        mergeXml += '<mergeCell ref="A' + m + ':I' + m + '"/>';
-                    }
-                    if (merges.length === 0) {
-                        $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
-                    } else {
-                        var c = parseInt(merges.attr('count') || '0');
-                        merges.attr('count', c + headerRows.length);
-                        merges.append(mergeXml);
-                    }
-                }
-            },
-            {
-                extend: 'pdf',
-                text: 'Export PDF',
-                className: 'btn btn-danger',
-                exportOptions: { columns: ':visible:not(.no-export)' },
-                title: function () { 
-                    var meta = getExportMetaTrafficAccount();
-                    let title = 'Traffic AdSense Per Account';
-                    if (meta.periodText) title += ' ' + meta.periodText;
-                    if (meta.accountText) title += ' ' + meta.accountText;
-                    return title;
-                },
-                customize: function (doc) {
-                    var meta = getExportMetaTrafficAccount();
-                    var inserts = [];
-                    inserts.push({ text: meta.periodText, style: 'header', alignment: 'center', margin: [0, 0, 0, 6] });
-                    if (meta.accountText) inserts.push({ text: meta.accountText, alignment: 'center', margin: [0, 0, 0, 4] });
-                    if (meta.domainText) inserts.push({ text: meta.domainText, alignment: 'center', margin: [0, 0, 0, 8] });
-                    doc.content.splice(1, 0, ...inserts);
-                }
-            },
-            {
-                extend: 'copy',
-                text: 'Copy',
-                className: 'btn btn-info',
-                exportOptions: { columns: ':visible:not(.no-export)' },
-                customize: function (txt) {
-                    var meta = getExportMetaTrafficAccount();
-                    var header = meta.titleText + '\n' + meta.periodText;
-                    if (meta.accountText) header += '\n' + meta.accountText;
-                    if (meta.domainText) header += '\n' + meta.domainText;
-                    header += '\n\n';
-                    return header + txt;
-                }
-            },
-            {
-                extend: 'csv',
-                text: 'Export CSV',
-                className: 'btn btn-primary',
-                exportOptions: { columns: ':visible:not(.no-export)' },
-                customize: function (csv) {
-                    var meta = getExportMetaTrafficAccount();
-                    var out = meta.titleText + '\n' + meta.periodText;
-                    if (meta.accountText) out += '\n' + meta.accountText;
-                    if (meta.domainText) out += '\n' + meta.domainText;
-                    return out + '\n\n' + csv;
-                }
-            },
-            {
-                extend: 'print',
-                text: 'Print',
-                className: 'btn btn-warning',
-                exportOptions: { columns: ':visible:not(.no-export)' },
-                title: function () { 
-                    var meta = getExportMetaTrafficAccount();
-                    let title = '<h3 style="text-align:center;margin:0">Traffic AdSense Per Account</h3>';
-                    if (meta.periodText) title += ' ' + meta.periodText;
-                    if (meta.accountText) title += ' ' + meta.accountText;
-                    return title;
-                },
-                messageTop: function () {
-                    var meta = getExportMetaTrafficAccount();
-                    var html = '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.periodText) + '</div>';
-                    if (meta.accountText) html += '<div style="text-align:center;margin-bottom:4px">' + escapeHtml(meta.accountText) + '</div>';
-                    if (meta.domainText) html += '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.domainText) + '</div>';
-                    return html;
-                }
-            },
-            {
-                extend: 'colvis',
-                text: 'Column Visibility',
-                className: 'btn btn-default'
-            }
-        ],
+        buttons: (window.HrisTableExport && HrisTableExport.buildStandardButtons) ? HrisTableExport.buildStandardButtons({
+            getDt: function () { return window.adsenseTrafficAccountDt; },
+            getMeta: getExportMetaTrafficAccount,
+            columnSelector: ':visible:not(.no-export)',
+            sheetName: 'Traffic AdSense',
+            pdfWidths: adsenseTrafficAccountPdfWidths,
+            pdfFontSize: 7,
+            pageMargins: [8, 22, 8, 22]
+        }) : [],
         columnDefs: [
             { targets: [0, 6, 8], className: 'text-center' },
             { targets: [3, 4, 5, 7], className: 'text-right' },
@@ -534,6 +477,7 @@ function initializeDataTable(data) {
     });
 
     table.order([0, 'desc']).draw();
+    window.adsenseTrafficAccountDt = table;
 
     $('#table_traffic_account tbody')
         .off('click', '.btn-adsense-traffic-account-detail')
@@ -659,6 +603,12 @@ function create_revenue_line_chart(data) {
             }
         }]
     });
+
+    if ($('#btnToggleAccountChart').is(':visible')) {
+        setAdsenseAccountChartVisible(typeof window.__adsenseAccountChartVisible === 'boolean'
+            ? window.__adsenseAccountChartVisible
+            : isAdsenseAccountChartVisible(), false);
+    }
 }
 // Function to format date for display
 function formatDateForDisplay(dateString) {

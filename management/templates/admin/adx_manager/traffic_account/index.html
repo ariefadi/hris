@@ -74,8 +74,11 @@ html[data-theme="dark"] {
     padding: 14px 16px; margin-bottom: 14px;
 }
 .adx-traffic-section-title {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
     font-size: 13px; font-weight: 800; color: var(--adx-text); margin-bottom: 10px;
+}
+.adx-traffic-section-title-left {
+    display: flex; align-items: center; gap: 10px;
 }
 .adx-traffic-section-title i {
     width: 28px; height: 28px; border-radius: 8px; font-size: 0.85rem;
@@ -119,6 +122,7 @@ html[data-theme="dark"] {
 .adx-traffic-empty {
     text-align: center; padding: 48px 24px; color: var(--adx-muted);
 }
+#revenue_chart_row.chart-collapsed .adx-chart-wrap { display: none; }
 .adx-traffic-empty-icon {
     width: 68px; height: 68px; margin: 0 auto 14px; border-radius: 18px;
     display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
@@ -394,9 +398,16 @@ html[data-theme="dark"] .adx-detail-metric.highlight .adx-detail-metric-value { 
 
             <div class="adx-traffic-section" id="revenue_chart_row" style="display:none;" data-title="Grafik" data-intro="Grafik tren pendapatan harian.">
                 <div class="adx-traffic-section-title">
-                    <i class="bi bi-graph-up" aria-hidden="true"></i><span>Tren Pendapatan Harian</span>
+                    <div class="adx-traffic-section-title-left">
+                        <i class="bi bi-graph-up" aria-hidden="true"></i><span>Tren Pendapatan Harian</span>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnToggleAccountChart" style="display:none;" aria-expanded="true" aria-controls="revenue_chart_row_body">
+                        <i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Grafik
+                    </button>
                 </div>
-                <div class="adx-chart-wrap"><div id="revenue_chart" style="height:360px;"></div></div>
+                <div id="revenue_chart_row_body">
+                    <div class="adx-chart-wrap"><div id="revenue_chart" style="height:360px;"></div></div>
+                </div>
             </div>
 
             <div class="adx-traffic-section adx-traffic-table-wrap" id="adxTrafficAccountTable" data-title="Tabel" data-intro="Tabel detail traffic per tanggal dan site.">

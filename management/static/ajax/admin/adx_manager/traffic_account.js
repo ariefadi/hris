@@ -55,6 +55,55 @@ function hideAdxTrafficResults() {
     $('#adxTrafficEmptyState').show();
 }
 
+var ADX_ACCOUNT_CHART_VISIBLE_KEY = 'adxTrafficAccountChartVisible';
+
+function isAccountChartVisible() {
+    try {
+        return localStorage.getItem(ADX_ACCOUNT_CHART_VISIBLE_KEY) !== '0';
+    } catch (e) {
+        return true;
+    }
+}
+
+function reflowAccountChart() {
+    if (adxTrafficRevenueChart && typeof adxTrafficRevenueChart.reflow === 'function') {
+        try { adxTrafficRevenueChart.reflow(); } catch (e) { }
+    }
+}
+
+function setAccountChartVisible(visible, animate) {
+    window.__adxAccountChartVisible = !!visible;
+    try {
+        localStorage.setItem(ADX_ACCOUNT_CHART_VISIBLE_KEY, visible ? '1' : '0');
+    } catch (e) { }
+
+    var $section = $('#revenue_chart_row');
+    var $wrap = $section.find('.adx-chart-wrap');
+    var $btn = $('#btnToggleAccountChart');
+    if (!$section.length || !$wrap.length || !$btn.length) return;
+
+    $btn.attr('aria-expanded', visible ? 'true' : 'false');
+    if (visible) {
+        $btn.html('<i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Grafik');
+        $section.removeClass('chart-collapsed');
+    } else {
+        $btn.html('<i class="fas fa-eye" aria-hidden="true"></i> Tampilkan Grafik');
+        $section.addClass('chart-collapsed');
+    }
+
+    if (animate) {
+        if (visible) {
+            $wrap.stop(true, true).slideDown(200, reflowAccountChart);
+        } else {
+            $wrap.stop(true, true).slideUp(200);
+        }
+        return;
+    }
+
+    $wrap.toggle(visible);
+    if (visible) reflowAccountChart();
+}
+
 $().ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -135,6 +184,10 @@ $().ready(function () {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
+    $('#btnToggleAccountChart').on('click', function (e) {
+        e.preventDefault();
+        setAccountChartVisible(!window.__adxAccountChartVisible, true);
+    });
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
 });
 function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selectedDomains) {
@@ -171,8 +224,11 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
                 if (response.data && response.data.length > 0) {
                     create_revenue_line_chart(response.data);
                     $('#revenue_chart_row').show();
+                    $('#btnToggleAccountChart').show();
+                    setAccountChartVisible(isAccountChartVisible(), false);
                 } else {
                     $('#revenue_chart_row').hide();
+                    $('#btnToggleAccountChart').hide();
                 }
                 showSuccessMessage('Data traffic berhasil dimuat.');
             } else {
@@ -257,7 +313,7 @@ function getExportMetaTrafficAccount() {
     var start = $('#tanggal_dari').val();
     var end = $('#tanggal_sampai').val();
     var titleText = 'Traffic AdX Per Account';
-    var periodText = 'Periode ' + formatDateID(start) + ' s/d ' + formatDateID(end);
+    var periodText = 'Periode: ' + formatDateID(start) + ' s/d ' + formatDateID(end);
 
     var accounts = getSelectedTextList('#account_filter');
     var domainsRaw = String($('#domain_filter').val() || '').trim();
@@ -267,8 +323,222 @@ function getExportMetaTrafficAccount() {
         titleText: titleText,
         periodText: periodText,
         accountText: accounts.length ? ('Account: ' + accounts.join(', ')) : '',
-        domainText: domains.length ? ('Domain: ' + domains.join(', ')) : ''
+        domainText: domains.length ? ('Domain: ' + domains.join(', ')) : '',
+        filenameBase: 'adx_traffic_account_' + String(start || 'data').replace(/-/g, '') + '_' + String(end || 'data').replace(/-/g, '')
     };
+}
+
+function stripHtmlExport(text) {
+    return String(text || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function getAdxTrafficAccountExportHeaders() {
+    return ['No', 'Tanggal', 'Site Name', 'Klik', 'CPC (Rp)', 'eCPM (Rp)', 'CTR (%)', 'Pendapatan (Rp)'];
+}
+
+function collectAdxTrafficAccountExportData(dt) {
+    var rows = [];
+    if (!dt) return rows;
+
+    var no = 0;
+    dt.rows({ search: 'applied', order: 'applied' }).every(function () {
+        var data = this.data();
+        if (!data || !data.length) return;
+        no += 1;
+        rows.push([
+            String(no),
+            stripHtmlExport(data[0]),
+            stripHtmlExport(data[1]),
+            stripHtmlExport(data[2]),
+            stripHtmlExport(data[3]),
+            stripHtmlExport(data[4]),
+            stripHtmlExport(data[5]),
+            stripHtmlExport(data[6])
+        ]);
+    });
+    return rows;
+}
+
+function downloadAdxTrafficAccountBlob(filename, mime, content) {
+    var blob = new Blob([content], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function escExportCell(v) {
+    return String(v || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function exportAdxTrafficAccountExcel() {
+    var dt = window.adxTrafficAccountDt;
+    if (!dt) {
+        alert('Muat data terlebih dahulu.');
+        return;
+    }
+
+    var meta = getExportMetaTrafficAccount();
+    var headers = getAdxTrafficAccountExportHeaders();
+    var dataRows = collectAdxTrafficAccountExportData(dt);
+    if (!dataRows.length) {
+        alert('Tidak ada data untuk diekspor.');
+        return;
+    }
+
+    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">';
+    html += '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>';
+    html += '<x:Name>Traffic AdX</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>';
+    html += '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>';
+    html += '<h3>' + escExportCell(meta.titleText) + '</h3>';
+    html += '<p>' + escExportCell(meta.periodText) + '</p>';
+    if (meta.accountText) html += '<p>' + escExportCell(meta.accountText) + '</p>';
+    if (meta.domainText) html += '<p>' + escExportCell(meta.domainText) + '</p>';
+    html += '<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:11pt;">';
+    html += '<thead><tr style="background:#1e3a5f;color:#fff;font-weight:bold;">';
+    headers.forEach(function (h) {
+        html += '<th style="border:1px solid #94a3b8;padding:6px;">' + escExportCell(h) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    dataRows.forEach(function (cells, idx) {
+        var style = idx % 2 === 0 ? 'background:#ffffff;' : 'background:#f8fafc;';
+        html += '<tr style="' + style + '">';
+        cells.forEach(function (cell, cellIdx) {
+            var align = cellIdx <= 2 ? (cellIdx === 0 ? 'center' : 'left') : 'right';
+            html += '<td style="border:1px solid #cbd5e1;padding:5px;text-align:' + align + ';">' + escExportCell(cell) + '</td>';
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table></body></html>';
+    downloadAdxTrafficAccountBlob(meta.filenameBase + '.xls', 'application/vnd.ms-excel;charset=utf-8', '\ufeff' + html);
+}
+
+function exportAdxTrafficAccountPdf() {
+    var dt = window.adxTrafficAccountDt;
+    if (!dt) {
+        alert('Muat data terlebih dahulu.');
+        return;
+    }
+    if (!(window.pdfMake && typeof pdfMake.createPdf === 'function')) {
+        alert('PDF export tidak tersedia.');
+        return;
+    }
+
+    var meta = getExportMetaTrafficAccount();
+    var headers = getAdxTrafficAccountExportHeaders();
+    var dataRows = collectAdxTrafficAccountExportData(dt);
+    if (!dataRows.length) {
+        alert('Tidak ada data untuk diekspor.');
+        return;
+    }
+
+    var tableBody = [
+        headers.map(function (h) {
+            return { text: h, style: 'tableHeader', alignment: 'center' };
+        })
+    ];
+
+    dataRows.forEach(function (cells, idx) {
+        tableBody.push(cells.map(function (cell, cellIdx) {
+            var item = {
+                text: cell,
+                style: 'dataCell',
+                alignment: cellIdx === 0 ? 'center' : (cellIdx <= 2 ? 'left' : 'right')
+            };
+            if (idx % 2 === 1) item.fillColor = '#f8fafc';
+            return item;
+        }));
+    });
+
+    var content = [
+        { text: meta.titleText, style: 'title', alignment: 'center', margin: [0, 0, 0, 4] },
+        { text: meta.periodText, style: 'subtitle', alignment: 'center', margin: [0, 0, 0, 4] }
+    ];
+    if (meta.accountText) {
+        content.push({ text: meta.accountText, style: 'subtitle', alignment: 'center', margin: [0, 0, 0, 2] });
+    }
+    if (meta.domainText) {
+        content.push({ text: meta.domainText, style: 'subtitle', alignment: 'center', margin: [0, 0, 0, 8] });
+    } else {
+        content[content.length - 1].margin = [0, 0, 0, 10];
+    }
+    content.push({
+        table: {
+            headerRows: 1,
+            widths: [24, 68, '*', 42, 58, 58, 42, 68],
+            body: tableBody
+        },
+        layout: {
+            hLineWidth: function () { return 0.6; },
+            vLineWidth: function () { return 0.6; },
+            hLineColor: function () { return '#94a3b8'; },
+            vLineColor: function () { return '#94a3b8'; },
+            paddingLeft: function () { return 5; },
+            paddingRight: function () { return 5; },
+            paddingTop: function () { return 4; },
+            paddingBottom: function () { return 4; }
+        }
+    });
+
+    pdfMake.createPdf({
+        pageOrientation: 'landscape',
+        pageSize: 'A4',
+        pageMargins: [18, 28, 18, 28],
+        content: content,
+        styles: {
+            title: { fontSize: 13, bold: true },
+            subtitle: { fontSize: 9, color: '#475569' },
+            tableHeader: { bold: true, fontSize: 8, fillColor: '#1e3a5f', color: '#ffffff' },
+            dataCell: { fontSize: 7.5 }
+        },
+        defaultStyle: { font: 'Roboto' }
+    }).download(meta.filenameBase + '.pdf');
+}
+
+function exportAdxTrafficAccountCsv() {
+    var dt = window.adxTrafficAccountDt;
+    if (!dt) {
+        alert('Muat data terlebih dahulu.');
+        return;
+    }
+
+    var meta = getExportMetaTrafficAccount();
+    var headers = getAdxTrafficAccountExportHeaders();
+    var dataRows = collectAdxTrafficAccountExportData(dt);
+    if (!dataRows.length) {
+        alert('Tidak ada data untuk diekspor.');
+        return;
+    }
+
+    function csvEscape(v) {
+        var s = String(v || '');
+        if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+        return s;
+    }
+
+    var lines = [
+        csvEscape(meta.titleText),
+        csvEscape(meta.periodText)
+    ];
+    if (meta.accountText) lines.push(csvEscape(meta.accountText));
+    if (meta.domainText) lines.push(csvEscape(meta.domainText));
+    lines.push('');
+    lines.push(headers.map(csvEscape).join(','));
+    dataRows.forEach(function (cells) {
+        lines.push(cells.map(csvEscape).join(','));
+    });
+
+    downloadAdxTrafficAccountBlob(meta.filenameBase + '.csv', 'text/csv;charset=utf-8', '\ufeff' + lines.join('\n'));
 }
 
 function initializeDataTable(data) {
@@ -348,85 +618,25 @@ function initializeDataTable(data) {
         dom: 'Blfrtip',
         buttons: [
             {
-                extend: 'excel',
                 text: 'Export Excel',
                 className: 'btn btn-success',
-                exportOptions: { columns: ':visible:not(.no-export)' },
-                title: function () { 
-                    var meta = getExportMetaTrafficAccount();
-                    let title = 'Traffic AdX Per Account';
-                    if (meta.periodText) title += ' ' + meta.periodText;
-                    if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
-                    return title;
-                },
-                customize: function (xlsx) {
-                    var meta = getExportMetaTrafficAccount();
-                    var headerRows = [meta.titleText, meta.periodText];
-                    if (meta.accountText) headerRows.push(meta.accountText);
-                    if (meta.domainText) headerRows.push(meta.domainText);
-
-                    var sheet = xlsx.xl.worksheets['sheet1.xml'];
-                    var numrows = headerRows.length;
-
-                    $('row', sheet).each(function () {
-                        var r = parseInt($(this).attr('r'));
-                        $(this).attr('r', r + numrows);
-                    });
-                    $('row c', sheet).each(function () {
-                        var attr = $(this).attr('r');
-                        var col = attr.replace(/[0-9]/g, '');
-                        var row = parseInt(attr.replace(/[A-Z]/g, ''));
-                        $(this).attr('r', col + (row + numrows));
-                    });
-
-                    for (var i = headerRows.length; i >= 1; i--) {
-                        var txt = escapeXmlText(headerRows[i - 1]);
-                        var rowXml = '<row r="' + i + '"><c t="inlineStr" r="A' + i + '" s="51"><is><t>' + txt + '</t></is></c></row>';
-                        $('sheetData', sheet).prepend(rowXml);
-                    }
-
-                    var merges = $('mergeCells', sheet);
-                    var mergeXml = '';
-                    for (var m = 1; m <= headerRows.length; m++) {
-                        mergeXml += '<mergeCell ref="A' + m + ':H' + m + '"/>';
-                    }
-                    if (merges.length === 0) {
-                        $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
-                    } else {
-                        var c = parseInt(merges.attr('count') || '0');
-                        merges.attr('count', c + headerRows.length);
-                        merges.append(mergeXml);
-                    }
-                }
+                action: function () { exportAdxTrafficAccountExcel(); }
             },
             {
-                extend: 'pdf',
                 text: 'Export PDF',
                 className: 'btn btn-danger',
-                exportOptions: { columns: ':visible:not(.no-export)' },
-                title: function () { 
-                    var meta = getExportMetaTrafficAccount();
-                    let title = 'Traffic AdX Per Account';
-                    if (meta.periodText) title += ' ' + meta.periodText;
-                    if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
-                    return title;
-                },
-                customize: function (doc) {
-                    var meta = getExportMetaTrafficAccount();
-                    var inserts = [];
-                    inserts.push({ text: meta.periodText, style: 'header', alignment: 'center', margin: [0, 0, 0, 6] });
-                    if (meta.accountText) inserts.push({ text: meta.accountText, alignment: 'center', margin: [0, 0, 0, 4] });
-                    if (meta.domainText) inserts.push({ text: meta.domainText, alignment: 'center', margin: [0, 0, 0, 8] });
-                    doc.content.splice(1, 0, ...inserts);
-                }
+                action: function () { exportAdxTrafficAccountPdf(); }
             },
             {
                 extend: 'copy',
                 text: 'Copy',
                 className: 'btn btn-info',
-                exportOptions: { columns: ':visible:not(.no-export)' },
+                exportOptions: {
+                    columns: ':visible:not(.no-export)',
+                    format: {
+                        body: function (data) { return stripHtmlExport(data); }
+                    }
+                },
                 customize: function (txt) {
                     var meta = getExportMetaTrafficAccount();
                     var header = meta.titleText + '\n' + meta.periodText;
@@ -437,36 +647,30 @@ function initializeDataTable(data) {
                 }
             },
             {
-                extend: 'csv',
                 text: 'Export CSV',
                 className: 'btn btn-primary',
-                exportOptions: { columns: ':visible:not(.no-export)' },
-                customize: function (csv) {
-                    var meta = getExportMetaTrafficAccount();
-                    var out = meta.titleText + '\n' + meta.periodText;
-                    if (meta.accountText) out += '\n' + meta.accountText;
-                    if (meta.domainText) out += '\n' + meta.domainText;
-                    return out + '\n\n' + csv;
-                }
+                action: function () { exportAdxTrafficAccountCsv(); }
             },
             {
                 extend: 'print',
                 text: 'Print',
                 className: 'btn btn-warning',
-                exportOptions: { columns: ':visible:not(.no-export)' },
-                title: function () { 
-                    var meta = getExportMetaTrafficAccount();
-                    let title = '<h3 style="text-align:center;margin:0">Traffic AdX Per Account</h3>';
-                    if (meta.periodText) title += ' ' + meta.periodText;
-                    if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
-                    return title;
+                exportOptions: {
+                    columns: ':visible:not(.no-export)',
+                    format: {
+                        body: function (data) { return stripHtmlExport(data); }
+                    }
                 },
+                title: function () { return getExportMetaTrafficAccount().titleText; },
                 messageTop: function () {
                     var meta = getExportMetaTrafficAccount();
-                    var html = '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.periodText) + '</div>';
-                    if (meta.accountText) html += '<div style="text-align:center;margin-bottom:4px">' + escapeHtml(meta.accountText) + '</div>';
-                    if (meta.domainText) html += '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.domainText) + '</div>';
+                    var html = '<div style="text-align:center;margin-bottom:8px;font-size:12px;">' + escapeHtml(meta.periodText) + '</div>';
+                    if (meta.accountText) {
+                        html += '<div style="text-align:center;margin-bottom:4px;font-size:11px;color:#475569;">' + escapeHtml(meta.accountText) + '</div>';
+                    }
+                    if (meta.domainText) {
+                        html += '<div style="text-align:center;margin-bottom:8px;font-size:11px;color:#475569;">' + escapeHtml(meta.domainText) + '</div>';
+                    }
                     return html;
                 }
             },
@@ -474,7 +678,7 @@ function initializeDataTable(data) {
                 extend: 'colvis',
                 text: 'Column Visibility',
                 className: 'btn btn-default',
-                exportOptions: { columns: ':visible:not(.no-export)' }
+                columns: ':not(.no-export)'
             }
         ],
         columnDefs: [
@@ -540,6 +744,7 @@ function initializeDataTable(data) {
     });
     // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
     table.order([0, 'desc']).draw();
+    window.adxTrafficAccountDt = table;
 
     $('#table_traffic_account tbody')
         .off('click', '.btn-adx-traffic-account-detail')
@@ -647,6 +852,12 @@ function create_revenue_line_chart(data) {
             }
         }]
     });
+
+    if ($('#btnToggleAccountChart').is(':visible')) {
+        setAccountChartVisible(typeof window.__adxAccountChartVisible === 'boolean'
+            ? window.__adxAccountChartVisible
+            : isAccountChartVisible(), false);
+    }
 }
 
 // Function to format date for display

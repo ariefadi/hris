@@ -711,6 +711,17 @@ $().ready(function () {
     showFbPerAccountEmptyState();
 });
 
+function getExportMetaPerAccountFacebook() {
+    var start = $('#tanggal_dari').val();
+    var end = $('#tanggal_sampai').val();
+    var fmt = (window.HrisTableExport && HrisTableExport.formatDateID) ? HrisTableExport.formatDateID : function (d) { return d || '-'; };
+    return {
+        titleText: 'Rekapitulasi Traffic Per Account Facebook',
+        periodText: 'Periode: ' + fmt(start) + ' s/d ' + fmt(end),
+        filenameBase: 'per_account_facebook_' + String(start || '').replace(/-/g, '') + '_' + String(end || '').replace(/-/g, '')
+    };
+}
+
 function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain, onDone) {
     showHrisFacebookLoader('Memuat data per account Facebook...');
     $.ajax({
@@ -1002,7 +1013,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                 $('#total_frequency').text(totalFrequency);
                 $('#total_cpr').text(totalCpr);
             })
-            var table = $('#table_data_per_account_facebook').DataTable({  
+            var fbPerAccountTable = $('#table_data_per_account_facebook').DataTable({  
                 "paging": true,
                 "pageLength": 50,
                 "lengthChange": true,
@@ -1013,93 +1024,16 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                 autoWidth: false,
                 dom: 'Blfrtip',
                 searching: true,
-                buttons: [
-                    {
-                        extend: 'excel',
-                        filename: judul,
-                        text: 'Download Excel',
-                        title: judul,
-                        messageTop: "laporan traffic per account facebook didownload pada "
-                                    +tanggal.getHours()+":"
-                                    +tanggal.getMinutes()+" "
-                                    +tanggal.getDate()+"-"
-                                    +(tanggal.getMonth()+1)+"-"
-                                    +tanggal.getFullYear(),
-                        exportOptions: {
-                            columns: ':visible', 
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],      // include remark, exclude switch
-                            modifier: {
-                                search: 'applied',      // sesuai filter pencarian
-                                order: 'applied'        // sesuai urutan saat itu
-                            }
-                        },
-                        customize: function (xlsx) {
-                            const sheet = xlsx.xl.worksheets['sheet1.xml'];
-                            // =========================
-                            // Set column width secara manual (unit: character width)
-                            // =========================
-                            const colWidths = [5, 12, 13, 8, 12, 10, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
-                            const cols = $('cols', sheet);
-                            cols.empty(); // Kosongkan default <col> dari DataTables
-                            for (let i = 0; i < colWidths.length; i++) {
-                                cols.append(
-                                    `<col min="${i + 1}" max="${i + 1}" width="${colWidths[i]}" customWidth="1"/>`
-                                );
-                            }
-                            
-                        }
-                    },
-                    {
-                        extend: 'pdf',
-                        orientation: 'landscape',
-                        pageSize: 'A4', 
-                        filename: judul,
-                        text: 'Download Pdf',
-                        className: 'btn btn-warning',
-                        title: judul,
-                        messageBottom: "laporan traffic per account facebook didownload pada "
-                                    +tanggal.getHours()+":"
-                                    +tanggal.getMinutes()
-                                    +" "+tanggal.getDate()
-                                    +"-"+(tanggal.getMonth()+1)
-                                    +"-"+tanggal.getFullYear(),
-                        customize: function (doc) {
-                            // Header style (bold + center)
-                            doc.styles.tableHeader = {
-                                bold: true,
-                                fontSize: 11,
-                                color: 'black',
-                                alignment: 'center'
-                            };
-
-                            // Ambil body tabel (data + header)
-                            const body = doc.content[1].table.body;
-                            // Loop dari baris kedua (index 1, karena index 0 adalah header)
-                            for (let i = 1; i < body.length; i++) {
-                                if (body[i]) {
-                                    if (body[i][0]) body[i][0].alignment = 'center';  // No
-                                    if (body[i][1]) body[i][1].alignment = 'left';    // Account Name
-                                    if (body[i][2]) body[i][2].alignment = 'left';    // Campaign Name
-                                    if (body[i][3]) body[i][3].alignment = 'center';  // Status
-                                    if (body[i][4]) body[i][4].alignment = 'center';  // Tanggal Mulai
-                                    if (body[i][5]) body[i][5].alignment = 'right';   // Daily Budget
-                                    if (body[i][6]) body[i][6].alignment = 'right';   // Spend
-                                    if (body[i][7]) body[i][7].alignment = 'right';   // Impressions
-                                    if (body[i][8]) body[i][8].alignment = 'right';   // Reach
-                                    if (body[i][9]) body[i][9].alignment = 'right';   // Clicks
-                                    if (body[i][10]) body[i][10].alignment = 'right'; // Frequency
-                                    if (body[i][11]) body[i][11].alignment = 'right'; // CPR
-                                    if (body[i][12]) body[i][12].alignment = 'center'; // Remark
-                                }
-                            }
-                            // Margin
-                            doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
-                            // Manual width sesuai presentase kolom HTML (tanpa kolom switch)
-                            doc.content[1].table.widths = ['3%', '12%', '13%', '8%', '9%', '12%', '9%', '9%', '9%', '9%', '9%', '8%', '8%'];
-                        }
-                    }
-                ]
+                buttons: (window.HrisTableExport && HrisTableExport.buildStandardButtons) ? HrisTableExport.buildStandardButtons({
+                    getDt: function () { return window.fbPerAccountDt; },
+                    getMeta: getExportMetaPerAccountFacebook,
+                    columnSelector: ':visible:not(.no-export)',
+                    sheetName: 'Traffic Per Account',
+                    pdfFontSize: 7,
+                    pageMargins: [8, 22, 8, 22]
+                }) : []
             });
+            window.fbPerAccountDt = fbPerAccountTable;
             
             // FixedColumns removed as requested
             

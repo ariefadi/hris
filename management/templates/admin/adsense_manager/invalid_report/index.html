@@ -538,14 +538,19 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
             dom: hasDtButtons
                 ? '<"row mb-2"<"col-sm-12 col-md-auto"B><"col-sm-12 col-md"f>>rt<"row mt-2"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"p>>i'
                 : undefined,
-            buttons: hasDtButtons ? [
-                { extend: 'copyHtml5', text: 'Copy', className: 'btn btn-sm btn-info', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportTitle },
-                { extend: 'excelHtml5', text: 'Export Excel', className: 'btn btn-sm btn-success', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportTitle, filename: exportBase },
-                { extend: 'pdfHtml5', text: 'Export PDF', className: 'btn btn-sm btn-danger', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportTitle, filename: exportBase, orientation: 'landscape', pageSize: 'A4' },
-                { extend: 'csvHtml5', text: 'Export CSV', className: 'btn btn-sm btn-secondary', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportTitle, filename: exportBase },
-                { extend: 'print', text: 'Print', className: 'btn btn-sm btn-warning', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportTitle },
-                { extend: 'colvis', text: 'Column Visibility', className: 'btn btn-sm btn-light' },
-            ] : [],
+            buttons: hasDtButtons ? ((window.HrisTableExport && HrisTableExport.buildStandardButtons) ? HrisTableExport.buildStandardButtons({
+                getDt: function () { return irsDt; },
+                getMeta: function () {
+                    return {
+                        titleText: exportTitle,
+                        filenameBase: exportBase
+                    };
+                },
+                columnSelector: ':visible',
+                orthogonal: 'export',
+                buttonSize: 'sm',
+                sheetName: 'Invalid Report AdSense'
+            }) : []) : [],
             language: {
                 search: 'Cari:',
                 lengthMenu: 'Tampilkan _MENU_ baris',

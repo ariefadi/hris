@@ -194,6 +194,8 @@ html[data-theme="dark"] {
     background: var(--roi-surface-2); border: 1px solid var(--roi-border);
     border-radius: 999px; padding: 6px 12px; white-space: nowrap;
 }
+#roiCountryDailyChartSection.chart-collapsed .roi-chart-section-header { border-bottom: 0; }
+#roiCountryDailyChartSection.chart-collapsed #roiCountryDailyChartSection_body { display: none; }
 .roi-chart-wrap { padding: 12px 16px 16px; min-height: 420px; position: relative; }
 .roi-chart-wrap canvas { max-height: 400px; width: 100% !important; }
 .roi-traffic-table-wrap { overflow-x: auto; margin-top: 14px; }
@@ -488,10 +490,17 @@ html[data-theme="dark"] #countryDetailModal .page-item.active .page-link {
                         <i class="bi bi-graph-up"></i>
                         <span>Perbandingan Spend, Earning, Net Profit &amp; ROI — Top 10 Negara</span>
                     </div>
-                    <span class="roi-chart-top-note">Top 10 berdasarkan revenue terbesar</span>
+                    <div class="d-flex align-items-center flex-wrap" style="gap:8px;">
+                        <span class="roi-chart-top-note">Top 10 berdasarkan revenue terbesar</span>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnToggleChart" style="display:none;" aria-expanded="true" aria-controls="roiCountryDailyChartSection_body">
+                            <i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Grafik
+                        </button>
+                    </div>
                 </div>
-                <div class="roi-chart-wrap">
-                    <canvas id="roiCountryDailyChart"></canvas>
+                <div id="roiCountryDailyChartSection_body">
+                    <div class="roi-chart-wrap">
+                        <canvas id="roiCountryDailyChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>

@@ -143,9 +143,14 @@ html[data-theme="dark"] {
 .roi-chart-section-header {
     padding: 12px 16px; border-bottom: 1px solid var(--roi-border);
     background: var(--roi-surface-2);
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
     font-size: 0.88rem; font-weight: 800; color: var(--roi-text);
 }
+.roi-chart-section-header-left {
+    display: flex; align-items: center; gap: 10px;
+}
+#charts_section.chart-collapsed .roi-chart-section-header { border-bottom: 0; }
+#charts_section.chart-collapsed #charts_section_body { display: none; }
 .roi-chart-section-header i {
     width: 28px; height: 28px; border-radius: 8px;
     display: inline-flex; align-items: center; justify-content: center;
@@ -407,10 +412,17 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 
         <div id="charts_section" style="display: none;" data-title="Grafik" data-intro="Grafik tren ROI harian per periode filter.">
             <div class="roi-chart-section mt-3">
-                <div class="roi-chart-section-header"><i class="bi bi-graph-up"></i> Traffic ROI Harian</div>
-                <div class="roi-chart-wrap">
-                    <canvas id="chart_roi_daily"></canvas>
-                    <div class="roi-chart-empty" id="chartRoiDailyEmpty" style="display:none;">Tidak ada data ROI harian untuk periode ini.</div>
+                <div class="roi-chart-section-header">
+                    <div class="roi-chart-section-header-left"><i class="bi bi-graph-up"></i> Traffic ROI Harian</div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnToggleChart" style="display:none;" aria-expanded="true" aria-controls="charts_section_body">
+                        <i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Grafik
+                    </button>
+                </div>
+                <div id="charts_section_body">
+                    <div class="roi-chart-wrap">
+                        <canvas id="chart_roi_daily"></canvas>
+                        <div class="roi-chart-empty" id="chartRoiDailyEmpty" style="display:none;">Tidak ada data ROI harian untuk periode ini.</div>
+                    </div>
                 </div>
             </div>
         </div>

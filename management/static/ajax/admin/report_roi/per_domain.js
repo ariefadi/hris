@@ -25,12 +25,73 @@ function getRoiChartTheme() {
     };
 }
 
+var ROI_TRAFFIC_DOMAIN_CHART_VISIBLE_KEY = 'roiTrafficDomainChartVisible';
+
+function isRoiTrafficDomainChartVisible() {
+    try {
+        return localStorage.getItem(ROI_TRAFFIC_DOMAIN_CHART_VISIBLE_KEY) !== '0';
+    } catch (e) {
+        return true;
+    }
+}
+
+function reflowRoiTrafficDomainChart() {
+    if (roiChart && typeof roiChart.resize === 'function') {
+        try { roiChart.resize(); } catch (e) { }
+    }
+}
+
+function setRoiTrafficDomainChartVisible(visible, animate) {
+    window.__roiTrafficDomainChartVisible = !!visible;
+    try {
+        localStorage.setItem(ROI_TRAFFIC_DOMAIN_CHART_VISIBLE_KEY, visible ? '1' : '0');
+    } catch (e) { }
+
+    var $section = $('#charts_section');
+    var $body = $('#charts_section_body');
+    var $btn = $('#btnToggleChart');
+    if (!$section.length || !$body.length || !$btn.length) return;
+
+    $btn.attr('aria-expanded', visible ? 'true' : 'false');
+    if (visible) {
+        $btn.html('<i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Grafik');
+        $section.removeClass('chart-collapsed');
+    } else {
+        $btn.html('<i class="fas fa-eye" aria-hidden="true"></i> Tampilkan Grafik');
+        $section.addClass('chart-collapsed');
+    }
+
+    if (animate) {
+        if (visible) {
+            $body.stop(true, true).slideDown(200, reflowRoiTrafficDomainChart);
+        } else {
+            $body.stop(true, true).slideUp(200);
+        }
+        return;
+    }
+
+    $body.toggle(visible);
+    if (visible) reflowRoiTrafficDomainChart();
+}
+
+function showRoiTrafficDomainChartPanel() {
+    $('#charts_section').show();
+    $('#btnToggleChart').show();
+    setRoiTrafficDomainChartVisible(isRoiTrafficDomainChartVisible(), false);
+}
+
+function hideRoiTrafficDomainChartPanel() {
+    $('#charts_section').hide();
+    $('#btnToggleChart').hide();
+}
+
 function showRoiDomainContent() {
     $('#roiDomainEmpty').hide();
 }
 
 function resetRoiDomainSections() {
     $('#summary_boxes, #charts_section').hide();
+    $('#btnToggleChart').hide();
 }
 
 function formatSiteCell(name) {
@@ -103,33 +164,10 @@ $().ready(function () {
 
     window.showOnlySelected = false;
 
-    function fallbackCopyText(text) {
-        var ta = document.createElement('textarea');
-        ta.value = String(text || '');
-        ta.style.position = 'fixed';
-        ta.style.top = '-1000px';
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        try { document.execCommand('copy'); } catch (e) {}
-        document.body.removeChild(ta);
-    }
-
-    window.showOnlySelected = false;
-
-    function fallbackCopyText(text) {
-        var ta = document.createElement('textarea');
-        ta.value = String(text || '');
-        ta.style.position = 'fixed';
-        ta.style.top = '-1000px';
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        try { document.execCommand('copy'); } catch (e) {}
-        document.body.removeChild(ta);
-    }
-
-    window.showOnlySelected = false;
+    $('#btnToggleChart').on('click', function (e) {
+        e.preventDefault();
+        setRoiTrafficDomainChartVisible(!window.__roiTrafficDomainChartVisible, true);
+    });
 
     function fallbackCopyText(text) {
         var ta = document.createElement('textarea');
@@ -808,11 +846,11 @@ $().ready(function () {
 
         // Re-render chart dari data hasil filter
         if (displayData.length > 0) {
-            $('#charts_section').show();
+            showRoiTrafficDomainChartPanel();
             createROIDailyChart(displayData);
         } else {
             if (roiChart) { roiChart.destroy(); roiChart = null; }
-            $('#charts_section').hide();
+            hideRoiTrafficDomainChartPanel();
         }
 
         // Re-render DataTable dari data hasil filter
@@ -899,13 +937,13 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
 
                 // Chart: gunakan data hasil filter
                 if (displayData && displayData.length > 0) {
-                    $('#charts_section').show();
+                    showRoiTrafficDomainChartPanel();
                     $('#chartRoiDailyEmpty').hide();
                     createROIDailyChart(displayData);
                     if (roiChart && typeof roiChart.resize === 'function') { roiChart.resize(); }
                 } else {
                     if (roiChart) { roiChart.destroy(); roiChart = null; }
-                    $('#charts_section').hide();
+                    hideRoiTrafficDomainChartPanel();
                     $('#chart_roi_daily').hide();
                     $('#chartRoiDailyEmpty').show();
                 }
@@ -1180,4 +1218,10 @@ function createROIDailyChart(data) {
             interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
     });
+
+    if ($('#btnToggleChart').is(':visible')) {
+        setRoiTrafficDomainChartVisible(typeof window.__roiTrafficDomainChartVisible === 'boolean'
+            ? window.__roiTrafficDomainChartVisible
+            : isRoiTrafficDomainChartVisible(), false);
+    }
 }

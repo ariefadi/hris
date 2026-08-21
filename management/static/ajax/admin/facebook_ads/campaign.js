@@ -628,6 +628,17 @@ $(document).on('click', '#btnFacebookCampaignPublish', function() {
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
     showFbTrafficEmptyState();
 });
+function getExportMetaPerCampaignFacebook() {
+    var start = $('#tanggal_dari').val();
+    var end = $('#tanggal_sampai').val();
+    var fmt = (window.HrisTableExport && HrisTableExport.formatDateID) ? HrisTableExport.formatDateID : function (d) { return d || '-'; };
+    return {
+        titleText: 'Rekapitulasi Traffic Per Campaign Facebook',
+        periodText: 'Periode: ' + fmt(start) + ' s/d ' + fmt(end),
+        filenameBase: 'per_campaign_facebook_' + String(start || '').replace(/-/g, '') + '_' + String(end || '').replace(/-/g, '')
+    };
+}
+
 function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain, onDone) {
     showHrisFacebookLoader('Memuat data per campaign Facebook...');
     $.ajax({
@@ -721,9 +732,9 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 $('#total_unique_visitors').text(totalUniqueVisitors.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
                 $('#total_pageviews').text(totalPageviews.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
             })
-            $('#table_data_campaign_facebook').DataTable({
+            var fbCampaignTable = $('#table_data_campaign_facebook').DataTable({
                 columnDefs: [
-                    { targets: -1, orderable: false, searchable: false }
+                    { targets: -1, orderable: false, searchable: false, className: 'no-export' }
                 ],
                 "paging": true,
                 "pageLength": 50,
@@ -734,92 +745,16 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 responsive: false,
                 dom: 'Blfrtip',
                 searching: true,
-                buttons: [
-                    {
-                        extend: 'excel',
-                        filename: judul,
-                        text: 'Download Excel',
-                        title: judul,
-                        messageTop: "laporan traffic per campaign facebook didownload pada "
-                            + tanggal.getHours() + ":"
-                            + tanggal.getMinutes() + " "
-                            + tanggal.getDate() + "-"
-                            + (tanggal.getMonth() + 1) + "-"
-                            + tanggal.getFullYear(),
-                        exportOptions: {
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-                            modifier: {
-                                search: 'applied',      // sesuai filter pencarian
-                                order: 'applied'        // sesuai urutan saat itu
-                            }
-                        },
-                        customize: function (xlsx) {
-                            const sheet = xlsx.xl.worksheets['sheet1.xml'];
-                            // =========================
-                            // Set column width secara manual (unit: character width)
-                            // =========================
-                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10];
-                            const cols = $('cols', sheet);
-                            cols.empty(); // Kosongkan default <col> dari DataTables
-                            for (let i = 0; i < colWidths.length; i++) {
-                                cols.append(
-                                    `<col min="${i + 1}" max="${i + 1}" width="${colWidths[i]}" customWidth="1"/>`
-                                );
-                            }
-
-                        }
-                    },
-                    {
-                        extend: 'pdf',
-                        orientation: 'landscape',
-                        pageSize: 'A4',
-                        filename: judul,
-                        text: 'Download Pdf',
-                        className: 'btn btn-warning',
-                        title: judul,
-                        messageBottom: "laporan traffic per campaign facebook didownload pada "
-                            + tanggal.getHours() + ":"
-                            + tanggal.getMinutes()
-                            + " " + tanggal.getDate()
-                            + "-" + (tanggal.getMonth() + 1)
-                            + "-" + tanggal.getFullYear(),
-                        customize: function (doc) {
-                            // Header style (bold + center)
-                            doc.styles.tableHeader = {
-                                bold: true,
-                                fontSize: 11,
-                                color: 'black',
-                                alignment: 'center'
-                            };
-
-                            // Ambil body tabel (data + header)
-                            const body = doc.content[1].table.body;
-                            // Loop dari baris kedua (index 1, karena index 0 adalah header)
-                            for (let i = 1; i < body.length; i++) {
-                                if (body[i]) {
-                                    if (body[i][0]) body[i][0].alignment = 'center';
-                                    if (body[i][1]) body[i][1].alignment = 'left';
-                                    if (body[i][2]) body[i][2].alignment = 'left';
-                                    if (body[i][3]) body[i][3].alignment = 'right';
-                                    if (body[i][4]) body[i][4].alignment = 'right';
-                                    if (body[i][5]) body[i][5].alignment = 'right';
-                                    if (body[i][6]) body[i][6].alignment = 'right';
-                                    if (body[i][7]) body[i][7].alignment = 'right';
-                                    if (body[i][8]) body[i][8].alignment = 'right';
-                                    if (body[i][9]) body[i][9].alignment = 'right';
-                                    if (body[i][10]) body[i][10].alignment = 'right';
-                                    if (body[i][11]) body[i][11].alignment = 'right';
-                                    if (body[i][12]) body[i][12].alignment = 'right';
-                                }
-                            }
-                            // Margin
-                            doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
-                            // Manual width sesuai presentase kolom HTML (tanpa kolom Detail)
-                            doc.content[1].table.widths = ['8%', '12%', '12%', '7%', '7%', '7%', '7%', '7%', '7%', '7%', '7%', '7%', '7%'];
-                        }
-                    }
-                ]
+                buttons: (window.HrisTableExport && HrisTableExport.buildStandardButtons) ? HrisTableExport.buildStandardButtons({
+                    getDt: function () { return window.fbCampaignDt; },
+                    getMeta: getExportMetaPerCampaignFacebook,
+                    columnSelector: ':visible:not(.no-export)',
+                    sheetName: 'Traffic Per Campaign',
+                    pdfFontSize: 7,
+                    pageMargins: [8, 22, 8, 22]
+                }) : []
             });
+            window.fbCampaignDt = fbCampaignTable;
 
             $('#table_data_campaign_facebook tbody')
                 .off('click', '.btn-facebook-campaign-detail')

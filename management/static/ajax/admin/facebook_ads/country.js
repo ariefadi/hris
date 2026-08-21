@@ -233,6 +233,17 @@ function load_country_options(data_account, data_domain) {
         }
     });
 }
+function getExportMetaPerCountryFacebook() {
+    var start = $('#tanggal_dari').val();
+    var end = $('#tanggal_sampai').val();
+    var fmt = (window.HrisTableExport && HrisTableExport.formatDateID) ? HrisTableExport.formatDateID : function (d) { return d || '-'; };
+    return {
+        titleText: 'Rekapitulasi Traffic Per Country Facebook',
+        periodText: 'Periode: ' + fmt(start) + ' s/d ' + fmt(end),
+        filenameBase: 'per_country_facebook_' + String(start || '').replace(/-/g, '') + '_' + String(end || '').replace(/-/g, '')
+    };
+}
+
 function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain) {
     var selected_countries = $('#select_country').val() || [];
     // Convert array to comma-separated string for backend
@@ -327,9 +338,9 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             if ($.fn.dataTable.isDataTable('#table_data_per_country_facebook')) {
                 $('#table_data_per_country_facebook').DataTable().destroy();
             }
-            $('#table_data_per_country_facebook').DataTable({
+            var fbCountryTable = $('#table_data_per_country_facebook').DataTable({
                 columnDefs: [
-                    { targets: -1, orderable: false, searchable: false }
+                    { targets: -1, orderable: false, searchable: false, className: 'no-export' }
                 ],
                 "paging": true,
                 "pageLength": 50,
@@ -340,89 +351,16 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                 responsive: false,
                 dom: 'Blfrtip',
                 searching: true,
-                buttons: [
-                    {
-                        extend: 'excel',
-                        filename: judul,
-                        text: 'Download Excel',
-                        title: judul,
-                        messageTop: "laporan traffic per country facebook didownload pada "
-                            + tanggal.getHours() + ":"
-                            + tanggal.getMinutes() + " "
-                            + tanggal.getDate() + "-"
-                            + (tanggal.getMonth() + 1) + "-"
-                            + tanggal.getFullYear(),
-                        exportOptions: {
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                            modifier: {
-                                search: 'applied',      // sesuai filter pencarian
-                                order: 'applied'        // sesuai urutan saat itu
-                            }
-                        },
-                        customize: function (xlsx) {
-                            const sheet = xlsx.xl.worksheets['sheet1.xml'];
-                            // =========================
-                            // Set column width secara manual (unit: character width)
-                            // =========================
-                            const colWidths = [20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10];
-                            const cols = $('cols', sheet);
-                            cols.empty(); // Kosongkan default <col> dari DataTables
-                            for (let i = 0; i < colWidths.length; i++) {
-                                cols.append(
-                                    `<col min="${i + 1}" max="${i + 1}" width="${colWidths[i]}" customWidth="1"/>`
-                                );
-                            }
-                        }
-                    },
-                    {
-                        extend: 'pdf',
-                        orientation: 'landscape',
-                        pageSize: 'A4',
-                        filename: judul,
-                        text: 'Download Pdf',
-                        className: 'btn btn-warning',
-                        title: judul,
-                        messageBottom: "laporan traffic per country facebook didownload pada "
-                            + tanggal.getHours() + ":"
-                            + tanggal.getMinutes()
-                            + " " + tanggal.getDate()
-                            + "-" + (tanggal.getMonth() + 1)
-                            + "-" + tanggal.getFullYear(),
-                        customize: function (doc) {
-                            // Header style (bold + center)
-                            doc.styles.tableHeader = {
-                                bold: true,
-                                fontSize: 11,
-                                color: 'black',
-                                alignment: 'center'
-                            };
-
-                            // Ambil body tabel (data + header)
-                            const body = doc.content[1].table.body;
-                            // Loop dari baris kedua (index 1, karena index 0 adalah header)
-                            for (let i = 1; i < body.length; i++) {
-                                if (body[i]) {
-                                    if (body[i][0]) body[i][0].alignment = 'center';
-                                    if (body[i][1]) body[i][1].alignment = 'left';
-                                    if (body[i][2]) body[i][2].alignment = 'right';
-                                    if (body[i][3]) body[i][3].alignment = 'right';
-                                    if (body[i][4]) body[i][4].alignment = 'right';
-                                    if (body[i][5]) body[i][5].alignment = 'right';
-                                    if (body[i][6]) body[i][6].alignment = 'right';
-                                    if (body[i][7]) body[i][7].alignment = 'right';
-                                    if (body[i][8]) body[i][8].alignment = 'right';
-                                    if (body[i][9]) body[i][9].alignment = 'right';
-                                    if (body[i][10]) body[i][10].alignment = 'right';
-                                }
-                            }
-                            // Margin
-                            doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
-                            // Manual width sesuai presentase kolom HTML (tanpa kolom Detail)
-                            doc.content[1].table.widths = ['16%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%'];
-                        }
-                    }
-                ]
+                buttons: (window.HrisTableExport && HrisTableExport.buildStandardButtons) ? HrisTableExport.buildStandardButtons({
+                    getDt: function () { return window.fbCountryDt; },
+                    getMeta: getExportMetaPerCountryFacebook,
+                    columnSelector: ':visible:not(.no-export)',
+                    sheetName: 'Traffic Per Country',
+                    pdfFontSize: 7,
+                    pageMargins: [8, 22, 8, 22]
+                }) : []
             });
+            window.fbCountryDt = fbCountryTable;
 
 
             $('#table_data_per_country_facebook tbody')

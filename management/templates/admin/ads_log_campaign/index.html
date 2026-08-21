@@ -530,6 +530,11 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
     }
   }
 
+  function alcLogPdfWidths(headers) {
+    if (!headers || headers.length !== 11) return null;
+    return [18, 88, 56, 104, 80, 54, 64, 64, 56, 50, 92];
+  }
+
   function destroyAlcLogTable() {
     if (!window.jQuery || !jQuery.fn.DataTable) return;
     if (jQuery.fn.DataTable.isDataTable('#alcLogTable')) {
@@ -558,14 +563,23 @@ html[data-theme="dark"] .alc-empty-state__title { color: #e5e7eb; }
       dom: hasDtButtons
         ? '<"row mb-2"<"col-sm-12 col-md-auto"B><"col-sm-12 col-md"f>>rt<"row mt-2"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"p>>i'
         : undefined,
-      buttons: hasDtButtons ? [
-        { extend: 'copyHtml5', text: 'Copy', className: 'btn btn-sm btn-info', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportMeta.title },
-        { extend: 'excelHtml5', text: 'Export Excel', className: 'btn btn-sm btn-success', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportMeta.title, filename: exportMeta.filename },
-        { extend: 'pdfHtml5', text: 'Export PDF', className: 'btn btn-sm btn-danger', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportMeta.title, filename: exportMeta.filename, orientation: 'landscape', pageSize: 'A4' },
-        { extend: 'csvHtml5', text: 'Export CSV', className: 'btn btn-sm btn-secondary', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportMeta.title, filename: exportMeta.filename },
-        { extend: 'print', text: 'Print', className: 'btn btn-sm btn-warning', exportOptions: { columns: ':visible', orthogonal: 'export' }, title: exportMeta.title },
-        { extend: 'colvis', text: 'Column Visibility', className: 'btn btn-sm btn-light' },
-      ] : [],
+      buttons: hasDtButtons ? ((window.HrisTableExport && HrisTableExport.buildStandardButtons) ? HrisTableExport.buildStandardButtons({
+        getDt: function () { return alcLogTable; },
+        getMeta: function () {
+          var meta = alcExportMeta || buildExportMeta(getFilters());
+          return {
+            titleText: meta.title,
+            filenameBase: meta.filename
+          };
+        },
+        columnSelector: ':visible',
+        orthogonal: 'export',
+        buttonSize: 'sm',
+        sheetName: 'Log Campaign',
+        pdfWidths: alcLogPdfWidths,
+        pdfFontSize: 7,
+        pageMargins: [8, 22, 8, 22]
+      }) : []) : [],
       language: {
         search: 'Cari:',
         lengthMenu: 'Tampilkan _MENU_ baris',

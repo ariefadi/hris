@@ -408,17 +408,16 @@ $(document).ready(function () {
         var start = $('#tanggal_dari').val();
         var end = $('#tanggal_sampai').val();
         var titleText = 'Traffic AdX Per Negara';
-        var periodText = 'Periode ' + formatDateID(start) + ' s/d ' + formatDateID(end);
-
         var accounts = getSelectedTextList('#account_filter');
         var domainsRaw = String($('#domain_filter').val() || '').trim();
         var domains = domainsRaw ? domainsRaw.split(',').map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }) : [];
 
         return {
             titleText: titleText,
-            periodText: periodText,
+            periodText: 'Periode: ' + formatDateID(start) + ' s/d ' + formatDateID(end),
             accountText: accounts.length ? ('Account: ' + accounts.join(', ')) : '',
-            domainText: domains.length ? ('Domain: ' + domains.join(', ')) : ''
+            domainText: domains.length ? ('Domain: ' + domains.join(', ')) : '',
+            filenameBase: 'adx_traffic_country_' + String(start || 'data').replace(/-/g, '') + '_' + String(end || 'data').replace(/-/g, '')
         };
     }
 
@@ -513,137 +512,15 @@ $(document).ready(function () {
                 }
             },
             dom: 'Blfrtip',
-            buttons: [
-                {
-                    extend: 'excel',
-                    text: 'Export Excel',
-                    className: 'btn btn-success',
-                    exportOptions: { columns: ':visible:not(.no-export)' },
-                    title: function () { 
-                        var meta = getExportMetaTrafficCountry();
-                        let title = 'Traffic AdX Per Negara';
-                        if (meta.periodText) title += ' ' + meta.periodText;
-                        if (meta.accountText) title += ' ' + meta.accountText;
-                        if (meta.domainText) title += ' ' + meta.domainText;
-                        return title;
-                    },
-                    customize: function (xlsx) {
-                        var meta = getExportMetaTrafficCountry();
-                        var headerRows = [meta.titleText, meta.periodText];
-                        if (meta.accountText) headerRows.push(meta.accountText);
-                        if (meta.domainText) headerRows.push(meta.domainText);
-
-                        var sheet = xlsx.xl.worksheets['sheet1.xml'];
-                        var numrows = headerRows.length;
-
-                        $('row', sheet).each(function () {
-                            var r = parseInt($(this).attr('r'));
-                            $(this).attr('r', r + numrows);
-                        });
-                        $('row c', sheet).each(function () {
-                            var attr = $(this).attr('r');
-                            var col = attr.replace(/[0-9]/g, '');
-                            var row = parseInt(attr.replace(/[A-Z]/g, ''));
-                            $(this).attr('r', col + (row + numrows));
-                        });
-
-                        for (var i = headerRows.length; i >= 1; i--) {
-                            var txt = escapeXmlText(headerRows[i - 1]);
-                            var rowXml = '<row r="' + i + '"><c t="inlineStr" r="A' + i + '" s="51"><is><t>' + txt + '</t></is></c></row>';
-                            $('sheetData', sheet).prepend(rowXml);
-                        }
-
-                        var merges = $('mergeCells', sheet);
-                        var mergeXml = '';
-                        for (var m = 1; m <= headerRows.length; m++) {
-                            mergeXml += '<mergeCell ref="A' + m + ':N' + m + '"/>';
-                        }
-                        if (merges.length === 0) {
-                            $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
-                        } else {
-                            var c = parseInt(merges.attr('count') || '0');
-                            merges.attr('count', c + headerRows.length);
-                            merges.append(mergeXml);
-                        }
-                    }
-                },
-                {
-                    extend: 'pdf',
-                    text: 'Export PDF',
-                    className: 'btn btn-danger',
-                    exportOptions: { columns: ':visible:not(.no-export)' },
-                    title: function () { 
-                        var meta = getExportMetaTrafficCountry();
-                        let title = 'Traffic AdX Per Negara';
-                        if (meta.periodText) title += ' ' + meta.periodText;
-                        if (meta.accountText) title += ' ' + meta.accountText;
-                        if (meta.domainText) title += ' ' + meta.domainText;
-                        return title;
-                    },
-                    customize: function (doc) {
-                        var meta = getExportMetaTrafficCountry();
-                        var inserts = [];
-                        inserts.push({ text: meta.periodText, style: 'header', alignment: 'center', margin: [0, 0, 0, 6] });
-                        if (meta.accountText) inserts.push({ text: meta.accountText, alignment: 'center', margin: [0, 0, 0, 4] });
-                        if (meta.domainText) inserts.push({ text: meta.domainText, alignment: 'center', margin: [0, 0, 0, 8] });
-                        doc.content.splice(1, 0, ...inserts);
-                    }
-                },
-                {
-                    extend: 'copy',
-                    text: 'Copy',
-                    className: 'btn btn-info',
-                    exportOptions: { columns: ':visible:not(.no-export)' },
-                    customize: function (txt) {
-                        var meta = getExportMetaTrafficCountry();
-                        var header = meta.titleText + '\n' + meta.periodText;
-                        if (meta.accountText) header += '\n' + meta.accountText;
-                        if (meta.domainText) header += '\n' + meta.domainText;
-                        header += '\n\n';
-                        return header + txt;
-                    }
-                },
-                {
-                    extend: 'csv',
-                    text: 'Export CSV',
-                    className: 'btn btn-primary',
-                    exportOptions: { columns: ':visible:not(.no-export)' },
-                    customize: function (csv) {
-                        var meta = getExportMetaTrafficCountry();
-                        var out = meta.titleText + '\n' + meta.periodText;
-                        if (meta.accountText) out += '\n' + meta.accountText;
-                        if (meta.domainText) out += '\n' + meta.domainText;
-                        return out + '\n\n' + csv;
-                    }
-                },
-                {
-                    extend: 'print',
-                    text: 'Print',
-                    className: 'btn btn-warning',
-                    exportOptions: { columns: ':visible:not(.no-export)' },
-                    title: function () { 
-                        var meta = getExportMetaTrafficCountry();
-                        let title = '<h3 style="text-align:center;margin:0">Traffic AdX Per Negara</h3>';
-                        if (meta.periodText) title += ' ' + meta.periodText;
-                        if (meta.accountText) title += ' ' + meta.accountText;
-                        if (meta.domainText) title += ' ' + meta.domainText;
-                        return title;
-                    },
-                    messageTop: function () {
-                        var meta = getExportMetaTrafficCountry();
-                        var html = '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.periodText) + '</div>';
-                        if (meta.accountText) html += '<div style="text-align:center;margin-bottom:4px">' + escapeHtml(meta.accountText) + '</div>';
-                        if (meta.domainText) html += '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.domainText) + '</div>';
-                        return html;
-                    }
-                },
-                {
-                    extend: 'colvis',
-                    text: 'Column Visibility',
-                    className: 'btn btn-default',
-                    exportOptions: { columns: ':visible:not(.no-export)' }
-                }
-            ],
+            buttons: (window.HrisTableExport && HrisTableExport.buildStandardButtons) ? HrisTableExport.buildStandardButtons({
+                getDt: function () { return window.adxTrafficCountryDt; },
+                getMeta: getExportMetaTrafficCountry,
+                columnSelector: ':visible:not(.no-export)',
+                sheetName: 'Traffic AdX',
+                pdfWidths: [148, 40, 98, 88, 68, 82, 82, 100],
+                pdfFontSize: 7,
+                pageMargins: [8, 22, 8, 22]
+            }) : [],
             columnDefs: [
                 { targets: [1, 4, 8], className: 'text-center' },
                 { targets: [2, 3, 5, 6, 7], className: 'text-right' },
@@ -684,6 +561,7 @@ $(document).ready(function () {
 
         // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
         table.order([7, 'desc']).draw();
+        window.adxTrafficCountryDt = table;
 
         $('#table_traffic_country tbody')
             .off('click', '.btn-adx-traffic-country-detail')

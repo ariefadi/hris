@@ -124,6 +124,16 @@ $().ready(function () {
         checkAllFacebookTokens();
     });
 });
+function getExportMetaAccountFacebook() {
+    var d = new Date();
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    var stamp = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+    return {
+        titleText: 'Rekapitulasi Account Facebook Ads',
+        filenameBase: 'account_facebook_' + stamp
+    };
+}
+
 function table_data_account_ads() {
     $.ajax({
         url: '/management/admin/page_account_facebook',
@@ -169,7 +179,7 @@ function table_data_account_ads() {
                 event_data += '</tr>';  
                 $("#table_data_account tbody").append(event_data);    
             })
-            $('#table_data_account').DataTable({
+            var fbAccountTable = $('#table_data_account').DataTable({
                 responsive: false,
                 autoWidth: false,  
                 "paging": true,
@@ -178,91 +188,15 @@ function table_data_account_ads() {
                 "ordering": true,
                 dom: 'Bfrtip',
                 searching: true,
-                buttons: [
-                    {
-                        extend: 'excel',
-                        filename: judul,
-                        text: 'Download Excel',
-                        title: judul,
-                        messageTop: "laporan user didownload pada "
-                                    +tanggal.getHours()+":"
-                                    +tanggal.getMinutes()+" "
-                                    +tanggal.getDate()+"-"
-                                    +(tanggal.getMonth()+1)+"-"
-                                    +tanggal.getFullYear(),
-                        exportOptions: {
-                            columns: [0, 1, 2, 3, 4, 5, 6],
-                            modifier: {
-                                search: 'applied',
-                                order: 'applied'
-                            }
-                        },
-                        customize: function (xlsx) {
-                            const sheet = xlsx.xl.worksheets['sheet1.xml'];
-                            // =========================
-                            // Set column width secara manual (unit: character width)
-                            // =========================
-                            const colWidths = [5, 25, 15, 15, 15, 20, 8];
-                            const cols = $('cols', sheet);
-                            cols.empty(); // Kosongkan default <col> dari DataTables
-                            for (let i = 0; i < colWidths.length; i++) {
-                                cols.append(
-                                    `<col min="${i + 1}" max="${i + 1}" width="${colWidths[i]}" customWidth="1"/>`
-                                );
-                            }
-                            
-                        }
-                    },
-                    {
-                        extend: 'pdf',
-                        orientation: 'landscape',
-                        pageSize: 'A4', 
-                        filename: judul,
-                        text: 'Download Pdf',
-                        className: 'btn btn-warning',
-                        title: judul,
-                        messageBottom: "laporan user didownload pada "
-                                    +tanggal.getHours()+":"
-                                    +tanggal.getMinutes()
-                                    +" "+tanggal.getDate()
-                                    +"-"+(tanggal.getMonth()+1)
-                                    +"-"+tanggal.getFullYear(),
-                        exportOptions: {
-                            columns: ':not(:last-child)' // ❌ Kecualikan kolom terakhir
-                        },
-                        customize: function (doc) {
-                            // Header style (bold + center)
-                            doc.styles.tableHeader = {
-                                bold: true,
-                                fontSize: 11,
-                                color: 'black',
-                                alignment: 'center'
-                            };
-
-                            // Ambil body tabel (data + header)
-                            const body = doc.content[1].table.body;
-
-                            // Loop dari baris kedua (index 1, karena index 0 adalah header)
-                            for (let i = 1; i < body.length; i++) {
-                                // Center kolom ke-1 (index 0) dan kolom ke-3 (index 2)
-                                body[i][0].alignment = 'center';
-                                body[i][1].alignment = 'left';
-                                body[i][2].alignment = 'center';
-                                body[i][3].alignment = 'center';
-                                body[i][4].alignment = 'center';
-                                body[i][5].alignment = 'left';
-                            }
-
-                            // Margin
-                            doc.content[1].margin = [0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
-
-                            // Manual width sesuai presentase kolom HTML (tanpa kolom terakhir)
-                            doc.content[1].table.widths = ['5%', '22%', '14%', '14%', '14%', '18%', '8%'];
-                        }
-                    }
-                ]
+                buttons: (window.HrisTableExport && HrisTableExport.buildStandardButtons) ? HrisTableExport.buildStandardButtons({
+                    getDt: function () { return window.fbAccountDt; },
+                    getMeta: getExportMetaAccountFacebook,
+                    columnSelector: ':visible:not(.no-export)',
+                    sheetName: 'Account Facebook'
+                }) : []
             });
-            try { $('#table_data_account').DataTable().columns.adjust(); } catch (e) {}
+            window.fbAccountDt = fbAccountTable;
+            try { fbAccountTable.columns.adjust(); } catch (e) {}
         }
     });
 }

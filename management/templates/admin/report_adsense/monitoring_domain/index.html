@@ -175,9 +175,14 @@ html[data-theme="dark"] {
 .adsense-chart-section-header {
     padding: 12px 16px; border-bottom: 1px solid var(--adsense-border);
     background: var(--adsense-surface-2);
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
     font-size: 0.88rem; font-weight: 800; color: var(--adsense-text);
 }
+.adsense-chart-section-header-left {
+    display: flex; align-items: center; gap: 10px;
+}
+#charts_section.chart-collapsed .adsense-chart-section-header { border-bottom: 0; }
+#charts_section.chart-collapsed #charts_section_body { display: none; }
 .adsense-chart-section-header i {
     width: 28px; height: 28px; border-radius: 8px;
     display: inline-flex; align-items: center; justify-content: center;
@@ -477,8 +482,14 @@ html[data-theme="dark"] #roiAdsenseCampaignBreakdownModal .page-item.active .pag
         <div id="charts_section" style="display: none;" data-title="Grafik" data-intro="Grafik total (semua domain) per tanggal untuk membandingkan Spend, Earning, Net Profit, dan ROI. Akan muncul setelah data dimuat.">
             <div class="adsense-chart-section">
                 <div class="adsense-chart-section-header">
-                    <i class="bi bi-bar-chart-line"></i> Perbandingan Spend, Earning, Net Profit &amp; ROI (Daily)
+                    <div class="adsense-chart-section-header-left">
+                        <i class="bi bi-bar-chart-line"></i> Perbandingan Spend, Earning, Net Profit &amp; ROI (Daily)
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnToggleChart" style="display:none;" aria-expanded="true" aria-controls="charts_section_body">
+                        <i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Grafik
+                    </button>
                 </div>
+                <div id="charts_section_body">
                 <ul class="nav nav-tabs adsense-chart-tabs" id="adsenseMonitoringDomainChartTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <a class="nav-link active" id="adsenseMonitoringDomainTabSpendEarning" data-toggle="tab" href="#adsenseMonitoringDomainPaneSpendEarning" role="tab" aria-controls="adsenseMonitoringDomainPaneSpendEarning" aria-selected="true">Spend, Earning &amp; Net Profit</a>
@@ -498,6 +509,7 @@ html[data-theme="dark"] #roiAdsenseCampaignBreakdownModal .page-item.active .pag
                             <div id="adsenseMonitoringDomainRoiChart" style="height: 320px;"></div>
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
