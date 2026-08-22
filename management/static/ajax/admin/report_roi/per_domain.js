@@ -124,9 +124,6 @@ function buildRoiDomainRow(item) {
         Number(item.ctr_adx || 0),
         Number(item.cpc_fb || 0),
         Number(item.cpc_adx || 0),
-        Number(item.total_visits || 0),
-        Number(item.unique_visitor || 0),
-        Number(item.total_pageviews || 0),
         Number(item.cpm || 0),
         Number(item.roi || 0),
         Number(item.revenue || 0),
@@ -282,13 +279,6 @@ $().ready(function () {
         });
     }
 
-    function escapeXmlText(text) {
-        return String(text || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
-
     function formatDateID(d) {
         if (!d) return '-';
         var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -309,12 +299,35 @@ $().ready(function () {
         var accounts = getSelectedTextList('#account_filter');
         var domains = getSelectedTextList('#domain_filter');
 
+        var startSlug = String(start || '').replace(/-/g, '');
+        var endSlug = String(end || '').replace(/-/g, '');
+
         return {
             titleText: titleText,
             periodText: periodText,
             accountText: accounts.length ? ('Account: ' + accounts.join(', ')) : '',
-            domainText: domains.length ? ('Domain: ' + domains.join(', ')) : ''
+            domainText: domains.length ? ('Domain: ' + domains.join(', ')) : '',
+            filenameBase: 'roi_traffic_domain_' + (startSlug || 'start') + '_' + (endSlug || 'end')
         };
+    }
+
+    function roiDomainExportPdfWidths(headers) {
+        if (!headers || headers.length !== 14) return null;
+        return [70, 46, 38, 22, 24, 30, 26, 26, 32, 32, 32, 28, 36, 38];
+    }
+
+    function roiDomainPdfExpandWeight(header, index) {
+        var h = String(header || '').toLowerCase();
+        if (index === 0 || h.indexOf('subdomain') >= 0 || (h.indexOf('domain') >= 0 && h.indexOf('subdomain') < 0)) return 1.05;
+        if (h.indexOf('tanggal') >= 0 || h.indexOf('date') >= 0) return 0.58;
+        if (h.indexOf('spend') >= 0) return 0.62;
+        if (h.indexOf('klik') >= 0 && h.indexOf('adx') >= 0) return 0.48;
+        if (h.indexOf('klik') >= 0) return 0.45;
+        if (h.indexOf('ecpm') >= 0 || (h.indexOf('cpm') >= 0 && h.indexOf('ecpm') < 0)) return 0.95;
+        if (h.indexOf('roi') >= 0 && h.indexOf('ctr') < 0) return 0.92;
+        if (h.indexOf('pendapatan') >= 0 && h.indexOf('bersih') < 0) return 0.75;
+        if (h.indexOf('bersih') >= 0) return 0.82;
+        return 1;
     }
 
     window.roiDomainTable = null;
@@ -406,232 +419,78 @@ $().ready(function () {
             }
         },
         dom: 'Blfrtip',
-        buttons: [
-            {
-                text: 'Tampilkan Terpilih',
-                className: 'btn btn-secondary',
-                action: function (e, dt) {
-                    window.showOnlySelected = !window.showOnlySelected;
-                    $(e.currentTarget).toggleClass('active', window.showOnlySelected);
-                    dt.draw();
-                }
-            },
-            {
-                text: 'Copy Terpilih',
-                className: 'btn btn-info',
-                action: function (e, dt) {
-                    var lines = [];
-                    lines.push(['Domain', 'Tanggal', 'ROI', 'Pendapatan'].join('\t'));
-
-                    $('#table_traffic_account tbody input.row-select:checked').each(function () {
-                        var tr = $(this).closest('tr');
-                        var r = dt.row(tr).data();
-                        if (!r) return;
-
-                        var domainPlain = String(r[1] || '').replace(/<[^>]*>/g, '').trim();
-                        var tanggalPlain = String(r[2] || '').replace(/<[^>]*>/g, '').trim();
-                        var roiVal = Number(r[15] || 0);
-                        var pendapatanVal = Number(r[16] || 0);
-
-                        var roiText = formatNumber(roiVal, 2) + ' %';
-                        var pendapatanText = formatCurrencyIDR(pendapatanVal);
-
-                        if (domainPlain || tanggalPlain) {
-                            lines.push([domainPlain, tanggalPlain, roiText, pendapatanText].join('\t'));
+        buttons: (window.HrisTableExport && HrisTableExport.buildTrafficExportButtons)
+            ? HrisTableExport.buildTrafficExportButtons({
+                getDt: function () { return window.roiDomainTable; },
+                getMeta: getExportMetaRoiDomain,
+                columnSelector: ':visible:not(.no-export)',
+                extraButtons: [
+                    {
+                        text: 'Tampilkan Terpilih',
+                        className: 'btn btn-secondary',
+                        action: function (e, dt) {
+                            window.showOnlySelected = !window.showOnlySelected;
+                            $(e.currentTarget).toggleClass('active', window.showOnlySelected);
+                            dt.draw();
                         }
-                    });
+                    },
+                    {
+                        text: 'Copy Terpilih',
+                        className: 'btn btn-info',
+                        action: function (e, dt) {
+                            var lines = [];
+                            lines.push(['Domain', 'Tanggal', 'ROI', 'Pendapatan'].join('\t'));
 
-                    if (lines.length <= 1) {
-                        alert('Pilih minimal satu baris terlebih dahulu.');
-                        return;
-                    }
+                            $('#table_traffic_account tbody input.row-select:checked').each(function () {
+                                var tr = $(this).closest('tr');
+                                var r = dt.row(tr).data();
+                                if (!r) return;
 
-                    var textToCopy = lines.join('\n');
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(textToCopy)
-                            .then(function () { alert('Data terpilih berhasil dicopy.'); })
-                            .catch(function () { fallbackCopyText(textToCopy); });
-                    } else {
-                        fallbackCopyText(textToCopy);
-                    }
-                }
-            },
-            {
-                extend: 'excel',
-                text: 'Export Excel',
-                className: 'btn btn-success',
-                exportOptions: { columns: ':visible' },
-                title: function () { 
-                    var meta = getExportMetaRoiDomain();
-                    let title = 'ROI Traffic Per Domain';
-                    if (meta.periodText) title += ' ' + meta.periodText;
-                    if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
-                    return title;
-                },
-                customize: function (xlsx) {
-                    var meta = getExportMetaRoiDomain();
-                    var headerRows = [meta.titleText, meta.periodText];
-                    if (meta.accountText) headerRows.push(meta.accountText);
-                    if (meta.domainText) headerRows.push(meta.domainText);
+                                var domainPlain = String(r[1] || '').replace(/<[^>]*>/g, '').trim();
+                                var tanggalPlain = String(r[2] || '').replace(/<[^>]*>/g, '').trim();
+                                if (r[2] && typeof r[2] === 'object' && r[2].display) {
+                                    tanggalPlain = String(r[2].display || '').replace(/<[^>]*>/g, '').trim();
+                                }
+                                var roiVal = Number(r[12] || 0);
+                                var pendapatanVal = Number(r[13] || 0);
 
-                    var sheet = xlsx.xl.worksheets['sheet1.xml'];
-                    var numrows = headerRows.length;
+                                var roiText = formatNumber(roiVal, 2) + ' %';
+                                var pendapatanText = formatCurrencyIDR(pendapatanVal);
 
-                    $('row', sheet).each(function () {
-                        var r = parseInt($(this).attr('r'));
-                        $(this).attr('r', r + numrows);
-                    });
-                    $('row c', sheet).each(function () {
-                        var attr = $(this).attr('r');
-                        var col = attr.replace(/[0-9]/g, '');
-                        var row = parseInt(attr.replace(/[A-Z]/g, ''));
-                        $(this).attr('r', col + (row + numrows));
-                    });
+                                if (domainPlain || tanggalPlain) {
+                                    lines.push([domainPlain, tanggalPlain, roiText, pendapatanText].join('\t'));
+                                }
+                            });
 
-                    var dim = $('dimension', sheet).attr('ref');
-                    var lastCol = 'A';
-                    if (dim) {
-                        var parts = dim.split(':');
-                        if (parts[1]) {
-                            lastCol = parts[1].replace(/[0-9]/g, '') || 'A';
-                            var lastRowNum = parseInt(parts[1].replace(/[A-Z]/g, '')) || 0;
-                            $('dimension', sheet).attr('ref', parts[0] + ':' + lastCol + (lastRowNum + numrows));
+                            if (lines.length <= 1) {
+                                alert('Pilih minimal satu baris terlebih dahulu.');
+                                return;
+                            }
+
+                            var textToCopy = lines.join('\n');
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                                navigator.clipboard.writeText(textToCopy)
+                                    .then(function () { alert('Data terpilih berhasil dicopy.'); })
+                                    .catch(function () { fallbackCopyText(textToCopy); });
+                            } else {
+                                fallbackCopyText(textToCopy);
+                            }
                         }
                     }
-
-                    for (var i = headerRows.length; i >= 1; i--) {
-                        var txt = escapeXmlText(headerRows[i - 1]);
-                        var rowXml = '<row r="' + i + '"><c t="inlineStr" r="A' + i + '"><is><t>' + txt + '</t></is></c></row>';
-                        $('sheetData', sheet).prepend(rowXml);
-                    }
-
-                    var merges = $('mergeCells', sheet);
-                    var mergeXml = '';
-                    for (var m = 1; m <= headerRows.length; m++) {
-                        mergeXml += '<mergeCell ref="A' + m + ':' + lastCol + m + '"/>';
-                    }
-                    if (merges.length === 0) {
-                        $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
-                    } else {
-                        var c = parseInt(merges.attr('count') || '0');
-                        merges.attr('count', c + headerRows.length);
-                        merges.append(mergeXml);
-                    }
-                }
-            },
-            {
-                extend: 'pdf',
-                text: 'Export PDF',
-                className: 'btn btn-danger',
-                orientation: 'landscape',
-                exportOptions: { columns: ':visible' },
-                title: function () { 
-                    var meta = getExportMetaRoiDomain();
-                    let title = 'ROI Traffic Per Domain';
-                    if (meta.periodText) title += ' ' + meta.periodText;
-                    if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
-                    return title;
-                },
-                customize: function (doc) {
-                    var meta = getExportMetaRoiDomain();
-                    var inserts = [];
-                    inserts.push({ text: meta.periodText, alignment: 'center', margin: [0, 0, 0, 6] });
-                    if (meta.accountText) inserts.push({ text: meta.accountText, alignment: 'center', margin: [0, 0, 0, 4] });
-                    if (meta.domainText) inserts.push({ text: meta.domainText, alignment: 'center', margin: [0, 0, 0, 8] });
-                    doc.content.splice(1, 0, ...inserts);
-                }
-            },
-            {
-                text: 'Copy',
-                className: 'btn btn-info',
-                action: function (e, dt) {
-                    var meta = getExportMetaRoiDomain();
-                    var data = dt.buttons.exportData({ columns: ':visible' });
-                    var lines = [];
-                    lines.push(meta.titleText);
-                    lines.push(meta.periodText);
-                    if (meta.accountText) lines.push(meta.accountText);
-                    if (meta.domainText) lines.push(meta.domainText);
-                    lines.push('');
-                    lines.push((data.header || []).join('\t'));
-                    (data.body || []).forEach(function (row) { lines.push(row.join('\t')); });
-                    var text = lines.join('\n');
-                    function fallbackCopy(str) {
-                        var ta = document.createElement('textarea');
-                        ta.value = str;
-                        ta.style.position = 'fixed';
-                        ta.style.top = '-1000px';
-                        document.body.appendChild(ta);
-                        ta.focus();
-                        ta.select();
-                        try { document.execCommand('copy'); } catch(e) {}
-                        document.body.removeChild(ta);
-                    }
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(text).catch(function(){ fallbackCopy(text); });
-                    } else {
-                        fallbackCopy(text);
-                    }
-                },
-                exportOptions: { columns: ':visible' } 
-            },
-            {
-                extend: 'csv',
-                text: 'Export CSV',
-                className: 'btn btn-primary',
-                exportOptions: { columns: ':visible' },
-                title: function () { 
-                    var meta = getExportMetaRoiDomain();
-                    let title = 'ROI Traffic Per Domain';
-                    if (meta.periodText) title += ' ' + meta.periodText;
-                    if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
-                    return title;
-                },
-                customize: function (csv) {
-                    var meta = getExportMetaRoiDomain();
-                    var out = meta.titleText + '\n' + meta.periodText;
-                    if (meta.accountText) out += '\n' + meta.accountText;
-                    if (meta.domainText) out += '\n' + meta.domainText;
-                    return out + '\n\n' + csv;
-                }
-            },
-            {
-                extend: 'print',
-                text: 'Print',
-                className: 'btn btn-warning',
-                exportOptions: { columns: ':visible' },
-                title: function () { 
-                    var meta = getExportMetaRoiDomain();
-                    let title = 'ROI Traffic Per Domain';
-                    if (meta.periodText) title += ' ' + meta.periodText;
-                    if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
-                    return '<h3 style="text-align:center;margin:0">' + title + '</h3>';
-                },
-                messageTop: function () {
-                    var meta = getExportMetaRoiDomain();
-                    var html = '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.periodText) + '</div>';
-                    if (meta.accountText) html += '<div style="text-align:center;margin-bottom:4px">' + escapeHtml(meta.accountText) + '</div>';
-                    if (meta.domainText) html += '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.domainText) + '</div>';
-                    return html;
-                }
-            },
-            {
-                extend: 'colvis',
-                text: 'Column Visibility',
-                className: 'btn btn-default',
-                exportOptions: { columns: ':visible' } 
-            }
-        ],
+                ],
+                sheetName: 'ROI Traffic Domain',
+                pdfWidths: roiDomainExportPdfWidths,
+                pdfExpandWeight: roiDomainPdfExpandWeight,
+                pdfFontSize: 7,
+                pageMargins: [10, 22, 10, 22]
+            })
+            : [],
         columnDefs: [
             {
                 targets: 0,
                 orderable: false,
                 searchable: false,
-                className: 'dt-body-center checkbox-cell',
+                className: 'dt-body-center checkbox-cell no-export',
                 render: function (data, type, row, meta) {
                     var id = 'row_select_' + meta.row;
                     return '<div class="form-check checkbox-center m-0">' +
@@ -650,11 +509,11 @@ $().ready(function () {
                 }
             },
             {
-                targets: [0, 2, 7, 8, 15],
+                targets: [0, 2, 7, 8, 12],
                 className: "text-center"
             },
             {
-                targets: [3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 16, 17],
+                targets: [3, 4, 5, 6, 9, 10, 11, 13, 14],
                 className: "text-right"
             },
             {
@@ -722,15 +581,7 @@ $().ready(function () {
                 }
             },
             {
-                targets: [11, 12, 13],
-                type: 'num',
-                render: function (data, type) {
-                    var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 0);
-                }
-            },
-            {
-                targets: 14,
+                targets: 11,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
@@ -738,7 +589,7 @@ $().ready(function () {
                 }
             },
             {
-                targets: 15,
+                targets: 12,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
@@ -748,7 +599,7 @@ $().ready(function () {
                 }
             },
             {
-                targets: 16,
+                targets: 13,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
@@ -756,7 +607,7 @@ $().ready(function () {
                 }
             },
             {
-                targets: 17,
+                targets: 14,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;

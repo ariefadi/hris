@@ -322,13 +322,6 @@ $(document).ready(function () {
         });
     }
 
-    function escapeXmlText(text) {
-        return String(text || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
-
     function formatDateID(d) {
         if (!d) return '-';
         var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -349,11 +342,15 @@ $(document).ready(function () {
         var accounts = getSelectedTextList('#account_filter');
         var domains = getSelectedTextList('#domain_filter');
 
+        var startSlug = String(start || '').replace(/-/g, '');
+        var endSlug = String(end || '').replace(/-/g, '');
+
         return {
             titleText: titleText,
             periodText: periodText,
             accountText: accounts.length ? ('Account: ' + accounts.join(', ')) : '',
-            domainText: domains.length ? ('Domain: ' + domains.join(', ')) : ''
+            domainText: domains.length ? ('Domain: ' + domains.join(', ')) : '',
+            filenameBase: 'roi_traffic_country_' + (startSlug || 'start') + '_' + (endSlug || 'end')
         };
     }
 
@@ -564,205 +561,57 @@ $(document).ready(function () {
                 }
             },
             dom: 'Blfrtip',
-            buttons: [
-                {
-                    text: 'Tampilkan Terpilih',
-                    className: 'btn btn-secondary',
-                    action: function (e, dt) {
-                        window.showOnlySelected = !window.showOnlySelected;
-                        $(e.currentTarget).toggleClass('active', window.showOnlySelected);
-                        dt.draw();
-                    }
-                },
-                {
-                    text: 'Copy Terpilih',
-                    className: 'btn btn-info',
-                    action: function (e, dt) {
-                        var lines = [];
-                        $('#table_traffic_country tbody input.row-select:checked').each(function () {
-                            var tr = $(this).closest('tr');
-                            var r = dt.row(tr).data();
-                            if (!r) return;
-                            // Ambil nama negara saja, hilangkan HTML (flag) jika ada
-                            var negaraPlain = String(r[1]).replace(/<[^>]*>/g, '').trim();
-                            lines.push(negaraPlain);
-                        });
-                        if (lines.length === 0) {
-                            alert('Pilih minimal satu negara terlebih dahulu.');
-                            return;
-                        }
-                        var textToCopy = lines.join('\n');
-                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                            navigator.clipboard.writeText(textToCopy)
-                                .then(function () { alert('Nama negara terpilih berhasil dicopy.'); })
-                                .catch(function () { fallbackCopyText(textToCopy); });
-                        } else {
-                            fallbackCopyText(textToCopy);
-                        }
-                    }
-                },
-                {
-                    extend: 'excel',
-                    text: 'Export Excel',
-                    className: 'btn btn-success',
-                    exportOptions: { columns: ':visible' },
-                    title: function () { 
-                        var meta = getExportMetaRoiCountry();
-                        let title = 'ROI Traffic Per Negara';
-                        if (meta.periodText) title += ' ' + meta.periodText;
-                        if (meta.accountText) title += ' ' + meta.accountText;
-                        if (meta.domainText) title += ' ' + meta.domainText;
-                        return title;
+            buttons: (window.HrisTableExport && HrisTableExport.buildTrafficExportButtons)
+                ? HrisTableExport.buildTrafficExportButtons({
+                    getDt: function () {
+                        return $.fn.DataTable.isDataTable('#table_traffic_country')
+                            ? $('#table_traffic_country').DataTable()
+                            : null;
                     },
-                    customize: function (xlsx) {
-                        var meta = getExportMetaRoiCountry();
-                        var headerRows = [meta.titleText, meta.periodText];
-                        if (meta.accountText) headerRows.push(meta.accountText);
-                        if (meta.domainText) headerRows.push(meta.domainText);
-
-                        var sheet = xlsx.xl.worksheets['sheet1.xml'];
-                        var numrows = headerRows.length;
-
-                        $('row', sheet).each(function () { var r = parseInt($(this).attr('r')); $(this).attr('r', r + numrows); });
-                        $('row c', sheet).each(function () { var attr = $(this).attr('r'); var col = attr.replace(/[0-9]/g, ''); var row = parseInt(attr.replace(/[A-Z]/g, '')); $(this).attr('r', col + (row + numrows)); });
-
-                        var dim = $('dimension', sheet).attr('ref');
-                        var lastCol = 'A';
-                        if (dim) {
-                            var parts = dim.split(':');
-                            if (parts[1]) {
-                                lastCol = parts[1].replace(/[0-9]/g, '') || 'A';
-                                var lastRowNum = parseInt(parts[1].replace(/[A-Z]/g, '')) || 0;
-                                $('dimension', sheet).attr('ref', parts[0] + ':' + lastCol + (lastRowNum + numrows));
+                    getMeta: getExportMetaRoiCountry,
+                    columnSelector: ':visible:not(.no-export)',
+                    extraButtons: [
+                        {
+                            text: 'Tampilkan Terpilih',
+                            className: 'btn btn-secondary',
+                            action: function (e, dt) {
+                                window.showOnlySelected = !window.showOnlySelected;
+                                $(e.currentTarget).toggleClass('active', window.showOnlySelected);
+                                dt.draw();
+                            }
+                        },
+                        {
+                            text: 'Copy Terpilih',
+                            className: 'btn btn-info',
+                            action: function (e, dt) {
+                                var lines = [];
+                                $('#table_traffic_country tbody input.row-select:checked').each(function () {
+                                    var tr = $(this).closest('tr');
+                                    var r = dt.row(tr).data();
+                                    if (!r) return;
+                                    var negaraPlain = String(r[1]).replace(/<[^>]*>/g, '').trim();
+                                    lines.push(negaraPlain);
+                                });
+                                if (lines.length === 0) {
+                                    alert('Pilih minimal satu negara terlebih dahulu.');
+                                    return;
+                                }
+                                var textToCopy = lines.join('\n');
+                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    navigator.clipboard.writeText(textToCopy)
+                                        .then(function () { alert('Nama negara terpilih berhasil dicopy.'); })
+                                        .catch(function () { fallbackCopyText(textToCopy); });
+                                } else {
+                                    fallbackCopyText(textToCopy);
+                                }
                             }
                         }
-
-                        for (var i = headerRows.length; i >= 1; i--) {
-                            var txt = escapeXmlText(headerRows[i - 1]);
-                            var rowXml = '<row r="' + i + '"><c t="inlineStr" r="A' + i + '"><is><t>' + txt + '</t></is></c></row>';
-                            $('sheetData', sheet).prepend(rowXml);
-                        }
-
-                        var merges = $('mergeCells', sheet);
-                        var mergeXml = '';
-                        for (var m = 1; m <= headerRows.length; m++) {
-                            mergeXml += '<mergeCell ref="A' + m + ':' + lastCol + m + '"/>';
-                        }
-                        if (merges.length === 0) {
-                            $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
-                        } else {
-                            var c = parseInt(merges.attr('count') || '0');
-                            merges.attr('count', c + headerRows.length);
-                            merges.append(mergeXml);
-                        }
-                    }
-                },
-                {
-                    extend: 'pdf',
-                    text: 'Export PDF',
-                    className: 'btn btn-danger',
-                    orientation: 'landscape',
-                    exportOptions: { columns: ':visible' },
-                    title: function () { 
-                        var meta = getExportMetaRoiCountry();
-                        let title = 'ROI Traffic Per Negara';
-                        if (meta.periodText) title += ' ' + meta.periodText;
-                        if (meta.accountText) title += ' ' + meta.accountText;
-                        if (meta.domainText) title += ' ' + meta.domainText;
-                        return title;
-                    },
-                    customize: function (doc) {
-                        var meta = getExportMetaRoiCountry();
-                        var inserts = [];
-                        inserts.push({ text: meta.periodText, alignment: 'center', margin: [0, 0, 0, 6] });
-                        if (meta.accountText) inserts.push({ text: meta.accountText, alignment: 'center', margin: [0, 0, 0, 4] });
-                        if (meta.domainText) inserts.push({ text: meta.domainText, alignment: 'center', margin: [0, 0, 0, 8] });
-                        doc.content.splice(1, 0, ...inserts);
-                    }
-                },
-                {
-                    text: 'Copy (Semua)',
-                    className: 'btn btn-info',
-                    action: function (e, dt) {
-                        var meta = getExportMetaRoiCountry();
-                        var data = dt.buttons.exportData({ columns: ':visible' });
-                        var lines = [];
-                        lines.push(meta.titleText);
-                        lines.push(meta.periodText);
-                        if (meta.accountText) lines.push(meta.accountText);
-                        if (meta.domainText) lines.push(meta.domainText);
-                        lines.push('');
-                        lines.push((data.header || []).join('\t'));
-                        (data.body || []).forEach(function (row) { lines.push(row.join('\t')); });
-                        var text = lines.join('\n');
-                        function fallbackCopy(str) {
-                            var ta = document.createElement('textarea');
-                            ta.value = str;
-                            ta.style.position = 'fixed';
-                            ta.style.top = '-1000px';
-                            document.body.appendChild(ta);
-                            ta.focus();
-                            ta.select();
-                            try { document.execCommand('copy'); } catch(e) {}
-                            document.body.removeChild(ta);
-                        }
-                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                            navigator.clipboard.writeText(text).catch(function(){ fallbackCopy(text); });
-                        } else {
-                            fallbackCopy(text);
-                        }
-                    },
-                    exportOptions: { columns: ':visible' } 
-                },
-                {
-                    extend: 'csv',
-                    text: 'Export CSV',
-                    className: 'btn btn-primary',
-                    exportOptions: { columns: ':visible' },
-                    title: function () { 
-                        var meta = getExportMetaRoiCountry();
-                        let title = 'ROI Traffic Per Negara';
-                        if (meta.periodText) title += ' ' + meta.periodText;
-                        if (meta.accountText) title += ' ' + meta.accountText;
-                        if (meta.domainText) title += ' ' + meta.domainText;
-                        return title;
-                    },
-                    customize: function (csv) {
-                        var meta = getExportMetaRoiCountry();
-                        var out = meta.titleText + '\n' + meta.periodText;
-                        if (meta.accountText) out += '\n' + meta.accountText;
-                        if (meta.domainText) out += '\n' + meta.domainText;
-                        return out + '\n\n' + csv;
-                    }
-                },
-                {
-                    extend: 'print',
-                    text: 'Print',
-                    className: 'btn btn-warning',
-                    exportOptions: { columns: ':visible' },
-                    title: function () { 
-                        var meta = getExportMetaRoiCountry();
-                        let title = 'ROI Traffic Per Negara';
-                        if (meta.periodText) title += ' ' + meta.periodText;
-                        if (meta.accountText) title += ' ' + meta.accountText;
-                        if (meta.domainText) title += ' ' + meta.domainText;
-                        return title;
-                    },
-                    messageTop: function () {
-                        var meta = getExportMetaRoiCountry();
-                        var html = '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.periodText) + '</div>';
-                        if (meta.accountText) html += '<div style="text-align:center;margin-bottom:4px">' + escapeHtml(meta.accountText) + '</div>';
-                        if (meta.domainText) html += '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.domainText) + '</div>';
-                        return html;
-                    }
-                },
-                {
-                    extend: 'colvis',
-                    text: 'Column Visibility',
-                    className: 'btn btn-default',
-                    exportOptions: { columns: ':visible' } 
-                }
-            ],
+                    ],
+                    sheetName: 'ROI Traffic Per Negara',
+                    pdfFontSize: 7,
+                    pageMargins: [10, 22, 10, 22]
+                })
+                : [],
             columnDefs: [
                 {
                     targets: [0, 2, 7, 8, 15],
@@ -777,7 +626,7 @@ $(document).ready(function () {
                     targets: 0,
                     orderable: false,
                     searchable: false,
-                    className: 'dt-body-center checkbox-cell',
+                    className: 'dt-body-center checkbox-cell no-export',
                     render: function (data, type, row, meta) {
                         var id = 'row_select_' + meta.row;
                         return '<div class="form-check checkbox-center m-0">' +
