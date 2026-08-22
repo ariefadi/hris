@@ -184,55 +184,7 @@ def get_user_refresh_token(email):
 geocode = Nominatim(user_agent="hris_trendHorizone") if Nominatim else None
 
 
-def get_client_ip(request):
-    """Resolve client IP, honoring common reverse-proxy headers."""
-    forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if forwarded_for:
-        return forwarded_for.split(',')[0].strip()
-    for header in ('HTTP_X_REAL_IP', 'HTTP_CF_CONNECTING_IP'):
-        ip = request.META.get(header)
-        if ip:
-            return ip.strip()
-    return (request.META.get('REMOTE_ADDR') or '').strip()
-
-
-def resolve_ip_location(ip_address):
-    """Lookup geolocation for a specific client IP via ipinfo.io."""
-    lat_long = [None, None]
-    location_address = None
-    resolved_ip = ip_address
-
-    if not ip_address or ip_address in ('127.0.0.1', '::1'):
-        return resolved_ip, lat_long, location_address
-
-    try:
-        resp = requests.get(f"https://ipinfo.io/{ip_address}/json", timeout=5)
-        if resp.ok:
-            data = resp.json()
-            if isinstance(data, dict):
-                loc_val = data.get('loc')
-                if loc_val:
-                    tmp = loc_val.split(',')
-                    if len(tmp) == 2:
-                        lat_long = [tmp[0].strip(), tmp[1].strip()]
-                resolved_ip = data.get('ip', ip_address) or ip_address
-                parts = [data.get('city'), data.get('region'), data.get('country')]
-                location_address = ', '.join(p for p in parts if p) or None
-    except Exception:
-        pass
-
-    try:
-        if geocode and lat_long[0] and lat_long[1]:
-            lat_f = float(lat_long[0])
-            lon_f = float(lat_long[1])
-            loc = geocode.reverse((lat_f, lon_f), language='id')
-            if loc and hasattr(loc, 'address'):
-                location_address = loc.address
-    except Exception:
-        pass
-
-    return resolved_ip, lat_long, location_address
-
+from management.ip_utils import get_client_ip, resolve_ip_location
 data_bulan = {
     1: 'Januari',
     2: 'Februari',
