@@ -1020,6 +1020,68 @@ html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
     background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
     border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
+.detail-scoring-toolbar__group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.detail-scoring-toolbar__group--roi {
+    margin-left: auto;
+}
+.detail-scoring-roi-filter {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 12px;
+    background: rgba(148, 163, 184, 0.08);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+}
+.ds-roi-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 5px 10px 5px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    transition: opacity .15s ease, box-shadow .15s ease;
+}
+.ds-roi-filter-chip input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+.ds-roi-filter-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+.ds-roi-filter-chip.is-high { background: rgba(16, 185, 129, 0.12); color: #047857; border-color: rgba(16, 185, 129, 0.22); }
+.ds-roi-filter-chip.is-high .ds-roi-filter-swatch { background: linear-gradient(135deg, #059669, #10b981); }
+.ds-roi-filter-chip.is-mid { background: rgba(245, 158, 11, 0.14); color: #92400e; border-color: rgba(245, 158, 11, 0.28); }
+.ds-roi-filter-chip.is-mid .ds-roi-filter-swatch { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+.ds-roi-filter-chip.is-low { background: rgba(239, 68, 68, 0.12); color: #b91c1c; border-color: rgba(239, 68, 68, 0.24); }
+.ds-roi-filter-chip.is-low .ds-roi-filter-swatch { background: linear-gradient(135deg, #dc2626, #ef4444); }
+.ds-roi-filter-chip:not(.is-checked) { opacity: 0.45; }
+.ds-roi-filter-chip.is-checked { opacity: 1; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08); }
+html[data-theme="dark"] .detail-scoring-roi-filter {
+    background: rgba(15, 23, 42, 0.45);
+    border-color: rgba(148, 163, 184, 0.16);
+}
+html[data-theme="dark"] .ds-roi-filter-chip.is-high { color: #6ee7b7; }
+html[data-theme="dark"] .ds-roi-filter-chip.is-mid { color: #fde68a; }
+html[data-theme="dark"] .ds-roi-filter-chip.is-low { color: #fca5a5; }
 .detail-scoring-filter.dashboard-recap-tabs {
     border-radius: 14px;
     padding: 6px;
@@ -6319,14 +6381,36 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                 </div>
                             </div>
                             <div class="detail-scoring-toolbar">
-                                <span class="text-muted" style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">Filter keputusan</span>
-                                <div class="dashboard-recap-tabs detail-scoring-filter" id="dashboardRecapAlertTabs" role="tablist" aria-label="Filter keputusan scoring">
-                                    <button type="button" class="btn btn-sm btn-primary" data-alert-filter="all"><i class="bi bi-grid-3x3-gap"></i> Semua</button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_up"><i class="bi bi-graph-up-arrow"></i> Scale Up</button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="hold"><i class="bi bi-hand-thumbs-up"></i> Hold</button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="pause"><i class="bi bi-pause-circle"></i> Pause</button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_down"><i class="bi bi-graph-down-arrow"></i> Scale Down</button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="stop"><i class="bi bi-stop-circle"></i> Stop</button>
+                                <div class="detail-scoring-toolbar__group">
+                                    <span class="text-muted" style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">Filter keputusan</span>
+                                    <div class="dashboard-recap-tabs detail-scoring-filter" id="dashboardRecapAlertTabs" role="tablist" aria-label="Filter keputusan scoring">
+                                        <button type="button" class="btn btn-sm btn-primary" data-alert-filter="all"><i class="bi bi-grid-3x3-gap"></i> Semua</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_up"><i class="bi bi-graph-up-arrow"></i> Scale Up</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="hold"><i class="bi bi-hand-thumbs-up"></i> Hold</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="pause"><i class="bi bi-pause-circle"></i> Pause</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_down"><i class="bi bi-graph-down-arrow"></i> Scale Down</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="stop"><i class="bi bi-stop-circle"></i> Stop</button>
+                                    </div>
+                                </div>
+                                <div class="detail-scoring-toolbar__group detail-scoring-toolbar__group--roi">
+                                    <span class="text-muted" style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">Filter ROI <span style="font-weight:600;text-transform:none;letter-spacing:0;opacity:.85;">(kosong = semua)</span></span>
+                                    <div class="detail-scoring-roi-filter" id="dashboardRecapRoiTierFilter" role="group" aria-label="Filter ROI berdasarkan warna">
+                                        <label class="ds-roi-filter-chip is-high">
+                                            <input type="checkbox" data-roi-tier="high">
+                                            <span class="ds-roi-filter-swatch" aria-hidden="true"></span>
+                                            <span>&gt;250%</span>
+                                        </label>
+                                        <label class="ds-roi-filter-chip is-mid">
+                                            <input type="checkbox" data-roi-tier="mid">
+                                            <span class="ds-roi-filter-swatch" aria-hidden="true"></span>
+                                            <span>150–250%</span>
+                                        </label>
+                                        <label class="ds-roi-filter-chip is-low">
+                                            <input type="checkbox" data-roi-tier="low">
+                                            <span class="ds-roi-filter-swatch" aria-hidden="true"></span>
+                                            <span>&lt;150%</span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                             <div class="detail-scoring-note">
@@ -10075,6 +10159,7 @@ function initDashboardRecap() {
     initDetailKeputusanModal();
     initDashboardCampaignNotif();
     bindDashboardRecapAlertTabs();
+    bindDashboardRecapRoiTierFilter();
 
     const fmtIdr = (v) => (Math.round(Number(v)||0)).toLocaleString('id-ID', { style:'currency', currency:'IDR', maximumFractionDigits:0 });
     const fmtPct = (v) => `${(Number(v)||0).toFixed(2)}%`;
@@ -10111,6 +10196,50 @@ function initDashboardRecap() {
     // ...existing code...
 
     window.dashboardRecapAlertFilter = window.dashboardRecapAlertFilter || 'all';
+    window.dashboardRecapRoiTierFilter = window.dashboardRecapRoiTierFilter || { high: false, mid: false, low: false };
+
+    function readDashboardRecapRoiTierFilterFromUi() {
+        const root = document.getElementById('dashboardRecapRoiTierFilter');
+        const f = { high: false, mid: false, low: false };
+        if (!root) return f;
+        root.querySelectorAll('input[data-roi-tier]').forEach(function(input) {
+            const tier = String(input.getAttribute('data-roi-tier') || '').toLowerCase();
+            if (tier) f[tier] = !!input.checked;
+        });
+        return f;
+    }
+
+    function dashboardRecapRoiTierFromValue(v) {
+        if (window.HrisRoiBadge && typeof HrisRoiBadge.tier === 'function') {
+            return HrisRoiBadge.tier(v) || 'na';
+        }
+        const n = Number(v);
+        if (!Number.isFinite(n)) return 'na';
+        if (n > 250) return 'high';
+        if (n >= 150) return 'mid';
+        return 'low';
+    }
+
+    function dashboardRecapRowPassesRoiTierFilter(roiValue) {
+        const f = readDashboardRecapRoiTierFilterFromUi();
+        window.dashboardRecapRoiTierFilter = f;
+        const anySelected = !!(f.high || f.mid || f.low);
+        if (!anySelected) return true;
+        const tier = dashboardRecapRoiTierFromValue(roiValue);
+        if (tier === 'na') return true;
+        return !!f[tier];
+    }
+
+    function syncDashboardRecapRoiTierFilterUi() {
+        const root = document.getElementById('dashboardRecapRoiTierFilter');
+        if (!root) return;
+        root.querySelectorAll('label.ds-roi-filter-chip').forEach(function(label) {
+            const input = label.querySelector('input[data-roi-tier]');
+            if (!input) return;
+            const on = !!input.checked;
+            label.classList.toggle('is-checked', on);
+        });
+    }
 
     function getState() {
         const dBtn = document.querySelector('#dashboardRecapDimTabs button.btn-primary');
@@ -10156,19 +10285,28 @@ function initDashboardRecap() {
         const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
         if (!tableEl || !hasDt || !jQuery.fn.DataTable.isDataTable(tableEl)) return;
         const dt = window.dashboardRecapDt || jQuery(tableEl).DataTable();
-        if (!dt || dt._dashboardAlertFilterBound) return;
+        if (!dt) return;
+        if (window._dashboardRecapTableFilterInstalled) {
+            if (!dt._dashboardAlertFilterBound) dt._dashboardAlertFilterBound = true;
+            return;
+        }
+        window._dashboardRecapTableFilterInstalled = true;
         const filterFn = function(settings, _data, dataIndex) {
             if (!settings || settings.nTable !== tableEl) return true;
             const target = String(window.dashboardRecapAlertFilter || 'all').toLowerCase();
-            if (target === 'all') return true;
             const aoRow = settings.aoData && settings.aoData[dataIndex] ? settings.aoData[dataIndex] : null;
             const rawRow = aoRow && Array.isArray(aoRow._aData) ? aoRow._aData : null;
-            const levelFromData = rawRow && rawRow[9] && typeof rawRow[9] === 'object'
-                ? String(rawRow[9].decisionKey || 'belum_siap').toLowerCase()
-                : '';
-            const rowNode = aoRow ? aoRow.nTr : null;
-            const level = String(levelFromData || rowNode?.dataset?.decisionKey || 'belum_siap').toLowerCase();
-            return level === target;
+            if (target !== 'all') {
+                const levelFromData = rawRow && rawRow[9] && typeof rawRow[9] === 'object'
+                    ? String(rawRow[9].decisionKey || 'belum_siap').toLowerCase()
+                    : '';
+                const rowNode = aoRow ? aoRow.nTr : null;
+                const level = String(levelFromData || rowNode?.dataset?.decisionKey || 'belum_siap').toLowerCase();
+                if (level !== target) return false;
+            }
+            const roiRaw = rawRow ? Number(rawRow[7]) : NaN;
+            if (!dashboardRecapRowPassesRoiTierFilter(roiRaw)) return false;
+            return true;
         };
         jQuery.fn.dataTable.ext.search.push(filterFn);
         dt._dashboardAlertFilterBound = true;
@@ -10236,11 +10374,29 @@ function initDashboardRecap() {
         Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
             if (tr.querySelector('td.dataTables_empty')) return;
             const level = String(tr.dataset.decisionKey || 'belum_siap').toLowerCase();
-            const show = (target === 'all' || level === target);
+            const showDecision = (target === 'all' || level === target);
+            const roiVal = Number(tr.dataset.roiValue);
+            const showRoi = dashboardRecapRowPassesRoiTierFilter(roiVal);
+            const show = showDecision && showRoi;
             tr.style.display = show ? '' : 'none';
             if (show) visible += 1;
         });
         setDetailScoringMeta(`${visible} baris`);
+    }
+
+    function bindDashboardRecapRoiTierFilter() {
+        const root = document.getElementById('dashboardRecapRoiTierFilter');
+        if (!root) return;
+        window.dashboardRecapRoiTierFilter = readDashboardRecapRoiTierFilterFromUi();
+        syncDashboardRecapRoiTierFilterUi();
+        root.querySelectorAll('input[data-roi-tier]').forEach(function(input) {
+            input.onchange = function() {
+                window.dashboardRecapRoiTierFilter = readDashboardRecapRoiTierFilterFromUi();
+                syncDashboardRecapRoiTierFilterUi();
+                applyDashboardRecapAlertFilter();
+            };
+        });
+        ensureDashboardRecapAlertDtFilter();
     }
 
     function bindDashboardRecapAlertTabs() {
@@ -21288,6 +21444,8 @@ function initDashboardRecap() {
                 const scoreVal = Number(row[8]?.value) || 0;
                 tr.dataset.alertLevel = String(row[8]?.alertLevel || 'normal').toLowerCase();
                 tr.dataset.decisionKey = String(row[9]?.decisionKey || 'belum_siap').toLowerCase();
+                tr.dataset.roiValue = String(Number(row[7]) || 0);
+                tr.dataset.roiTier = dashboardRecapRoiTierFromValue(row[7]);
                 const isCountry = recapDim === 'country';
                 if (hasRange && scoreVal === minScore) tr.classList.add('ds-row-highlight-worst');
                 else if (hasRange && scoreVal === maxScore) tr.classList.add('ds-row-highlight-best');
@@ -21376,6 +21534,8 @@ function initDashboardRecap() {
                     const hasRange = !!(tableEl && tableEl.dataset && tableEl.dataset.hasRange === '1');
                     row.dataset.alertLevel = String(rowData && rowData[8] && rowData[8].alertLevel || 'normal').toLowerCase();
                     row.dataset.decisionKey = String(rowData && rowData[9] && rowData[9].decisionKey || 'belum_siap').toLowerCase();
+                    row.dataset.roiValue = String(Number(rowData && rowData[7]) || 0);
+                    row.dataset.roiTier = dashboardRecapRoiTierFromValue(rowData && rowData[7]);
                     jQuery(row).removeClass('table-danger table-info ds-row-highlight-best ds-row-highlight-worst');
                     if (!hasRange) return;
 
