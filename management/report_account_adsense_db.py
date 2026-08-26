@@ -253,9 +253,19 @@ def _report_cred_adsense_campaign_platform(raw_domain):
     token = str(raw_domain or '').strip().lower().split('_')[0].split()[0]
     if not token:
         return 'adsense'
-    for suffix in ('.adx', '.disp', '.display'):
+    for suffix in ('.adx',):
         if token.endswith(suffix):
             return 'adx'
+    for suffix in ('.disp', '.display'):
+        if token.endswith(suffix):
+            return 'adsense'
+    parts = [p for p in token.split('.') if p]
+    if len(parts) >= 3:
+        label = parts[2].upper()
+        if label == 'ADX':
+            return 'adx'
+        if label in ('DISP', 'DISPLAY'):
+            return 'adsense'
     return 'adsense'
 
 
