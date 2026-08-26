@@ -594,8 +594,10 @@ $().ready(function () {
                 render: function (data, type) {
                     var val = Number(data) || 0;
                     if (type === 'sort' || type === 'type' || type === 'filter') return val;
-                    var cls = val >= 0 ? 'roi-val-positive' : 'roi-val-negative';
-                    return '<span class="' + cls + '">' + formatNumber(val, 2) + ' %</span>';
+                    if (window.HrisRoiBadge && HrisRoiBadge.forDataTable) {
+                        return HrisRoiBadge.forDataTable(data, type, { spaceBeforePercent: true });
+                    }
+                    return '<span class="ds-roi ds-roi--na">' + formatNumber(val, 2) + ' %</span>';
                 }
             },
             {

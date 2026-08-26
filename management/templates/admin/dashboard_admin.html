@@ -1312,13 +1312,20 @@ button.ds-domain-name-btn:focus-visible {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 56px;
-    padding: 4px 10px;
+    min-width: 72px;
+    padding: 5px 12px;
     border-radius: 999px;
     font-size: 12px;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
+    border: 1px solid transparent;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    white-space: nowrap;
+    line-height: 1.2;
 }
+.ds-roi--high { background: linear-gradient(135deg, #059669, #10b981); color: #fff; border-color: rgba(16, 185, 129, 0.35); box-shadow: 0 4px 12px rgba(5, 150, 105, 0.24); }
+.ds-roi--mid { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #78350f; border-color: rgba(245, 158, 11, 0.35); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); }
+.ds-roi--low { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; border-color: rgba(239, 68, 68, 0.35); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.22); }
 .ds-roi--pos { background: rgba(16, 185, 129, 0.14); color: #047857; border: 1px solid rgba(16, 185, 129, 0.25); }
 .ds-roi--neg { background: rgba(239, 68, 68, 0.12); color: #b91c1c; border: 1px solid rgba(239, 68, 68, 0.22); }
 .ds-roi--zero { background: rgba(148, 163, 184, 0.14); color: #475569; border: 1px solid rgba(148, 163, 184, 0.22); }
@@ -1642,6 +1649,9 @@ html[data-theme="dark"] .ds-tag--adx { background: rgba(59, 130, 246, 0.22); col
 html[data-theme="dark"] .ds-tag--adsense { background: rgba(251, 191, 36, 0.2); color: #fcd34d; border-color: rgba(251, 191, 36, 0.35); }
 html[data-theme="dark"] .ds-tag--days { background: rgba(6, 182, 212, 0.2); color: #67e8f9; border-color: rgba(34, 211, 238, 0.35); }
 html[data-theme="dark"] .ds-tag--country { background: rgba(148, 163, 184, 0.18); color: #e2e8f0; border-color: rgba(148, 163, 184, 0.3); }
+html[data-theme="dark"] .ds-roi--high { background: linear-gradient(135deg, #059669, #10b981); color: #fff; border-color: rgba(52, 211, 153, 0.42); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.28); }
+html[data-theme="dark"] .ds-roi--mid { background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff; border-color: rgba(251, 191, 36, 0.42); box-shadow: 0 4px 14px rgba(245, 158, 11, 0.24); }
+html[data-theme="dark"] .ds-roi--low { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; border-color: rgba(248, 113, 113, 0.42); box-shadow: 0 4px 14px rgba(239, 68, 68, 0.26); }
 html[data-theme="dark"] .ds-roi--pos { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border-color: rgba(52, 211, 153, 0.35); }
 html[data-theme="dark"] .ds-roi--neg { background: rgba(248, 113, 113, 0.18); color: #fca5a5; border-color: rgba(248, 113, 113, 0.32); }
 html[data-theme="dark"] .ds-roi--zero { background: rgba(148, 163, 184, 0.16); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.28); }
@@ -10969,11 +10979,23 @@ function initDashboardRecap() {
         return v;
     }
 
+    function scxRoiBadgeHtml(roi) {
+        if (window.HrisRoiBadge && HrisRoiBadge.html) return HrisRoiBadge.html(roi);
+        return `<span class="ds-roi ds-roi--na">${esc(fmtPct(roi))}</span>`;
+    }
+
+    function roiBadgeClass(n) {
+        if (window.HrisRoiBadge && HrisRoiBadge.badgeClass) return HrisRoiBadge.badgeClass(n);
+        const v = Number(n) || 0;
+        if (v > 250) return 'ds-roi ds-roi--high';
+        if (v >= 150) return 'ds-roi ds-roi--mid';
+        return 'ds-roi ds-roi--low';
+    }
+
     function renderRoiCell(v, type) {
         const n = Number(v) || 0;
         if (type === 'display' || type === 'filter') {
-            const cls = n > 0 ? 'ds-roi--pos' : n < 0 ? 'ds-roi--neg' : 'ds-roi--zero';
-            return `<span class="ds-roi ${cls}">${fmtPct(n)}</span>`;
+            return scxRoiBadgeHtml(n);
         }
         return n;
     }
@@ -12673,7 +12695,7 @@ function initDashboardRecap() {
     function scxRenderBackendStatusTable(statuses) {
         const rows = Array.isArray(statuses) ? statuses : [];
         if (!rows.length) return `<div class="scx-sub">Status backend kosong.</div>`;
-        let html = `<div class="scx-roi-legend"><span class="scx-roi-chip red">ROI &lt; 200% = Merah</span><span class="scx-roi-chip yellow">ROI 200% - 300% = Kuning</span><span class="scx-roi-chip green">ROI &gt; 300% = Hijau</span><span class="scx-roi-chip" style="background:#eef2ff;color:#3730a3;border:1px solid rgba(55,48,163,.18);">Confidence tinggi = biru</span></div>`;
+        let html = `<div class="scx-roi-legend"><span class="ds-roi ds-roi--low">ROI &lt; 150% = Merah</span><span class="ds-roi ds-roi--mid">ROI 150% - 250% = Kuning</span><span class="ds-roi ds-roi--high">ROI &gt; 250% = Hijau</span><span class="scx-roi-chip" style="background:#eef2ff;color:#3730a3;border:1px solid rgba(55,48,163,.18);">Confidence tinggi = biru</span></div>`;
         html += `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-country-table"><thead><tr><th title="Negara asal entity scoring backend.">Negara</th><th title="Campaign Meta yang dipasangkan ke data backend ini.">Campaign</th><th title="Status join antara data Meta Ads dan source revenue.">Join</th><th title="Source revenue yang dipakai saat membaca revenue entity ini.">Source</th><th title="Label kondisi backend dan akar masalah dominan.">Status</th><th class="text-end" title="Health Score: kekuatan/kesehatan performa umum.">Health</th><th class="text-end" title="IVT Risk Score: tekanan risiko kualitas traffic / IVT.">Risk</th><th class="text-end" title="Adjustment Score: koreksi tambahan model di luar health dan risk utama.">Adj</th><th class="text-end" title="Confidence: tingkat keyakinan model terhadap pembacaan ini.">Conf</th><th class="text-end" title="Decision Margin: ruang dorong atau ruang tahan keputusan saat ini.">Decision</th><th class="text-end" title="Jumlah sinyal positif yang terdeteksi.">Pos</th><th class="text-end" title="Jumlah sinyal negatif yang terdeteksi.">Neg</th><th class="text-end" title="Total visitor dari Kiwipixel untuk negara ini pada rentang tanggal aktif.">Visitor</th><th class="text-end" title="Unique visitor dari Kiwipixel untuk negara ini pada rentang tanggal aktif.">Unique</th><th class="text-end" title="Total pageview dari Kiwipixel untuk negara ini pada rentang tanggal aktif.">Pageview</th><th class="text-end" title="Total spend Meta yang terbaca untuk row ini.">Spend</th><th class="text-end" title="Total revenue source yang terbaca untuk row ini.">Revenue</th><th class="text-end" title="ROI hasil perbandingan revenue dan spend.">ROI</th></tr></thead><tbody>`;
         rows.forEach(function(st){
             const spend = scxSpendValue(st);
@@ -12682,7 +12704,8 @@ function initDashboardRecap() {
             const roi = Number.isFinite(roiRaw) ? roiRaw : (spend > 0 ? ((revenue - spend) / spend) * 100 : NaN);
             const pos = Number(st?.positive_signal_count ?? st?.positive_signals ?? 0);
             const neg = Number(st?.negative_signal_count ?? st?.negative_signals ?? 0);
-            const roiClass = !Number.isFinite(roi) ? '' : (roi < 200 ? 'red' : (roi <= 300 ? 'yellow' : 'green'));
+            const roiTier = Number.isFinite(roi) && window.HrisRoiBadge ? HrisRoiBadge.tier(roi) : '';
+            const roiTooltipTone = roiTier === 'high' ? 'success' : (roiTier === 'mid' ? 'warning' : (roiTier === 'low' ? 'danger' : 'gray'));
             const health = Number(st?.health_score);
             const risk = Number(st?.ivt_risk_score);
             const adj = Number(st?.adjustment_score);
@@ -12718,7 +12741,7 @@ function initDashboardRecap() {
                 <td class="text-end scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('Total Pageview', scxTooltipLines(`Pageview: ${scxNum(totalPageviews,0)}`, 'Jumlah total pageview Kiwipixel untuk negara yang sama pada tanggal aktif detail scoring.'), 'indigo')}>${esc(scxNum(totalPageviews,0))}</td>
                 <td class="text-end scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('Spend', scxTooltipLines(`Spend: ${scxNum(spend,0)}`, 'Total biaya Meta Ads yang terbaca untuk entity ini.'), 'indigo')}>${esc(scxNum(spend,0))}</td>
                 <td class="text-end scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('Revenue', scxTooltipLines(`Revenue: ${scxNum(revenue,0)}`, 'Total revenue dari source backend yang berhasil dipasangkan ke entity ini.'), 'success')}>${esc(scxNum(revenue,0))}</td>
-                <td class="text-end scx-roi-band ${roiClass} scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('ROI', scxTooltipLines(`ROI: ${Number.isFinite(roi) ? `${scxNum(roi,2)}%` : '-'}`, Number.isFinite(roi) ? 'ROI dihitung dari (revenue - spend) / spend x 100.' : 'ROI belum bisa dihitung karena spend/revenue belum lengkap.'), roiClass === 'red' ? 'danger' : (roiClass === 'green' ? 'success' : 'warning'))}>${Number.isFinite(roi) ? `${esc(scxNum(roi,2))}%` : '-'}</td>
+                <td class="text-end scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('ROI', scxTooltipLines(`ROI: ${Number.isFinite(roi) ? `${scxNum(roi,2)}%` : '-'}`, Number.isFinite(roi) ? 'ROI dihitung dari (revenue - spend) / spend x 100.' : 'ROI belum bisa dihitung karena spend/revenue belum lengkap.'), roiTooltipTone)}>${Number.isFinite(roi) ? scxRoiBadgeHtml(roi) : '-'}</td>
             </tr>`;
         });
         return html + `</tbody></table></div></div>`;
@@ -12787,7 +12810,7 @@ function initDashboardRecap() {
                 <td class="text-end scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('Total Pageview', scxTooltipLines(`Pageview terkait: ${Number.isFinite(totalPageviews) ? scxNum(totalPageviews,0) : '-'}`, 'Jumlah total pageview Kiwipixel untuk negara yang sama, mengikuti pasangan row status backend event ini.'), 'indigo')}>${Number.isFinite(totalPageviews) ? esc(scxNum(totalPageviews,0)) : '-'}</td>
                 <td class="text-end scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('Spend Terkait', scxTooltipLines(`Spend terkait: ${Number.isFinite(spend) ? scxNum(spend,0) : '-'}`, 'Spend diambil dari row status backend yang berhasil dipasangkan ke event ini.'), 'indigo')}>${Number.isFinite(spend) ? esc(scxNum(spend,0)) : '-'}</td>
                 <td class="text-end scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('Revenue Terkait', scxTooltipLines(`Revenue terkait: ${Number.isFinite(revenue) ? scxNum(revenue,0) : '-'}`, 'Revenue diambil dari row status backend yang berhasil dipasangkan ke event ini.'), 'success')}>${Number.isFinite(revenue) ? esc(scxNum(revenue,0)) : '-'}</td>
-                <td class="text-end scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('ROI Terkait', scxTooltipLines(`ROI terkait: ${Number.isFinite(roi) ? `${scxNum(roi,2)}%` : '-'}`, Number.isFinite(roi) ? 'ROI dihitung dari pasangan revenue dan spend row status yang terkait dengan event ini.' : 'ROI belum bisa dihitung karena spend/revenue pasangan tidak lengkap.'), Number.isFinite(roi) && roi < 0 ? 'danger' : 'success')}>${Number.isFinite(roi) ? `${esc(scxNum(roi,2))}%` : '-'}</td>
+                <td class="text-end scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('ROI Terkait', scxTooltipLines(`ROI terkait: ${Number.isFinite(roi) ? `${scxNum(roi,2)}%` : '-'}`, Number.isFinite(roi) ? 'ROI dihitung dari pasangan revenue dan spend row status yang terkait dengan event ini.' : 'ROI belum bisa dihitung karena spend/revenue pasangan tidak lengkap.'), Number.isFinite(roi) && window.HrisRoiBadge ? (HrisRoiBadge.tier(roi) === 'high' ? 'success' : (HrisRoiBadge.tier(roi) === 'mid' ? 'warning' : 'danger')) : 'gray')}>${Number.isFinite(roi) ? scxRoiBadgeHtml(roi) : '-'}</td>
                 <td class="scx-rich-tooltip-trigger" tabindex="0" ${scxTooltipDataAttrs('Alasan Event', reason, cls === 'NEGATIVE' ? 'danger' : (cls === 'POSITIVE' ? 'success' : 'warning'))} style="max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(reason)}</td>
             </tr>`;
         });
@@ -12977,7 +13000,7 @@ function initDashboardRecap() {
             const roiRaw = Number(st?.roi);
             const roi = Number.isFinite(roiRaw) ? roiRaw : (spend > 0 ? ((revenue - spend) / spend) * 100 : NaN);
             html += `<td class="text-end">${esc(scxNum(st?.decision_margin, 2))}</td>`;
-            html += `<td class="text-end">${Number.isFinite(roi) ? `${esc(scxNum(roi, 2))}%` : '-'}</td>`;
+            html += `<td class="text-end">${Number.isFinite(roi) ? scxRoiBadgeHtml(roi) : '-'}</td>`;
             html += `</tr>`;
         });
 
@@ -13277,12 +13300,11 @@ function initDashboardRecap() {
             const revenue = Number(r.revenue || 0);
             const net = Number(r.net_profit != null ? r.net_profit : (revenue - spend));
             const roi = Number(r.roi != null ? r.roi : (spend > 0 ? ((revenue - spend) / spend * 100) : 0));
-            const roiCls = roi >= 0 ? 'scx-val-up' : 'scx-val-down';
             html += `<tr><td>${esc(String(r.subdomain || r.domain || '-'))}</td><td>${esc(String(r.campaign || r.campaign_name || '-'))}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(spend))}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(revenue))}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(net))}</td>`;
-            html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(roi))}</span></td></tr>`;
+            html += `<td class="text-end">${scxRoiBadgeHtml(roi)}</td></tr>`;
         });
         html += '</tbody></table>';
         return html;
@@ -13961,8 +13983,7 @@ function initDashboardRecap() {
         if (!refRow) return '<span class="text-muted" title="Data referensi belum tersedia">—</span>';
         const ref = Number(refRow[field] || 0);
         if (isPct) {
-            const roiCls = ref >= 0 ? 'scx-val-up' : 'scx-val-down';
-            return `<span class="${roiCls}">${esc(fmtPct(ref))}</span>`;
+            return scxRoiBadgeHtml(ref);
         }
         return esc(fmtIdr(ref));
     }
@@ -13971,8 +13992,7 @@ function initDashboardRecap() {
         if (!pt) return '<span class="text-muted">—</span>';
         const ref = Number(pt[field] || 0);
         if (isPct) {
-            const roiCls = ref >= 0 ? 'scx-val-up' : 'scx-val-down';
-            return `<span class="${roiCls}">${esc(fmtPct(ref))}</span>`;
+            return scxRoiBadgeHtml(ref);
         }
         return esc(fmtIdr(ref));
     }
@@ -14634,13 +14654,12 @@ function initDashboardRecap() {
         }
         html += '</thead><tbody>';
         displayRows.forEach(function(r) {
-            const roiCls = Number(r.roi) >= 0 ? 'scx-val-up' : 'scx-val-down';
             const rowDate = String(r.date || '-');
             const rowCls = (focusDate && rowDate === focusDate) ? ' class="scx-analytic-row-focus"' : '';
             html += `<tr${rowCls}><td>${esc(rowDate)}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(r.spend))}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(r.revenue))}</td>`;
-            html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(r.roi))}</span></td>`;
+            html += `<td class="text-end">${scxRoiBadgeHtml(r.roi)}</td>`;
             if (hasCompare) {
                 compareOffsets.forEach(function(off) {
                     const ref = map[ymdShift(rowDate, -off)];
@@ -14747,13 +14766,12 @@ function initDashboardRecap() {
             const spend = Number(snap.spend[idx] || 0);
             const revenue = Number(snap.revenue[idx] || 0);
             const roi = Number(snap.roi[idx] || 0);
-            const roiCls = roi >= 0 ? 'scx-val-up' : 'scx-val-down';
             const prevPt = scxPrevHourlyPoint(byDate, dateYmd, h);
             const cells = [
                 `<td>${esc(scxHourLabel(h))}</td>`,
                 `<td class="text-end">${esc(fmtIdr(spend))}</td>`,
                 `<td class="text-end">${esc(fmtIdr(revenue))}</td>`,
-                `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(roi))}</span></td>`
+                `<td class="text-end">${scxRoiBadgeHtml(roi)}</td>`
             ];
             scxAppendHourlyJamLaluCells(cells, revenue, roi, prevPt, compact);
             compareOffsets.forEach(function(off) {
@@ -14817,11 +14835,10 @@ function initDashboardRecap() {
             const prevIdx = idx - 1;
             const dRev = prevIdx >= 0 ? (Number(revenue[idx] || 0) - Number(revenue[prevIdx] || 0)) : null;
             const dRoi = prevIdx >= 0 ? (Number(roi[idx] || 0) - Number(roi[prevIdx] || 0)) : null;
-            const roiCls = Number(roi[idx]) >= 0 ? 'scx-val-up' : 'scx-val-down';
             html += `<tr><td>${esc(String(h))}:00</td>`;
             html += `<td class="text-end">${esc(fmtIdr(spend[idx]))}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(revenue[idx]))}</td>`;
-            html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(roi[idx]))}</span></td>`;
+            html += `<td class="text-end">${scxRoiBadgeHtml(roi[idx])}</td>`;
             html += `<td class="text-end">${prevIdx >= 0 ? scxDeltaCellHtml(dRev, false) : '<span class="text-muted">—</span>'}</td>`;
             html += `<td class="text-end">${prevIdx >= 0 ? scxDeltaCellHtml(dRoi, true) : '<span class="text-muted">—</span>'}</td></tr>`;
         });
@@ -15488,7 +15505,6 @@ function initDashboardRecap() {
         html += '</tr></thead><tbody>';
         sorted.forEach(function(r) {
             const cur = scxMonitoringCountryRowMetrics(r);
-            const roiCls = cur.roi >= 0 ? 'scx-val-up' : 'scx-val-down';
             const name = String(r.country_name || r.country || r.country_nm || '-');
             const code = String(r.country_code || r.country_cd || r.code || '-').toUpperCase();
             const prev = prevMap[scxMonitoringCountryCode(r)];
@@ -15497,7 +15513,7 @@ function initDashboardRecap() {
             html += `<td class="text-end">${esc(fmtIdr(cur.spend))}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(cur.revenue))}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(cur.net))}</td>`;
-            html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(cur.roi))}</span></td>`;
+            html += `<td class="text-end">${scxRoiBadgeHtml(cur.roi)}</td>`;
             if (showH1) {
                 html += `<td class="text-end">${prevMetrics ? scxDeltaCellHtml(cur.revenue - prevMetrics.revenue, false) : '<span class="text-muted">—</span>'}</td>`;
                 html += `<td class="text-end">${prevMetrics ? scxDeltaCellHtml(cur.roi - prevMetrics.roi, true) : '<span class="text-muted">—</span>'}</td>`;
@@ -16453,7 +16469,6 @@ function initDashboardRecap() {
             const spend = Number(row?.spend || 0);
             const revenue = Number(row?.revenue || 0);
             const roi = Number(row?.roi != null ? row.roi : (spend > 0 ? ((revenue - spend) / spend * 100) : 0));
-            const roiCls = roi >= 0 ? 'scx-val-up' : 'scx-val-down';
             const rec = recoMap.get(key) || { action: 'HOLD', pct: 0, fdir: 'STABLE_OUTLOOK', horizon: 48, conf: 0.55, summary: 'Cenderung stabil, pantau sinyal baru.' };
             const tag = tagMap.get(key) || { label: 'STABLE_HOLD', friendly: 'Stabil' };
             const recPct = Number(rec.pct || 0);
@@ -16471,7 +16486,7 @@ function initDashboardRecap() {
             html += `<td><div class="scx-campaign-name-cell"><div class="scx-campaign-name-text" title="${esc(name)}">${esc(name)}</div>${scxCampaignRunningDaysBadgeHtml(row)}</div></td>`;
             html += `<td class="text-end">${esc(fmtIdr(spend))}</td>`;
             html += `<td class="text-end">${esc(fmtIdr(revenue))}</td>`;
-            html += `<td class="text-end"><span class="${roiCls}">${esc(fmtPct(roi))}</span></td>`;
+            html += `<td class="text-end">${scxRoiBadgeHtml(roi)}</td>`;
             html += `<td><span class="scx-pill ${scxCampaignStatusTone(row?.campaign_status)}">${esc(scxCampaignStatusLabel(row?.campaign_status))}</span></td>`;
             html += `<td><span class="scx-pill gray">${esc(tag.friendly || scxFriendlyLabel(tag.label))}</span></td>`;
             html += `<td><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:3px;"><span class="scx-pill ${fcTone}" style="font-size:10px;padding:2px 8px;">${esc(rec.fdir)}</span><span class="scx-pill gray" style="font-size:10px;padding:2px 8px;">${esc(String(rec.horizon))} jam</span><span class="scx-pill gray" style="font-size:10px;padding:2px 8px;">${esc(scxPct01(rec.conf, 0))}</span></div><div class="scx-sub" style="margin:0;font-size:11px;">${esc(rec.summary)}</div></td>`;
@@ -21133,7 +21148,7 @@ function initDashboardRecap() {
                     return;
                 }
                 targetBody.innerHTML = list.map(function(r, idx){
-                    return `<tr><td class="text-center">${idx + 1}</td><td><span style="display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.campaign)}</span></td><td class="text-end">${esc(fmtIdr(r.spend))}</td><td class="text-end">${esc(fmtIdr(r.revenue))}</td><td class="text-center">${esc(fmtPct(r.roi))}</td><td class="text-center" style="font-weight:800;">${esc(r.score_text)}</td><td class="text-center">${pill(r.decision)}</td></tr>`;
+                    return `<tr><td class="text-center">${idx + 1}</td><td><span style="display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.campaign)}</span></td><td class="text-end">${esc(fmtIdr(r.spend))}</td><td class="text-end">${esc(fmtIdr(r.revenue))}</td><td class="text-center">${scxRoiBadgeHtml(r.roi)}</td><td class="text-center" style="font-weight:800;">${esc(r.score_text)}</td><td class="text-center">${pill(r.decision)}</td></tr>`;
                 }).join('');
             };
 

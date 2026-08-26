@@ -285,6 +285,10 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
         return n.toLocaleString('id-ID', { maximumFractionDigits: n >= 1000 ? 0 : 2 });
     }
     function fmtPct(v) { return (Number(v) || 0).toFixed(2) + '%'; }
+    function fmtRoiBadge(v) {
+        if (window.HrisRoiBadge && HrisRoiBadge.html) return HrisRoiBadge.html(v);
+        return esc(fmtPct(v));
+    }
     function fmtMetricValue(v, kind) {
         const k = String(kind || 'number');
         if (k === 'money') return fmtIdr(v);
@@ -318,18 +322,22 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
     function findMetric(metrics, key) {
         return (metrics || []).find(function(m) { return m.key === key; }) || null;
     }
-    function renderHrPair(daily, rekap, kind) {
+    function renderHrPair(daily, rekap, kind, metricKey) {
+        if (metricKey === 'roi') {
+            return `<div class="irs-hr-pair"><span>H: ${esc(fmtPct(daily))}</span><span class="sep">/</span><span>R: ${fmtRoiBadge(rekap)}</span></div>`;
+        }
         return `<div class="irs-hr-pair"><span>H: ${esc(fmtMetricValue(daily, kind))}</span><span class="sep">/</span><span>R: ${esc(fmtMetricValue(rekap, kind))}</span></div>`;
     }
     function renderMetricCompareCell(metrics, key) {
         const m = findMetric(metrics, key);
         if (!m) return '<span class="text-muted">-</span>';
         const kind = metricKind(m);
-        return `${renderHrPair(m.daily, m.rekap, kind)}<div class="mt-1">${deltaBadge(m.delta_pct)}</div>`;
+        return `${renderHrPair(m.daily, m.rekap, kind, key)}<div class="mt-1">${deltaBadge(m.delta_pct)}</div>`;
     }
     function renderMetricRekapCell(metrics, key) {
         const m = findMetric(metrics, key);
         if (!m) return '<span class="text-muted">-</span>';
+        if (key === 'roi') return fmtRoiBadge(m.rekap);
         return esc(fmtMetricValue(m.rekap, metricKind(m)));
     }
     function renderRekapOnlyTable(metrics, title, note) {
@@ -343,7 +351,7 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
             const kind = metricKind(m);
             html += '<tr>';
             html += `<td class="metric-name">${esc(m.label)}</td>`;
-            html += `<td class="text-right">${esc(fmtMetricValue(m.rekap, kind))}</td>`;
+            html += `<td class="text-right">${m.key === 'roi' ? fmtRoiBadge(m.rekap) : esc(fmtMetricValue(m.rekap, kind))}</td>`;
             html += '</tr>';
         });
         html += '</tbody></table></div></div>';
@@ -365,7 +373,7 @@ html[data-theme="dark"] .irs-pill.is-ok { background: rgba(59,130,246,.24); colo
             html += '<tr>';
             html += `<td class="metric-name">${esc(m.label)}</td>`;
             html += `<td class="text-right">${esc(fmtMetricValue(m.daily, kind))}</td>`;
-            html += `<td class="text-right">${esc(fmtMetricValue(m.rekap, kind))}</td>`;
+            html += `<td class="text-right">${m.key === 'roi' ? fmtRoiBadge(m.rekap) : esc(fmtMetricValue(m.rekap, kind))}</td>`;
             html += `<td class="text-right">${esc(fmtMetricValue(delta, kind))}</td>`;
             html += `<td class="text-right">${deltaBadge(m.delta_pct)}</td>`;
             html += `<td class="text-center">${pill(m.status)}</td>`;

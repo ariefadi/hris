@@ -249,8 +249,106 @@ def _report_cred_adsense_lookup_domain_spend(db, subdomain_key, spend_by_domain)
     return round(total, 2)
 
 
+def _report_cred_adsense_campaign_platform(raw_domain):
+    token = str(raw_domain or '').strip().lower().split('_')[0].split()[0]
+    if not token:
+        return 'adsense'
+    for suffix in ('.adx', '.disp', '.display'):
+        if token.endswith(suffix):
+            return 'adx'
+    return 'adsense'
+
+
+def _report_cred_adsense_is_active_campaign_status(status):
+    s = str(status or '').strip().upper()
+    if s in ('1', 'ACTIVE', 'TRUE'):
+        return True
+    if s in ('0', 'PAUSED', 'DELETED', 'ARCHIVED', 'FALSE', 'INACTIVE'):
+        return False
+    try:
+        return int(float(status or 0)) == 1
+    except (TypeError, ValueError):
+        return False
+
+
+def _report_cred_adsense_fetch_running_campaign_counts_by_subdomain(db, start_date, end_date):
+    """Campaign aktif per subdomain dari data_ads_campaign + status terbaru master_ads."""
+    dom_expr = db._report_account_domain_key_sql('b.data_ads_domain')
+    sql = f"""
+        SELECT {dom_expr} AS domain_key,
+               LOWER(TRIM(b.data_ads_domain)) AS raw_domain,
+               b.data_ads_campaign_id,
+               COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend,
+               (
+                   SELECT m.master_status
+                   FROM master_ads m
+                   WHERE m.master_campaign_id = b.data_ads_campaign_id
+                   ORDER BY m.mdd DESC
+                   LIMIT 1
+               ) AS master_status
+        FROM data_ads_campaign b
+        WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
+          AND TRIM(COALESCE(b.data_ads_domain, '')) <> ''
+          AND TRIM(COALESCE(b.data_ads_campaign_id, '')) <> ''
+        GROUP BY domain_key, raw_domain, b.data_ads_campaign_id
+        HAVING spend > 0
+    """
+    if not db.execute_query(sql, (start_date, end_date)):
+        return {}
+    buckets = {}
+    for row in (db.cur_hris.fetchall() or []):
+        cid = str(row.get('data_ads_campaign_id') or '').strip()
+        if not cid:
+            continue
+        status = row.get('master_status')
+        if status is None or str(status).strip() == '':
+            is_active = True
+        else:
+            is_active = _report_cred_adsense_is_active_campaign_status(status)
+        if not is_active:
+            continue
+        key = str(row.get('domain_key') or '').strip()
+        if not key:
+            key = db._normalize_subdomain_key(
+                db._report_account_normalize_campaign_domain(row.get('raw_domain'))
+            )
+        if not key:
+            continue
+        platform = _report_cred_adsense_campaign_platform(row.get('raw_domain'))
+        slot = buckets.setdefault(key, {'adx': set(), 'adsense': set()})
+        slot[platform].add(cid)
+    return {
+        key: {
+            'adx_campaign_count': len(vals.get('adx') or set()),
+            'adsense_campaign_count': len(vals.get('adsense') or set()),
+        }
+        for key, vals in buckets.items()
+    }
+
+
+def _report_cred_adsense_lookup_campaign_counts(db, subdomain_key, campaign_counts):
+    candidates = {
+        str(subdomain_key or '').strip(),
+        db._normalize_domain_match_key(subdomain_key),
+        db._normalize_subdomain_key(subdomain_key),
+        db._report_account_normalize_campaign_domain(subdomain_key),
+    }
+    empty = {'adx_campaign_count': 0, 'adsense_campaign_count': 0}
+    for key in candidates:
+        if not key:
+            continue
+        bucket = (campaign_counts or {}).get(key)
+        if bucket:
+            return {
+                'adx_campaign_count': int(bucket.get('adx_campaign_count') or 0),
+                'adsense_campaign_count': int(bucket.get('adsense_campaign_count') or 0),
+            }
+    return empty
+
+
 def _report_cred_adsense_build_subdomain_rows(
     db, cred_id, subdomain_summary, adx_by_sub, adsense_by_sub, spend_by_domain,
+    campaign_counts=None,
 ):
     cid = str(cred_id or '').strip()
     keys = set()
@@ -270,10 +368,13 @@ def _report_cred_adsense_build_subdomain_rows(
         spend = _report_cred_adsense_lookup_domain_spend(db, key, spend_by_domain)
         revenue = adx_rev + adsense_rev
         metrics = db._report_account_build_row_metrics(spend, revenue, 0)
+        counts = _report_cred_adsense_lookup_campaign_counts(db, key, campaign_counts)
         rows.append({
             'subdomain': key,
             'adx_revenue': adx_rev,
             'adsense_revenue': adsense_rev,
+            'adx_campaign_count': counts['adx_campaign_count'],
+            'adsense_campaign_count': counts['adsense_campaign_count'],
             'spend': metrics['spend'],
             'revenue': metrics['revenue'],
             'profit': metrics['profit'],
@@ -364,6 +465,9 @@ def list_report_account_adsense_summary(
         )
         spend_by_domain = _report_cred_adsense_fetch_spend_by_domain(db, start_date, end_date)
         spend_daily_by_domain = _report_cred_adsense_fetch_spend_daily_by_domain(db, start_date, end_date)
+        campaign_counts = _report_cred_adsense_fetch_running_campaign_counts_by_subdomain(
+            db, start_date, end_date,
+        )
 
         rows_out = []
         totals = {'spend': 0.0, 'revenue': 0.0, 'profit': 0.0}
@@ -380,6 +484,7 @@ def list_report_account_adsense_summary(
             metrics = db._report_account_build_row_metrics(spend, revenue, len(domains))
             subdomains = _report_cred_adsense_build_subdomain_rows(
                 db, cid, subdomain_summary, adx_by_sub, adsense_by_sub, spend_by_domain,
+                campaign_counts,
             )
             rows_out.append({
                 'account_id': cid,

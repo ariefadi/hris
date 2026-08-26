@@ -737,8 +737,8 @@ $(document).ready(function () {
                     render: function (data, type) {
                         var v = Number(data) || 0;
                         if (type === 'sort' || type === 'type' || type === 'filter') return v;
-                        var cls = v >= 0 ? 'roi-val-positive' : 'roi-val-negative';
-                        return '<span class="' + cls + '">' + v.toFixed(2) + '%</span>';
+                        if (window.HrisRoiBadge && HrisRoiBadge.html) return HrisRoiBadge.html(v);
+                        return '<span class="ds-roi ds-roi--na">' + v.toFixed(2) + '%</span>';
                     }
                 },
                 // Pendapatan (kolom 16)
