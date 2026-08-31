@@ -1,11 +1,11 @@
 """Database helpers for Report Account AdSense (app_credentials based)."""
 
-# AdX revenue: gunakan data_adx_country (sumber sama dengan menu monitoring_domain).
-# data_adx_domain sering tidak lengkap per tanggal meskipun data country sudah ada.
-_ADX_REV_TABLE = 'data_adx_country'
-_ADX_REV_DATE_COL = 'data_adx_country_tanggal'
-_ADX_REV_AMOUNT_COL = 'data_adx_country_revenue'
-_ADX_REV_DOMAIN_COL = 'data_adx_country_domain'
+from management.database import (
+    _REPORT_ACCOUNT_ADX_DATE_COL,
+    _REPORT_ACCOUNT_ADX_DOMAIN_COL,
+    _REPORT_ACCOUNT_ADX_REVENUE_COL,
+    _REPORT_ACCOUNT_ADX_TABLE,
+)
 
 
 def _report_cred_adsense_fetch_accounts(db, account_q=None, user_id=None, is_super=True):
@@ -415,11 +415,11 @@ def _report_cred_adsense_detect_data_gaps(db, start_date, end_date, spend_daily_
     gaps = []
     try:
         sql = f"""
-            SELECT DATE({_ADX_REV_DATE_COL}) AS d,
-                   COALESCE(SUM(CAST({_ADX_REV_AMOUNT_COL} AS DECIMAL(18,4))), 0) AS revenue
-            FROM {_ADX_REV_TABLE}
-            WHERE DATE({_ADX_REV_DATE_COL}) BETWEEN %s AND %s
-            GROUP BY DATE({_ADX_REV_DATE_COL})
+            SELECT DATE({_REPORT_ACCOUNT_ADX_DATE_COL}) AS d,
+                   COALESCE(SUM(CAST({_REPORT_ACCOUNT_ADX_REVENUE_COL} AS DECIMAL(18,4))), 0) AS revenue
+            FROM {_REPORT_ACCOUNT_ADX_TABLE}
+            WHERE DATE({_REPORT_ACCOUNT_ADX_DATE_COL}) BETWEEN %s AND %s
+            GROUP BY DATE({_REPORT_ACCOUNT_ADX_DATE_COL})
         """
         if not db.execute_query(sql, (start_date, end_date)):
             return gaps
@@ -486,7 +486,7 @@ def list_report_account_adsense_summary(
         subdomain_summary = (subdomain_summary_resp or {}).get('data') or {}
 
         adx_rev_map, adx_by_cred = db._report_account_build_revenue_maps(
-            _ADX_REV_TABLE, _ADX_REV_DATE_COL, _ADX_REV_AMOUNT_COL, _ADX_REV_DOMAIN_COL,
+            _REPORT_ACCOUNT_ADX_TABLE, _REPORT_ACCOUNT_ADX_DATE_COL, _REPORT_ACCOUNT_ADX_REVENUE_COL, _REPORT_ACCOUNT_ADX_DOMAIN_COL,
             start_date, end_date,
         )
         adsense_rev_map, adsense_by_cred = db._report_account_build_revenue_maps(
@@ -494,7 +494,7 @@ def list_report_account_adsense_summary(
             start_date, end_date,
         )
         adx_rev_by_account = _report_cred_adsense_fetch_revenue_by_account(
-            db, _ADX_REV_TABLE, _ADX_REV_DATE_COL, _ADX_REV_AMOUNT_COL,
+            db, _REPORT_ACCOUNT_ADX_TABLE, _REPORT_ACCOUNT_ADX_DATE_COL, _REPORT_ACCOUNT_ADX_REVENUE_COL,
             start_date, end_date, account_ids,
         )
         adsense_rev_by_account = _report_cred_adsense_fetch_revenue_by_account(
@@ -502,7 +502,7 @@ def list_report_account_adsense_summary(
             start_date, end_date, account_ids,
         )
         adx_daily_by_account = _report_cred_adsense_fetch_daily_revenue_by_account(
-            db, _ADX_REV_TABLE, _ADX_REV_DATE_COL, _ADX_REV_AMOUNT_COL,
+            db, _REPORT_ACCOUNT_ADX_TABLE, _REPORT_ACCOUNT_ADX_DATE_COL, _REPORT_ACCOUNT_ADX_REVENUE_COL,
             start_date, end_date, account_ids,
         )
         adsense_daily_by_account = _report_cred_adsense_fetch_daily_revenue_by_account(
@@ -510,7 +510,7 @@ def list_report_account_adsense_summary(
             start_date, end_date, account_ids,
         )
         adx_by_sub = _report_cred_adsense_fetch_revenue_by_account_subdomain(
-            db, _ADX_REV_TABLE, _ADX_REV_DATE_COL, _ADX_REV_AMOUNT_COL, _ADX_REV_DOMAIN_COL,
+            db, _REPORT_ACCOUNT_ADX_TABLE, _REPORT_ACCOUNT_ADX_DATE_COL, _REPORT_ACCOUNT_ADX_REVENUE_COL, _REPORT_ACCOUNT_ADX_DOMAIN_COL,
             start_date, end_date, account_ids,
         )
         adsense_by_sub = _report_cred_adsense_fetch_revenue_by_account_subdomain(

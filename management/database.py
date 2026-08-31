@@ -272,6 +272,12 @@ class ClickHouseHttpCursor:
         rows = self._rows or []
         return rows[0] if rows else None
 
+# AdX revenue untuk Report Account — sumber sama dengan monitoring_domain / report_account_adsense.
+_REPORT_ACCOUNT_ADX_TABLE = 'data_adx_country'
+_REPORT_ACCOUNT_ADX_DATE_COL = 'data_adx_country_tanggal'
+_REPORT_ACCOUNT_ADX_REVENUE_COL = 'data_adx_country_revenue'
+_REPORT_ACCOUNT_ADX_DOMAIN_COL = 'data_adx_country_domain'
+
 class data_mysql:
     
     def __init__(self):
@@ -12835,7 +12841,7 @@ class data_mysql:
         """Sum AdX revenue per FB account via domain join key (selaras invalid report)."""
         fb_key = self._report_account_fb_key_sql('c.account_ads_id')
         fb_dom = self._domain_join_sql_key_expr('c.data_ads_domain')
-        adx_dom = self._domain_join_sql_key_expr('d.data_adx_domain')
+        adx_dom = self._domain_join_sql_key_expr(f'd.{_REPORT_ACCOUNT_ADX_DOMAIN_COL}')
         camp_where = (
             "DATE(c.data_ads_tanggal) BETWEEN %s AND %s"
             " AND TRIM(COALESCE(c.data_ads_domain, '')) <> ''"
@@ -12858,10 +12864,10 @@ class data_mysql:
                 WHERE {camp_where}
             ) camps
             INNER JOIN (
-                SELECT {adx_dom} AS domain_key, DATE(d.data_adx_domain_tanggal) AS d,
-                       COALESCE(SUM(CAST(d.data_adx_domain_revenue AS DECIMAL(18,4))), 0) AS adx_rev
-                FROM data_adx_domain d
-                WHERE DATE(d.data_adx_domain_tanggal) BETWEEN %s AND %s
+                SELECT {adx_dom} AS domain_key, DATE(d.{_REPORT_ACCOUNT_ADX_DATE_COL}) AS d,
+                       COALESCE(SUM(CAST(d.{_REPORT_ACCOUNT_ADX_REVENUE_COL} AS DECIMAL(18,4))), 0) AS adx_rev
+                FROM {_REPORT_ACCOUNT_ADX_TABLE} d
+                WHERE DATE(d.{_REPORT_ACCOUNT_ADX_DATE_COL}) BETWEEN %s AND %s
                 GROUP BY domain_key, d
             ) adx ON adx.domain_key = camps.domain_key AND adx.d = camps.d
             GROUP BY camps.account_key
@@ -12877,7 +12883,7 @@ class data_mysql:
     def _report_account_fetch_adx_revenue_map_for_account(self, start_date, end_date, account_key):
         fb_key = self._report_account_fb_key_sql('c.account_ads_id')
         fb_dom = self._domain_join_sql_key_expr('c.data_ads_domain')
-        adx_dom = self._domain_join_sql_key_expr('d.data_adx_domain')
+        adx_dom = self._domain_join_sql_key_expr(f'd.{_REPORT_ACCOUNT_ADX_DOMAIN_COL}')
         sql = f"""
             SELECT camps.domain_key,
                    COALESCE(SUM(adx.adx_rev), 0) AS adx_revenue
@@ -12889,10 +12895,10 @@ class data_mysql:
                   AND TRIM(COALESCE(c.data_ads_domain, '')) <> ''
             ) camps
             INNER JOIN (
-                SELECT {adx_dom} AS domain_key, DATE(d.data_adx_domain_tanggal) AS d,
-                       COALESCE(SUM(CAST(d.data_adx_domain_revenue AS DECIMAL(18,4))), 0) AS adx_rev
-                FROM data_adx_domain d
-                WHERE DATE(d.data_adx_domain_tanggal) BETWEEN %s AND %s
+                SELECT {adx_dom} AS domain_key, DATE(d.{_REPORT_ACCOUNT_ADX_DATE_COL}) AS d,
+                       COALESCE(SUM(CAST(d.{_REPORT_ACCOUNT_ADX_REVENUE_COL} AS DECIMAL(18,4))), 0) AS adx_rev
+                FROM {_REPORT_ACCOUNT_ADX_TABLE} d
+                WHERE DATE(d.{_REPORT_ACCOUNT_ADX_DATE_COL}) BETWEEN %s AND %s
                 GROUP BY domain_key, d
             ) adx ON adx.domain_key = camps.domain_key AND adx.d = camps.d
             GROUP BY camps.domain_key
@@ -12909,7 +12915,7 @@ class data_mysql:
         """AdX revenue per FB account + domain (join campaign domain x adx domain)."""
         fb_key = self._report_account_fb_key_sql('c.account_ads_id')
         fb_dom = self._domain_join_sql_key_expr('c.data_ads_domain')
-        adx_dom = self._domain_join_sql_key_expr('d.data_adx_domain')
+        adx_dom = self._domain_join_sql_key_expr(f'd.{_REPORT_ACCOUNT_ADX_DOMAIN_COL}')
         camp_where = (
             "DATE(c.data_ads_tanggal) BETWEEN %s AND %s"
             " AND TRIM(COALESCE(c.data_ads_domain, '')) <> ''"
@@ -12932,10 +12938,10 @@ class data_mysql:
                 WHERE {camp_where}
             ) camps
             INNER JOIN (
-                SELECT {adx_dom} AS domain_key, DATE(d.data_adx_domain_tanggal) AS d,
-                       COALESCE(SUM(CAST(d.data_adx_domain_revenue AS DECIMAL(18,4))), 0) AS adx_rev
-                FROM data_adx_domain d
-                WHERE DATE(d.data_adx_domain_tanggal) BETWEEN %s AND %s
+                SELECT {adx_dom} AS domain_key, DATE(d.{_REPORT_ACCOUNT_ADX_DATE_COL}) AS d,
+                       COALESCE(SUM(CAST(d.{_REPORT_ACCOUNT_ADX_REVENUE_COL} AS DECIMAL(18,4))), 0) AS adx_rev
+                FROM {_REPORT_ACCOUNT_ADX_TABLE} d
+                WHERE DATE(d.{_REPORT_ACCOUNT_ADX_DATE_COL}) BETWEEN %s AND %s
                 GROUP BY domain_key, d
             ) adx ON adx.domain_key = camps.domain_key AND adx.d = camps.d
             GROUP BY camps.account_key, camps.domain_key
@@ -12954,7 +12960,7 @@ class data_mysql:
     def _report_account_fetch_adx_revenue_daily_for_accounts(self, start_date, end_date, account_keys=None):
         fb_key = self._report_account_fb_key_sql('c.account_ads_id')
         fb_dom = self._domain_join_sql_key_expr('c.data_ads_domain')
-        adx_dom = self._domain_join_sql_key_expr('d.data_adx_domain')
+        adx_dom = self._domain_join_sql_key_expr(f'd.{_REPORT_ACCOUNT_ADX_DOMAIN_COL}')
         camp_where = (
             "DATE(c.data_ads_tanggal) BETWEEN %s AND %s"
             " AND TRIM(COALESCE(c.data_ads_domain, '')) <> ''"
@@ -12977,10 +12983,10 @@ class data_mysql:
                 WHERE {camp_where}
             ) camps
             INNER JOIN (
-                SELECT {adx_dom} AS domain_key, DATE(d.data_adx_domain_tanggal) AS d,
-                       COALESCE(SUM(CAST(d.data_adx_domain_revenue AS DECIMAL(18,4))), 0) AS adx_rev
-                FROM data_adx_domain d
-                WHERE DATE(d.data_adx_domain_tanggal) BETWEEN %s AND %s
+                SELECT {adx_dom} AS domain_key, DATE(d.{_REPORT_ACCOUNT_ADX_DATE_COL}) AS d,
+                       COALESCE(SUM(CAST(d.{_REPORT_ACCOUNT_ADX_REVENUE_COL} AS DECIMAL(18,4))), 0) AS adx_rev
+                FROM {_REPORT_ACCOUNT_ADX_TABLE} d
+                WHERE DATE(d.{_REPORT_ACCOUNT_ADX_DATE_COL}) BETWEEN %s AND %s
                 GROUP BY domain_key, d
             ) adx ON adx.domain_key = camps.domain_key AND adx.d = camps.d
             GROUP BY camps.d, camps.account_key
@@ -13521,7 +13527,7 @@ class data_mysql:
             )
             adx_by_account = self._report_account_fetch_adx_revenue_by_account(start_date, end_date, account_keys)
             adx_rev_map, adx_rev_by_cred = self._report_account_build_revenue_maps(
-                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+                _REPORT_ACCOUNT_ADX_TABLE, _REPORT_ACCOUNT_ADX_DATE_COL, _REPORT_ACCOUNT_ADX_REVENUE_COL, _REPORT_ACCOUNT_ADX_DOMAIN_COL, start_date, end_date
             )
             adsense_rev_map, _adsense_rev_by_cred = self._report_account_build_revenue_maps(
                 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
@@ -13732,7 +13738,7 @@ class data_mysql:
 
             adx_by_domain = self._report_account_fetch_adx_revenue_map_for_account(start_date, end_date, account_key)
             adx_rev_map, adx_rev_by_cred = self._report_account_build_revenue_maps(
-                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+                _REPORT_ACCOUNT_ADX_TABLE, _REPORT_ACCOUNT_ADX_DATE_COL, _REPORT_ACCOUNT_ADX_REVENUE_COL, _REPORT_ACCOUNT_ADX_DOMAIN_COL, start_date, end_date
             )
             adsense_rev_map, _adsense_rev_by_cred = self._report_account_build_revenue_maps(
                 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
@@ -13859,7 +13865,7 @@ class data_mysql:
             adx_by_domain = self._report_account_fetch_adx_revenue_map_for_account(start_date, end_date, account_key)
 
             adx_rev_map, adx_rev_by_cred = self._report_account_build_revenue_maps(
-                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+                _REPORT_ACCOUNT_ADX_TABLE, _REPORT_ACCOUNT_ADX_DATE_COL, _REPORT_ACCOUNT_ADX_REVENUE_COL, _REPORT_ACCOUNT_ADX_DOMAIN_COL, start_date, end_date
             )
             adsense_rev_map, _adsense_rev_by_cred = self._report_account_build_revenue_maps(
                 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
@@ -14081,7 +14087,7 @@ class data_mysql:
 
             adx_by_domain = self._report_account_fetch_adx_revenue_map_for_account(start_date, end_date, account_key)
             adx_rev_map, adx_rev_by_cred = self._report_account_build_revenue_maps(
-                'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain', start_date, end_date
+                _REPORT_ACCOUNT_ADX_TABLE, _REPORT_ACCOUNT_ADX_DATE_COL, _REPORT_ACCOUNT_ADX_REVENUE_COL, _REPORT_ACCOUNT_ADX_DOMAIN_COL, start_date, end_date
             )
             adsense_rev_map, _adsense_rev_by_cred = self._report_account_build_revenue_maps(
                 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
