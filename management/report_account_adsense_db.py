@@ -1,5 +1,12 @@
 """Database helpers for Report Account AdSense (app_credentials based)."""
 
+# AdX revenue: gunakan data_adx_country (sumber sama dengan menu monitoring_domain).
+# data_adx_domain sering tidak lengkap per tanggal meskipun data country sudah ada.
+_ADX_REV_TABLE = 'data_adx_country'
+_ADX_REV_DATE_COL = 'data_adx_country_tanggal'
+_ADX_REV_AMOUNT_COL = 'data_adx_country_revenue'
+_ADX_REV_DOMAIN_COL = 'data_adx_country_domain'
+
 
 def _report_cred_adsense_fetch_accounts(db, account_q=None, user_id=None, is_super=True):
     params = []
@@ -387,14 +394,62 @@ def _report_cred_adsense_sum_spend_for_domains(db, domain_keys, spend_by_domain)
     total = 0.0
     used = set()
     for dk in (domain_keys or []):
-        candidates = {str(dk).strip(), db._report_account_normalize_campaign_domain(dk)}
+        candidates = {
+            str(dk or '').strip(),
+            db._normalize_domain_match_key(dk),
+            db._report_account_normalize_campaign_domain(dk),
+        }
         for key in candidates:
             if not key or key in used:
                 continue
             if key in (spend_by_domain or {}):
                 total += float(spend_by_domain.get(key) or 0)
                 used.add(key)
-    return total
+    return round(total, 2)
+
+
+def _report_cred_adsense_detect_data_gaps(db, start_date, end_date, spend_daily_by_domain):
+    """Flag dates where FB spend exists but AdX revenue is completely missing."""
+    from datetime import datetime as dt, timedelta
+
+    gaps = []
+    try:
+        sql = f"""
+            SELECT DATE({_ADX_REV_DATE_COL}) AS d,
+                   COALESCE(SUM(CAST({_ADX_REV_AMOUNT_COL} AS DECIMAL(18,4))), 0) AS revenue
+            FROM {_ADX_REV_TABLE}
+            WHERE DATE({_ADX_REV_DATE_COL}) BETWEEN %s AND %s
+            GROUP BY DATE({_ADX_REV_DATE_COL})
+        """
+        if not db.execute_query(sql, (start_date, end_date)):
+            return gaps
+        adx_by_day = {}
+        for row in (db.cur_hris.fetchall() or []):
+            d = row.get('d')
+            if hasattr(d, 'isoformat'):
+                d = d.isoformat()
+            else:
+                d = str(d or '')[:10]
+            if d:
+                adx_by_day[d] = float(row.get('revenue') or 0)
+
+        d0 = dt.strptime(start_date, '%Y-%m-%d').date()
+        d1 = dt.strptime(end_date, '%Y-%m-%d').date()
+        cur = d0
+        while cur <= d1:
+            ds = cur.isoformat()
+            day_spend = round(sum(float(v or 0) for v in (spend_daily_by_domain.get(ds) or {}).values()), 2)
+            day_adx = round(float(adx_by_day.get(ds) or 0), 2)
+            if day_spend > 0 and day_adx <= 0:
+                gaps.append({
+                    'date': ds,
+                    'spend': day_spend,
+                    'adx_revenue': day_adx,
+                })
+            cur += timedelta(days=1)
+    except Exception:
+        return gaps
+    return gaps
 
 
 def list_report_account_adsense_summary(
@@ -431,7 +486,7 @@ def list_report_account_adsense_summary(
         subdomain_summary = (subdomain_summary_resp or {}).get('data') or {}
 
         adx_rev_map, adx_by_cred = db._report_account_build_revenue_maps(
-            'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain',
+            _ADX_REV_TABLE, _ADX_REV_DATE_COL, _ADX_REV_AMOUNT_COL, _ADX_REV_DOMAIN_COL,
             start_date, end_date,
         )
         adsense_rev_map, adsense_by_cred = db._report_account_build_revenue_maps(
@@ -439,7 +494,7 @@ def list_report_account_adsense_summary(
             start_date, end_date,
         )
         adx_rev_by_account = _report_cred_adsense_fetch_revenue_by_account(
-            db, 'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue',
+            db, _ADX_REV_TABLE, _ADX_REV_DATE_COL, _ADX_REV_AMOUNT_COL,
             start_date, end_date, account_ids,
         )
         adsense_rev_by_account = _report_cred_adsense_fetch_revenue_by_account(
@@ -447,7 +502,7 @@ def list_report_account_adsense_summary(
             start_date, end_date, account_ids,
         )
         adx_daily_by_account = _report_cred_adsense_fetch_daily_revenue_by_account(
-            db, 'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue',
+            db, _ADX_REV_TABLE, _ADX_REV_DATE_COL, _ADX_REV_AMOUNT_COL,
             start_date, end_date, account_ids,
         )
         adsense_daily_by_account = _report_cred_adsense_fetch_daily_revenue_by_account(
@@ -455,7 +510,7 @@ def list_report_account_adsense_summary(
             start_date, end_date, account_ids,
         )
         adx_by_sub = _report_cred_adsense_fetch_revenue_by_account_subdomain(
-            db, 'data_adx_domain', 'data_adx_domain_tanggal', 'data_adx_domain_revenue', 'data_adx_domain',
+            db, _ADX_REV_TABLE, _ADX_REV_DATE_COL, _ADX_REV_AMOUNT_COL, _ADX_REV_DOMAIN_COL,
             start_date, end_date, account_ids,
         )
         adsense_by_sub = _report_cred_adsense_fetch_revenue_by_account_subdomain(
@@ -539,6 +594,26 @@ def list_report_account_adsense_summary(
             chart = []
 
         summary_metrics = db._report_account_build_row_metrics(totals['spend'], totals['revenue'], 0)
+        data_gaps = _report_cred_adsense_detect_data_gaps(
+            db, start_date, end_date, spend_daily_by_domain,
+        )
+        data_warnings = []
+        if data_gaps:
+            gap_dates = [g['date'] for g in data_gaps]
+            gap_spend = round(sum(float(g.get('spend') or 0) for g in data_gaps), 2)
+            data_warnings.append({
+                'code': 'missing_adx_revenue',
+                'title': 'Data revenue AdX tidak lengkap',
+                'message': (
+                    'Revenue AdX nol di database pada tanggal '
+                    + ', '.join(gap_dates)
+                    + ' meskipun masih ada spend Facebook Ads. Profit pada periode ini '
+                    'cenderung minus karena revenue belum tersinkron — bukan karena rumus profit salah. '
+                    'Jalankan ulang sync/cron AdX domain untuk tanggal tersebut.'
+                ),
+                'gap_dates': gap_dates,
+                'gap_spend': gap_spend,
+            })
         return {
             'status': True,
             'data': {
@@ -553,6 +628,7 @@ def list_report_account_adsense_summary(
                 },
                 'rows': rows_out,
                 'chart': chart,
+                'data_warnings': data_warnings,
             },
         }
     except Exception as e:
