@@ -3716,15 +3716,17 @@ class DashboardScoringDataView(View):
             event_table = getattr(scoring_module, 'EVENT_TABLE', 'hris_trendHorizone.fact_change_event_long')
             source_table = getattr(scoring_module, 'SOURCE_TABLE', 'hris_trendHorizone.fact_join_hourly')
             def table_exists(table_name):
-                try:
-                    q = query_df(f"EXISTS TABLE {table_name}")
-                    if q is None or q.empty:
+                def _load():
+                    try:
+                        q = query_df(f"EXISTS TABLE {table_name}")
+                        if q is None or q.empty:
+                            return False
+                        first_col = q.columns[0]
+                        return bool(int(q.iloc[0][first_col]))
+                    except Exception as ex:
+                        logger.warning('DashboardScoringDataView table_exists failed for %s: %s', table_name, ex)
                         return False
-                    first_col = q.columns[0]
-                    return bool(int(q.iloc[0][first_col]))
-                except Exception as ex:
-                    logger.warning('DashboardScoringDataView table_exists failed for %s: %s', table_name, ex)
-                    return False
+                return bool(_dashboard_scoring_meta_get(f'exists:{table_name}', _load))
             if not table_exists(status_table):
                 return JsonResponse({
                     'status': True,
@@ -3740,14 +3742,17 @@ class DashboardScoringDataView(View):
                     'reason': 'Tabel scoring event belum tersedia'
                 }, safe=False)
             def resolve_table_columns(table_name):
-                try:
-                    schema_df = query_df(f"DESCRIBE TABLE {table_name}")
-                    for c in ['name', 'column', 'Field']:
-                        if c in schema_df.columns:
-                            return set(schema_df[c].astype(str).str.strip().tolist())
-                except Exception as ex:
-                    logger.warning('DashboardScoringDataView resolve_table_columns failed for %s: %s', table_name, ex)
-                return set()
+                def _load():
+                    try:
+                        schema_df = query_df(f"DESCRIBE TABLE {table_name}")
+                        for c in ['name', 'column', 'Field']:
+                            if c in schema_df.columns:
+                                return set(schema_df[c].astype(str).str.strip().tolist())
+                    except Exception as ex:
+                        logger.warning('DashboardScoringDataView resolve_table_columns failed for %s: %s', table_name, ex)
+                    return set()
+                cached = _dashboard_scoring_meta_get(f'cols:{table_name}', _load)
+                return set(cached or [])
             table_cols = resolve_table_columns(status_table)
             literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
             is_country_dim = (dim == 'country')
@@ -4590,7 +4595,8 @@ class DashboardScoringDataView(View):
                     detail_snap = detail_snap.sort_values(detail_sort).drop_duplicates(subset=detail_keys, keep='last')
                 if light and len(detail_snap.index) > 120:
                     detail_snap = detail_snap.head(120)
-                for _, row in detail_snap.iterrows():
+                detail_rows = detail_snap.to_dict('records') if not detail_snap.empty else []
+                for row in detail_rows:
                     row_entity_key = str(row.get('status_entity_key') or row.get('site') or row.get('entity_key') or '').strip()
                     row_site_key = str(row.get('site') or '').strip()
                     row_meta_campaign = str(row.get('meta_campaign') or '').strip().upper()
@@ -5506,6 +5512,20 @@ class DashboardCreateScoringView(View):
 def _get_scoring_concept_module():
     from . import scoring_concept
     return scoring_concept
+
+
+_DASHBOARD_SCORING_META_CACHE = {}
+_DASHBOARD_SCORING_META_TTL_SEC = 300
+
+
+def _dashboard_scoring_meta_get(cache_key, loader):
+    now = time.time()
+    hit = _DASHBOARD_SCORING_META_CACHE.get(cache_key)
+    if hit and (now - float(hit.get('ts') or 0)) < _DASHBOARD_SCORING_META_TTL_SEC:
+        return hit.get('value')
+    value = loader()
+    _DASHBOARD_SCORING_META_CACHE[cache_key] = {'ts': now, 'value': value}
+    return value
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DashboardSyncView(View):
@@ -7189,6 +7209,92 @@ class FacebookPartnerApiDocsView(View):
             'partner_auto_token_configured': bool(partner_cfg.get('fb_access_token')),
         }
         return render(req, 'admin/facebook_ads/partner_api.html', context)
+
+
+class AdsPolicyEventsCredentialsListView(View):
+    """AJAX: daftar akun Meta Ads (master_account_ads) untuk filter policy events."""
+    def get(self, request):
+        try:
+            from .list_ads_policy_events import list_meta_ads_policy_accounts
+            db = data_mysql()
+            rows = list_meta_ads_policy_accounts(db)
+            data = [
+                {
+                    'account_name': r.get('account_name'),
+                    'user_mail': r.get('user_mail'),
+                    'account_ads_id': r.get('account_ads_id'),
+                }
+                for r in rows
+            ]
+            return JsonResponse({'status': True, 'data': data})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+
+class AdsPolicyEventsView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('/management/admin/login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        from .list_ads_policy_events import list_ads_policy_events
+        db = data_mysql()
+        result = list_ads_policy_events(db, limit=200)
+        oauth_msg = str(req.session.pop('oauth_added_message', '') or '').strip()
+        oauth_ok = req.session.pop('oauth_added_success', None)
+        data = {
+            'title': 'Meta Ads Policy Events',
+            'user': req.session.get('hris_admin', {}),
+            'columns': result.get('columns') or [],
+            'rows': result.get('rows') or [],
+            'items': result.get('items') or [],
+            'table_name': result.get('table') or '',
+            'oauth_flash_success': bool(oauth_ok),
+            'oauth_flash_message': oauth_msg,
+        }
+        return render(req, 'admin/facebook_ads/policy_event/index.html', data)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdsPolicyEventsSyncView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            from .sync_ads_policy_events import sync_ads_policy_events
+            payload = {}
+            try:
+                payload = json.loads((req.body or b'').decode('utf-8') or '{}')
+            except Exception:
+                payload = {}
+
+            days = payload.get('days')
+            sync_date = str(payload.get('sync_date') or '').strip()
+            raw_account_filter = payload.get('account_filter')
+            if isinstance(raw_account_filter, list):
+                account_filter = [str(v).strip() for v in raw_account_filter if str(v).strip()]
+            else:
+                single_filter = str(raw_account_filter or '').strip()
+                account_filter = [single_filter] if single_filter else []
+            try:
+                days = int(days)
+            except Exception:
+                days = 180
+
+            db = data_mysql()
+            result = sync_ads_policy_events(
+                db,
+                days=days,
+                sync_date=sync_date or None,
+                account_filter=account_filter or None,
+            )
+            return JsonResponse(result)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
 
 
 class AccountFacebookAds(View):
@@ -11697,6 +11803,72 @@ def _enrich_adx_credentials_subdomains(credentials_data):
     return rows
 
 
+class AdxPolicyEventsView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('/management/admin/login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        from .list_adx_policy_events import list_adx_policy_events
+        db = data_mysql()
+        result = list_adx_policy_events(db, limit=200)
+        oauth_msg = str(req.session.pop('oauth_added_message', '') or '').strip()
+        oauth_ok = req.session.pop('oauth_added_success', None)
+        data = {
+            'title': 'AdX Policy Events',
+            'user': req.session.get('hris_admin', {}),
+            'columns': result.get('columns') or [],
+            'rows': result.get('rows') or [],
+            'items': result.get('items') or [],
+            'table_name': result.get('table') or '',
+            'oauth_flash_success': bool(oauth_ok),
+            'oauth_flash_message': oauth_msg,
+        }
+        return render(req, 'admin/adx_manager/policy_event/index.html', data)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdxPolicyEventsSyncView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            from .sync_adx_policy_events import sync_adx_policy_events
+            payload = {}
+            try:
+                payload = json.loads((req.body or b'').decode('utf-8') or '{}')
+            except Exception:
+                payload = {}
+
+            days = payload.get('days')
+            sync_date = str(payload.get('sync_date') or '').strip()
+            raw_account_filter = payload.get('account_filter')
+            if isinstance(raw_account_filter, list):
+                account_filter = [str(v).strip() for v in raw_account_filter if str(v).strip()]
+            else:
+                single_filter = str(raw_account_filter or '').strip()
+                account_filter = [single_filter] if single_filter else []
+            try:
+                days = int(days)
+            except Exception:
+                days = 180
+
+            db = data_mysql()
+            result = sync_adx_policy_events(
+                db,
+                days=days,
+                sync_date=sync_date or None,
+                account_filter=account_filter or None,
+            )
+            return JsonResponse(result)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+
+
 class AdxAccountView(View):
     """View untuk AdX Account Data"""
     def dispatch(self, request, *args, **kwargs):
@@ -12055,6 +12227,13 @@ class AdxAccountOAuthStartView(View):
             return_to = str(req.GET.get('return_to') or '').strip().lower()
             if return_to in ('policy_events', 'adsense_policy_events'):
                 req.session['oauth_return_to'] = 'adsense_policy_events'
+                req.session['oauth_require_gmail'] = True
+            elif return_to in ('ads_policy_events', 'meta_policy_events'):
+                req.session['oauth_return_to'] = 'ads_policy_events'
+                req.session['oauth_require_gmail'] = True
+            elif return_to in ('adx_policy_events',):
+                req.session['oauth_return_to'] = 'adx_policy_events'
+                req.session['oauth_require_gmail'] = True
             user_id = current_user.get('user_id')
             # Ambil konfigurasi dari .env secara eksklusif
             client_id = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')

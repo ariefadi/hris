@@ -1,15 +1,15 @@
 {% extends "admin_base.html" %}
 {% load static %}
-{% block page_title %}AdSense Policy Events{% endblock %}
-{% block page_heading %}AdSense Policy Events{% endblock %}
+{% block page_title %}Meta Ads Policy Events{% endblock %}
+{% block page_heading %}Meta Ads Policy Events{% endblock %}
 {% block breadcrumbs %}
 <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
-<li class="breadcrumb-item active">AdSense Policy Events</li>
+<li class="breadcrumb-item active">Meta Ads Policy Events</li>
 {% endblock %}
 {% block content %}
 <div class="card">
   <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
-    <h3 class="card-title mb-0 flex-grow-1">Deteksi Email Policy AdSense (Gmail)</h3>
+    <h3 class="card-title mb-0 flex-grow-1">Deteksi Email Policy Meta Ads (Gmail)</h3>
     <div class="d-flex align-items-center justify-content-end flex-wrap ml-auto" style="gap:10px; margin-left:auto; width:auto;">
       <input id="policySyncDate" type="text" class="form-control form-control-sm datepicker-input" style="width:170px;" placeholder="YYYY-MM-DD" autocomplete="off">
       <select id="policyAccountFilter" class="form-control form-control-sm" multiple style="width:420px;"
@@ -29,10 +29,14 @@
   </div>
   <div class="card-body">
     <div class="alert alert-warning mb-3" style="border-radius:10px;font-size:13px;line-height:1.5;">
-      <strong>Izin Gmail diperlukan.</strong> Setiap akun harus di-connect ulang dengan scope
-      <code>gmail.readonly</code> agar bisa membaca email policy dari <code>adsense-noreply@google.com</code>.
-      <strong>Pilih 1 akun</strong> di dropdown <strong>「Pilih account / email」</strong> di sebelah kiri → tombol <strong>Izinkan Gmail</strong> akan aktif → login dengan email akun tersebut dan terima semua izin.
+      <strong>Izin Gmail diperlukan.</strong> Setiap akun Meta Ads harus di-connect dengan scope
+      <code>gmail.readonly</code> agar bisa membaca email policy dari <code>facebookmail.com</code> / <code>meta.com</code>.
+      <strong>Pilih 1 akun</strong> di dropdown <strong>「Pilih account / email」</strong> → tombol <strong>Izinkan Gmail</strong> akan aktif → login dengan email akun Meta Ads tersebut.
+      Email akun diambil dari <strong>master_account_ads.account_email</strong> dan dicocokkan ke OAuth Gmail di <strong>app_credentials</strong>.
       Pastikan <strong>Gmail API</strong> aktif di Google Cloud project OAuth HRIS.
+      Jika sync masih gagal, hapus akses aplikasi HRIS di
+      <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google Account Permissions</a>
+      lalu klik <strong>Izinkan Gmail</strong> lagi.
     </div>
     {% if oauth_flash_message %}
     <div class="alert {% if oauth_flash_success %}alert-success{% else %}alert-danger{% endif %}" style="border-radius:10px;">
@@ -186,7 +190,7 @@
     const emails = selectedAccountEmails();
     if (emails.length === 1) {
       const mail = encodeURIComponent(emails[0]);
-      gmailOAuthTargetUrl = oauthStartBase + '?email=' + mail + '&return_to=policy_events';
+      gmailOAuthTargetUrl = oauthStartBase + '?email=' + mail + '&return_to=ads_policy_events';
       gmailOAuthBtn.classList.add('is-ready');
       gmailOAuthBtn.title = 'Connect ulang OAuth untuk ' + emails[0] + ' (termasuk izin Gmail)';
       if (gmailOAuthBtnLabel) gmailOAuthBtnLabel.textContent = 'Izinkan Gmail';
@@ -244,7 +248,7 @@
   async function loadAccountOptions() {
     if (!accountFilterEl) return;
     try {
-      const res = await fetch('/management/admin/adsense_credentials_list');
+      const res = await fetch('/management/admin/ads_policy_events_credentials_list');
       const json = await res.json();
       const rows = Array.isArray(json?.data) ? json.data : [];
       accountFilterEl.innerHTML = rows.map(function(row){
@@ -295,7 +299,7 @@
         return;
       }
       if (!emails.length) {
-        setAlert('error', 'Email akun tidak dikenali untuk "' + vals[0] + '". Pastikan kolom user_mail terisi di App Credentials.');
+        setAlert('error', 'Email akun tidak dikenali untuk "' + vals[0] + '". Pastikan account_email terisi di master_account_ads.');
         return;
       }
       setAlert('error', gmailOAuthBtn.title || 'Tidak bisa membuka OAuth Gmail. Coba refresh halaman lalu pilih ulang akun.');
@@ -324,7 +328,7 @@
       }
       if (!syncDate) throw new Error('Tanggal sinkronisasi wajib dipilih');
       if (!accountFilters.length) throw new Error('Minimal pilih 1 account');
-      const res = await fetch('/management/admin/adsense_policy_events_sync', {
+      const res = await fetch('/management/admin/ads_policy_events_sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sync_date: syncDate, account_filter: accountFilters })
@@ -343,7 +347,7 @@
           let err = String(s.error || '').trim();
           if (/gmail\.readonly|insufficient.*scope|insufficientPermissions/i.test(err)) {
             err = 'Belum ada izin Gmail. Klik "Izinkan Gmail" untuk akun ini lalu sync ulang.';
-            if (mail) err += ' OAuth: ' + oauthStartBase + '?email=' + encodeURIComponent(mail) + '&return_to=policy_events';
+            if (mail) err += ' OAuth: ' + oauthStartBase + '?email=' + encodeURIComponent(mail) + '&return_to=ads_policy_events';
           }
           return (mail || name ? ((mail ? mail : name) + (mail && name ? (' - ' + name) : '')) : 'akun') + ': ' + (err || 'error');
         });

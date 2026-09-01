@@ -467,11 +467,56 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
                 'message': f'Gagal menukar code menjadi token: {str(e)}'
             }
 
+        from management.list_adsense_policy_events import verify_gmail_credentials, _format_gmail_api_error
+
+        gmail_ok, gmail_err = verify_gmail_credentials(credentials)
+        require_gmail = bool(request.session.get('oauth_require_gmail')) or str(request.session.get('oauth_return_to') or '').strip() in (
+            'adsense_policy_events',
+            'ads_policy_events',
+            'adx_policy_events',
+        )
+        scope_text = ' '.join(getattr(credentials, 'scopes', None) or [])
+        if require_gmail or 'gmail.readonly' in scope_text:
+            if not gmail_ok:
+                formatted = _format_gmail_api_error(gmail_err)
+                raw = str(gmail_err or '').strip()
+                if raw and raw not in formatted:
+                    formatted = f"{formatted} | Google: {raw[:500]}"
+                return {
+                    'status': False,
+                    'message': formatted,
+                }
+
         if not refresh_token:
-            return {
-                'status': False,
-                'message': 'Refresh token tidak diterima. Ulangi proses dengan prompt consent.'
-            }
+            existing_refresh = None
+            try:
+                db_lookup = data_mysql()
+                if db_lookup.execute_query(
+                    "SELECT refresh_token FROM app_credentials WHERE user_mail = %s AND is_active = '1' LIMIT 1",
+                    (target_user_mail or request.session.get('oauth_flow_user_mail') or '',),
+                ):
+                    row = db_lookup.cur_hris.fetchone() or {}
+                    existing_refresh = str(row.get('refresh_token') or '').strip() or None
+            except Exception:
+                existing_refresh = None
+
+            if require_gmail or 'gmail.readonly' in scope_text:
+                return {
+                    'status': False,
+                    'message': (
+                        'Google tidak mengeluarkan refresh token baru. Refresh token lama kemungkinan belum punya izin Gmail. '
+                        'Buka https://myaccount.google.com/permissions → cari aplikasi OAuth HRIS → Hapus Akses → '
+                        'kembali ke menu Policy Events → Izinkan Gmail lagi.'
+                    ),
+                }
+
+            if existing_refresh:
+                refresh_token = existing_refresh
+            else:
+                return {
+                    'status': False,
+                    'message': 'Refresh token tidak diterima. Ulangi proses dengan prompt consent.',
+                }
 
         # Deteksi network_code otomatis dari Ad Manager menggunakan REST API
         network_code = None
@@ -623,6 +668,16 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
             )
             print(f"[DEBUG] Insert result: {result}")
 
+        if isinstance(result, dict) and result.get('status') and require_gmail:
+            from management.list_adsense_policy_events import build_gmail_service, _format_gmail_api_error
+            service, gmail_save_err = build_gmail_service(client_id, client_secret, refresh_token)
+            if gmail_save_err:
+                return {
+                    'status': False,
+                    'message': _format_gmail_api_error(gmail_save_err),
+                }
+            gmail_ok = bool(service)
+
         if isinstance(result, dict) and result.get('status'):
             return {
                 'status': True,
@@ -632,7 +687,8 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
                 ),
                 'user_mail': effective_user_mail,
                 'network_code': network_code,
-                'refresh_token_saved': True
+                'refresh_token_saved': True,
+                'gmail_verified': bool(gmail_ok),
             }
         else:
             return {

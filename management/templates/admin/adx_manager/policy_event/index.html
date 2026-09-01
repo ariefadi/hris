@@ -1,15 +1,15 @@
 {% extends "admin_base.html" %}
 {% load static %}
-{% block page_title %}AdSense Policy Events{% endblock %}
-{% block page_heading %}AdSense Policy Events{% endblock %}
+{% block page_title %}AdX Policy Events{% endblock %}
+{% block page_heading %}AdX Policy Events{% endblock %}
 {% block breadcrumbs %}
 <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
-<li class="breadcrumb-item active">AdSense Policy Events</li>
+<li class="breadcrumb-item active">AdX Policy Events</li>
 {% endblock %}
 {% block content %}
 <div class="card">
   <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
-    <h3 class="card-title mb-0 flex-grow-1">Deteksi Email Policy AdSense (Gmail)</h3>
+    <h3 class="card-title mb-0 flex-grow-1">Deteksi Email Policy AdX (Gmail)</h3>
     <div class="d-flex align-items-center justify-content-end flex-wrap ml-auto" style="gap:10px; margin-left:auto; width:auto;">
       <input id="policySyncDate" type="text" class="form-control form-control-sm datepicker-input" style="width:170px;" placeholder="YYYY-MM-DD" autocomplete="off">
       <select id="policyAccountFilter" class="form-control form-control-sm" multiple style="width:420px;"
@@ -29,9 +29,11 @@
   </div>
   <div class="card-body">
     <div class="alert alert-warning mb-3" style="border-radius:10px;font-size:13px;line-height:1.5;">
-      <strong>Izin Gmail diperlukan.</strong> Setiap akun harus di-connect ulang dengan scope
-      <code>gmail.readonly</code> agar bisa membaca email policy dari <code>adsense-noreply@google.com</code>.
-      <strong>Pilih 1 akun</strong> di dropdown <strong>「Pilih account / email」</strong> di sebelah kiri → tombol <strong>Izinkan Gmail</strong> akan aktif → login dengan email akun tersebut dan terima semua izin.
+      <strong>Izin Gmail diperlukan.</strong> Setiap akun AdX harus di-connect ulang dengan scope
+      <code>gmail.readonly</code> agar bisa membaca email policy dari
+      <code>admanager-noreply@google.com</code>, <code>adsense-noreply@google.com</code>, dan Publisher Center.
+      Akun diambil dari <strong>app_credentials</strong> (sama dengan menu AdX Account).
+      <strong>Pilih 1 akun</strong> di dropdown <strong>「Pilih account / email」</strong> → tombol <strong>Izinkan Gmail</strong> akan aktif → login dengan email akun tersebut.
       Pastikan <strong>Gmail API</strong> aktif di Google Cloud project OAuth HRIS.
     </div>
     {% if oauth_flash_message %}
@@ -186,7 +188,7 @@
     const emails = selectedAccountEmails();
     if (emails.length === 1) {
       const mail = encodeURIComponent(emails[0]);
-      gmailOAuthTargetUrl = oauthStartBase + '?email=' + mail + '&return_to=policy_events';
+      gmailOAuthTargetUrl = oauthStartBase + '?email=' + mail + '&return_to=adx_policy_events';
       gmailOAuthBtn.classList.add('is-ready');
       gmailOAuthBtn.title = 'Connect ulang OAuth untuk ' + emails[0] + ' (termasuk izin Gmail)';
       if (gmailOAuthBtnLabel) gmailOAuthBtnLabel.textContent = 'Izinkan Gmail';
@@ -324,7 +326,7 @@
       }
       if (!syncDate) throw new Error('Tanggal sinkronisasi wajib dipilih');
       if (!accountFilters.length) throw new Error('Minimal pilih 1 account');
-      const res = await fetch('/management/admin/adsense_policy_events_sync', {
+      const res = await fetch('/management/admin/adx_policy_events_sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sync_date: syncDate, account_filter: accountFilters })
@@ -343,7 +345,7 @@
           let err = String(s.error || '').trim();
           if (/gmail\.readonly|insufficient.*scope|insufficientPermissions/i.test(err)) {
             err = 'Belum ada izin Gmail. Klik "Izinkan Gmail" untuk akun ini lalu sync ulang.';
-            if (mail) err += ' OAuth: ' + oauthStartBase + '?email=' + encodeURIComponent(mail) + '&return_to=policy_events';
+            if (mail) err += ' OAuth: ' + oauthStartBase + '?email=' + encodeURIComponent(mail) + '&return_to=adx_policy_events';
           }
           return (mail || name ? ((mail ? mail : name) + (mail && name ? (' - ' + name) : '')) : 'akun') + ': ' + (err || 'error');
         });

@@ -55,6 +55,10 @@ urlpatterns = [
     path('admin/facebook_partner_token_request', views.FacebookPartnerTokenRequestView.as_view(), name='facebook_partner_token_request'),
     path('admin/facebook_partner_api', views.FacebookPartnerApiDocsView.as_view(), name='facebook_partner_api'),
     path('api/facebook/partner/submit-token', views.FacebookPartnerSubmitTokenApiView.as_view(), name='facebook_partner_submit_token'),
+    # Menu Meta Ads Policy Events (Gmail)
+    path('admin/ads_policy_events', views.AdsPolicyEventsView.as_view(), name='ads_policy_events'),
+    path('admin/ads_policy_events_sync', views.AdsPolicyEventsSyncView.as_view(), name='ads_policy_events_sync'),
+    path('admin/ads_policy_events_credentials_list', views.AdsPolicyEventsCredentialsListView.as_view(), name='ads_policy_events_credentials_list'),
     # Menu Per Account Facebook Ads
     path('admin/per_account_facebook', views.PerAccountFacebookAds.as_view(), name='per_account_facebook'),
     path('admin/create_campaign', views.CreateCampaignFacebookAds.as_view(), name='create_campaign_facebook'),
@@ -116,6 +120,8 @@ urlpatterns = [
     path('admin/page_adx_active_sites', views.AdxActiveSitesView.as_view(), name='adx_active_sites'),
     # Menu AdX Account Data
     path('admin/adx_account', views.AdxAccountView.as_view(), name='adx_account'),
+    path('admin/adx_policy_events', views.AdxPolicyEventsView.as_view(), name='adx_policy_events'),
+    path('admin/adx_policy_events_sync', views.AdxPolicyEventsSyncView.as_view(), name='adx_policy_events_sync'),
     path('admin/adx_account/oauth_start', views.AdxAccountOAuthStartView.as_view(), name='adx_account_oauth_start'),
     path('admin/adx_account/oauth_callback', views.AdxAccountOAuthCallbackView.as_view(), name='adx_account_oauth_callback'),
     path('admin/page_adx_account', views.AdxAccountDataView.as_view()),

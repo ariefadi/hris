@@ -10533,9 +10533,9 @@ function initDashboardRecap() {
                 return code === 'TU' ? 'TR' : code;
             }).filter(Boolean));
         }
-        return uniqKeepOrder((rows || []).flatMap(function(r){
-            return scoringLookupCandidates(d, r);
-        }));
+        return uniqKeepOrder((rows || []).map(function(r){
+            return String(r?.name || r?.domain || r?.site || '').trim().toLowerCase().replace(/^www\./i, '');
+        }).filter(Boolean));
     }
 
     function chunkArray(arr, size) {
@@ -10635,11 +10635,11 @@ function initDashboardRecap() {
             return {};
         }
 
-        const chunkSize = dim === 'country' ? 1 : 6;
+        const chunkSize = dim === 'country' ? 30 : 60;
         const batches = chunkArray(entities, chunkSize);
         const merged = {};
         const errors = [];
-        const concurrency = dim === 'country' ? 4 : 2;
+        const concurrency = 3;
 
         setDashboardScoringStatus('loading', batches.length > 1
             ? `Memuat scoring (${entities.length} entitas, ${batches.length} request)...`
@@ -20813,7 +20813,7 @@ function initDashboardRecap() {
         };
     }
 
-    async function renderTable(dim, rows, state) {
+    async function renderTable(dim, rows, state, prefetchedScoring) {
         const recapDim = String(dim || 'domain').toLowerCase() === 'country' ? 'country' : 'domain';
         const thName = document.getElementById('dashboardRecapThName');
         if (thName) thName.textContent = recapDim === 'country' ? 'Nama Negara' : 'Domain';
@@ -21315,9 +21315,15 @@ function initDashboardRecap() {
         window.dashboardRecapScoreDetails = {};
         window.dashboardRecapScoreRenderSeq = Number(window.dashboardRecapScoreRenderSeq || 0) + 1;
         const detailStoreRenderSeq = String(window.dashboardRecapScoreRenderSeq);
-        const trafficByDomain = await fetchDashboardTrafficMetrics(state, rows);
-
-        const backendScores = await fetchDashboardScoring(rows, state);
+        const scoringPromise = (prefetchedScoring && typeof prefetchedScoring.then === 'function')
+            ? prefetchedScoring
+            : fetchDashboardScoring(rows, state);
+        const [trafficByDomain, backendScores, campaignStatsByDomain] = await Promise.all([
+            fetchDashboardTrafficMetrics(state, rows),
+            scoringPromise,
+            recapDim === 'country' ? Promise.resolve({}) : fetchDashboardActiveCampaignStats(rows, state),
+            enrichDashboardSpendFromCampaignBreakdown(rows, state)
+        ]);
         const rawStore = (backendScores && typeof backendScores === 'object') ? backendScores : {};
         const normalizedStore = Object.assign({}, rawStore);
         Object.keys(rawStore).forEach(function(k){
@@ -21332,7 +21338,6 @@ function initDashboardRecap() {
         window.dashboardRecapStoredScoring = normalizedStore;
         window.dashboardRecapCampaignAccountMap = buildCampaignAccountLookup(window.dashboardRecapSiteAccountMap || {});
 
-        await enrichDashboardSpendFromCampaignBreakdown(rows, state);
         renderSummary(summarize(rows));
 
         (rows || []).forEach(function(r) {
@@ -21360,10 +21365,6 @@ function initDashboardRecap() {
             }
             return { r, meta };
         });
-
-        const campaignStatsByDomain = recapDim === 'country'
-            ? {}
-            : await fetchDashboardActiveCampaignStats(rows, state);
 
         const scores = scored.map(x => Number(x?.meta?.score) || 0);
         const minScore = scores.length ? Math.min.apply(null, scores) : null;
@@ -22313,6 +22314,7 @@ function initDashboardRecap() {
             } catch (e) {}
 
             summary = summarize(rows);
+            const scoringPromise = fetchDashboardScoring(rows, st);
             await Promise.all([
                 loadScoringBaselineHourly(st, rows),
                 loadSiteAccountMap(st),
@@ -22323,7 +22325,7 @@ function initDashboardRecap() {
             const subMeta = st.subdomain ? ` • subdomain: ${st.subdomain}` : '';
             const meta = `${sourceLabel(st.source)} • ${st.dim==='country'?'Per Negara':'Per Domain'} • ${st.date}${subMeta}`;
             renderChart(st.dim, rows, meta);
-            renderTable(st.dim, rows, st);
+            await renderTable(st.dim, rows, st, scoringPromise);
             await renderPortfolioPulse(st.date);
 
             if ((st.source === 'adx' || st.source === 'adsense' || st.source === 'all') && st.dim === 'domain') {

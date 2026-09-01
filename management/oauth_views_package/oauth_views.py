@@ -253,7 +253,11 @@ class OAuthCallbackView(View):
                         request.session['oauth_added_success'] = True
                         network_code = result.get('network_code')
                         email_used = result.get('user_mail')
-                        if network_code:
+                        if result.get('gmail_verified'):
+                            request.session['oauth_added_message'] = (
+                                f'OAuth + izin Gmail berhasil untuk {email_used}. Silakan klik Synchronize.'
+                            )
+                        elif network_code:
                             request.session['oauth_added_message'] = (
                                 f'Kredensial disimpan untuk {email_used}. Network Code: {network_code}'
                             )
@@ -264,8 +268,14 @@ class OAuthCallbackView(View):
                     else:
                         request.session['oauth_added_success'] = False
                         request.session['oauth_added_message'] = result.get('message', 'Gagal menyimpan app_credentials.')
-                    if request.session.pop('oauth_return_to', None) == 'adsense_policy_events':
+                    return_to = request.session.pop('oauth_return_to', None)
+                    request.session.pop('oauth_require_gmail', None)
+                    if return_to == 'adsense_policy_events':
                         return redirect('/management/admin/adsense_policy_events')
+                    if return_to == 'ads_policy_events':
+                        return redirect('/management/admin/ads_policy_events')
+                    if return_to == 'adx_policy_events':
+                        return redirect('/management/admin/adx_policy_events')
                     return redirect('/management/admin/adx_account')
                 # Default: flow umum, arahkan ke dashboard OAuth
                 if result.get('status'):
