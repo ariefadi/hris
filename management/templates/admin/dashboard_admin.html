@@ -11187,6 +11187,49 @@ function initDashboardRecap() {
         return value.replace(/^\.+|\.+$/g, '');
     }
 
+    async function fetchDashboardDomainCampaignStats(state, rows) {
+        const dim = String(state?.dim || '').toLowerCase();
+        if (dim === 'country' || !state?.date) return {};
+        const domains = uniqKeepOrder((rows || []).map(function(r){
+            return String(r?.name || r?.domain || r?.site || '').trim();
+        }).filter(Boolean));
+        if (!domains.length) return {};
+        try {
+            const res = await fetch('/management/admin/dashboard_domain_campaign_stats', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({
+                    date: String(state?.date || '').trim(),
+                    domains: domains
+                }),
+                credentials: 'same-origin'
+            });
+            const json = await res.json();
+            if (!res.ok || !json?.status || !json?.data || typeof json.data !== 'object') return {};
+            return json.data;
+        } catch (_e) {
+            return {};
+        }
+    }
+
+    function lookupDashboardCampaignStats(statsByDomain, name) {
+        const raw = String(name || '').trim().toLowerCase().replace(/^www\./i, '');
+        if (!raw || !statsByDomain || typeof statsByDomain !== 'object') {
+            return { activeCount: 0, totalBudget: 0 };
+        }
+        const hit = statsByDomain[raw]
+            || (function(){
+                const parts = raw.split('.').filter(Boolean);
+                if (parts.length >= 2) return statsByDomain[parts.slice(0, 2).join('.')];
+                return null;
+            })();
+        if (!hit || typeof hit !== 'object') return { activeCount: 0, totalBudget: 0 };
+        return {
+            activeCount: Number(hit.activeCount || 0) || 0,
+            totalBudget: Number(hit.totalBudget || 0) || 0
+        };
+    }
+
     async function fetchDashboardTrafficMetrics(state, rows) {
         const dim = String(state?.dim || '').toLowerCase();
         if (dim === 'country' || !state?.date) return {};
@@ -20666,139 +20709,33 @@ function initDashboardRecap() {
         return '';
     }
 
-    function recomputeDashboardRowProfit(r) {
-        const spendNow = Number(r?.spend) || 0;
-        const revenueNow = Number(r?.revenue) || 0;
-        r.net = revenueNow - spendNow;
-        r.roi = spendNow > 0 ? ((revenueNow - spendNow) / spendNow * 100) : 0;
-        return r;
+    function campaignNameFromDetailRow(cd) {
+        const direct = String(cd?.meta_campaign || cd?.campaign || cd?.campaign_name || cd?.meta_campaign_name || cd?.status_campaign || '').trim();
+        if (direct) return direct.toUpperCase();
+        const ek = String(cd?.entity_key || cd?.status_entity_key || cd?.event_entity_key || '').trim();
+        if (!ek) return '';
+        const parts = ek.split('|').map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+        if (parts.length >= 3 && parts[1]) return String(parts[1]).trim().toUpperCase();
+        if (parts.length >= 2 && parts[0]) return String(parts[0]).trim().toUpperCase();
+        return String(parts[0] || '').trim().toUpperCase();
     }
 
-    function dashboardDomainSpendKey(name) {
-        const raw = String(name || '').trim().toLowerCase().replace(/^www\./i, '');
-        if (!raw) return '';
-        const parts = raw.split('.').filter(Boolean);
-        if (parts.length >= 2) return parts.slice(0, 2).join('.');
-        return raw;
-    }
-
-    async function enrichDashboardSpendFromCampaignBreakdown(rows, state) {
-        const dim = String(state?.dim || '').toLowerCase();
-        if (dim === 'country') return;
-        const date = String(state?.date || '').trim();
-        if (!date || !Array.isArray(rows) || !rows.length) return;
-
-        const src = String(state?.source || 'all').toLowerCase();
-        if (src === 'adsense') return;
-
-        const tasks = [];
-        const seen = new Set();
-        (rows || []).forEach(function(r) {
-            const siteName = String(r?.name || r?.domain || '').trim();
-            const domainKey = dashboardDomainSpendKey(siteName);
-            if (!siteName || !domainKey || seen.has(domainKey)) return;
-            seen.add(domainKey);
-            const hasAdx = !!(r?.sources?.adx) || src === 'adx' || src === 'all';
-            if (!hasAdx) return;
-            tasks.push({ siteName: siteName, domainKey: domainKey });
-        });
-        if (!tasks.length) return;
-
-        const fetchOne = async function(task) {
-            try {
-                const qs = new URLSearchParams({
-                    site_name: task.siteName,
-                    start_date: date,
-                    end_date: date
-                });
-                const resp = await fetch('/management/admin/page_monitoring_domain_campaign_breakdown?' + qs.toString(), {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
-                const json = await resp.json();
-                if (!json || !json.status) return null;
-                const breakdown = Array.isArray(json.data) ? json.data : [];
-                const total = breakdown.reduce(function(acc, item) {
-                    return acc + (Number(item?.spend) || 0);
-                }, 0);
-                return { domainKey: task.domainKey, spend: total };
-            } catch (_) {
-                return null;
-            }
-        };
-
-        const spendByDomain = {};
-        const concurrency = 6;
-        for (let i = 0; i < tasks.length; i += concurrency) {
-            const results = await Promise.all(tasks.slice(i, i + concurrency).map(fetchOne));
-            results.forEach(function(res) {
-                if (!res || !Number.isFinite(res.spend) || res.spend <= 0) return;
-                spendByDomain[res.domainKey] = res.spend;
+    function campaignStatsFromScoringMeta(meta) {
+        const sources = [
+            meta?.breakdown?.meta?.country_details,
+            meta?.breakdown?.meta?.statuses,
+            meta?.breakdown?.country_details,
+            meta?.country_details
+        ];
+        const names = new Set();
+        sources.forEach(function(src) {
+            if (!Array.isArray(src)) return;
+            src.forEach(function(cd) {
+                const n = campaignNameFromDetailRow(cd);
+                if (n && n !== '-') names.add(n);
             });
-        }
-
-        rows.forEach(function(r) {
-            const key = dashboardDomainSpendKey(r?.name || r?.domain || '');
-            const spend = Number(spendByDomain[key]);
-            if (!Number.isFinite(spend) || spend <= 0) return;
-            r.spend = spend;
-            recomputeDashboardRowProfit(r);
         });
-    }
-
-    async function fetchDashboardActiveCampaignStats(rows, state) {
-        const endYmd = String(state?.date || '').trim();
-        const startYmd = endYmd ? ymdShift(endYmd, -6) : endYmd;
-        const statsByDomain = {};
-        const tasks = [];
-        const seen = new Set();
-
-        (rows || []).forEach(function(r) {
-            const siteName = String(r?.name || r?.domain || '').trim();
-            const accountAds = String(r?.account_ads || '').trim();
-            const domainKey = siteName.toLowerCase();
-            if (!siteName) return;
-            if (seen.has(domainKey)) return;
-            seen.add(domainKey);
-            if (!accountAds) {
-                statsByDomain[domainKey] = { activeCount: 0, totalBudget: 0 };
-                return;
-            }
-            tasks.push({ siteName: siteName, accountAds: accountAds, domainKey: domainKey });
-        });
-
-        const fetchOne = async function(task) {
-            const domainKey = task.domainKey;
-            try {
-                const qs = new URLSearchParams({
-                    account_ads: task.accountAds,
-                    site_name: task.siteName,
-                    start_date: startYmd,
-                    end_date: endYmd
-                });
-                const resp = await fetch('/management/admin/page_monitoring_domain_campaigns?' + qs.toString(), {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
-                const json = await resp.json();
-                const campaigns = (json && json.status && Array.isArray(json.campaigns)) ? json.campaigns : [];
-                let activeCount = 0;
-                let totalBudget = 0;
-                campaigns.forEach(function(c) {
-                    const status = String(c?.status || c?.effective_status || '').trim().toUpperCase();
-                    if (status !== 'ACTIVE') return;
-                    activeCount += 1;
-                    totalBudget += Number(c?.daily_budget || 0) || 0;
-                });
-                statsByDomain[domainKey] = { activeCount: activeCount, totalBudget: totalBudget };
-            } catch (_) {
-                statsByDomain[domainKey] = { activeCount: 0, totalBudget: 0 };
-            }
-        };
-
-        const concurrency = 6;
-        for (let i = 0; i < tasks.length; i += concurrency) {
-            await Promise.all(tasks.slice(i, i + concurrency).map(fetchOne));
-        }
-        return statsByDomain;
+        return { activeCount: names.size, totalBudget: 0 };
     }
 
     function buildActiveCampaignCellData(stats) {
@@ -21321,8 +21258,7 @@ function initDashboardRecap() {
         const [trafficByDomain, backendScores, campaignStatsByDomain] = await Promise.all([
             fetchDashboardTrafficMetrics(state, rows),
             scoringPromise,
-            recapDim === 'country' ? Promise.resolve({}) : fetchDashboardActiveCampaignStats(rows, state),
-            enrichDashboardSpendFromCampaignBreakdown(rows, state)
+            recapDim === 'country' ? Promise.resolve({}) : fetchDashboardDomainCampaignStats(state, rows)
         ]);
         const rawStore = (backendScores && typeof backendScores === 'object') ? backendScores : {};
         const normalizedStore = Object.assign({}, rawStore);
@@ -21403,9 +21339,12 @@ function initDashboardRecap() {
                 ? `<button type="button" class="btn btn-sm ds-detail-btn dashboard-open-score-detail-btn" data-score-key="${esc(k)}" title="Buka detail scoring" aria-label="Buka detail scoring"><i class="fas fa-eye mr-1" aria-hidden="true"></i>Detail</button>`
                 : `<button type="button" class="btn btn-sm ds-detail-btn" disabled title="Scoring belum tersedia">Detail</button>`;
 
-            const activeDays = Number(r?.active_days || 0);
-            const domainKey = String(r?.name || r?.domain || '').trim().toLowerCase();
-            const campStats = campaignStatsByDomain[domainKey] || { activeCount: 0, totalBudget: 0 };
+            const scoreStats = recapDim === 'country' ? { activeCount: 0, totalBudget: 0 } : campaignStatsFromScoringMeta(meta);
+            const dbStats = recapDim === 'country' ? { activeCount: 0, totalBudget: 0 } : lookupDashboardCampaignStats(campaignStatsByDomain, r?.name || r?.domain || '');
+            const campStats = {
+                activeCount: Number(dbStats.activeCount || 0) || Number(scoreStats.activeCount || 0) || 0,
+                totalBudget: Number(dbStats.totalBudget || 0) || 0
+            };
 
             return [
                 i + 1,
@@ -22326,16 +22265,15 @@ function initDashboardRecap() {
             const meta = `${sourceLabel(st.source)} • ${st.dim==='country'?'Per Negara':'Per Domain'} • ${st.date}${subMeta}`;
             renderChart(st.dim, rows, meta);
             await renderTable(st.dim, rows, st, scoringPromise);
-            await renderPortfolioPulse(st.date);
+
+            renderPortfolioPulse(st.date).catch(function(){});
 
             if ((st.source === 'adx' || st.source === 'adsense' || st.source === 'all') && st.dim === 'domain') {
                 const selectedDomains = rows.map(function(r){ return String(r?.name || '').trim().toLowerCase(); }).filter(Boolean);
                 setTemporalVisible(true, 'Data heatmap sinkron dengan domain yang tampil di Detail Scoring.');
-                try {
-                    await renderTemporalRoiHourlyChart(selectedDomains, st.date, st.source);
-                } catch (e) {
+                renderTemporalRoiHourlyChart(selectedDomains, st.date, st.source).catch(function(){
                     setTemporalVisible(true, 'Gagal memuat data hourly.');
-                }
+                });
             } else {
                 setTemporalVisible(false, '');
             }

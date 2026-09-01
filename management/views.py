@@ -5756,6 +5756,31 @@ class DashboardTrafficMetricsView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
+class DashboardDomainCampaignStatsView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            payload = json.loads(req.body.decode('utf-8') or '{}')
+        except Exception:
+            payload = {}
+        ymd = str(payload.get('date') or payload.get('end_date') or '').strip()
+        domains = payload.get('domains') or []
+        names = []
+        if isinstance(domains, (list, tuple, set)):
+            names.extend([str(item or '').strip() for item in domains if str(item or '').strip()])
+        elif isinstance(domains, str):
+            names.extend([str(item or '').strip() for item in domains.split(',') if str(item or '').strip()])
+        rs = data_mysql().get_dashboard_domain_campaign_stats(ymd, names)
+        if not (isinstance(rs, dict) and rs.get('status')):
+            return JsonResponse({'status': False, 'error': (rs or {}).get('error') or 'Gagal memuat daily budget', 'data': {}}, safe=False)
+        return JsonResponse({'status': True, 'date': ymd, 'data': rs.get('data') or {}}, safe=False)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
 class DashboardCountryTrafficMetricsView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:

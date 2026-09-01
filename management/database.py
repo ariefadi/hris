@@ -3170,6 +3170,187 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
+    @staticmethod
+    def _is_active_master_status(value):
+        s = str(value or '').strip().upper()
+        if s in ('1', 'ACTIVE', 'ENABLED', 'TRUE'):
+            return True
+        try:
+            return int(float(value)) == 1
+        except Exception:
+            return False
+
+    def _dashboard_domain_lookup_keys(self, name):
+        s = self._normalize_domain_full(name)
+        if not s:
+            return []
+        parts = [p for p in s.split('.') if p]
+        keys = []
+        def add(k):
+            k = str(k or '').strip().lower()
+            if k and k not in keys:
+                keys.append(k)
+        add(s)
+        if len(parts) >= 2:
+            add('.'.join(parts[:2]))
+        return keys
+
+    def _latest_master_ads_date(self, ymd):
+        ymd = str(ymd or '').strip()
+        if not ymd:
+            return ''
+        try:
+            self._ensure_report_connection()
+            self.cur_hris = self.report_cur
+            self.cur_hris.execute(
+                "SELECT max(toDate(master_date)) AS d FROM hris_trendHorizone.master_ads WHERE toDate(master_date) <= toDate(%s)",
+                (ymd,),
+            )
+            row = self.cur_hris.fetchone() or {}
+            d = row.get('d')
+            if d:
+                return str(d)[:10]
+        except Exception:
+            pass
+        if self.execute_query("SELECT MAX(master_date) AS d FROM master_ads WHERE master_date <= %s", (ymd,)):
+            row = (self.cur_hris.fetchone() if self.cur_hris else None) or {}
+            d = row.get('d') if isinstance(row, dict) else (row[0] if row else None)
+            if d:
+                return str(d)[:10]
+        return ymd
+
+    def _fetch_master_ads_campaign_rows(self, ymd):
+        ymd = str(ymd or '').strip()
+        if not ymd:
+            return []
+        ch_sql = """
+            SELECT
+                toString(master_campaign_id) AS campaign_id,
+                argMax(lower(trim(toString(master_domain))), mdd) AS master_domain,
+                argMax(lower(trim(toString(master_campaign_nm))), mdd) AS campaign_name,
+                argMax(toFloat64(master_budget), mdd) AS daily_budget,
+                argMax(toString(master_status), mdd) AS master_status
+            FROM hris_trendHorizone.master_ads
+            WHERE toDate(master_date) = toDate(%s)
+            GROUP BY master_campaign_id
+        """
+        try:
+            self._ensure_report_connection()
+            self.cur_hris = self.report_cur
+            self.cur_hris.execute(ch_sql, (ymd,))
+            rows = self.fetch_all() or []
+            if rows:
+                return rows
+        except Exception:
+            pass
+        mysql_sql = """
+            SELECT
+                CAST(t.master_campaign_id AS CHAR) AS campaign_id,
+                LOWER(TRIM(t.master_domain)) AS master_domain,
+                LOWER(TRIM(t.master_campaign_nm)) AS campaign_name,
+                t.master_budget AS daily_budget,
+                t.master_status AS master_status
+            FROM master_ads t
+            INNER JOIN (
+                SELECT master_campaign_id, MAX(mdd) AS max_mdd
+                FROM master_ads
+                WHERE master_date = %s
+                GROUP BY master_campaign_id
+            ) x ON t.master_campaign_id = x.master_campaign_id AND t.mdd = x.max_mdd
+            WHERE t.master_date = %s
+        """
+        if not self.execute_query(mysql_sql, (ymd, ymd)):
+            return []
+        return self.fetch_all() or []
+
+    def get_dashboard_domain_campaign_stats(self, ymd, domain_names):
+        try:
+            requested = []
+            seen = set()
+            for raw in (domain_names or []):
+                name = str(raw or '').strip()
+                if not name:
+                    continue
+                key = name.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                requested.append(name)
+
+            out = {}
+            for name in requested:
+                for k in self._dashboard_domain_lookup_keys(name) + [str(name).strip().lower()]:
+                    if k and k not in out:
+                        out[k] = {'activeCount': 0, 'totalBudget': 0}
+
+            if not requested:
+                return {'status': True, 'data': out}
+
+            use_date = str(ymd or '').strip()
+            rows = self._fetch_master_ads_campaign_rows(use_date)
+            if not rows:
+                latest = self._latest_master_ads_date(use_date)
+                if latest and latest != use_date:
+                    rows = self._fetch_master_ads_campaign_rows(latest)
+
+            domain_specs = []
+            for name in requested:
+                primary = self._normalize_domain_full(name)
+                keys = self._dashboard_domain_lookup_keys(name)
+                domain_specs.append({'name': name, 'primary': primary, 'keys': keys})
+
+            assigned = {}
+            for row in (rows or []):
+                if not self._is_active_master_status((row or {}).get('master_status')):
+                    continue
+                cid = str((row or {}).get('campaign_id') or '').strip()
+                if not cid:
+                    continue
+                camp = str((row or {}).get('campaign_name') or '').strip().lower()
+                md = str((row or {}).get('master_domain') or '').strip().lower()
+                try:
+                    budget = float((row or {}).get('daily_budget') or 0)
+                except Exception:
+                    budget = 0.0
+                best = None
+                for spec in domain_specs:
+                    for k in (spec.get('keys') or []):
+                        if not k:
+                            continue
+                        hit = (md == k) or (k in camp)
+                        if not hit:
+                            continue
+                        score = len(k)
+                        if best is None or score > best[0]:
+                            best = (score, spec.get('primary') or '', budget)
+                if best:
+                    prev = assigned.get(cid)
+                    if prev is None or best[0] > prev[0]:
+                        assigned[cid] = best
+
+            tallies = {}
+            for cid, (_score, primary, budget) in assigned.items():
+                cur = tallies.setdefault(primary, {'activeCount': 0, 'totalBudget': 0.0, 'ids': set()})
+                if cid in cur['ids']:
+                    continue
+                cur['ids'].add(cid)
+                cur['activeCount'] += 1
+                if budget > 0:
+                    cur['totalBudget'] += budget
+
+            for spec in domain_specs:
+                t = tallies.get(spec.get('primary') or '') or {'activeCount': 0, 'totalBudget': 0.0}
+                payload = {
+                    'activeCount': int(t.get('activeCount') or 0),
+                    'totalBudget': float(t.get('totalBudget') or 0),
+                }
+                for k in (spec.get('keys') or []) + [str(spec.get('name') or '').strip().lower()]:
+                    if k:
+                        out[k] = payload
+            return {'status': True, 'data': out}
+        except Exception as e:
+            return {'status': False, 'error': str(e), 'data': {}}
+
     def get_latest_master_ads_by_campaign(self, campaign_id, account_ads_id=None):
         try:
             sql = """
