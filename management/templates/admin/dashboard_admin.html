@@ -4041,6 +4041,95 @@ html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-suggest-e
 html[data-theme="dark"] .score-detail-modal__body .scx-campaign-table tbody tr.scx-campaign-row-focus td {
     background: rgba(99, 102, 241, 0.22) !important;
 }
+#scxCampaignTableWrap {
+    overflow: visible;
+}
+#scxCampaignTableWrap .dataTables_wrapper {
+    padding: 10px 8px 8px;
+}
+#scxCampaignTableWrap .ds-dt-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-bottom: 12px;
+}
+#scxCampaignTableWrap .ds-dt-toolbar__left {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+#scxCampaignTableWrap .ds-dt-toolbar__right {
+    flex: 0 1 auto;
+    margin-left: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px 18px;
+}
+#scxCampaignTableWrap .ds-dt-toolbar__right .dataTables_length,
+#scxCampaignTableWrap .ds-dt-toolbar__right .dataTables_filter {
+    margin: 0;
+    float: none;
+}
+#scxCampaignTableWrap .ds-dt-toolbar__left .dt-buttons {
+    display: inline-flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0 !important;
+    float: none !important;
+}
+#scxCampaignTableWrap .ds-dt-toolbar__left .dt-buttons .dt-button,
+#scxCampaignTableWrap .ds-dt-toolbar__left .dt-buttons .btn {
+    display: inline-block !important;
+    width: auto !important;
+    margin: 0 !important;
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    padding: 5px 12px !important;
+    line-height: 1.3 !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1) !important;
+    white-space: nowrap;
+}
+#scxCampaignTableWrap .dataTables_info,
+#scxCampaignTableWrap .dataTables_paginate {
+    padding-top: 10px;
+}
+html[data-theme="dark"] #scxCampaignTableWrap .dataTables_info,
+html[data-theme="dark"] #scxCampaignTableWrap .dataTables_length label,
+html[data-theme="dark"] #scxCampaignTableWrap .dataTables_filter label,
+html[data-theme="dark"] #scxCampaignTableWrap .dataTables_paginate {
+    color: #cbd5e1;
+}
+html[data-theme="dark"] #scxCampaignTableWrap .dataTables_filter input,
+html[data-theme="dark"] #scxCampaignTableWrap .dataTables_length select {
+    background: #0f172a;
+    color: #e2e8f0;
+    border: 1px solid rgba(148, 163, 184, 0.42);
+}
+html[data-theme="dark"] #scxCampaignTableWrap .paginate_button {
+    border-color: rgba(148, 163, 184, 0.35) !important;
+    color: #e2e8f0 !important;
+    background: #0f172a !important;
+}
+html[data-theme="dark"] #scxCampaignTableWrap .paginate_button.current,
+html[data-theme="dark"] #scxCampaignTableWrap .paginate_button:hover {
+    background: #1d4ed8 !important;
+    color: #fff !important;
+    border-color: #1d4ed8 !important;
+}
+html[data-theme="dark"] #scxCampaignTableWrap .dt-button-collection {
+    background: #162235;
+    border-color: rgba(148, 163, 184, 0.28);
+    z-index: 2050;
+}
+#scxCampaignTableWrap .dt-button-collection {
+    z-index: 2050;
+}
 .score-detail-modal__body .scx-action-panel .sd-camp-actions {
     display: inline-flex;
     align-items: center;
@@ -16289,6 +16378,366 @@ function initDashboardRecap() {
         }
     }
 
+    function scxDestroyCampaignTabDataTable() {
+        const tableEl = document.getElementById('scxCampaignDataTable');
+        if (tableEl && window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function' && jQuery.fn.DataTable.isDataTable(tableEl)) {
+            try { jQuery(tableEl).DataTable().destroy(); } catch (_) {}
+        }
+        window.scxCampaignTabDt = null;
+    }
+
+    function scxCampaignTabExportBody(data, _row, _column, node) {
+        if (node && node.querySelector) {
+            const input = node.querySelector('input.scx-campaign-budget-input, input');
+            if (input) return String(input.value || '').trim();
+            const nameEl = node.querySelector('.scx-campaign-name-text');
+            if (nameEl) {
+                const name = String(nameEl.textContent || '').trim();
+                const run = String(node.querySelector('.scx-campaign-run-badge')?.textContent || '').replace(/\s+/g, ' ').trim();
+                return run ? (name + '\n' + run) : name;
+            }
+            const sub = node.querySelector('.scx-sub');
+            const pills = Array.from(node.querySelectorAll('.scx-pill')).map(function(el) {
+                return String(el.textContent || '').replace(/\s+/g, ' ').trim();
+            }).filter(Boolean);
+            if (pills.length && sub) {
+                return pills.join('  ') + '\n' + String(sub.textContent || '').replace(/\s+/g, ' ').trim();
+            }
+            if (pills.length > 1) return pills.join('\n');
+        }
+        const tmp = document.createElement('div');
+        tmp.innerHTML = String(data == null ? '' : data);
+        return String(tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function scxCampaignPdfHeaderKey(text) {
+        return String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    }
+
+    function scxCampaignPdfWidthWeight(header) {
+        const t = scxCampaignPdfHeaderKey(header);
+        if (t === 'no') return 3.2;
+        if (t.indexOf('nama') >= 0) return 20;
+        if (t.indexOf('prediksi') >= 0) return 15;
+        if (t.indexOf('status scoring') >= 0) return 10;
+        if (t.indexOf('status campaign') >= 0) return 9;
+        if (t.indexOf('rekomendasi') >= 0) return 8.5;
+        if (t.indexOf('spend') >= 0 || t.indexOf('revenue') >= 0 || t.indexOf('budget') >= 0) return 8.5;
+        if (t === 'roi') return 6;
+        return 7.5;
+    }
+
+    function scxCampaignPdfPercentWidths(headers) {
+        const weights = (headers || []).map(scxCampaignPdfWidthWeight);
+        const sum = weights.reduce(function(acc, w) { return acc + w; }, 0) || 1;
+        const raw = weights.map(function(w) { return (w / sum) * 100; });
+        const rawSum = raw.reduce(function(acc, w) { return acc + w; }, 0) || 1;
+        return raw.map(function(w) { return ((w / rawSum) * 100).toFixed(2) + '%'; });
+    }
+
+    function scxCampaignPdfAlign(header) {
+        const t = scxCampaignPdfHeaderKey(header);
+        if (t === 'no' || t === 'roi' || t.indexOf('status') >= 0) return 'center';
+        if (t.indexOf('spend') >= 0 || t.indexOf('revenue') >= 0 || t.indexOf('budget') >= 0) return 'right';
+        return 'left';
+    }
+
+    function scxCampaignPdfSoftWrap(text) {
+        return String(text == null ? '' : text).replace(/([._#@\/-])/g, '$1\u200b');
+    }
+
+    function scxCampaignPdfCell(text, header, isHeader) {
+        const raw = scxCampaignPdfSoftWrap(text);
+        const align = scxCampaignPdfAlign(header);
+        if (isHeader) {
+            return { text: raw, style: 'tableHeader', alignment: align, margin: [0, 2, 0, 2], noWrap: false };
+        }
+        const lines = String(text == null ? '' : text).split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+        if (scxCampaignPdfHeaderKey(header).indexOf('nama') >= 0 && lines.length > 1) {
+            return {
+                stack: [
+                    { text: scxCampaignPdfSoftWrap(lines[0]), fontSize: 7.5, color: '#0f172a' },
+                    { text: lines.slice(1).join(' · '), fontSize: 7, color: '#64748b', margin: [0, 2, 0, 0] }
+                ],
+                alignment: 'left'
+            };
+        }
+        if (lines.length > 1) {
+            return {
+                stack: lines.map(function(line, idx) {
+                    return {
+                        text: scxCampaignPdfSoftWrap(line),
+                        fontSize: idx === 0 ? 7.5 : 7,
+                        color: idx === 0 ? '#0f172a' : '#64748b',
+                        margin: idx === 0 ? [0, 0, 0, 0] : [0, 2, 0, 0]
+                    };
+                }),
+                alignment: align
+            };
+        }
+        return { text: raw, fontSize: 7.5, color: '#1e293b', alignment: align };
+    }
+
+    function scxCustomizeCampaignPdf(doc, cache) {
+        const siteName = String(cache?.siteName || '').trim();
+        const startYmd = String(cache?.startYmd || '').trim();
+        const endYmd = String(cache?.endYmd || '').trim();
+        const rangeTxt = startYmd
+            ? (endYmd && endYmd !== startYmd ? (startYmd + ' s/d ' + endYmd) : startYmd)
+            : '';
+        const now = new Date();
+        const exportedAt = now.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+
+        doc.pageMargins = [24, 36, 24, 32];
+        doc.pageOrientation = 'landscape';
+        doc.pageSize = 'A4';
+        doc.defaultStyle = { fontSize: 7.5, color: '#1e293b' };
+        doc.styles = doc.styles || {};
+        doc.styles.title = { fontSize: 15, bold: true, color: '#0f172a', margin: [0, 0, 0, 2] };
+        doc.styles.tableHeader = {
+            bold: true,
+            fontSize: 7.5,
+            color: '#ffffff',
+            fillColor: '#0f172a',
+            margin: [0, 3, 0, 3]
+        };
+
+        const tableNode = (doc.content || []).find(function(n) { return n && n.table; });
+        const body = tableNode && tableNode.table ? tableNode.table.body : null;
+        if (!body || !body.length) return;
+
+        const headers = (body[0] || []).map(function(cell) {
+            if (cell == null) return '';
+            if (typeof cell === 'string') return cell;
+            return String(cell.text || '');
+        });
+        tableNode.table.widths = scxCampaignPdfPercentWidths(headers);
+        tableNode.width = '100%';
+        tableNode.table.headerRows = 1;
+        tableNode.table.body = body.map(function(row, rowIdx) {
+            return (row || []).map(function(cell, colIdx) {
+                const text = (cell == null) ? '' : (typeof cell === 'string' ? cell : String(cell.text || ''));
+                return scxCampaignPdfCell(text, headers[colIdx] || '', rowIdx === 0);
+            });
+        });
+        tableNode.layout = {
+            fillColor: function(rowIndex) {
+                if (rowIndex === 0) return '#0f172a';
+                return rowIndex % 2 === 0 ? '#f8fafc' : '#ffffff';
+            },
+            hLineColor: function() { return '#e2e8f0'; },
+            vLineColor: function() { return '#e2e8f0'; },
+            hLineWidth: function(i, node) {
+                if (i === 0 || i === 1) return 0;
+                if (i === node.table.body.length) return 0.6;
+                return 0.4;
+            },
+            vLineWidth: function() { return 0; },
+            paddingLeft: function() { return 4; },
+            paddingRight: function() { return 4; },
+            paddingTop: function(i) { return i === 0 ? 5 : 4; },
+            paddingBottom: function(i) { return i === 0 ? 5 : 4; }
+        };
+
+        doc.content = [
+            { text: 'Daftar Campaign', style: 'title' },
+            {
+                text: [siteName, rangeTxt].filter(Boolean).join('  ·  ') || 'Detail Scoring',
+                fontSize: 9,
+                color: '#64748b',
+                margin: [0, 0, 0, 10]
+            },
+            tableNode
+        ];
+        doc.footer = function(currentPage, pageCount) {
+            return {
+                margin: [24, 0, 24, 0],
+                columns: [
+                    { text: 'Diekspor ' + exportedAt, fontSize: 7, color: '#94a3b8' },
+                    { text: String(currentPage) + ' / ' + String(pageCount), alignment: 'right', fontSize: 7, color: '#94a3b8' }
+                ]
+            };
+        };
+    }
+
+    function scxCampaignExcelColWidth(header) {
+        const t = scxCampaignPdfHeaderKey(header);
+        if (t === 'no') return 36;
+        if (t.indexOf('nama') >= 0) return 340;
+        if (t.indexOf('spend') >= 0 || t.indexOf('revenue') >= 0 || t.indexOf('budget') >= 0) return 118;
+        if (t === 'roi') return 78;
+        if (t.indexOf('status campaign') >= 0) return 110;
+        if (t.indexOf('status scoring') >= 0) return 130;
+        if (t.indexOf('prediksi') >= 0) return 260;
+        if (t.indexOf('rekomendasi') >= 0) return 120;
+        return 110;
+    }
+
+    function scxCampaignExcelEsc(v) {
+        return String(v == null ? '' : v)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function scxCampaignExcelCellHtml(v) {
+        return scxCampaignExcelEsc(v).replace(/\r\n|\n|\r/g, '<br/>');
+    }
+
+    function scxCampaignTabExportPayload(dt) {
+        if (dt && dt.buttons && typeof dt.buttons.exportData === 'function') {
+            return dt.buttons.exportData({
+                columns: ':visible:not(.scx-campaign-col-aksi)',
+                stripHtml: true,
+                stripNewlines: false,
+                decodeEntities: true,
+                format: {
+                    header: function(data) { return String(data || '').replace(/\s+/g, ' ').trim(); },
+                    body: scxCampaignTabExportBody
+                }
+            });
+        }
+        return { header: [], body: [] };
+    }
+
+    function scxExportCampaignExcel(dt, cache) {
+        const payload = scxCampaignTabExportPayload(dt);
+        const headers = Array.isArray(payload.header) ? payload.header : [];
+        const rows = Array.isArray(payload.body) ? payload.body : [];
+        if (!headers.length || !rows.length) {
+            alert('Tidak ada data untuk diekspor.');
+            return;
+        }
+        const siteName = String(cache?.siteName || '').trim();
+        const startYmd = String(cache?.startYmd || '').trim();
+        const endYmd = String(cache?.endYmd || '').trim();
+        const rangeTxt = startYmd
+            ? (endYmd && endYmd !== startYmd ? (startYmd + ' s/d ' + endYmd) : startYmd)
+            : '';
+        const subtitle = [siteName, rangeTxt].filter(Boolean).join('  ·  ') || 'Detail Scoring';
+        const exportedAt = new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+        const filenameBase = String(cache?.siteName || 'campaign').replace(/[^\w.-]+/g, '_');
+        const fileName = `dashboard_campaign_${filenameBase}${startYmd ? '_' + startYmd : ''}${endYmd && endYmd !== startYmd ? '_' + endYmd : ''}.xls`;
+
+        let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">';
+        html += '<head><meta charset="UTF-8">';
+        html += '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>';
+        html += '<x:Name>Campaign</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>';
+        html += '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->';
+        html += '<style>';
+        html += 'table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:11pt;}';
+        html += 'th{background:#0f172a;color:#ffffff;font-weight:700;border:1px solid #334155;padding:7px 8px;vertical-align:middle;}';
+        html += 'td{border:1px solid #cbd5e1;padding:6px 8px;vertical-align:top;white-space:normal;}';
+        html += '.title{font-size:16pt;font-weight:700;color:#0f172a;}';
+        html += '.sub{font-size:10pt;color:#64748b;}';
+        html += '.meta{font-size:9pt;color:#94a3b8;}';
+        html += '.odd{background:#ffffff;}';
+        html += '.even{background:#f8fafc;}';
+        html += '</style></head><body>';
+        html += '<div class="title">Daftar Campaign</div>';
+        html += '<div class="sub">' + scxCampaignExcelEsc(subtitle) + '</div>';
+        html += '<div class="meta">Diekspor ' + scxCampaignExcelEsc(exportedAt) + '</div>';
+        html += '<br/><table>';
+        html += '<colgroup>';
+        headers.forEach(function(h) {
+            html += '<col style="width:' + scxCampaignExcelColWidth(h) + 'px">';
+        });
+        html += '</colgroup><thead><tr>';
+        headers.forEach(function(h) {
+            html += '<th style="text-align:' + scxCampaignPdfAlign(h) + ';">' + scxCampaignExcelEsc(h) + '</th>';
+        });
+        html += '</tr></thead><tbody>';
+        rows.forEach(function(cells, idx) {
+            html += '<tr class="' + (idx % 2 === 0 ? 'odd' : 'even') + '">';
+            (cells || []).forEach(function(cell, colIdx) {
+                const header = headers[colIdx] || '';
+                const align = scxCampaignPdfAlign(header);
+                const isName = scxCampaignPdfHeaderKey(header).indexOf('nama') >= 0;
+                const raw = String(cell == null ? '' : cell);
+                const height = (raw.indexOf('\n') >= 0) ? 'height:36pt;' : '';
+                html += '<td style="text-align:' + align + ';' + height + (isName ? 'width:340px;' : '') + '">' + scxCampaignExcelCellHtml(raw) + '</td>';
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table></body></html>';
+
+        const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    }
+
+    function scxInitCampaignTabDataTable(cache) {
+        const tableEl = document.getElementById('scxCampaignDataTable');
+        if (!tableEl || !window.jQuery || !jQuery.fn || typeof jQuery.fn.DataTable !== 'function') return null;
+        if (jQuery.fn.DataTable.isDataTable(tableEl)) {
+            try { jQuery(tableEl).DataTable().destroy(); } catch (_) {}
+        }
+        const hasDtButtons = !!(jQuery.fn.dataTable && jQuery.fn.dataTable.Buttons);
+        const siteName = String(cache?.siteName || 'campaign').replace(/[^\w.-]+/g, '_');
+        const startYmd = String(cache?.startYmd || '');
+        const endYmd = String(cache?.endYmd || '');
+        const exportBase = `dashboard_campaign_${siteName}${startYmd ? '_' + startYmd : ''}${endYmd && endYmd !== startYmd ? '_' + endYmd : ''}`;
+        const exportTitle = `Daftar Campaign ${cache?.siteName || ''}${startYmd ? ' (' + startYmd + (endYmd && endYmd !== startYmd ? ' s/d ' + endYmd : '') + ')' : ''}`.trim();
+        const exportOpts = {
+            columns: ':visible:not(.scx-campaign-col-aksi)',
+            format: { body: scxCampaignTabExportBody }
+        };
+        const exportOptsPdf = Object.assign({}, exportOpts, { stripNewlines: false, stripHtml: true });
+        const dt = jQuery(tableEl).DataTable({
+            paging: true,
+            pageLength: 10,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+            lengthChange: true,
+            searching: true,
+            info: true,
+            ordering: true,
+            order: [[2, 'desc']],
+            autoWidth: false,
+            responsive: false,
+            destroy: true,
+            dom: hasDtButtons
+                ? '<"ds-dt-toolbar"<"ds-dt-toolbar__left"B><"ds-dt-toolbar__right"lf>>rtip'
+                : undefined,
+            buttons: hasDtButtons ? [
+                { extend: 'copyHtml5', text: 'Copy', className: 'btn btn-sm btn-info', exportOptions: exportOpts, title: exportTitle },
+                { text: 'Export Excel', className: 'btn btn-sm btn-success', action: function(e, dt) { scxExportCampaignExcel(dt, cache); } },
+                { extend: 'pdfHtml5', text: 'Export PDF', className: 'btn btn-sm btn-danger', exportOptions: exportOptsPdf, title: exportTitle, filename: exportBase, orientation: 'landscape', pageSize: 'A4', customize: function(doc) { scxCustomizeCampaignPdf(doc, cache); } },
+                { extend: 'csvHtml5', text: 'Export CSV', className: 'btn btn-sm btn-secondary', exportOptions: exportOpts, title: exportTitle, filename: exportBase },
+                { extend: 'print', text: 'Print', className: 'btn btn-sm btn-warning', exportOptions: exportOpts, title: exportTitle },
+                { extend: 'colvis', text: 'Column Visibility', className: 'btn btn-sm btn-light' }
+            ] : [],
+            language: {
+                lengthMenu: 'Tampilkan _MENU_ data',
+                search: 'Cari:',
+                info: 'Menampilkan _START_ - _END_ dari _TOTAL_ data',
+                infoEmpty: 'Tidak ada data',
+                zeroRecords: 'Data tidak ditemukan',
+                paginate: { previous: 'Sebelumnya', next: 'Berikutnya' }
+            },
+            columnDefs: [
+                { targets: 0, className: 'text-center', width: '48px', orderable: false, searchable: false },
+                { targets: 10, className: 'text-center scx-campaign-col-aksi', orderable: false, searchable: false }
+            ]
+        });
+        dt.on('order.dt search.dt page.dt', function() {
+            const info = (dt.page && typeof dt.page.info === 'function') ? dt.page.info() : { start: 0 };
+            const start = Number(info && info.start) || 0;
+            dt.column(0, { search: 'applied', order: 'applied', page: 'current' }).nodes().each(function(cell, i) {
+                cell.textContent = String(start + i + 1);
+            });
+        });
+        dt.draw(false);
+        window.scxCampaignTabDt = dt;
+        return dt;
+    }
+
     function scxSetCampaignTabLoading(active, hint) {
         const pane = document.querySelector('[data-scx-tab-pane="campaign"]');
         const summaryEl = document.getElementById('scxCampaignSummary');
@@ -16298,6 +16747,7 @@ function initDashboardRecap() {
             if (chartBlock) chartBlock.style.visibility = '';
             return;
         }
+        scxDestroyCampaignTabDataTable();
         if (summaryEl) summaryEl.innerHTML = scxRenderTabLoadingState('Memuat Campaign', hint || 'Mengambil data campaign subdomain...');
         if (tableWrap) tableWrap.innerHTML = scxRenderTabInlineLoading('Menyiapkan tabel campaign...');
         if (chartBlock) chartBlock.style.visibility = 'hidden';
@@ -16402,6 +16852,18 @@ function initDashboardRecap() {
         scxShowCampaignSearchSuggest(searchEl);
     }
 
+    function scxCampaignTabRowMatchesName(tr, campaignName) {
+        const q = String(campaignName || '').trim().toLowerCase();
+        const qNorm = scxCampaignNormName(campaignName);
+        if (!q || !tr) return false;
+        const cell = tr.querySelector('td:nth-child(2)');
+        const txt = String(cell?.textContent || '').trim();
+        if (!txt) return false;
+        if (txt.toLowerCase() === q) return true;
+        if (scxCampaignNormName(txt) === qNorm) return true;
+        return txt.toLowerCase().includes(q);
+    }
+
     function scxScrollCampaignTabIntoView(pane, campaignName) {
         if (!pane) return;
         const panel = pane.querySelector('[data-campaign-panel="table"]');
@@ -16410,18 +16872,31 @@ function initDashboardRecap() {
             requestAnimationFrame(function() {
                 const tableWrap = document.getElementById('scxCampaignTableWrap');
                 if (tableWrap) tableWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                const q = String(campaignName || '').trim().toLowerCase();
-                const qNorm = scxCampaignNormName(campaignName);
-                if (!q || !tableWrap) return;
-                const rows = Array.from(tableWrap.querySelectorAll('tbody tr'));
-                const hit = rows.find(function(tr) {
-                    const cell = tr.querySelector('td:nth-child(2)');
-                    const txt = String(cell?.textContent || '').trim();
-                    if (!txt) return false;
-                    if (txt.toLowerCase() === q) return true;
-                    if (scxCampaignNormName(txt) === qNorm) return true;
-                    return txt.toLowerCase().includes(q);
-                });
+                const q = String(campaignName || '').trim();
+                if (!q) return;
+                const dt = window.scxCampaignTabDt;
+                let hit = null;
+                if (dt && typeof dt.rows === 'function') {
+                    let foundIdx = -1;
+                    dt.rows({ search: 'none' }).every(function() {
+                        if (foundIdx >= 0) return;
+                        const node = this.node();
+                        if (scxCampaignTabRowMatchesName(node, q)) foundIdx = this.index();
+                    });
+                    if (foundIdx >= 0) {
+                        const indexes = dt.rows({ search: 'applied', order: 'applied' }).indexes().toArray();
+                        const displayIdx = indexes.indexOf(foundIdx);
+                        const pageLen = Number(dt.page.len()) || 10;
+                        if (displayIdx >= 0 && pageLen > 0) {
+                            dt.page(Math.floor(displayIdx / pageLen)).draw(false);
+                        }
+                        hit = dt.row(foundIdx).node();
+                    }
+                } else if (tableWrap) {
+                    hit = Array.from(tableWrap.querySelectorAll('tbody tr')).find(function(tr) {
+                        return scxCampaignTabRowMatchesName(tr, q);
+                    }) || null;
+                }
                 if (!hit) return;
                 hit.classList.add('scx-campaign-row-focus');
                 hit.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -16436,6 +16911,7 @@ function initDashboardRecap() {
     }
 
     function scxResetCampaignTabState(clearPendingFocus) {
+        scxDestroyCampaignTabDataTable();
         window.scxCampaignTabCache = null;
         if (clearPendingFocus !== false) {
             window.scxCampaignTabPendingFocus = '';
@@ -16645,8 +17121,8 @@ function initDashboardRecap() {
             const n = Math.max(0, Math.round(Number(v) || 0));
             return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         };
-        let html = '<table class="scx-data-table scx-campaign-table"><thead><tr>';
-        html += '<th style="width:42px;">No</th>';
+        let html = '<table id="scxCampaignDataTable" class="table table-striped table-bordered scx-data-table scx-campaign-table" style="width:100%"><thead><tr>';
+        html += '<th class="text-center" style="width:42px;">No</th>';
         html += '<th>Nama Campaign</th>';
         html += '<th class="text-end">Spend</th>';
         html += '<th class="text-end">Revenue</th>';
@@ -16656,7 +17132,7 @@ function initDashboardRecap() {
         html += '<th>Prediksi</th>';
         html += '<th class="text-end">Rekomendasi</th>';
         html += '<th class="text-end">Daily Budget</th>';
-        html += '<th class="text-center">Aksi</th>';
+        html += '<th class="text-center scx-campaign-col-aksi">Aksi</th>';
         html += '</tr></thead><tbody>';
         rows.forEach(function(row, idx) {
             const name = String(row?.campaign_name || '-');
@@ -16678,21 +17154,21 @@ function initDashboardRecap() {
             const inputId = `scxCampBud_${cid || idx}`;
             const canAct = !!(accountAds && cid);
             html += '<tr>';
-            html += `<td>${esc(String(idx + 1))}</td>`;
-            html += `<td><div class="scx-campaign-name-cell"><div class="scx-campaign-name-text" title="${esc(name)}">${esc(name)}</div>${scxCampaignRunningDaysBadgeHtml(row)}</div></td>`;
-            html += `<td class="text-end">${esc(fmtIdr(spend))}</td>`;
-            html += `<td class="text-end">${esc(fmtIdr(revenue))}</td>`;
-            html += `<td class="text-end">${scxRoiBadgeHtml(roi)}</td>`;
+            html += `<td class="text-center">${esc(String(idx + 1))}</td>`;
+            html += `<td data-search="${esc(name)}"><div class="scx-campaign-name-cell"><div class="scx-campaign-name-text" title="${esc(name)}">${esc(name)}</div>${scxCampaignRunningDaysBadgeHtml(row)}</div></td>`;
+            html += `<td class="text-end" data-order="${esc(String(spend))}">${esc(fmtIdr(spend))}</td>`;
+            html += `<td class="text-end" data-order="${esc(String(revenue))}">${esc(fmtIdr(revenue))}</td>`;
+            html += `<td class="text-end" data-order="${esc(String(roi))}">${scxRoiBadgeHtml(roi)}</td>`;
             html += `<td><span class="scx-pill ${scxCampaignStatusTone(row?.campaign_status)}">${esc(scxCampaignStatusLabel(row?.campaign_status))}</span></td>`;
             html += `<td><span class="scx-pill gray">${esc(tag.friendly || scxFriendlyLabel(tag.label))}</span></td>`;
             html += `<td><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:3px;"><span class="scx-pill ${fcTone}" style="font-size:10px;padding:2px 8px;">${esc(rec.fdir)}</span><span class="scx-pill gray" style="font-size:10px;padding:2px 8px;">${esc(String(rec.horizon))} jam</span><span class="scx-pill gray" style="font-size:10px;padding:2px 8px;">${esc(scxPct01(rec.conf, 0))}</span></div><div class="scx-sub" style="margin:0;font-size:11px;">${esc(rec.summary)}</div></td>`;
             html += `<td class="text-end"><span class="scx-pill ${actionTone}" style="font-size:10px;padding:2px 8px;">${esc(action)}</span><div style="font-size:11px;font-weight:700;margin-top:4px;">${esc(recPctTxt)}</div></td>`;
             if (canAct) {
-                html += `<td class="text-end"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm scx-campaign-budget-input" data-cid="${esc(cid)}" value="${esc(fmtBudgetInput(suggestedBudget))}" style="text-align:right;max-width:132px;margin-left:auto;${isStatusAction ? 'opacity:.65;' : ''}" ${isStatusAction ? 'readonly' : ''}></td>`;
-                html += `<td class="text-center"><button type="button" class="btn btn-sm btn-outline-primary scx-campaign-act-btn" data-cid="${esc(cid)}" data-action="${esc(action)}" data-bud-input="${esc(inputId)}">Save</button></td>`;
+                html += `<td class="text-end" data-order="${esc(String(suggestedBudget))}"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm scx-campaign-budget-input" data-cid="${esc(cid)}" value="${esc(fmtBudgetInput(suggestedBudget))}" style="text-align:right;max-width:132px;margin-left:auto;${isStatusAction ? 'opacity:.65;' : ''}" ${isStatusAction ? 'readonly' : ''}></td>`;
+                html += `<td class="text-center scx-campaign-col-aksi"><button type="button" class="btn btn-sm btn-outline-primary scx-campaign-act-btn" data-cid="${esc(cid)}" data-action="${esc(action)}" data-bud-input="${esc(inputId)}">Save</button></td>`;
             } else {
-                html += `<td class="text-end">${bud > 0 ? esc(fmtIdr(bud)) : '<span class="text-muted">—</span>'}</td>`;
-                html += '<td class="text-center"><span class="text-muted">—</span></td>';
+                html += `<td class="text-end" data-order="${esc(String(bud))}">${bud > 0 ? esc(fmtIdr(bud)) : '<span class="text-muted">—</span>'}</td>`;
+                html += '<td class="text-center scx-campaign-col-aksi"><span class="text-muted">—</span></td>';
             }
             html += '</tr>';
         });
@@ -16713,7 +17189,9 @@ function initDashboardRecap() {
         cache.filteredRows = filtered;
         const totals = scxSummarizeCampaignRows(filtered);
         if (summaryEl) summaryEl.innerHTML = scxRenderCampaignMetricSummaryBoxes(totals.spend, totals.revenue, totals.profit, totals.roi);
+        scxDestroyCampaignTabDataTable();
         if (tableWrap) tableWrap.innerHTML = scxRenderCampaignTabTable(filtered, cache);
+        if (filtered.length) scxInitCampaignTabDataTable(cache);
         if (tableMeta) {
             const metaSuffix = cache.activeOnly ? ' • hanya aktif' : '';
             tableMeta.textContent = `${filtered.length} campaign • ${cache.startYmd || '-'} s/d ${cache.endYmd || '-'}${metaSuffix}`;
@@ -16873,6 +17351,7 @@ function initDashboardRecap() {
             }
         } catch (e) {
             scxSetCampaignTabLoading(false);
+            scxDestroyCampaignTabDataTable();
             const summaryEl = document.getElementById('scxCampaignSummary');
             if (summaryEl) summaryEl.innerHTML = '';
             if (tableWrap) tableWrap.innerHTML = `<div class="scx-sub" style="padding:14px;color:#dc2626;">${esc(String(e?.message || 'Gagal memuat campaign'))}</div>`;
