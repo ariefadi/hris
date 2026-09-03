@@ -78,6 +78,7 @@ def ensure_chat_tables(db):
     except Exception:
         pass
     _ensure_file_columns(db)
+    _ensure_group_tables(db)
     return None
 
 
@@ -102,6 +103,10 @@ def _ensure_file_columns(db):
         'file_path': 'VARCHAR(500) NULL',
         'file_mime': 'VARCHAR(120) NULL',
         'file_size': 'INT NULL',
+        'group_id': 'VARCHAR(36) NULL',
+        'reply_to_id': 'VARCHAR(36) NULL',
+        'forwarded_from_id': 'VARCHAR(36) NULL',
+        'forwarded_from_alias': 'VARCHAR(250) NULL',
     }
     changed = False
     for col, spec in alters.items():
@@ -114,6 +119,36 @@ def _ensure_file_columns(db):
             db.commit()
         except Exception:
             pass
+
+
+def _ensure_group_tables(db):
+    ddl = [
+        """
+        CREATE TABLE IF NOT EXISTS app_chat_group (
+            group_id VARCHAR(36) NOT NULL,
+            group_name VARCHAR(150) NOT NULL,
+            created_by VARCHAR(36) NOT NULL,
+            created_at DATETIME NOT NULL,
+            PRIMARY KEY (group_id),
+            KEY idx_chat_group_created (created_by)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS app_chat_group_member (
+            group_id VARCHAR(36) NOT NULL,
+            user_id VARCHAR(36) NOT NULL,
+            added_at DATETIME NOT NULL,
+            PRIMARY KEY (group_id, user_id),
+            KEY idx_chat_group_member_user (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """,
+    ]
+    for sql in ddl:
+        db.execute_query(sql)
+    try:
+        db.commit()
+    except Exception:
+        pass
 
 
 def _preview_body(body, file_name=None):
@@ -137,10 +172,51 @@ def _is_image_file(file_name, file_mime):
 
 
 def room_key_for(peer):
-    peer = str(peer or '').strip()
-    if not peer or peer == TEAM_ROOM:
+    kind, pid = parse_peer(peer)
+    if kind == 'team':
         return TEAM_ROOM
-    return 'direct:' + peer
+    if kind == 'group':
+        return 'group:' + pid
+    return 'direct:' + pid
+
+
+def parse_peer(peer):
+    peer = str(peer or '').strip() or TEAM_ROOM
+    if peer == TEAM_ROOM:
+        return 'team', None
+    if peer.startswith('group:'):
+        gid = peer.split(':', 1)[1].strip()
+        return 'group', gid
+    return 'direct', peer
+
+
+def peer_key_from_message(row, current_user_id):
+    room_type = str(_row_get(row, 'room_type') or '')
+    uid = str(current_user_id or '')
+    if room_type == TEAM_ROOM:
+        return TEAM_ROOM
+    if room_type == 'group':
+        gid = str(_row_get(row, 'group_id') or '')
+        return 'group:' + gid if gid else TEAM_ROOM
+    from_id = str(_row_get(row, 'from_user_id') or '')
+    to_id = str(_row_get(row, 'to_user_id') or '')
+    if from_id == uid:
+        return to_id
+    return from_id
+
+
+def _lookup_alias(db, user_id):
+    uid = str(user_id or '').strip()
+    if not uid:
+        return ''
+    if db.execute_query(
+        "SELECT user_alias, user_name FROM app_users WHERE user_id = %s LIMIT 1",
+        (uid,),
+    ):
+        row = db.cur_hris.fetchone()
+        if row:
+            return str(_row_get(row, 'user_alias') or _row_get(row, 'user_name') or '')
+    return ''
 
 
 def upsert_presence(db, user_id):
@@ -208,11 +284,11 @@ def mark_read(db, user_id, peer):
 
 def get_peer_receipt(db, user_id, peer):
     uid = str(user_id or '').strip()
-    peer = str(peer or TEAM_ROOM).strip() or TEAM_ROOM
+    kind, pid = parse_peer(peer)
     read_at = None
     online = False
     cutoff = _now() - timedelta(seconds=ONLINE_SECONDS)
-    if peer == TEAM_ROOM:
+    if kind == 'team':
         sql = """
             SELECT MAX(last_read_at) AS last_read_at
             FROM app_chat_read
@@ -232,6 +308,28 @@ def get_peer_receipt(db, user_id, peer):
                 online = int(_row_get(row, 'n') or 0) > 0
             except (TypeError, ValueError):
                 online = False
+    elif kind == 'group':
+        key = 'group:' + str(pid or '')
+        sql = """
+            SELECT MAX(last_read_at) AS last_read_at
+            FROM app_chat_read
+            WHERE room_key = %s AND user_id <> %s
+        """
+        if db.execute_query(sql, (key, uid)):
+            row = db.cur_hris.fetchone()
+            read_at = _row_get(row, 'last_read_at') if row else None
+        sql_on = """
+            SELECT COUNT(*) AS n
+            FROM app_chat_group_member gm
+            INNER JOIN app_chat_presence p ON p.user_id = gm.user_id
+            WHERE gm.group_id = %s AND gm.user_id <> %s AND p.last_seen >= %s
+        """
+        if db.execute_query(sql_on, (pid, uid, cutoff)):
+            row = db.cur_hris.fetchone()
+            try:
+                online = int(_row_get(row, 'n') or 0) > 0
+            except (TypeError, ValueError):
+                online = False
     else:
         sql = """
             SELECT last_read_at
@@ -239,7 +337,7 @@ def get_peer_receipt(db, user_id, peer):
             WHERE user_id = %s AND room_key = %s
             LIMIT 1
         """
-        if db.execute_query(sql, (peer, 'direct:' + uid)):
+        if db.execute_query(sql, (pid, 'direct:' + uid)):
             row = db.cur_hris.fetchone()
             read_at = _row_get(row, 'last_read_at') if row else None
         sql_on = """
@@ -248,7 +346,7 @@ def get_peer_receipt(db, user_id, peer):
             WHERE user_id = %s AND last_seen >= %s
             LIMIT 1
         """
-        if db.execute_query(sql_on, (peer, cutoff)):
+        if db.execute_query(sql_on, (pid, cutoff)):
             online = bool(db.cur_hris.fetchone())
     return {
         'peer_read_at': _fmt_dt(read_at),
@@ -293,7 +391,213 @@ def list_online_users(db, current_user_id):
     return out
 
 
-def insert_message(db, from_user_id, peer, body, file_meta=None):
+def is_group_member(db, user_id, group_id):
+    if not user_id or not group_id:
+        return False
+    sql = """
+        SELECT 1 AS ok
+        FROM app_chat_group_member
+        WHERE group_id = %s AND user_id = %s
+        LIMIT 1
+    """
+    if not db.execute_query(sql, (group_id, user_id)):
+        return False
+    return bool(db.cur_hris.fetchone())
+
+
+def get_group(db, group_id):
+    gid = str(group_id or '').strip()
+    if not gid:
+        return None
+    sql = """
+        SELECT group_id, group_name, created_by, created_at
+        FROM app_chat_group
+        WHERE group_id = %s
+        LIMIT 1
+    """
+    if not db.execute_query(sql, (gid,)):
+        return None
+    return db.cur_hris.fetchone()
+
+
+def list_group_members(db, current_user_id, group_id):
+    uid = str(current_user_id or '').strip()
+    gid = str(group_id or '').strip()
+    if not uid or not gid:
+        return None, 'Grup tidak valid'
+    if not is_group_member(db, uid, gid):
+        return None, 'Anda bukan anggota grup ini'
+    group = get_group(db, gid)
+    if not group:
+        return None, 'Grup tidak ditemukan'
+    created_by = str(_row_get(group, 'created_by') or '')
+    sql = """
+        SELECT u.user_id, u.user_alias, u.user_name, u.user_mail, u.user_foto, gm.added_at
+        FROM app_chat_group_member gm
+        INNER JOIN app_users u ON u.user_id = gm.user_id
+        WHERE gm.group_id = %s
+        ORDER BY COALESCE(u.user_alias, u.user_name) ASC
+    """
+    rows = []
+    if db.execute_query(sql, (gid,)):
+        rows = db.cur_hris.fetchall() or []
+    online_ids = {u['user_id'] for u in list_online_users(db, uid)}
+    members = []
+    for row in rows:
+        item = _serialize_user(row)
+        if not item or not item['user_id']:
+            continue
+        item['online'] = item['user_id'] in online_ids
+        item['is_me'] = item['user_id'] == uid
+        item['is_creator'] = item['user_id'] == created_by
+        members.append(item)
+    members.sort(key=lambda m: (
+        0 if m.get('is_me') else 1,
+        0 if m.get('online') else 1,
+        str(m.get('user_alias') or '').lower(),
+    ))
+    return {
+        'peer': 'group:' + gid,
+        'group_id': gid,
+        'group_name': str(_row_get(group, 'group_name') or 'Grup'),
+        'created_by': created_by,
+        'member_count': len(members),
+        'members': members,
+    }, None
+
+
+def list_directory_users(db, current_user_id):
+    uid = str(current_user_id or '').strip()
+    sql = """
+        SELECT user_id, user_alias, user_name, user_mail, user_foto
+        FROM app_users
+        WHERE CAST(COALESCE(user_st, '0') AS CHAR) = '1'
+          AND user_id <> %s
+        ORDER BY COALESCE(user_alias, user_name) ASC
+        LIMIT 300
+    """
+    rows = []
+    if db.execute_query(sql, (uid,)):
+        rows = db.cur_hris.fetchall() or []
+    online_ids = {u['user_id'] for u in list_online_users(db, uid) if not u.get('is_me')}
+    out = []
+    for row in rows:
+        item = _serialize_user(row)
+        if not item or not item['user_id']:
+            continue
+        item['online'] = item['user_id'] in online_ids
+        out.append(item)
+    return out
+
+
+def create_group(db, creator_id, name, member_ids):
+    uid = str(creator_id or '').strip()
+    title = str(name or '').strip()
+    if not uid:
+        return None, 'User tidak valid'
+    if len(title) < 2:
+        return None, 'Nama grup minimal 2 karakter'
+    if len(title) > 80:
+        return None, 'Nama grup maksimal 80 karakter'
+    members = []
+    seen = set()
+    for raw in (member_ids or []):
+        mid = str(raw or '').strip()
+        if not mid or mid == uid or mid in seen:
+            continue
+        if not _user_exists(db, mid):
+            continue
+        seen.add(mid)
+        members.append(mid)
+    if not members:
+        return None, 'Pilih minimal satu anggota selain Anda'
+    group_id = str(uuid.uuid4())
+    now = _now()
+    if not db.execute_query(
+        """
+        INSERT INTO app_chat_group (group_id, group_name, created_by, created_at)
+        VALUES (%s, %s, %s, %s)
+        """,
+        (group_id, title, uid, now),
+    ):
+        return None, getattr(db, 'last_error', None) or 'Gagal membuat grup'
+    all_members = [uid] + members
+    for member in all_members:
+        db.execute_query(
+            """
+            INSERT IGNORE INTO app_chat_group_member (group_id, user_id, added_at)
+            VALUES (%s, %s, %s)
+            """,
+            (group_id, member, now),
+        )
+    try:
+        db.commit()
+    except Exception as e:
+        return None, str(e)
+    return {
+        'peer': 'group:' + group_id,
+        'group_id': group_id,
+        'group_name': title,
+        'member_count': len(all_members),
+        'created_by': uid,
+    }, None
+
+
+def list_my_groups(db, user_id, unread_map=None):
+    uid = str(user_id or '').strip()
+    unread_map = unread_map or {}
+    sql = """
+        SELECT g.group_id, g.group_name, g.created_by,
+               (SELECT COUNT(*) FROM app_chat_group_member gm2 WHERE gm2.group_id = g.group_id) AS member_count
+        FROM app_chat_group g
+        INNER JOIN app_chat_group_member gm ON gm.group_id = g.group_id AND gm.user_id = %s
+        ORDER BY g.group_name ASC
+    """
+    rows = []
+    if db.execute_query(sql, (uid,)):
+        rows = db.cur_hris.fetchall() or []
+    out = []
+    for row in rows:
+        gid = str(_row_get(row, 'group_id') or '')
+        if not gid:
+            continue
+        preview = _last_group_preview(db, gid)
+        out.append({
+            'peer': 'group:' + gid,
+            'group_id': gid,
+            'group_name': str(_row_get(row, 'group_name') or 'Grup'),
+            'member_count': int(_row_get(row, 'member_count') or 0),
+            'created_by': str(_row_get(row, 'created_by') or ''),
+            'unread': int(unread_map.get(gid) or 0),
+            'last_body': (preview or {}).get('last_body') or '',
+            'last_at': (preview or {}).get('last_at'),
+            'last_from': (preview or {}).get('last_from') or '',
+        })
+    return out
+
+
+def _last_group_preview(db, group_id):
+    sql = """
+        SELECT m.body, m.file_name, m.created_at, u.user_alias AS from_alias
+        FROM app_chat_message m
+        LEFT JOIN app_users u ON u.user_id = m.from_user_id
+        WHERE m.room_type = 'group' AND m.group_id = %s
+        ORDER BY m.created_at DESC, m.message_id DESC
+        LIMIT 1
+    """
+    if not db.execute_query(sql, (group_id,)):
+        return None
+    row = db.cur_hris.fetchone()
+    if not row:
+        return None
+    return {
+        'last_body': _preview_body(_row_get(row, 'body'), _row_get(row, 'file_name')),
+        'last_at': _fmt_dt(_row_get(row, 'created_at')),
+        'last_from': str(_row_get(row, 'from_alias') or ''),
+    }
+
+
+def insert_message(db, from_user_id, peer, body, file_meta=None, reply_to_id=None, forwarded_from_id=None, forwarded_from_alias=None):
     uid = str(from_user_id or '').strip()
     text = str(body or '').strip()
     file_meta = file_meta or {}
@@ -304,25 +608,42 @@ def insert_message(db, from_user_id, peer, body, file_meta=None):
     if len(text) > BODY_MAX:
         return None, f'Pesan maksimal {BODY_MAX} karakter'
 
-    peer = str(peer or TEAM_ROOM).strip() or TEAM_ROOM
-    if peer == TEAM_ROOM:
+    kind, pid = parse_peer(peer)
+    group_id = None
+    to_user_id = None
+    if kind == 'team':
         room_type = TEAM_ROOM
-        to_user_id = None
+    elif kind == 'group':
+        room_type = 'group'
+        group_id = pid
+        if not is_group_member(db, uid, group_id):
+            return None, 'Anda bukan anggota grup ini'
     else:
-        if peer == uid:
-            return None, 'Tidak bisa mengirim ke diri sendiri'
         room_type = 'direct'
-        to_user_id = peer
+        to_user_id = pid
+        if to_user_id == uid:
+            return None, 'Tidak bisa mengirim ke diri sendiri'
         if not _user_exists(db, to_user_id):
             return None, 'User tidak ditemukan'
+
+    reply_to_id = str(reply_to_id or '').strip() or None
+    reply_meta = None
+    if reply_to_id:
+        src = get_accessible_message(db, uid, reply_to_id)
+        if not src:
+            return None, 'Pesan yang dibalas tidak ditemukan'
+        if room_key_for(peer_key_from_message(src, uid)) != room_key_for(peer):
+            return None, 'Balasan harus di percakapan yang sama'
+        reply_meta = src
 
     message_id = str(uuid.uuid4())
     created_at = _now()
     sql = """
         INSERT INTO app_chat_message (
             message_id, room_type, from_user_id, to_user_id, body, created_at,
-            file_name, file_path, file_mime, file_size
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            file_name, file_path, file_mime, file_size,
+            group_id, reply_to_id, forwarded_from_id, forwarded_from_alias
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     params = (
         message_id,
@@ -335,6 +656,10 @@ def insert_message(db, from_user_id, peer, body, file_meta=None):
         file_meta.get('file_path') or None,
         file_meta.get('file_mime') or None,
         file_meta.get('file_size'),
+        group_id,
+        reply_to_id,
+        str(forwarded_from_id or '').strip() or None,
+        str(forwarded_from_alias or '').strip() or None,
     )
     if not db.execute_query(sql, params):
         return None, getattr(db, 'last_error', None) or 'Gagal menyimpan pesan'
@@ -343,7 +668,7 @@ def insert_message(db, from_user_id, peer, body, file_meta=None):
     except Exception as e:
         return None, str(e)
     mark_read(db, uid, peer)
-    return serialize_message({
+    payload = {
         'message_id': message_id,
         'room_type': room_type,
         'from_user_id': uid,
@@ -356,7 +681,16 @@ def insert_message(db, from_user_id, peer, body, file_meta=None):
         'file_path': file_meta.get('file_path'),
         'file_mime': file_meta.get('file_mime'),
         'file_size': file_meta.get('file_size'),
-    }, uid), None
+        'group_id': group_id,
+        'reply_to_id': reply_to_id,
+        'forwarded_from_id': str(forwarded_from_id or '').strip() or None,
+        'forwarded_from_alias': str(forwarded_from_alias or '').strip() or None,
+    }
+    if reply_meta:
+        payload['reply_body'] = _row_get(reply_meta, 'body')
+        payload['reply_from_alias'] = _lookup_alias(db, _row_get(reply_meta, 'from_user_id'))
+        payload['reply_file_name'] = _row_get(reply_meta, 'file_name')
+    return serialize_message(payload, uid), None
 
 
 def _user_exists(db, user_id):
@@ -375,11 +709,14 @@ def serialize_message(row, current_user_id):
     file_path = str(_row_get(row, 'file_path') or '')
     file_mime = str(_row_get(row, 'file_mime') or '')
     has_file = bool(file_path or file_name)
+    reply_to_id = str(_row_get(row, 'reply_to_id') or '')
+    fwd_alias = str(_row_get(row, 'forwarded_from_alias') or '')
     return {
         'message_id': message_id,
         'room_type': str(_row_get(row, 'room_type') or ''),
         'from_user_id': from_id,
         'to_user_id': str(_row_get(row, 'to_user_id') or '') or None,
+        'group_id': str(_row_get(row, 'group_id') or '') or None,
         'body': str(_row_get(row, 'body') or ''),
         'created_at': _fmt_dt(_row_get(row, 'created_at')),
         'from_alias': str(_row_get(row, 'from_alias') or ''),
@@ -391,6 +728,12 @@ def serialize_message(row, current_user_id):
         'file_size': _row_get(row, 'file_size'),
         'file_is_image': _is_image_file(file_name, file_mime) if has_file else False,
         'file_url': ('/management/admin/chat_file/' + message_id) if has_file else '',
+        'reply_to_id': reply_to_id or None,
+        'reply_body': str(_row_get(row, 'reply_body') or ''),
+        'reply_from_alias': str(_row_get(row, 'reply_from_alias') or ''),
+        'reply_file_name': str(_row_get(row, 'reply_file_name') or ''),
+        'forwarded': bool(_row_get(row, 'forwarded_from_id') or fwd_alias),
+        'forwarded_from_alias': fwd_alias,
     }
 
 
@@ -400,8 +743,9 @@ def get_accessible_message(db, user_id, message_id):
     if not uid or not mid:
         return None
     sql = """
-        SELECT message_id, room_type, from_user_id, to_user_id,
-               file_name, file_path, file_mime, file_size
+        SELECT message_id, room_type, from_user_id, to_user_id, group_id, body,
+               file_name, file_path, file_mime, file_size,
+               forwarded_from_id, forwarded_from_alias
         FROM app_chat_message
         WHERE message_id = %s
         LIMIT 1
@@ -416,9 +760,38 @@ def get_accessible_message(db, user_id, message_id):
     to_id = str(_row_get(row, 'to_user_id') or '')
     if room_type == TEAM_ROOM:
         return row
+    if room_type == 'group':
+        gid = str(_row_get(row, 'group_id') or '')
+        if is_group_member(db, uid, gid):
+            return row
+        return None
     if from_id == uid or to_id == uid:
         return row
     return None
+
+
+def forward_message(db, user_id, message_id, to_peer):
+    src = get_accessible_message(db, user_id, message_id)
+    if not src:
+        return None, 'Pesan tidak ditemukan'
+    file_meta = None
+    if _row_get(src, 'file_path'):
+        file_meta = {
+            'file_name': _row_get(src, 'file_name'),
+            'file_path': _row_get(src, 'file_path'),
+            'file_mime': _row_get(src, 'file_mime'),
+            'file_size': _row_get(src, 'file_size'),
+        }
+    alias = _lookup_alias(db, _row_get(src, 'from_user_id')) or 'User'
+    return insert_message(
+        db,
+        user_id,
+        to_peer,
+        _row_get(src, 'body') or '',
+        file_meta=file_meta,
+        forwarded_from_id=_row_get(src, 'message_id'),
+        forwarded_from_alias=alias,
+    )
 
 
 def save_chat_upload(uploaded_file):
@@ -485,9 +858,15 @@ def list_messages(db, current_user_id, peer, after_id=None, limit=MESSAGE_PAGE):
         if after_created is None:
             return []
 
-    if peer == TEAM_ROOM:
+    kind, pid = parse_peer(peer)
+    if kind == 'team':
         where = "m.room_type = 'team'"
         params = []
+    elif kind == 'group':
+        if not is_group_member(db, uid, pid):
+            return []
+        where = "m.room_type = 'group' AND m.group_id = %s"
+        params = [pid]
     else:
         where = """
             m.room_type = 'direct'
@@ -496,7 +875,7 @@ def list_messages(db, current_user_id, peer, after_id=None, limit=MESSAGE_PAGE):
                 OR (m.from_user_id = %s AND m.to_user_id = %s)
             )
         """
-        params = [uid, peer, peer, uid]
+        params = [uid, pid, pid, uid]
 
     if after_id and after_created is not None:
         where += " AND (m.created_at > %s OR (m.created_at = %s AND m.message_id > %s))"
@@ -507,10 +886,15 @@ def list_messages(db, current_user_id, peer, after_id=None, limit=MESSAGE_PAGE):
 
     sql = f"""
         SELECT m.message_id, m.room_type, m.from_user_id, m.to_user_id, m.body, m.created_at,
-               m.file_name, m.file_path, m.file_mime, m.file_size,
-               u.user_alias AS from_alias, u.user_foto AS from_foto
+               m.file_name, m.file_path, m.file_mime, m.file_size, m.group_id,
+               m.reply_to_id, m.forwarded_from_id, m.forwarded_from_alias,
+               u.user_alias AS from_alias, u.user_foto AS from_foto,
+               rm.body AS reply_body, rm.file_name AS reply_file_name,
+               ru.user_alias AS reply_from_alias
         FROM app_chat_message m
         LEFT JOIN app_users u ON u.user_id = m.from_user_id
+        LEFT JOIN app_chat_message rm ON rm.message_id = m.reply_to_id
+        LEFT JOIN app_users ru ON ru.user_id = rm.from_user_id
         WHERE {where}
         ORDER BY m.created_at ASC, m.message_id ASC
         LIMIT {int(limit)}
@@ -522,10 +906,15 @@ def list_messages(db, current_user_id, peer, after_id=None, limit=MESSAGE_PAGE):
     else:
         inner_sql = f"""
             SELECT m.message_id, m.room_type, m.from_user_id, m.to_user_id, m.body, m.created_at,
-                   m.file_name, m.file_path, m.file_mime, m.file_size,
-                   u.user_alias AS from_alias, u.user_foto AS from_foto
+                   m.file_name, m.file_path, m.file_mime, m.file_size, m.group_id,
+                   m.reply_to_id, m.forwarded_from_id, m.forwarded_from_alias,
+                   u.user_alias AS from_alias, u.user_foto AS from_foto,
+                   rm.body AS reply_body, rm.file_name AS reply_file_name,
+                   ru.user_alias AS reply_from_alias
             FROM app_chat_message m
             LEFT JOIN app_users u ON u.user_id = m.from_user_id
+            LEFT JOIN app_chat_message rm ON rm.message_id = m.reply_to_id
+            LEFT JOIN app_users ru ON ru.user_id = rm.from_user_id
             WHERE {where}
             ORDER BY m.created_at DESC, m.message_id DESC
             LIMIT {int(limit)}
@@ -536,6 +925,32 @@ def list_messages(db, current_user_id, peer, after_id=None, limit=MESSAGE_PAGE):
             rows.reverse()
 
     return [serialize_message(row, uid) for row in rows]
+
+
+def _unread_group_map(db, user_id):
+    sql = """
+        SELECT m.group_id AS peer_id, COUNT(*) AS n
+        FROM app_chat_message m
+        INNER JOIN app_chat_group_member gm
+          ON gm.group_id = m.group_id AND gm.user_id = %s
+        LEFT JOIN app_chat_read r
+          ON r.user_id = %s AND r.room_key = CONCAT('group:', m.group_id)
+        WHERE m.room_type = 'group'
+          AND m.from_user_id <> %s
+          AND (r.last_read_at IS NULL OR m.created_at > r.last_read_at)
+        GROUP BY m.group_id
+    """
+    out = {}
+    if db.execute_query(sql, (user_id, user_id, user_id)):
+        for row in (db.cur_hris.fetchall() or []):
+            gid = str(_row_get(row, 'peer_id') or '')
+            if not gid:
+                continue
+            try:
+                out[gid] = int(_row_get(row, 'n') or 0)
+            except (TypeError, ValueError):
+                out[gid] = 0
+    return out
 
 
 def _unread_team(db, user_id):
@@ -666,8 +1081,10 @@ def snapshot(db, current_user_id):
     online = list_online_users(db, uid)
     online_ids = {u['user_id'] for u in online if not u.get('is_me')}
     unread_map = _unread_direct_map(db, uid)
+    unread_group_map = _unread_group_map(db, uid)
     team_unread = _unread_team(db, uid)
     conversations = _recent_direct_conversations(db, uid, unread_map, online_ids)
+    groups = list_my_groups(db, uid, unread_group_map)
 
     conv_ids = {c['user_id'] for c in conversations}
     for user in online:
@@ -694,14 +1111,16 @@ def snapshot(db, current_user_id):
     ))
 
     unread_direct = sum(int(c.get('unread') or 0) for c in conversations)
+    unread_groups = sum(int(g.get('unread') or 0) for g in groups)
     others_online = [u for u in online if not u.get('is_me')]
     return {
         'online_count': len(others_online) + 1,
         'online': others_online,
         'conversations': conversations,
+        'groups': groups,
         'team': {
             'unread': team_unread,
             **(_last_team_preview(db) or {'last_body': '', 'last_at': None, 'last_from': ''}),
         },
-        'unread_total': int(team_unread) + int(unread_direct),
+        'unread_total': int(team_unread) + int(unread_direct) + int(unread_groups),
     }

@@ -26,7 +26,7 @@
         <!-- DataTables Responsive Custom CSS -->
         <link rel="stylesheet" href="{% static 'css/datatable-responsive.css' %}">
         <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_roi_badge.css' %}?v=2">
-        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_live_chat.css' %}?v=7">
+        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_live_chat.css' %}?v=9">
         {% block more_stylesheet %}{% endblock %}
         <style>
         /* FixedColumns CSS removed as requested */
@@ -1050,6 +1050,10 @@
              data-messages-url="{% url 'chat_messages' %}"
              data-send-url="{% url 'chat_send' %}"
              data-read-url="{% url 'chat_read' %}"
+             data-directory-url="{% url 'chat_directory' %}"
+             data-group-url="{% url 'chat_group_create' %}"
+             data-group-members-url="{% url 'chat_group_members' %}"
+             data-forward-url="{% url 'chat_forward' %}"
              data-default-foto="{% static 'dist/assets/img/user2-160x160.jpg' %}">
             {% csrf_token %}
             <button type="button" class="hris-live-chat-fab" id="hrisLiveChatFab" aria-label="Buka live chat">
@@ -1072,7 +1076,10 @@
                 <div class="hris-live-chat-body">
                     <div class="hris-live-chat-list" id="hrisLiveChatList"></div>
                     <div class="hris-live-chat-thread">
-                        <div class="hris-live-chat-thread-title" id="hrisLiveChatThreadTitle">Chat Tim</div>
+                        <button type="button" class="hris-live-chat-thread-title" id="hrisLiveChatThreadTitle">
+                            <span class="hris-live-chat-thread-name" id="hrisLiveChatThreadName">Chat Tim</span>
+                            <small class="hris-live-chat-thread-sub" id="hrisLiveChatThreadSub"></small>
+                        </button>
                         <div class="hris-live-chat-messages" id="hrisLiveChatMessages">
                             <div class="hris-live-chat-empty">Pilih percakapan untuk mulai chat.</div>
                         </div>
@@ -1082,6 +1089,13 @@
                             </div>
                             <div class="hris-live-chat-emoji-cats" id="hrisLiveChatEmojiCats"></div>
                             <div class="hris-live-chat-emoji-grid" id="hrisLiveChatEmojiGrid"></div>
+                        </div>
+                        <div class="hris-live-chat-reply-bar" id="hrisLiveChatReplyBar">
+                            <div class="hris-live-chat-reply-bar-text">
+                                <strong id="hrisLiveChatReplyName"></strong>
+                                <span id="hrisLiveChatReplyPreview"></span>
+                            </div>
+                            <button type="button" id="hrisLiveChatReplyClear" aria-label="Batal membalas">&times;</button>
                         </div>
                         <div class="hris-live-chat-compose">
                             <div class="hris-live-chat-file-chip" id="hrisLiveChatFileChip">
@@ -1103,6 +1117,14 @@
                             </button>
                         </div>
                     </div>
+                </div>
+                <div class="hris-live-chat-sheet" id="hrisLiveChatSheet">
+                    <div class="hris-live-chat-sheet-head">
+                        <strong id="hrisLiveChatSheetTitle">Grup baru</strong>
+                        <button type="button" id="hrisLiveChatSheetClose" aria-label="Tutup">&times;</button>
+                    </div>
+                    <div class="hris-live-chat-sheet-body" id="hrisLiveChatSheetBody"></div>
+                    <div class="hris-live-chat-sheet-foot" id="hrisLiveChatSheetFoot"></div>
                 </div>
             </section>
         </div>
@@ -1298,7 +1320,7 @@
         <script src="{% static 'ajax/admin/shared/hris_roi_tier_filter.js' %}?v=1"></script>
         <script src="{% static 'ajax/admin/shared/hris_table_export.js' %}?v=21"></script>
         {% if request.session.hris_admin %}
-        <script src="{% static 'ajax/admin/shared/hris_live_chat.js' %}?v=5"></script>
+        <script src="{% static 'ajax/admin/shared/hris_live_chat.js' %}?v=7"></script>
         {% endif %}
         <script src="{% static 'plugins/datatables-buttons/js/buttons.html5.min.js' %}"></script>
         <script src="{% static 'plugins/datatables-buttons/js/buttons.print.min.js' %}"></script>
