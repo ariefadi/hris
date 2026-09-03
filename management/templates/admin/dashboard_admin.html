@@ -1,7 +1,7 @@
 {% extends "admin_base.html" %}
 {% load static %}
 {% block page_title %}Dashboard{% endblock %}
-{% block body_class %}hold-transition sidebar-mini dashboard-admin-page{% endblock %}
+{% block body_class %}hold-transition sidebar-mini dashboard-admin-page{% if hide_earning_finance %} hris-hide-earning-finance{% endif %}{% endblock %}
 {% block page_heading %}{% endblock %}
 {% block more_stylesheet %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
@@ -6419,12 +6419,14 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                         </div>
                     </div>
                     <div class="card-body">
+                        {% if not hide_earning_finance %}
                         <div class="row" id="dashboardRecapSummaryRow">
                             <div class="col-12 col-sm-6 col-md-3"><div class="metric-card spend"><div class="metric-card-inner"><div><div class="metric-label">Total Spend</div><div class="metric-value" id="recapTotalSpend">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></div></div></div></div>
                             <div class="col-12 col-sm-6 col-md-3"><div class="metric-card revenue"><div class="metric-card-inner"><div><div class="metric-label">Total Pendapatan</div><div class="metric-value" id="recapTotalRevenue">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-currency-dollar"></i></div></div></div></div>
                             <div class="col-12 col-sm-6 col-md-3"><div class="metric-card net"><div class="metric-card-inner"><div><div class="metric-label">Total Pendapatan Bersih</div><div class="metric-value" id="recapTotalNet">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-graph-up"></i></div></div></div></div>
                             <div class="col-12 col-sm-6 col-md-3"><div class="metric-card roi"><div class="metric-card-inner"><div><div class="metric-label">ROI Nett</div><div class="metric-value" id="recapTotalRoi">0%</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-bullseye"></i></div></div></div></div>
                         </div>
+                        {% endif %}
 
                         <div class="card dashboard-card mt-3" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
@@ -6444,10 +6446,14 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                                 <th class="text-center">Avg Health</th>
                                                 <th class="text-center">Avg Risk</th>
                                                 <th class="text-end">Spend</th>
+                                                {% if not hide_earning_finance %}
                                                 <th class="text-end">Pendapatan</th>
+                                                {% endif %}
                                                 <th class="text-center">Alert Dominan</th>
                                                 <th class="text-center">Kondisi</th>
+                                                {% if not hide_earning_finance %}
                                                 <th class="text-center">Detail</th>
+                                                {% endif %}
                                             </tr>
                                         </thead>
                                         <tbody id="dashboardAccountRelationTbody"></tbody>
@@ -6519,11 +6525,11 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                             <th class="text-center">Campaign <br> Aktif</th>
                                             <th class="text-center">Daily <br> Budget</th>
                                             <th class="text-center">Spend</th>
-                                            <th class="text-center">Pendapatan</th>
+                                            <th class="text-center js-earning-restricted-col">Pendapatan</th>
                                             <th class="text-center">ROI</th>
                                             <th class="text-center">Score</th>
                                             <th class="text-center">Hasil <br> Keputusan</th>
-                                            <th class="text-center">Detail</th>
+                                            <th class="text-center js-earning-restricted-col">Detail</th>
                                         </tr>
                                     </thead>
                                     <tbody id="dashboardRecapTbody"></tbody>
@@ -6532,6 +6538,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                             <div id="dsKeputusanTooltip" class="ds-keputusan-tooltip-float" role="tooltip" hidden aria-hidden="true"></div>
                         </div>
 
+                        {% if not hide_earning_finance %}
                         <div class="card dashboard-card mt-2" id="dashboardWinningCampaignCard" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
                                 <div style="font-weight:900;"><i class="bi bi-trophy me-2"></i> Winning Campaign</div>
@@ -6580,6 +6587,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
                         <div class="card dashboard-card mt-2" id="dashboardPulseCard" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
@@ -6599,7 +6607,8 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                             </div>
                         </div>
 
-                        <div class="card dashboard-card mt-2" style="border-radius:16px;">
+                        {% if not hide_earning_finance %}
+                        <div class="card dashboard-card mt-2" id="dashboardRecapCompareCard" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
                                 <div style="font-weight:900;"><i class="bi bi-bar-chart-line me-2"></i> Perbandingan Spend, Pendapatan, Pendapatan Bersih & ROI</div>
                                 <div class="text-muted" style="font-size:12px" id="dashboardRecapChartMeta"></div>
@@ -6621,6 +6630,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                 <div id="dashboardRecapTemporalChart"></div>
                             </div>
                         </div>
+                        {% endif %}
 
                     </div>
                 </div>
@@ -10244,6 +10254,8 @@ function initDashboardRecap() {
     if (legacy) legacy.style.display = 'none';
 
     if (!root || !dateEl || !sourceEl) return showError('UI rekap tidak lengkap');
+    window.HRIS_HIDE_EARNING_FINANCE = {{ hide_earning_finance|yesno:"true,false" }};
+    const hideEarningFinance = !!window.HRIS_HIDE_EARNING_FINANCE;
     if (typeof Chart === 'undefined') return showError('Chart.js library is not loaded.');
     initDetailKeputusanModal();
     initDashboardCampaignNotif();
@@ -17695,16 +17707,22 @@ function initDashboardRecap() {
     }
 
     function renderSummary(s) {
+        if (hideEarningFinance) return;
+        const spendEl = document.getElementById('recapTotalSpend');
+        if (!spendEl) return;
         const spend = Number(s?.total_spend)||0;
         const rev = Number(s?.total_revenue)||0;
         const net = (s && s.total_net_profit != null) ? (Number(s.total_net_profit)||0) : (rev - spend);
         const roi = (s && s.roi_nett != null) ? (Number(s.roi_nett)||0)
             : (s && s.total_roi != null) ? (Number(s.total_roi)||0)
             : (spend>0 ? ((rev-spend)/spend*100) : 0);
-        document.getElementById('recapTotalSpend').textContent = fmtIdr(spend);
-        document.getElementById('recapTotalRevenue').textContent = fmtIdr(rev);
-        document.getElementById('recapTotalNet').textContent = fmtIdr(net);
-        document.getElementById('recapTotalRoi').textContent = fmtPct(roi);
+        spendEl.textContent = fmtIdr(spend);
+        const revEl = document.getElementById('recapTotalRevenue');
+        const netEl = document.getElementById('recapTotalNet');
+        const roiEl = document.getElementById('recapTotalRoi');
+        if (revEl) revEl.textContent = fmtIdr(rev);
+        if (netEl) netEl.textContent = fmtIdr(net);
+        if (roiEl) roiEl.textContent = fmtPct(roi);
     }
 
     function clamp(v, lo, hi) {
@@ -21241,6 +21259,10 @@ function initDashboardRecap() {
                 if (dt.column(2).length) dt.column(2).visible(!isCountry, false);
                 if (dt.column(3).length) dt.column(3).visible(!isCountry, false);
                 if (dt.column(4).length) dt.column(4).visible(!isCountry, false);
+                if (hideEarningFinance) {
+                    if (dt.column(6).length) dt.column(6).visible(false, false);
+                    if (dt.column(10).length) dt.column(10).visible(false, false);
+                }
             } catch (e) {}
         }
 
@@ -21594,7 +21616,7 @@ function initDashboardRecap() {
                     <td class="text-center">${x.health == null ? '-' : x.health.toFixed(1)}</td>
                     <td class="text-center">${x.risk == null ? '-' : x.risk.toFixed(1)}</td>
                     <td class="text-end">${fmtIdr(x.spend)}</td>
-                    <td class="text-end">${fmtIdr(x.revenue)}</td>
+                    ${hideEarningFinance ? '' : `<td class="text-end">${fmtIdr(x.revenue)}</td>`}
                     <td class="text-center">${esc(x.dominant)}</td>
                     <td class="text-center">
                         <span class="dashboard-kondisi-wrap">
@@ -21602,10 +21624,10 @@ function initDashboardRecap() {
                             <span class="dashboard-kondisi-tooltip" role="tooltip">${esc(x.kondisiReason)}</span>
                         </span>
                     </td>
-                    <td class="text-center">${detailCell}</td>
+                    ${hideEarningFinance ? '' : `<td class="text-center">${detailCell}</td>`}
                 </tr>`;
             }).join('')
-            : '<tr><td colspan="12" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>';
+            : `<tr><td colspan="${hideEarningFinance ? 10 : 12}" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>`;
 
         if (metaEl) {
             const orphanNote = rows.some(function(x){ return x.acc === 'Backend tanpa subdomain'; })
@@ -21618,6 +21640,7 @@ function initDashboardRecap() {
     }
 
     function renderWinningCampaignTables(scoredRows, stateNow) {
+            if (hideEarningFinance) return;
             const topBody = document.getElementById('dashboardWinningTopTbody');
             const bottomBody = document.getElementById('dashboardWinningBottomTbody');
             const metaEl = document.getElementById('dashboardWinningCampaignMeta');
@@ -21872,11 +21895,11 @@ function initDashboardRecap() {
                     <td class="text-center"${isCountry ? ' style="display:none;"' : ''}>${row[3]?.html || row[3] || '-'}</td>
                     <td class="text-right"${isCountry ? ' style="display:none;"' : ''}>${renderMoneyCell(row[4], 'display')}</td>
                     <td class="text-right">${renderMoneyCell(row[5], 'display')}</td>
-                    <td class="text-right">${renderMoneyCell(row[6], 'display')}</td>
+                    ${hideEarningFinance ? '' : `<td class="text-right">${renderMoneyCell(row[6], 'display')}</td>`}
                     <td class="text-center">${renderRoiCell(row[7], 'display')}</td>
                     <td class="text-center">${renderScoreCell(row[8], 'display')}</td>
                     <td class="text-center ds-keputusan-cell">${row[9]?.html || ''}</td>
-                    <td class="text-center">${row[10]}</td>
+                    ${hideEarningFinance ? '' : `<td class="text-center">${row[10]}</td>`}
                 `;
                 tbody.appendChild(tr);
             });
@@ -21936,7 +21959,7 @@ function initDashboardRecap() {
                     { extend: 'pdfHtml5', text: 'Export PDF', className: 'btn btn-sm btn-danger', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase, orientation: 'landscape', pageSize: 'A4' },
                     { extend: 'csvHtml5', text: 'Export CSV', className: 'btn btn-sm btn-secondary', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase },
                     { extend: 'print', text: 'Print', className: 'btn btn-sm btn-warning', exportOptions: { columns: ':visible' }, title: exportTitle },
-                    { extend: 'colvis', text: 'Column Visibility', className: 'btn btn-sm btn-light' }
+                    Object.assign({ extend: 'colvis', text: 'Column Visibility', className: 'btn btn-sm btn-light' }, hideEarningFinance ? { columns: ':not(.js-earning-restricted-col)' } : {})
                 ] : [],
                 language: {
                     lengthMenu: 'Tampilkan _MENU_ data',
@@ -22009,6 +22032,7 @@ function initDashboardRecap() {
                     {
                         targets: 6,
                         className: 'text-right',
+                        visible: !hideEarningFinance,
                         render: function (data, type) {
                             return renderMoneyCell(data, type);
                         }
@@ -22042,7 +22066,7 @@ function initDashboardRecap() {
                             return key;
                         }
                     },
-                    { targets: 10, className: 'text-center', orderable: false, searchable: false }
+                    { targets: 10, className: 'text-center', orderable: false, searchable: false, visible: !hideEarningFinance }
                 ]
             });
             bindNoColumn(window.dashboardRecapDt);
@@ -22064,6 +22088,7 @@ function initDashboardRecap() {
 
     function renderChart(dim, rows, meta) {
         const canvas = document.getElementById('dashboardRecapChart');
+        if (!canvas || hideEarningFinance) return;
         const ctx = canvas.getContext('2d');
         const top = rows.slice(0, 12);
 
@@ -22256,6 +22281,7 @@ function initDashboardRecap() {
     }
 
     function setTemporalVisible(visible, hint) {
+        if (hideEarningFinance) visible = false;
         const card = document.getElementById('dashboardRecapTemporalCard');
         const hintEl = document.getElementById('dashboardRecapTemporalHint');
         const metaEl = document.getElementById('dashboardRecapTemporalMeta');
@@ -22747,7 +22773,7 @@ function initDashboardRecap() {
 
             renderPortfolioPulse(st.date).catch(function(){});
 
-            if ((st.source === 'adx' || st.source === 'adsense' || st.source === 'all') && st.dim === 'domain') {
+            if (!hideEarningFinance && (st.source === 'adx' || st.source === 'adsense' || st.source === 'all') && st.dim === 'domain') {
                 const selectedDomains = rows.map(function(r){ return String(r?.name || '').trim().toLowerCase(); }).filter(Boolean);
                 setTemporalVisible(true, 'Data heatmap sinkron dengan domain yang tampil di Detail Scoring.');
                 renderTemporalRoiHourlyChart(selectedDomains, st.date, st.source).catch(function(){

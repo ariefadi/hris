@@ -3394,6 +3394,31 @@ class ForgotPasswordView(View):
             return redirect('forgot_password')
 
 # DASHBOARD
+def _user_has_role(user_id, role_id):
+    uid = str(user_id or '').strip()
+    rid = str(role_id or '').strip()
+    if not uid or not rid:
+        return False
+    db = data_mysql()
+    try:
+        sql = """
+            SELECT 1 AS ok
+            FROM app_user_role
+            WHERE user_id = %s AND role_id = %s
+            LIMIT 1
+        """
+        if not db.execute_query(sql, (uid, rid)):
+            return False
+        return bool(db.cur_hris.fetchone())
+    except Exception:
+        return False
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
+
+
 class DashboardAdmin(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -3427,7 +3452,11 @@ class DashboardAdmin(View):
         data = {
             'title': 'Dashboard Admin',
             'user': req.session['hris_admin'],
-            'oauth_banner': oauth_banner
+            'oauth_banner': oauth_banner,
+            'hide_earning_finance': _user_has_role(
+                (req.session.get('hris_admin') or {}).get('user_id'),
+                '03002',
+            ),
         }
         return render(req, 'admin/dashboard_admin.html', data)
     

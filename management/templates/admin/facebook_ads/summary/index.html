@@ -126,6 +126,56 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   }
   html[data-theme="dark"] .summary-empty-state-title { color: #e2e8f0; }
   html[data-theme="dark"] .summary-empty-state { color: #94a3b8; }
+  .facebook-summary-filters .facebook-filter-label {
+      display: block;
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+      font-size: 0.82rem;
+      color: #64748b;
+  }
+  html[data-theme="dark"] .facebook-summary-filters .facebook-filter-label {
+      color: #94a3b8;
+  }
+  .facebook-load-col {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+  }
+  .facebook-load-btn {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      height: calc(2.25rem + 2px);
+      min-height: 38px;
+      padding: 0 14px;
+      white-space: nowrap;
+      border: 0 !important;
+      border-radius: 10px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: #fff !important;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.32);
+  }
+  .facebook-load-btn i {
+      font-size: 0.9rem;
+      line-height: 1;
+  }
+  .facebook-load-btn:hover,
+  .facebook-load-btn:focus {
+      color: #fff !important;
+      filter: brightness(1.08);
+      box-shadow: 0 8px 18px rgba(79, 70, 229, 0.4);
+  }
+  html[data-theme="dark"] .facebook-load-btn {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.28);
+  }
+  .facebook-filter-note {
+      margin-top: 8px;
+  }
 </style>
 <div class="card">
     <div class="card-header">
@@ -137,39 +187,42 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         </div>
     </div> <!-- /.card-header -->
     <div class="card-body">
-        <div class="form-row" id="facebookPerCampaignFilters" data-title="Filter" data-intro="Pilih rentang tanggal, minimal 1 Account (wajib), dan subdomain (opsional), lalu klik Muat Data. Loader tampil sampai data selesai dimuat.">
-            <div class="col-md-2">
-                <label>Tanggal Dari</label>
+        <div class="form-row facebook-summary-filters" id="facebookPerCampaignFilters" data-title="Filter" data-intro="Pilih rentang tanggal, minimal 1 Account (wajib), dan subdomain (opsional), lalu klik Muat Data. Loader tampil sampai data selesai dimuat.">
+            <div class="col-md-2 mb-2 mb-md-0">
+                <label class="facebook-filter-label">Tanggal Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
             </div>
-            <div class="col-md-2">
-                <label>Tanggal Sampai</label>
+            <div class="col-md-2 mb-2 mb-md-0">
+                <label class="facebook-filter-label">Tanggal Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
-            <div class="col-md-3">
-                <label>Filter Account <span class="text-danger">*</span></label>
+            <div class="col-md-3 mb-2 mb-md-0">
+                <label class="facebook-filter-label">Filter Account <span class="text-danger">*</span></label>
                 <select class="form-control select2-multiple" id="select_account" multiple required>
                     {% for account in data_account %}
                     <option value="{{account.account_id}}">{{account.account_name}}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
-                <label>Filter Subdomain</label>
+            <div class="col-md-3 mb-2 mb-md-0">
+                <label class="facebook-filter-label">Filter Subdomain</label>
                 <select class="form-control" id="select_domain" multiple>
                     {% for domain in data_domain %}
                     <option value="{{ domain.site_name|default:domain.data_ads_domain|default:'' }}">{{ domain.site_name|default:domain.data_ads_domain|default:'' }}</option>
                     {% endfor %}
                 </select>
-                <small class="text-muted">Ketik untuk mencari atau tambah subdomain baru.</small>
             </div>
-            <div class="col-md-1">
-                <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data traffic sesuai filter yang dipilih dan memperbarui tabel.">
-                    <i class="fas fa-search"></i> Muat Data
+            <div class="col-md-2 mb-2 mb-md-0 facebook-load-col">
+                <label class="facebook-filter-label d-none d-md-block">&nbsp;</label>
+                <button type="button" class="btn facebook-load-btn" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data traffic sesuai filter yang dipilih dan memperbarui tabel.">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    <span>Muat Data</span>
                 </button>
             </div>
         </div>
+        <p class="facebook-filter-note mb-0">
+            <small class="text-muted"><i class="bi bi-info-circle mr-1"></i>Filter Subdomain: ketik untuk mencari atau tambah subdomain baru.</small>
+        </p>
     </div><!-- /.card-body -->
 </div>
 <div class="card">
