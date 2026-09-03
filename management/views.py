@@ -3316,6 +3316,16 @@ class LogoutAdmin(View):
                 data_mysql().update_login(data_update)
         except Exception as e:
             print(f"[ERROR] Gagal update data logout: {e}")
+        try:
+            uid = (req.session.get('hris_admin') or {}).get('user_id')
+            if uid:
+                from . import chat as chat_db
+                db_chat = data_mysql()
+                chat_db.ensure_chat_tables(db_chat)
+                chat_db.clear_presence(db_chat, uid)
+                db_chat.close()
+        except Exception as e:
+            print(f"[ERROR] Gagal clear chat presence: {e}")
         finally:
             req.session.flush()
         return redirect('admin_login')

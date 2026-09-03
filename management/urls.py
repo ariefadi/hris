@@ -3,6 +3,7 @@ from django.urls import path
 from django.views.generic.base import RedirectView
 from . import views
 from . import views_adsense
+from . import views_chat
 from .oauth_views_package.oauth_views import (
     oauth_management_dashboard,
     oauth_status_api,
@@ -18,6 +19,11 @@ urlpatterns = [
     path('admin/forgot_password', views.ForgotPasswordView.as_view(), name='forgot_password'),
     path('admin/logout', views.LogoutAdmin.as_view(), name='admin_logout'),
     path('admin/oauth_redirect', views.OAuthRedirectView.as_view(), name='oauth_redirect'),
+    path('admin/chat_heartbeat', views_chat.ChatHeartbeatView.as_view(), name='chat_heartbeat'),
+    path('admin/chat_messages', views_chat.ChatMessagesView.as_view(), name='chat_messages'),
+    path('admin/chat_send', views_chat.ChatSendView.as_view(), name='chat_send'),
+    path('admin/chat_read', views_chat.ChatReadView.as_view(), name='chat_read'),
+    path('admin/chat_file/<str:message_id>', views_chat.ChatFileView.as_view(), name='chat_file'),
     # DASHBOARD
     path('admin/dashboard', views.DashboardAdmin.as_view(), name='dashboard_admin'),
     path('admin/dashboard_data', views.DashboardData.as_view(), name='dashboard_data'),
