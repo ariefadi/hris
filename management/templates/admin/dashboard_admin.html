@@ -6389,6 +6389,23 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                 <div id="dashboardRecapSyncAlert" class="alert alert-info" style="display:none;border-radius:10px;margin-top:10px;margin-bottom:0;padding:10px 12px;">
                                     <span id="dashboardRecapSyncAlertText">Syncronize sedang berlangsung</span>
                                 </div>
+                                <div id="dashboardDataHealthBanner" class="alert alert-warning" style="display:none;border-radius:10px;margin-top:10px;margin-bottom:0;padding:12px 14px;">
+                                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                                        <div style="flex:1;min-width:220px;">
+                                            <div style="font-weight:800;margin-bottom:4px;"><i class="bi bi-exclamation-triangle me-1"></i> Perhatian Data Dashboard</div>
+                                            <div id="dashboardDataHealthText" style="font-size:13px;line-height:1.45;"></div>
+                                            <ul id="dashboardDataHealthList" style="margin:8px 0 0 18px;padding:0;font-size:12px;"></ul>
+                                        </div>
+                                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                                            <button type="button" id="dashboardRecapRefreshBtn" class="btn btn-sm btn-outline-light" title="Muat ulang dari database tanpa menjalankan cron">
+                                                <i class="bi bi-arrow-repeat"></i> Muat Ulang Data
+                                            </button>
+                                            <button type="button" id="dashboardRecapHealthSyncBtn" class="btn btn-sm btn-warning">
+                                                <i class="bi bi-cloud-arrow-down"></i> Tarik Ulang (Cron)
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="dashboard-recap-filters">
                                 <div class="dashboard-recap-filter-item">
@@ -6898,6 +6915,128 @@ function setSyncAlert(kind, message) {
             }, 5000);
         }
     } catch (e) {}
+}
+
+function renderDashboardDataHealth(health) {
+    const banner = document.getElementById('dashboardDataHealthBanner');
+    const textEl = document.getElementById('dashboardDataHealthText');
+    const listEl = document.getElementById('dashboardDataHealthList');
+    if (!banner || !textEl || !listEl) return;
+
+    const data = (health && typeof health === 'object') ? health : {};
+    const missing = Array.isArray(data.missing_accounts) ? data.missing_accounts : [];
+    const issues = Array.isArray(data.issues) ? data.issues : [];
+    const notices = Array.isArray(data.notices) ? data.notices : [];
+    const warnIssues = issues.filter(function(i){ return String(i?.severity || '').toLowerCase() === 'warn'; });
+
+    if (data.healthy || (!missing.length && !warnIssues.length && !notices.length)) {
+        banner.style.display = 'none';
+        textEl.textContent = '';
+        listEl.innerHTML = '';
+        return;
+    }
+
+    const parts = [];
+    if (missing.length) {
+        parts.push(`${missing.length} account berisiko tidak tampil lengkap di dashboard.`);
+    }
+    if (warnIssues.length) {
+        parts.push(`${warnIssues.length} account revenue AdX sudah ada di DB tapi belum tampil (klik Muat Ulang Data).`);
+    }
+    if (notices.length && !parts.length) {
+        parts.push(String(notices[0]?.message || 'Data AdX per-negara belum ready — gunakan Muat Ulang Data.'));
+    }
+    textEl.textContent = parts.join(' ');
+
+    const items = [];
+    missing.slice(0, 6).forEach(function(row) {
+        const name = String(row?.account || '-');
+        const spend = Number(row?.spend || 0);
+        items.push(`<li><strong>${esc(name)}</strong> — spend Rp ${esc((Math.round(spend)).toLocaleString('id-ID'))}: ${esc(String(row?.reason || 'Data belum lengkap'))}</li>`);
+    });
+    warnIssues.slice(0, 4).forEach(function(row) {
+        items.push(`<li><strong>${esc(String(row?.account || '-'))}</strong> — ${esc(String(row?.message || 'Revenue belum tampil'))}</li>`);
+    });
+    listEl.innerHTML = items.join('');
+    banner.style.display = 'block';
+}
+
+async function fetchDashboardDataHealth(state) {
+    const date = String(state?.date || '').trim();
+    if (!date) {
+        renderDashboardDataHealth({ healthy: true });
+        return null;
+    }
+    try {
+        const res = await fetch('/management/admin/dashboard_data_health', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ date: date, tanggal: date }),
+            credentials: 'same-origin'
+        });
+        const json = await res.json();
+        if (json && json.status && json.data) {
+            renderDashboardDataHealth(json.data);
+            return json.data;
+        }
+    } catch (_e) {}
+    return null;
+}
+
+async function runDashboardDataRefresh(state, opts) {
+    const tanggal = String(state?.date || '').trim();
+    if (!tanggal) return false;
+    const mode = String((opts && opts.mode) || 'refresh').toLowerCase();
+    const refreshBtn = document.getElementById('dashboardRecapRefreshBtn');
+    const healthSyncBtn = document.getElementById('dashboardRecapHealthSyncBtn');
+    const syncBtn = document.getElementById('dashboardRecapSyncBtn');
+    const btn = mode === 'sync' ? (healthSyncBtn || syncBtn) : refreshBtn;
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise bi-spin"></i> ' + (mode === 'sync' ? 'Synchronize...' : 'Memuat ulang...');
+    }
+    setSyncAlert('info', mode === 'sync' ? 'Synchronize sedang berlangsung...' : 'Memuat ulang data dari database...');
+    try {
+        const res = await fetch('/management/admin/dashboard_sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ tanggal: tanggal, source: state?.source || 'all', mode: mode }),
+            credentials: 'same-origin'
+        });
+        const json = await res.json();
+        if (!res.ok || !json || !json.status) {
+            throw new Error(json?.error || json?.message || `Gagal (HTTP ${res.status})`);
+        }
+        if (mode === 'refresh') {
+            window.dashboardRecapForceRefresh = true;
+        }
+        if (typeof window.dashboardRecapLoad === 'function') {
+            await window.dashboardRecapLoad();
+        }
+        await fetchDashboardDataHealth(state);
+        if (mode === 'sync') {
+            const steps = Array.isArray(json?.steps) ? json.steps : [];
+            const failed = steps.filter(function(s){ return s && s.status === false; });
+            if (failed.length) {
+                setSyncAlert('info', json?.message || 'Synchronize selesai dengan sebagian error.');
+            } else {
+                setSyncAlert('success', json?.message || 'Synchronize berhasil.');
+            }
+        } else {
+            setSyncAlert('success', json?.message || 'Data berhasil dimuat ulang.');
+        }
+        return true;
+    } catch (e) {
+        setSyncAlert('error', String(e?.message || e || 'Gagal memuat ulang data'));
+        return false;
+    } finally {
+        window.dashboardRecapForceRefresh = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
 }
 
 // Fetch dashboard data
@@ -10589,14 +10728,15 @@ function initDashboardRecap() {
 
     function endpointFor(source, dim, ymd, subdomain) {
         const qDomain = encodeURIComponent(String(subdomain || '').trim());
+        const refreshQ = window.dashboardRecapForceRefresh ? '&_refresh=1' : '';
         if (source === 'adsense') {
             return dim === 'country'
-                ? `/management/admin/page_monitoring_country_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=${qDomain}&selected_countries=&include_subdomains=1`
-                : `/management/admin/page_monitoring_domain_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=${qDomain}`;
+                ? `/management/admin/page_monitoring_country_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=${qDomain}&selected_countries=&include_subdomains=1${refreshQ}`
+                : `/management/admin/page_monitoring_domain_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=${qDomain}${refreshQ}`;
         }
         return dim === 'country'
-            ? `/management/admin/page_monitoring_country?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=${qDomain}&selected_countries=&include_subdomains=1`
-            : `/management/admin/page_monitoring_domain?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=${qDomain}`;
+            ? `/management/admin/page_monitoring_country?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=${qDomain}&selected_countries=&include_subdomains=1${refreshQ}`
+            : `/management/admin/page_monitoring_domain?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=${qDomain}${refreshQ}`;
     }
 
     function scoringLookupKey(dim, row) {
@@ -11323,6 +11463,10 @@ function initDashboardRecap() {
                 const parts = raw.split('.').filter(Boolean);
                 if (parts.length >= 2) return statsByDomain[parts.slice(0, 2).join('.')];
                 return null;
+            })()
+            || (function(){
+                const parts = raw.split('.').filter(Boolean);
+                return parts.length ? statsByDomain[parts[0]] : null;
             })();
         if (!hit || typeof hit !== 'object') return { activeCount: 0, totalBudget: 0 };
         return {
@@ -21225,14 +21369,22 @@ function initDashboardRecap() {
             meta?.country_details
         ];
         const names = new Set();
+        const budgetByCampaign = new Map();
         sources.forEach(function(src) {
             if (!Array.isArray(src)) return;
             src.forEach(function(cd) {
                 const n = campaignNameFromDetailRow(cd);
                 if (n && n !== '-') names.add(n);
+                const bud = Number(cd?.meta_daily_budget || cd?.meta_budget || cd?.daily_budget || 0);
+                if (n && n !== '-' && Number.isFinite(bud) && bud > 0) {
+                    const prev = Number(budgetByCampaign.get(n) || 0);
+                    if (bud > prev) budgetByCampaign.set(n, bud);
+                }
             });
         });
-        return { activeCount: names.size, totalBudget: 0 };
+        let totalBudget = 0;
+        budgetByCampaign.forEach(function(v) { totalBudget += Number(v) || 0; });
+        return { activeCount: names.size, totalBudget: totalBudget };
     }
 
     function buildActiveCampaignCellData(stats) {
@@ -21845,7 +21997,7 @@ function initDashboardRecap() {
             const dbStats = recapDim === 'country' ? { activeCount: 0, totalBudget: 0 } : lookupDashboardCampaignStats(campaignStatsByDomain, r?.name || r?.domain || '');
             const campStats = {
                 activeCount: Number(dbStats.activeCount || 0) || Number(scoreStats.activeCount || 0) || 0,
-                totalBudget: Number(dbStats.totalBudget || 0) || 0
+                totalBudget: Number(dbStats.totalBudget || 0) || Number(scoreStats.totalBudget || 0) || 0
             };
 
             return [
@@ -22784,6 +22936,7 @@ function initDashboardRecap() {
             }
 
             root.style.display = 'block';
+            fetchDashboardDataHealth(st).catch(function(){});
             if (window.HrisDatepicker && dateEl && !dateEl._hrisRecapDateReady) {
                 dateEl._hrisRecapDateReady = true;
                 HrisDatepicker.initElement(dateEl, { onChange: function() { load(); } });
@@ -22857,66 +23010,25 @@ function initDashboardRecap() {
         sourceEl.addEventListener('change', load);
     }
 
+    window.dashboardRecapLoad = load;
+    window.dashboardRecapGetState = getState;
+
+    const refreshBtn = document.getElementById('dashboardRecapRefreshBtn');
+    const healthSyncBtn = document.getElementById('dashboardRecapHealthSyncBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            runDashboardDataRefresh(getState(), { mode: 'refresh' });
+        });
+    }
+    if (healthSyncBtn) {
+        healthSyncBtn.addEventListener('click', function() {
+            runDashboardDataRefresh(getState(), { mode: 'sync' });
+        });
+    }
+
     if (syncBtn) {
-        syncBtn.addEventListener('click', async function(){
-            const st = getState();
-            const tanggal = String(st.date || '').trim();
-            if (!tanggal) return;
-
-            const originalHtml = syncBtn.innerHTML;
-            syncBtn.disabled = true;
-            syncBtn.innerHTML = '<i class="bi bi-arrow-clockwise bi-spin" aria-hidden="true"></i><span>Synchronize...</span>';
-
-            setSyncAlert('info', 'Syncronize sedang berlangsung');
-            try {
-                const res = await fetch('/management/admin/dashboard_sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ tanggal, source: st.source }),
-                    credentials: 'same-origin'
-                });
-
-                if (res.redirected || (res.url && String(res.url).includes('/login'))) {
-                    throw new Error('Session login berakhir. Silakan login ulang.');
-                }
-
-                const ct = (res.headers.get('content-type') || '').toLowerCase();
-                let json = null;
-                if (ct.includes('application/json')) {
-                    json = await res.json();
-                } else {
-                    const text = await res.text();
-                    const snippet = String(text || '').trim().slice(0, 200);
-                    throw new Error(`Response bukan JSON (HTTP ${res.status}). ${snippet}`);
-                }
-
-                if (!res.ok || !json || !json.status) {
-                    throw new Error(json?.error || json?.message || `Gagal synchronize (HTTP ${res.status})`);
-                }
-
-                const steps = Array.isArray(json?.steps) ? json.steps : [];
-                const failedSteps = steps.filter(s => s && s.status === false);
-
-                await load();
-
-                if (failedSteps.length > 0) {
-                    const names = failedSteps.map(s => String(s.command || '').trim()).filter(Boolean).join(', ');
-                    const firstErr = failedSteps.find(s => s && s.error)?.error;
-                    setSyncAlert('info', json?.message || ('Synchronize selesai, tapi ada error: ' + (names || 'job')));
-                    if (firstErr) showRecapMessage('error', String(firstErr));
-                } else {
-                    setSyncAlert('success', json?.message || 'Syncronize berhasil');
-                }
-            } catch (e) {
-                setSyncAlert('error', 'Syncronize gagal');
-                showRecapMessage('error', String(e?.message || e || 'Error'));
-            } finally {
-                syncBtn.disabled = false;
-                syncBtn.innerHTML = originalHtml;
-            }
+        syncBtn.addEventListener('click', function() {
+            runDashboardDataRefresh(getState(), { mode: 'sync' });
         });
     }
 

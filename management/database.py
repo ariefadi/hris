@@ -2077,6 +2077,52 @@ class data_mysql:
                 "data": f"Terjadi error {e!r}, error nya {e.args[0] if e.args else e}"
             }
 
+    def get_adx_domain_revenue_map_by_params(self, start_date, end_date, selected_domain_list=None):
+        """Map base subdomain -> total AdX revenue from data_adx_domain (fallback bila country belum sync)."""
+        try:
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            domain_filters = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+
+            params = [start_date, end_date]
+            domain_clause = ''
+            if domain_filters:
+                like_conditions = " OR ".join(["LOWER(SUBSTRING_INDEX(a.data_adx_domain, '.', 2)) LIKE %s"] * len(domain_filters))
+                domain_clause = f" AND ({like_conditions})"
+                params.extend([f"%{d.lower()}%" for d in domain_filters])
+
+            sql = f"""
+                SELECT
+                    LOWER(SUBSTRING_INDEX(a.data_adx_domain, '.', 2)) AS site_key,
+                    COALESCE(SUM(CAST(a.data_adx_domain_revenue AS DECIMAL(18,2))), 0) AS revenue
+                FROM data_adx_domain a
+                WHERE DATE(a.data_adx_domain_tanggal) BETWEEN %s AND %s
+                {domain_clause}
+                GROUP BY site_key
+                HAVING site_key <> ''
+            """
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get adx domain revenue map")
+            rows = self.fetch_all() or []
+            if not self.commit():
+                raise pymysql.Error("Failed to commit adx domain revenue map")
+            out = {}
+            for row in rows:
+                key = str((row or {}).get('site_key') or '').strip().lower()
+                if not key:
+                    continue
+                out[key] = float((row or {}).get('revenue') or 0)
+            return {"status": True, "data": out}
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                "data": f"Terjadi error {e!r}, error nya {e.args[0] if e.args else e}"
+            }
+
     def get_daily_adx_revenue_by_domains_and_date(self, domains, start_date, end_date):
         """Daily sum of data_adx_domain_revenue keyed by YYYY-MM-DD date."""
         try:
@@ -3193,7 +3239,93 @@ class data_mysql:
         add(s)
         if len(parts) >= 2:
             add('.'.join(parts[:2]))
+        match_key = self._normalize_domain_match_key(s)
+        if match_key:
+            add(match_key)
+        if parts and len(parts[0]) >= 3:
+            add(parts[0])
         return keys
+
+    @staticmethod
+    def _dashboard_primary_subdomain(name):
+        s = str(name or '').strip().lower()
+        return s.split('.')[0] if s else ''
+
+    def _dashboard_domain_match_score(self, domain_name, campaign_name, master_domain):
+        name = self._normalize_domain_full(domain_name)
+        camp = str(campaign_name or '').strip().lower()
+        md = str(master_domain or '').strip().lower()
+        if not name or (not camp and not md):
+            return 0
+        keys = self._dashboard_domain_lookup_keys(name)
+        primary = self._dashboard_primary_subdomain(name)
+        best = 0
+        for k in keys:
+            if not k:
+                continue
+            if md == k:
+                best = max(best, len(k) + 200)
+            elif md.startswith(k + '.'):
+                best = max(best, len(k) + 150)
+            if k in camp:
+                best = max(best, len(k) + 100)
+            elif camp.startswith(k + '.') or camp.startswith(k + '_'):
+                best = max(best, len(k) + 80)
+        if primary and len(primary) >= 3 and (camp.startswith(primary + '.') or md.startswith(primary + '.')):
+            best = max(best, len(primary) + 50)
+        return best
+
+    def _fetch_master_ads_campaign_rows_blended(self, ymd, days_back=7):
+        ymd = str(ymd or '').strip()
+        if not ymd:
+            return []
+        try:
+            from datetime import datetime, timedelta
+            base = datetime.strptime(ymd, '%Y-%m-%d').date()
+        except Exception:
+            return self._fetch_master_ads_campaign_rows(ymd)
+        merged = {}
+        for i in range(max(0, int(days_back or 0)) + 1):
+            dt = (base - timedelta(days=i)).strftime('%Y-%m-%d')
+            for row in (self._fetch_master_ads_campaign_rows(dt) or []):
+                cid = str((row or {}).get('campaign_id') or '').strip()
+                if not cid:
+                    continue
+                cur = merged.get(cid)
+                if cur is None:
+                    item = dict(row or {})
+                    item['_source_day'] = i
+                    merged[cid] = item
+                    continue
+                cur_day = int(cur.get('_source_day') if cur.get('_source_day') is not None else 999)
+                if i < cur_day:
+                    item = dict(row or {})
+                    item['_source_day'] = i
+                    merged[cid] = item
+        cleaned = []
+        for item in merged.values():
+            item.pop('_source_day', None)
+            cleaned.append(item)
+        return cleaned
+
+    def _fetch_domain_spend_campaign_rows(self, ymd):
+        ymd = str(ymd or '').strip()
+        if not ymd:
+            return []
+        sql = """
+            SELECT
+                CAST(data_ads_campaign_id AS CHAR) AS campaign_id,
+                LOWER(TRIM(data_ads_campaign_nm)) AS campaign_name,
+                LOWER(TRIM(data_ads_domain)) AS master_domain,
+                0 AS daily_budget,
+                'ACTIVE' AS master_status
+            FROM data_ads_campaign
+            WHERE data_ads_tanggal = %s
+              AND COALESCE(data_ads_spend, 0) > 0
+        """
+        if not self.execute_query(sql, (ymd,)):
+            return []
+        return self.fetch_all() or []
 
     def _latest_master_ads_date(self, ymd):
         ymd = str(ymd or '').strip()
@@ -3263,6 +3395,71 @@ class data_mysql:
             return []
         return self.fetch_all() or []
 
+    def _fetch_latest_budget_map_by_campaign(self, campaign_ids):
+        """Ambil budget terbaru per campaign dari log_master_ads / riwayat master_ads."""
+        ids = [str(x).strip() for x in (campaign_ids or []) if str(x or '').strip()]
+        if not ids:
+            return {}
+        out = {}
+        placeholders = ','.join(['%s'] * len(ids))
+        params = tuple(ids)
+
+        try:
+            sql = f"""
+                SELECT
+                    CAST(l.log_master_campaign_id AS CHAR) AS campaign_id,
+                    l.log_master_budget AS budget
+                FROM log_master_ads l
+                INNER JOIN (
+                    SELECT log_master_campaign_id, MAX(mdd) AS max_mdd
+                    FROM log_master_ads
+                    WHERE log_master_campaign_id IN ({placeholders})
+                      AND COALESCE(log_master_budget, 0) > 0
+                    GROUP BY log_master_campaign_id
+                ) x ON l.log_master_campaign_id = x.log_master_campaign_id AND l.mdd = x.max_mdd
+            """
+            if self.execute_query(sql, params):
+                for row in (self.fetch_all() or []):
+                    cid = str((row or {}).get('campaign_id') or '').strip()
+                    try:
+                        budget = float((row or {}).get('budget') or 0)
+                    except Exception:
+                        budget = 0.0
+                    if cid and budget > 0:
+                        out[cid] = budget
+        except Exception:
+            pass
+
+        missing = [cid for cid in ids if cid not in out]
+        if missing:
+            ph2 = ','.join(['%s'] * len(missing))
+            try:
+                sql = f"""
+                    SELECT
+                        CAST(t.master_campaign_id AS CHAR) AS campaign_id,
+                        t.master_budget AS budget
+                    FROM master_ads t
+                    INNER JOIN (
+                        SELECT master_campaign_id, MAX(mdd) AS max_mdd
+                        FROM master_ads
+                        WHERE master_campaign_id IN ({ph2})
+                        GROUP BY master_campaign_id
+                    ) x ON t.master_campaign_id = x.master_campaign_id AND t.mdd = x.max_mdd
+                    WHERE COALESCE(t.master_budget, 0) > 0
+                """
+                if self.execute_query(sql, tuple(missing)):
+                    for row in (self.fetch_all() or []):
+                        cid = str((row or {}).get('campaign_id') or '').strip()
+                        try:
+                            budget = float((row or {}).get('budget') or 0)
+                        except Exception:
+                            budget = 0.0
+                        if cid and budget > 0 and cid not in out:
+                            out[cid] = budget
+            except Exception:
+                pass
+        return out
+
     def get_dashboard_domain_campaign_stats(self, ymd, domain_names):
         try:
             requested = []
@@ -3287,11 +3484,17 @@ class data_mysql:
                 return {'status': True, 'data': out}
 
             use_date = str(ymd or '').strip()
-            rows = self._fetch_master_ads_campaign_rows(use_date)
-            if not rows:
-                latest = self._latest_master_ads_date(use_date)
-                if latest and latest != use_date:
-                    rows = self._fetch_master_ads_campaign_rows(latest)
+            rows = self._fetch_master_ads_campaign_rows_blended(use_date, days_back=7)
+            seen_cids = {
+                str((row or {}).get('campaign_id') or '').strip()
+                for row in (rows or [])
+                if str((row or {}).get('campaign_id') or '').strip()
+            }
+            for row in (self._fetch_domain_spend_campaign_rows(use_date) or []):
+                cid = str((row or {}).get('campaign_id') or '').strip()
+                if cid and cid not in seen_cids:
+                    rows.append(row)
+                    seen_cids.add(cid)
 
             domain_specs = []
             for name in requested:
@@ -3314,19 +3517,32 @@ class data_mysql:
                     budget = 0.0
                 best = None
                 for spec in domain_specs:
-                    for k in (spec.get('keys') or []):
-                        if not k:
-                            continue
-                        hit = (md == k) or (k in camp)
-                        if not hit:
-                            continue
-                        score = len(k)
-                        if best is None or score > best[0]:
-                            best = (score, spec.get('primary') or '', budget)
+                    score = self._dashboard_domain_match_score(
+                        spec.get('name') or '',
+                        camp,
+                        md,
+                    )
+                    if score <= 0:
+                        continue
+                    if best is None or score > best[0]:
+                        best = (score, spec.get('primary') or '', budget)
                 if best:
                     prev = assigned.get(cid)
                     if prev is None or best[0] > prev[0]:
                         assigned[cid] = best
+
+            zero_budget_ids = [
+                cid for cid, item in assigned.items()
+                if float((item or (0, '', 0))[2] or 0) <= 0
+            ]
+            if zero_budget_ids:
+                fallback_budgets = self._fetch_latest_budget_map_by_campaign(zero_budget_ids)
+                for cid in zero_budget_ids:
+                    fb_budget = float(fallback_budgets.get(cid) or 0)
+                    if fb_budget <= 0:
+                        continue
+                    score, primary, _old_budget = assigned[cid]
+                    assigned[cid] = (score, primary, fb_budget)
 
             tallies = {}
             for cid, (_score, primary, budget) in assigned.items():
@@ -9886,9 +10102,7 @@ class data_mysql:
                 data_sub_domain = []
             elif isinstance(data_sub_domain, (set, tuple)):
                 data_sub_domain = list(data_sub_domain)
-            if not data_sub_domain:
-                raise ValueError("data_sub_domain is required and cannot be empty")
-            # --- 2. Buat kondisi LIKE untuk setiap domain
+            # --- 2. Buat kondisi LIKE untuk setiap domain (kosong = semua domain)
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
             like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
             like_params = [f"%{d}%" for d in data_sub_domain]

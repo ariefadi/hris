@@ -41,6 +41,7 @@ urlpatterns = [
     path('admin/dashboard_scoring_compare', views.DashboardScoringCompareView.as_view(), name='dashboard_scoring_compare'),
     path('admin/dashboard_scoring_rekap_compare', views.DashboardScoringRekapCompareView.as_view(), name='dashboard_scoring_rekap_compare'),
     path('admin/dashboard_sync', views.DashboardSyncView.as_view()),
+    path('admin/dashboard_data_health', views.DashboardDataHealthView.as_view(), name='dashboard_data_health'),
     path('admin/dashboard/account_detail', views.DashboardAccountDetailPageView.as_view(), name='dashboard_account_detail'),
     path('admin/page_dashboard_account_detail', views.DashboardAccountDetailDataView.as_view(), name='dashboard_account_detail_data'),
     path('admin/dashboard_account_domain_suggest', views.DashboardAccountDomainSuggestView.as_view(), name='dashboard_account_domain_suggest'),

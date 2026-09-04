@@ -24,6 +24,7 @@ from django import template
 from datetime import datetime, date, timedelta, timezone
 from django.http import HttpResponse, JsonResponse, QueryDict, HttpResponseRedirect, StreamingHttpResponse
 from django.core.management import call_command
+from django.core.cache import cache
 
 from management.database import insert_df, query_df
 try:
@@ -5567,14 +5568,203 @@ def _dashboard_scoring_meta_get(cache_key, loader):
     return value
 
 @method_decorator(csrf_exempt, name='dispatch')
+def _analyze_dashboard_data_health(target_date):
+    """Deteksi account/domain yang berisiko tidak tampil atau revenue Rp 0 di dashboard."""
+    db = data_mysql()
+    issues = []
+    missing_accounts = []
+    notices = []
+
+    adx_country_rows = 0
+    adx_domain_rows = 0
+    try:
+        db.cur_hris.execute(
+            "SELECT COUNT(*) AS c FROM data_adx_country WHERE data_adx_country_tanggal = %s",
+            (target_date,),
+        )
+        adx_country_rows = int((db.cur_hris.fetchone() or {}).get('c') or 0)
+    except Exception:
+        adx_country_rows = 0
+    try:
+        db.cur_hris.execute(
+            "SELECT COUNT(*) AS c FROM data_adx_domain WHERE data_adx_domain_tanggal = %s",
+            (target_date,),
+        )
+        adx_domain_rows = int((db.cur_hris.fetchone() or {}).get('c') or 0)
+    except Exception:
+        adx_domain_rows = 0
+
+    if adx_country_rows == 0 and adx_domain_rows > 0:
+        notices.append({
+            'type': 'adx_country_lag',
+            'severity': 'info',
+            'message': (
+                'Data AdX per-negara belum tersedia hari ini. '
+                'Dashboard memakai fallback revenue per-domain — klik Muat Ulang Data jika revenue masih Rp 0.'
+            ),
+        })
+
+    domain_rev = {}
+    try:
+        rev_res = db.get_adx_domain_revenue_map_by_params(target_date, target_date)
+        if isinstance(rev_res, dict) and rev_res.get('status'):
+            domain_rev = rev_res.get('data') or {}
+    except Exception:
+        domain_rev = {}
+
+    fb_rows = []
+    try:
+        db.cur_hris.execute(
+            """
+            SELECT
+                a.account_name,
+                a.account_id,
+                LOWER(SUBSTRING_INDEX(b.data_ads_domain, '.', 2)) AS site_key,
+                SUM(b.data_ads_country_spend) AS spend
+            FROM data_ads_country b
+            INNER JOIN master_account_ads a ON a.account_id = b.account_ads_id
+            WHERE b.data_ads_country_tanggal = %s
+            GROUP BY a.account_name, a.account_id, site_key
+            HAVING spend > 0
+            """,
+            (target_date,),
+        )
+        fb_rows = db.cur_hris.fetchall() or []
+    except Exception:
+        fb_rows = []
+
+    adsense_domains = set()
+    try:
+        db.cur_hris.execute(
+            """
+            SELECT DISTINCT LOWER(SUBSTRING_INDEX(data_adsense_country_domain, '.', 2)) AS site_key
+            FROM data_adsense_country
+            WHERE data_adsense_country_tanggal = %s
+              AND COALESCE(data_adsense_country_revenue, 0) > 0
+            """,
+            (target_date,),
+        )
+        adsense_domains = {
+            str((r or {}).get('site_key') or '').strip().lower()
+            for r in (db.cur_hris.fetchall() or [])
+            if str((r or {}).get('site_key') or '').strip()
+        }
+    except Exception:
+        adsense_domains = set()
+
+    by_account = {}
+    for row in fb_rows:
+        name = str((row or {}).get('account_name') or '').strip()
+        if not name:
+            continue
+        site_key = str((row or {}).get('site_key') or '').strip().lower()
+        spend = float((row or {}).get('spend') or 0)
+        if spend <= 0 or not site_key:
+            continue
+        acc = by_account.setdefault(name, {
+            'account_id': str((row or {}).get('account_id') or '').strip(),
+            'spend': 0.0,
+            'domains': set(),
+            'revenue_lag_domains': [],
+            'no_revenue_domains': [],
+        })
+        acc['spend'] += spend
+        acc['domains'].add(site_key)
+        domain_rev_val = float(domain_rev.get(site_key) or 0)
+        if domain_rev_val > 0 and adx_country_rows == 0:
+            acc['revenue_lag_domains'].append(site_key)
+        elif domain_rev_val <= 0 and site_key not in adsense_domains:
+            acc['no_revenue_domains'].append(site_key)
+
+    for name, info in by_account.items():
+        spend_total = float(info.get('spend') or 0)
+        if spend_total <= 0:
+            continue
+
+        lag_domains = list(info.get('revenue_lag_domains') or [])
+        if lag_domains:
+            issues.append({
+                'type': 'revenue_not_shown',
+                'severity': 'warn',
+                'account': name,
+                'message': (
+                    f'{name}: revenue AdX sudah ada di database ({len(lag_domains)} domain) '
+                    'tapi bisa belum tampil. Klik Muat Ulang Data.'
+                ),
+                'domains': lag_domains[:8],
+                'fix_action': 'refresh',
+            })
+
+        no_rev = list(info.get('no_revenue_domains') or [])
+        only_adsense_visible = all(d in adsense_domains for d in info.get('domains') or [])
+        if adx_country_rows == 0 and adx_domain_rows == 0 and no_rev and not only_adsense_visible:
+            missing_accounts.append({
+                'account': name,
+                'account_id': info.get('account_id') or '',
+                'spend': int(round(spend_total)),
+                'reason': (
+                    'Spend Facebook sudah ditarik cron, tapi revenue AdX/AdSense hari ini belum masuk. '
+                    'Account bisa tidak tampil lengkap di dashboard.'
+                ),
+                'fix_action': 'sync',
+            })
+        elif no_rev and not only_adsense_visible and spend_total > 0:
+            issues.append({
+                'type': 'revenue_pending',
+                'severity': 'info',
+                'account': name,
+                'message': (
+                    f'{name}: spend sudah ada, revenue AdX/AdSense belum tersedia untuk '
+                    f'{len(no_rev)} domain. Tunggu cron atau jalankan Synchronize.'
+                ),
+                'domains': no_rev[:8],
+                'fix_action': 'sync',
+            })
+
+    healthy = not missing_accounts and not any(i.get('severity') == 'warn' for i in issues)
+    return {
+        'healthy': healthy,
+        'date': target_date,
+        'missing_accounts': missing_accounts,
+        'issues': issues,
+        'notices': notices,
+        'adx_country_rows': adx_country_rows,
+        'adx_domain_rows': adx_domain_rows,
+        'accounts_with_spend': len(by_account),
+    }
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DashboardDataHealthView(View):
+    """Cek kesehatan data dashboard: account yang berisiko tidak tampil / revenue Rp 0."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            payload = json.loads((req.body or b'').decode('utf-8') or '{}')
+            target_date = str(payload.get('date') or payload.get('tanggal') or '').strip()
+            if not target_date:
+                target_date = datetime.now().strftime('%Y-%m-%d')
+            datetime.strptime(target_date, '%Y-%m-%d')
+            data = _analyze_dashboard_data_health(target_date)
+            return JsonResponse({'status': True, 'data': data}, safe=False)
+        except ValueError:
+            return JsonResponse({'status': False, 'error': 'Format date harus YYYY-MM-DD'}, status=400)
+        except Exception as e:
+            logger.exception('DashboardDataHealthView failed')
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
 class DashboardSyncView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
             return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
-        return JsonResponse({
-            'status': False,
-            'message': 'Dashboard sync/scoring manual dinonaktifkan. Gunakan cron terjadwal.'
-        }, status=403)
+        return super().dispatch(request, *args, **kwargs)
 
     def post(self, req):
         try:
@@ -5589,23 +5779,49 @@ class DashboardSyncView(View):
                 tanggal = '%'
 
             source = str(payload.get('source') or 'all').strip().lower()
+            mode = str(payload.get('mode') or 'sync').strip().lower()
+
+            if mode == 'refresh':
+                admin = req.session.get('hris_admin') or {}
+                for prefix in ('roi_domain_response_v5', 'roi_domain_response_v4'):
+                    cache_key = generate_cache_key(
+                        prefix,
+                        admin.get('user_id') or '',
+                        admin.get('super_st') or '',
+                        tanggal,
+                        tanggal,
+                        '',
+                        '',
+                    )
+                    try:
+                        cache.delete(cache_key)
+                    except Exception:
+                        pass
+                return JsonResponse({
+                    'status': True,
+                    'mode': 'refresh',
+                    'message': 'Cache dashboard dibersihkan. Memuat ulang data dari database...',
+                })
 
             steps = []
             if source == 'adsense':
                 commands = [
                     'cron_ads_country_load',
                     'cron_adsense_country_load',
+                    'cron_ads_master',
                 ]
             elif source == 'adx':
                 commands = [
                     'cron_ads_country_load',
                     'cron_adx_country_load',
+                    'cron_ads_master',
                 ]
             else:
                 commands = [
                     'cron_ads_country_load',
                     'cron_adx_country_load',
                     'cron_adsense_country_load',
+                    'cron_ads_master',
                 ]
             class _LimitedStringIO:
                 def __init__(self, max_chars=20000):
@@ -6604,6 +6820,12 @@ def _facebook_api_user_message(exc):
         )
     if 'error validating access token' in lower or 'session has expired' in lower:
         return f'{text} Gunakan Authorize Ulang (ikon kunci) di halaman Account Facebook Ads.'
+    if 'application request limit reached' in lower or 'too many api requests' in lower or 'too many calls from this app' in lower:
+        return (
+            f'{text} Batas panggilan API Meta untuk App ID account ini sudah tercapai. '
+            'Tunggu 15–30 menit lalu coba lagi, atau kurangi frekuensi Muat Data. '
+            'Data harian tetap tersimpan di database via cron.'
+        )
     if 'ads_management' in lower or 'ads_read' in lower or 'not grant' in lower:
         return (
             f'{text} Token Facebook tidak punya izin ke ad account ini. '
@@ -16443,7 +16665,7 @@ class RoiMonitoringDomainDataView(View):
                 selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
 
             response_cache_key = generate_cache_key(
-                'roi_domain_response_v3',
+                'roi_domain_response_v5',
                 admin.get('user_id') or '',
                 admin.get('super_st') or '',
                 start_date_formatted,
@@ -16471,7 +16693,8 @@ class RoiMonitoringDomainDataView(View):
                 except Exception:
                     pass
                 return payload
-            cached_response = get_cached_data(response_cache_key)
+            skip_cache = str(req.GET.get('_refresh') or req.GET.get('refresh') or '').strip() in ('1', 'true', 'yes')
+            cached_response = None if skip_cache else get_cached_data(response_cache_key)
             if cached_response is not None:
                 return JsonResponse(_attach_active_days(cached_response), safe=False)
 
@@ -16536,11 +16759,13 @@ class RoiMonitoringDomainDataView(View):
                             main_domain = ".".join(parts[:2])
                     unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
-            if unique_name_site:
+            # Ambil spend FB dari DB: per-domain jika sudah diketahui, atau semua domain
+            # saat AdX belum tersedia (mis. cron AdX belum jalan di pagi hari).
+            if unique_name_site or not selected_domain_list:
                 facebook_data = data_mysql().get_all_ads_roi_monitoring_campaign_by_params(
                     start_date_formatted,
                     end_date_formatted,
-                    unique_name_site
+                    unique_name_site or None,
                 )
             # --- 5. Gabungkan data AdX dan Facebook
             # Siapkan struktur data
@@ -16566,12 +16791,13 @@ class RoiMonitoringDomainDataView(View):
                     subdomain = str(fb_item.get('domain', ''))
                     country_code = normalize_country_code(fb_item.get('country_code', ''))
                     accumulate_facebook_monitoring_map(facebook_map, fb_item, date_key, subdomain, country_code)
-            if adx_result and adx_result['hasil']['data']:
-                # --- NEW: siapkan raw_rows + dua grup agregasi
+            adx_rows = ((adx_result or {}).get('hasil') or {}).get('data') or []
+            if adx_rows or facebook_map:
+                # Gabungkan AdX + FB; jika AdX kosong, tetap tampilkan spend FB dari DB.
                 grouped_all = {}
                 grouped_filtered = {}
                 seen_fb_keys = set()
-                for adx_item in adx_result['hasil']['data']:
+                for adx_item in adx_rows:
                     date_key = str(adx_item.get('date', ''))
                     subdomain = str(adx_item.get('site_name', ''))
                     base_subdomain = extract_base_subdomain(subdomain)
@@ -16719,6 +16945,29 @@ class RoiMonitoringDomainDataView(View):
                             grouped_filtered[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
                         grouped_filtered[site_key]['account_ads'] = account_ads
                         grouped_filtered[site_key]['spend'] += spend
+
+                # Fallback revenue AdX dari data_adx_domain jika data_adx_country belum tersedia.
+                try:
+                    domain_rev_res = data_mysql().get_adx_domain_revenue_map_by_params(
+                        start_date_formatted,
+                        end_date_formatted,
+                        selected_domain_list,
+                    )
+                    domain_rev_map = (domain_rev_res or {}).get('data') if (domain_rev_res or {}).get('status') else {}
+                    if isinstance(domain_rev_map, dict) and domain_rev_map:
+                        for site_key, item in grouped_all.items():
+                            if float((item or {}).get('revenue') or 0) > 0:
+                                continue
+                            sk = str(site_key or '').strip().lower()
+                            rev_val = float(domain_rev_map.get(sk) or 0)
+                            if rev_val <= 0:
+                                continue
+                            item['revenue'] = rev_val
+                            filt_item = grouped_filtered.get(site_key)
+                            if filt_item and float(filt_item.get('revenue') or 0) <= 0:
+                                filt_item['revenue'] = rev_val
+                except Exception:
+                    pass
 
                 # Bentuk output agregasi + ROI
                 combined_data_all = []
