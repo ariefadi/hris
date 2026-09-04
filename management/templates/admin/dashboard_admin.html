@@ -1075,6 +1075,41 @@ html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
 .ds-roi-filter-chip.is-low .ds-roi-filter-swatch { background: linear-gradient(135deg, #dc2626, #ef4444); }
 .ds-roi-filter-chip:not(.is-checked) { opacity: 0.45; }
 .ds-roi-filter-chip.is-checked { opacity: 1; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08); }
+.ds-perf-filter-legend {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-left: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+}
+.ds-perf-filter-legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ds-perf-filter-legend .dot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
+.ds-perf-filter-legend .is-poor { color: #dc2626; }
+.ds-perf-filter-legend .is-poor .dot { background: #ef4444; }
+.ds-perf-filter-legend .is-fair { color: #d97706; }
+.ds-perf-filter-legend .is-fair .dot { background: #f59e0b; }
+.ds-perf-filter-legend .is-good { color: #059669; }
+.ds-perf-filter-legend .is-good .dot { background: #10b981; }
+.ds-perf-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    color: #fff;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+.ds-perf-pill--good { background: #16a34a; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.28); }
+.ds-perf-pill--fair { background: #f59e0b; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.28); }
+.ds-perf-pill--poor { background: #ef4444; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.28); }
 html[data-theme="dark"] .detail-scoring-roi-filter {
     background: rgba(15, 23, 42, 0.45);
     border-color: rgba(148, 163, 184, 0.16);
@@ -1082,6 +1117,10 @@ html[data-theme="dark"] .detail-scoring-roi-filter {
 html[data-theme="dark"] .ds-roi-filter-chip.is-high { color: #6ee7b7; }
 html[data-theme="dark"] .ds-roi-filter-chip.is-mid { color: #fde68a; }
 html[data-theme="dark"] .ds-roi-filter-chip.is-low { color: #fca5a5; }
+html[data-theme="dark"] .ds-perf-filter-legend { color: #94a3b8; }
+html[data-theme="dark"] .ds-perf-filter-legend .is-poor { color: #fca5a5; }
+html[data-theme="dark"] .ds-perf-filter-legend .is-fair { color: #fde68a; }
+html[data-theme="dark"] .ds-perf-filter-legend .is-good { color: #6ee7b7; }
 .detail-scoring-filter.dashboard-recap-tabs {
     border-radius: 14px;
     padding: 6px;
@@ -4059,6 +4098,35 @@ html[data-theme="dark"] .score-detail-modal__body .scx-campaign-table tbody tr.s
     flex: 0 1 auto;
     min-width: 0;
 }
+#scxCampaignTableWrap .ds-dt-toolbar__center {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+#scxCampaignTableWrap .scx-campaign-perf-filter-inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+}
+#scxCampaignTableWrap .scx-campaign-perf-filter-inline .scx-campaign-perf-filter-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #64748b;
+    white-space: nowrap;
+}
+#scxCampaignTableWrap .scx-campaign-perf-filter-inline .detail-scoring-roi-filter {
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
+html[data-theme="dark"] #scxCampaignTableWrap .scx-campaign-perf-filter-inline .scx-campaign-perf-filter-label {
+    color: #94a3b8;
+}
 #scxCampaignTableWrap .ds-dt-toolbar__right {
     flex: 0 1 auto;
     margin-left: auto;
@@ -4067,6 +4135,9 @@ html[data-theme="dark"] .score-detail-modal__body .scx-campaign-table tbody tr.s
     align-items: center;
     justify-content: flex-end;
     gap: 12px 18px;
+}
+#scxCampaignTableWrap .ds-dt-toolbar:has(.ds-dt-toolbar__center) .ds-dt-toolbar__right {
+    margin-left: 0;
 }
 #scxCampaignTableWrap .ds-dt-toolbar__right .dataTables_length,
 #scxCampaignTableWrap .ds-dt-toolbar__right .dataTables_filter {
@@ -6681,6 +6752,31 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                     </div>
                                 </div>
                                 <div class="detail-scoring-toolbar__group detail-scoring-toolbar__group--roi">
+                                    {% if hide_earning_finance %}
+                                    <span class="text-muted" style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">Status Performa</span>
+                                    <div class="detail-scoring-roi-filter" id="dashboardRecapRoiTierFilter" role="group" aria-label="Filter status performa">
+                                        <label class="ds-roi-filter-chip is-low">
+                                            <input type="checkbox" data-roi-tier="low">
+                                            <span class="ds-roi-filter-swatch" aria-hidden="true"></span>
+                                            <span>Poor</span>
+                                        </label>
+                                        <label class="ds-roi-filter-chip is-mid">
+                                            <input type="checkbox" data-roi-tier="mid">
+                                            <span class="ds-roi-filter-swatch" aria-hidden="true"></span>
+                                            <span>Fair</span>
+                                        </label>
+                                        <label class="ds-roi-filter-chip is-high">
+                                            <input type="checkbox" data-roi-tier="high">
+                                            <span class="ds-roi-filter-swatch" aria-hidden="true"></span>
+                                            <span>Good</span>
+                                        </label>
+                                        <div class="ds-perf-filter-legend" aria-hidden="true">
+                                            <span class="is-poor"><i class="dot"></i>= poor</span>
+                                            <span class="is-fair"><i class="dot"></i>= fair</span>
+                                            <span class="is-good"><i class="dot"></i>= good</span>
+                                        </div>
+                                    </div>
+                                    {% else %}
                                     <span class="text-muted" style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">Filter ROI <span style="font-weight:600;text-transform:none;letter-spacing:0;opacity:.85;">(kosong = semua)</span></span>
                                     <div class="detail-scoring-roi-filter" id="dashboardRecapRoiTierFilter" role="group" aria-label="Filter ROI berdasarkan warna">
                                         <label class="ds-roi-filter-chip is-high">
@@ -6699,6 +6795,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                             <span>&lt;150%</span>
                                         </label>
                                     </div>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="detail-scoring-note">
@@ -6721,6 +6818,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                             <th class="text-center js-earning-restricted-col">Pendapatan</th>
                                             <th class="text-center js-earning-restricted-col">ROI</th>
                                             <th class="text-center">Score</th>
+                                            <th class="text-center js-perf-indicator-col">Performance <br> Indicator</th>
                                             <th class="text-center">Hasil <br> Keputusan</th>
                                             <th class="text-center">Detail</th>
                                         </tr>
@@ -10718,8 +10816,8 @@ function initDashboardRecap() {
             const aoRow = settings.aoData && settings.aoData[dataIndex] ? settings.aoData[dataIndex] : null;
             const rawRow = aoRow && Array.isArray(aoRow._aData) ? aoRow._aData : null;
             if (target !== 'all') {
-                const levelFromData = rawRow && rawRow[9] && typeof rawRow[9] === 'object'
-                    ? String(rawRow[9].decisionKey || 'belum_siap').toLowerCase()
+                const levelFromData = rawRow && rawRow[10] && typeof rawRow[10] === 'object'
+                    ? String(rawRow[10].decisionKey || 'belum_siap').toLowerCase()
                     : '';
                 const rowNode = aoRow ? aoRow.nTr : null;
                 const level = String(levelFromData || rowNode?.dataset?.decisionKey || 'belum_siap').toLowerCase();
@@ -16778,6 +16876,7 @@ function initDashboardRecap() {
         if (t.indexOf('status scoring') >= 0) return 10;
         if (t.indexOf('status campaign') >= 0) return 9;
         if (t.indexOf('rekomendasi') >= 0) return 8.5;
+        if (t.indexOf('performance') >= 0 || t.indexOf('indicator') >= 0) return 8;
         if (t.indexOf('spend') >= 0 || t.indexOf('revenue') >= 0 || t.indexOf('budget') >= 0) return 8.5;
         if (t === 'roi') return 6;
         return 7.5;
@@ -16793,7 +16892,7 @@ function initDashboardRecap() {
 
     function scxCampaignPdfAlign(header) {
         const t = scxCampaignPdfHeaderKey(header);
-        if (t === 'no' || t === 'roi' || t.indexOf('status') >= 0) return 'center';
+        if (t === 'no' || t === 'roi' || t.indexOf('status') >= 0 || t.indexOf('performance') >= 0 || t.indexOf('indicator') >= 0) return 'center';
         if (t.indexOf('spend') >= 0 || t.indexOf('revenue') >= 0 || t.indexOf('budget') >= 0) return 'right';
         return 'left';
     }
@@ -16922,6 +17021,7 @@ function initDashboardRecap() {
         if (t.indexOf('nama') >= 0) return 340;
         if (t.indexOf('spend') >= 0 || t.indexOf('revenue') >= 0 || t.indexOf('budget') >= 0) return 118;
         if (t === 'roi') return 78;
+        if (t.indexOf('performance') >= 0 || t.indexOf('indicator') >= 0) return 120;
         if (t.indexOf('status campaign') >= 0) return 110;
         if (t.indexOf('status scoring') >= 0) return 130;
         if (t.indexOf('prediksi') >= 0) return 260;
@@ -17059,8 +17159,10 @@ function initDashboardRecap() {
             responsive: false,
             destroy: true,
             dom: hasDtButtons
-                ? '<"ds-dt-toolbar"<"ds-dt-toolbar__left"B><"ds-dt-toolbar__right"lf>>rtip'
-                : undefined,
+                ? (hideEarningFinance
+                    ? '<"ds-dt-toolbar"<"ds-dt-toolbar__left"B><"ds-dt-toolbar__center"><"ds-dt-toolbar__right"lf>>rtip'
+                    : '<"ds-dt-toolbar"<"ds-dt-toolbar__left"B><"ds-dt-toolbar__right"lf>>rtip')
+                : (hideEarningFinance ? '<"ds-dt-toolbar"<"ds-dt-toolbar__center"><"ds-dt-toolbar__right"lf>>rtip' : undefined),
             buttons: hasDtButtons ? [
                 { extend: 'copyHtml5', text: 'Copy', className: 'btn btn-sm btn-info', exportOptions: exportOpts, title: exportTitle },
                 { text: 'Export Excel', className: 'btn btn-sm btn-success', action: function(e, dt) { scxExportCampaignExcel(dt, cache); } },
@@ -17079,7 +17181,8 @@ function initDashboardRecap() {
             },
             columnDefs: hideEarningFinance
                 ? [
-                    { targets: 0, className: 'text-center', width: '48px', orderable: false, searchable: false }
+                    { targets: 0, className: 'text-center', width: '48px', orderable: false, searchable: false },
+                    { targets: 3, className: 'text-center', width: '120px' }
                 ]
                 : [
                     { targets: 0, className: 'text-center', width: '48px', orderable: false, searchable: false },
@@ -17095,7 +17198,58 @@ function initDashboardRecap() {
         });
         dt.draw(false);
         window.scxCampaignTabDt = dt;
+        scxMountCampaignPerfFilter();
         return dt;
+    }
+
+    function scxCampaignPerfFilterHtml() {
+        return `<div class="scx-campaign-perf-filter-inline">
+            <span class="scx-campaign-perf-filter-label">Status Performa</span>
+            <div class="detail-scoring-roi-filter" id="scxCampaignPerfFilter" role="group" aria-label="Filter status performa campaign">
+                <label class="ds-roi-filter-chip is-low">
+                    <input type="checkbox" data-roi-tier="low">
+                    <span class="ds-roi-filter-swatch" aria-hidden="true"></span>
+                    <span>Poor</span>
+                </label>
+                <label class="ds-roi-filter-chip is-mid">
+                    <input type="checkbox" data-roi-tier="mid">
+                    <span class="ds-roi-filter-swatch" aria-hidden="true"></span>
+                    <span>Fair</span>
+                </label>
+                <label class="ds-roi-filter-chip is-high">
+                    <input type="checkbox" data-roi-tier="high">
+                    <span class="ds-roi-filter-swatch" aria-hidden="true"></span>
+                    <span>Good</span>
+                </label>
+                <div class="ds-perf-filter-legend" aria-hidden="true">
+                    <span class="is-poor"><i class="dot"></i>= poor</span>
+                    <span class="is-fair"><i class="dot"></i>= fair</span>
+                    <span class="is-good"><i class="dot"></i>= good</span>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function scxMountCampaignPerfFilter() {
+        if (!hideEarningFinance) return;
+        const wrap = document.getElementById('scxCampaignTableWrap');
+        if (!wrap) return;
+        let toolbar = wrap.querySelector('.ds-dt-toolbar');
+        if (!toolbar) {
+            toolbar = document.createElement('div');
+            toolbar.className = 'ds-dt-toolbar';
+            wrap.insertBefore(toolbar, wrap.firstChild);
+        }
+        let center = toolbar.querySelector('.ds-dt-toolbar__center');
+        if (!center) {
+            center = document.createElement('div');
+            center.className = 'ds-dt-toolbar__center';
+            const right = toolbar.querySelector('.ds-dt-toolbar__right');
+            if (right) toolbar.insertBefore(center, right);
+            else toolbar.appendChild(center);
+        }
+        center.innerHTML = scxCampaignPerfFilterHtml();
+        scxApplyCampaignPerfFilterToUi((window.scxCampaignTabCache || {}).perfFilter);
     }
 
     function scxSetCampaignTabLoading(active, hint) {
@@ -17118,11 +17272,68 @@ function initDashboardRecap() {
         return String(raw || '').trim().toUpperCase() === 'ACTIVE';
     }
 
-    function scxFilterCampaignTabRows(rows, searchQuery, activeOnly) {
+    function scxCampaignRowRoi(row) {
+        const spend = Number(row?.spend || 0);
+        const revenue = Number(row?.revenue || 0);
+        return Number(row?.roi != null ? row.roi : (spend > 0 ? ((revenue - spend) / spend * 100) : 0));
+    }
+
+    function scxDefaultPerfFilter() {
+        return { high: false, mid: false, low: false };
+    }
+
+    function scxPerfFilterIsActive(filter) {
+        const f = filter || scxDefaultPerfFilter();
+        return !!(f.high || f.mid || f.low);
+    }
+
+    function readScxCampaignPerfFilterFromUi() {
+        if (!hideEarningFinance) return scxDefaultPerfFilter();
+        if (window.HrisRoiTierFilter && HrisRoiTierFilter.readFromUi) {
+            return HrisRoiTierFilter.readFromUi('#scxCampaignPerfFilter');
+        }
+        const root = document.getElementById('scxCampaignPerfFilter');
+        const next = scxDefaultPerfFilter();
+        if (!root) return next;
+        root.querySelectorAll('input[data-roi-tier]').forEach(function(input) {
+            const tier = String(input.getAttribute('data-roi-tier') || '').toLowerCase();
+            if (tier === 'high' || tier === 'mid' || tier === 'low') next[tier] = !!input.checked;
+        });
+        return next;
+    }
+
+    function scxApplyCampaignPerfFilterToUi(filter) {
+        const root = document.getElementById('scxCampaignPerfFilter');
+        if (!root) return;
+        const f = filter || scxDefaultPerfFilter();
+        root.querySelectorAll('input[data-roi-tier]').forEach(function(input) {
+            const tier = String(input.getAttribute('data-roi-tier') || '').toLowerCase();
+            if (tier === 'high' || tier === 'mid' || tier === 'low') input.checked = !!f[tier];
+            const chip = input.closest('.ds-roi-filter-chip');
+            if (chip) chip.classList.toggle('is-checked', !!input.checked);
+        });
+        if (window.HrisRoiTierFilter && HrisRoiTierFilter.syncChipStyles) {
+            HrisRoiTierFilter.syncChipStyles('#scxCampaignPerfFilter');
+        }
+    }
+
+    function scxCampaignRowPassesPerfFilter(row, filter) {
+        if (!hideEarningFinance) return true;
+        const f = filter || scxDefaultPerfFilter();
+        if (window.HrisRoiTierFilter && HrisRoiTierFilter.rowPasses) {
+            return HrisRoiTierFilter.rowPasses(scxCampaignRowRoi(row), f);
+        }
+        if (!scxPerfFilterIsActive(f)) return true;
+        const tier = dashboardRecapRoiTierFromValue(scxCampaignRowRoi(row));
+        return !!f[tier];
+    }
+
+    function scxFilterCampaignTabRows(rows, searchQuery, activeOnly, perfFilter) {
         let list = Array.isArray(rows) ? rows.slice() : [];
         if (activeOnly) {
             list = list.filter(function(r) { return scxCampaignIsActiveStatus(r?.campaign_status); });
         }
+        list = list.filter(function(r) { return scxCampaignRowPassesPerfFilter(r, perfFilter); });
         const q = String(searchQuery || '').trim().toLowerCase();
         if (!q) return list;
         return list.filter(function(r) {
@@ -17130,14 +17341,16 @@ function initDashboardRecap() {
         });
     }
 
-    function scxCampaignSearchSuggestOptions(allRows, query, limit, activeOnly) {
+    function scxCampaignSearchSuggestOptions(allRows, query, limit, activeOnly, perfFilter) {
         const q = String(query || '').trim().toLowerCase();
         if (q.length < 3) return [];
         const names = [];
         const seen = new Set();
-        const sourceRows = activeOnly
-            ? (Array.isArray(allRows) ? allRows : []).filter(function(r) { return scxCampaignIsActiveStatus(r?.campaign_status); })
-            : (Array.isArray(allRows) ? allRows : []);
+        let sourceRows = Array.isArray(allRows) ? allRows : [];
+        if (activeOnly) {
+            sourceRows = sourceRows.filter(function(r) { return scxCampaignIsActiveStatus(r?.campaign_status); });
+        }
+        sourceRows = sourceRows.filter(function(r) { return scxCampaignRowPassesPerfFilter(r, perfFilter); });
         sourceRows.forEach(function(r) {
             const name = String(r?.campaign_name || '').trim();
             if (!name) return;
@@ -17197,7 +17410,7 @@ function initDashboardRecap() {
             scxHideCampaignSearchSuggest(searchEl);
             return;
         }
-        const names = scxCampaignSearchSuggestOptions(cache?.allRows, query, 12, !!cache?.activeOnly);
+        const names = scxCampaignSearchSuggestOptions(cache?.allRows, query, 12, !!cache?.activeOnly, cache?.perfFilter);
         box.innerHTML = scxRenderCampaignSearchSuggest(names, query);
         box.hidden = false;
         searchEl.setAttribute('aria-expanded', names.length ? 'true' : 'false');
@@ -17488,6 +17701,8 @@ function initDashboardRecap() {
         if (!hideEarningFinance) {
             html += '<th class="text-end">Revenue</th>';
             html += '<th class="text-end">ROI</th>';
+        } else {
+            html += '<th class="text-center js-perf-indicator-col">Performance Indicator</th>';
         }
         html += '<th>Status Campaign</th>';
         html += '<th>Status Scoring</th>';
@@ -17524,6 +17739,9 @@ function initDashboardRecap() {
             if (!hideEarningFinance) {
                 html += `<td class="text-end" data-order="${esc(String(revenue))}">${esc(fmtIdr(revenue))}</td>`;
                 html += `<td class="text-end" data-order="${esc(String(roi))}">${scxRoiBadgeHtml(roi)}</td>`;
+            } else {
+                const perf = buildPerformanceIndicatorCell(roi);
+                html += `<td class="text-center js-perf-indicator-col" data-order="${esc(String(perf.sort))}" data-search="${esc(perf.search)}">${perf.html}</td>`;
             }
             html += `<td><span class="scx-pill ${scxCampaignStatusTone(row?.campaign_status)}">${esc(scxCampaignStatusLabel(row?.campaign_status))}</span></td>`;
             html += `<td><span class="scx-pill gray">${esc(tag.friendly || scxFriendlyLabel(tag.label))}</span></td>`;
@@ -17553,15 +17771,19 @@ function initDashboardRecap() {
         const pane = document.querySelector('[data-scx-tab-pane="campaign"]');
         const chartBlock = pane ? pane.querySelector('.scx-monitoring-chart-block') : null;
         if (!cache) return;
-        const filtered = scxFilterCampaignTabRows(cache.allRows, cache.searchQuery, !!cache.activeOnly);
+        const filtered = scxFilterCampaignTabRows(cache.allRows, cache.searchQuery, !!cache.activeOnly, cache.perfFilter);
         cache.filteredRows = filtered;
         const totals = scxSummarizeCampaignRows(filtered);
         if (summaryEl) summaryEl.innerHTML = scxRenderCampaignMetricSummaryBoxes(totals.spend, totals.revenue, totals.profit, totals.roi);
         scxDestroyCampaignTabDataTable();
         if (tableWrap) tableWrap.innerHTML = scxRenderCampaignTabTable(filtered, cache);
         if (filtered.length) scxInitCampaignTabDataTable(cache);
+        else scxMountCampaignPerfFilter();
         if (tableMeta) {
-            const metaSuffix = cache.activeOnly ? ' • hanya aktif' : '';
+            const metaParts = [];
+            if (cache.activeOnly) metaParts.push('hanya aktif');
+            if (hideEarningFinance && scxPerfFilterIsActive(cache.perfFilter)) metaParts.push('filter performa');
+            const metaSuffix = metaParts.length ? (' • ' + metaParts.join(' • ')) : '';
             tableMeta.textContent = `${filtered.length} campaign • ${cache.startYmd || '-'} s/d ${cache.endYmd || '-'}${metaSuffix}`;
         }
         if (statusEl) {
@@ -17691,17 +17913,20 @@ function initDashboardRecap() {
             const oldCache = window.scxCampaignTabCache;
             let prevSearch = pendingFocus;
             let prevActiveOnly = false;
+            let prevPerfFilter = scxDefaultPerfFilter();
             if (!prevSearch && oldCache && String(oldCache.contextKey || '') === contextKey) {
                 prevSearch = String(oldCache.searchQuery || '');
             }
             if (oldCache && String(oldCache.contextKey || '') === contextKey) {
                 prevActiveOnly = !!oldCache.activeOnly;
+                if (oldCache.perfFilter) prevPerfFilter = oldCache.perfFilter;
             }
             window.scxCampaignTabCache = {
                 allRows: payload.rows,
                 filteredRows: payload.rows,
                 searchQuery: prevSearch,
                 activeOnly: prevActiveOnly,
+                perfFilter: prevPerfFilter,
                 contextKey: contextKey,
                 accountAds: payload.accountAds,
                 siteName: payload.siteName,
@@ -17714,6 +17939,7 @@ function initDashboardRecap() {
             const activeToggleEl = pane.querySelector('.scx-campaign-active-only');
             if (searchEl) searchEl.value = prevSearch;
             if (activeToggleEl) activeToggleEl.checked = prevActiveOnly;
+            if (hideEarningFinance) scxApplyCampaignPerfFilterToUi(prevPerfFilter);
             scxSetCampaignTabLoading(false);
             scxRefreshCampaignTabView();
             if (searchEl && prevSearch.trim().length >= 3) scxShowCampaignSearchSuggest(searchEl);
@@ -17743,6 +17969,18 @@ function initDashboardRecap() {
         const activeToggleEl = pane.querySelector('.scx-campaign-active-only');
         const run = function() { loadScoreDetailCampaignTab(row, state, scoringData).catch(function(){}); };
         scxBindScoreDetailDateRange(startEl, endEl, run);
+        if (hideEarningFinance && !pane.dataset.perfFilterBound) {
+            pane.dataset.perfFilterBound = '1';
+            pane.addEventListener('change', function(e) {
+                const input = e.target && e.target.closest ? e.target.closest('#scxCampaignPerfFilter input[data-roi-tier]') : null;
+                if (!input) return;
+                const cache = window.scxCampaignTabCache;
+                if (!cache) return;
+                cache.perfFilter = readScxCampaignPerfFilterFromUi();
+                scxRefreshCampaignTabView();
+                if (searchEl) scxShowCampaignSearchSuggest(searchEl);
+            });
+        }
         if (activeToggleEl && !activeToggleEl.dataset.bound) {
             activeToggleEl.dataset.bound = '1';
             activeToggleEl.addEventListener('change', function() {
@@ -21612,6 +21850,22 @@ function initDashboardRecap() {
         return { activeCount: names.size, totalBudget: totalBudget };
     }
 
+    function buildPerformanceIndicatorCell(roiValue) {
+        const tier = dashboardRecapRoiTierFromValue(roiValue);
+        const map = {
+            high: { key: 'good', label: 'GOOD', sort: 3 },
+            mid: { key: 'fair', label: 'FAIR', sort: 2 },
+            low: { key: 'poor', label: 'POOR', sort: 1 }
+        };
+        const item = map[tier] || map.low;
+        return {
+            html: `<span class="ds-perf-pill ds-perf-pill--${item.key}">${item.label}</span>`,
+            sort: item.sort,
+            search: item.label,
+            tier: item.key
+        };
+    }
+
     function buildActiveCampaignCellData(stats) {
         const total = Number(stats?.activeCount || 0);
         const html = total > 0
@@ -21639,7 +21893,10 @@ function initDashboardRecap() {
                 if (hideEarningFinance) {
                     if (dt.column(6).length) dt.column(6).visible(false, false);
                     if (dt.column(7).length) dt.column(7).visible(false, false);
-                    if (dt.column(10).length) dt.column(10).visible(true, false);
+                    if (dt.column(9).length) dt.column(9).visible(true, false);
+                    if (dt.column(11).length) dt.column(11).visible(true, false);
+                } else if (dt.column(9).length) {
+                    dt.column(9).visible(false, false);
                 }
             } catch (e) {}
         }
@@ -22236,6 +22493,7 @@ function initDashboardRecap() {
                 Number(r.revenue) || 0,
                 Number(r.roi) || 0,
                 buildScoreCellData(meta),
+                buildPerformanceIndicatorCell(r.roi),
                 keputusanData,
                 detailBtn,
             ];
@@ -22260,7 +22518,7 @@ function initDashboardRecap() {
                 const tr = document.createElement('tr');
                 const scoreVal = Number(row[8]?.value) || 0;
                 tr.dataset.alertLevel = String(row[8]?.alertLevel || 'normal').toLowerCase();
-                tr.dataset.decisionKey = String(row[9]?.decisionKey || 'belum_siap').toLowerCase();
+                tr.dataset.decisionKey = String(row[10]?.decisionKey || 'belum_siap').toLowerCase();
                 tr.dataset.roiValue = String(Number(row[7]) || 0);
                 tr.dataset.roiTier = dashboardRecapRoiTierFromValue(row[7]);
                 const isCountry = recapDim === 'country';
@@ -22276,8 +22534,9 @@ function initDashboardRecap() {
                     ${hideEarningFinance ? '' : `<td class="text-right">${renderMoneyCell(row[6], 'display')}</td>`}
                     ${hideEarningFinance ? '' : `<td class="text-center">${renderRoiCell(row[7], 'display')}</td>`}
                     <td class="text-center">${renderScoreCell(row[8], 'display')}</td>
-                    <td class="text-center ds-keputusan-cell">${row[9]?.html || ''}</td>
-                    <td class="text-center">${row[10]}</td>
+                    ${hideEarningFinance ? `<td class="text-center">${row[9]?.html || ''}</td>` : ''}
+                    <td class="text-center ds-keputusan-cell">${row[10]?.html || ''}</td>
+                    <td class="text-center">${row[11]}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -22337,7 +22596,7 @@ function initDashboardRecap() {
                     { extend: 'pdfHtml5', text: 'Export PDF', className: 'btn btn-sm btn-danger', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase, orientation: 'landscape', pageSize: 'A4' },
                     { extend: 'csvHtml5', text: 'Export CSV', className: 'btn btn-sm btn-secondary', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase },
                     { extend: 'print', text: 'Print', className: 'btn btn-sm btn-warning', exportOptions: { columns: ':visible' }, title: exportTitle },
-                    Object.assign({ extend: 'colvis', text: 'Column Visibility', className: 'btn btn-sm btn-light' }, hideEarningFinance ? { columns: ':not(.js-earning-restricted-col)' } : {})
+                    Object.assign({ extend: 'colvis', text: 'Column Visibility', className: 'btn btn-sm btn-light' }, hideEarningFinance ? { columns: ':not(.js-earning-restricted-col)' } : { columns: ':not(.js-perf-indicator-col)' })
                 ] : [],
                 language: {
                     lengthMenu: 'Tampilkan _MENU_ data',
@@ -22350,7 +22609,7 @@ function initDashboardRecap() {
                 rowCallback: function(row, rowData) {
                     const hasRange = !!(tableEl && tableEl.dataset && tableEl.dataset.hasRange === '1');
                     row.dataset.alertLevel = String(rowData && rowData[8] && rowData[8].alertLevel || 'normal').toLowerCase();
-                    row.dataset.decisionKey = String(rowData && rowData[9] && rowData[9].decisionKey || 'belum_siap').toLowerCase();
+                    row.dataset.decisionKey = String(rowData && rowData[10] && rowData[10].decisionKey || 'belum_siap').toLowerCase();
                     row.dataset.roiValue = String(Number(rowData && rowData[7]) || 0);
                     row.dataset.roiTier = dashboardRecapRoiTierFromValue(rowData && rowData[7]);
                     jQuery(row).removeClass('table-danger table-info ds-row-highlight-best ds-row-highlight-worst');
@@ -22432,6 +22691,20 @@ function initDashboardRecap() {
                     },
                     {
                         targets: 9,
+                        className: 'text-center',
+                        visible: !!hideEarningFinance,
+                        orderable: true,
+                        render: function (data, type) {
+                            const sortVal = data && typeof data === 'object' ? Number(data.sort || 0) : 0;
+                            const html = data && typeof data === 'object' ? String(data.html || '') : String(data || '');
+                            const searchText = data && typeof data === 'object' ? String(data.search || '') : String(data || '');
+                            if (type === 'display') return html || '<span class="text-muted">-</span>';
+                            if (type === 'filter') return searchText;
+                            return sortVal;
+                        }
+                    },
+                    {
+                        targets: 10,
                         className: 'text-center ds-keputusan-cell',
                         orderable: false,
                         render: function (data, type) {
@@ -22445,7 +22718,7 @@ function initDashboardRecap() {
                             return key;
                         }
                     },
-                    { targets: 10, className: 'text-center', orderable: false, searchable: false }
+                    { targets: 11, className: 'text-center', orderable: false, searchable: false }
                 ]
             });
             bindNoColumn(window.dashboardRecapDt);
