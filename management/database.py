@@ -3484,17 +3484,52 @@ class data_mysql:
                 return {'status': True, 'data': out}
 
             use_date = str(ymd or '').strip()
-            rows = self._fetch_master_ads_campaign_rows_blended(use_date, days_back=7)
-            seen_cids = {
-                str((row or {}).get('campaign_id') or '').strip()
-                for row in (rows or [])
-                if str((row or {}).get('campaign_id') or '').strip()
-            }
-            for row in (self._fetch_domain_spend_campaign_rows(use_date) or []):
+            spend_rows = self._fetch_domain_spend_campaign_rows(use_date) or []
+            master_rows = self._fetch_master_ads_campaign_rows(use_date) or []
+            master_by_id = {}
+            master_by_name = {}
+            for row in master_rows:
                 cid = str((row or {}).get('campaign_id') or '').strip()
-                if cid and cid not in seen_cids:
-                    rows.append(row)
-                    seen_cids.add(cid)
+                cname = str((row or {}).get('campaign_name') or '').strip().lower()
+                if cid and cid not in master_by_id:
+                    master_by_id[cid] = row
+                if cname and cname not in master_by_name:
+                    master_by_name[cname] = row
+
+            def _row_budget(row):
+                try:
+                    return float((row or {}).get('daily_budget') or 0)
+                except Exception:
+                    return 0.0
+
+            def _enrich_spend_row(row):
+                item = dict(row or {})
+                cid = str(item.get('campaign_id') or '').strip()
+                cname = str(item.get('campaign_name') or '').strip().lower()
+                master = master_by_id.get(cid) if cid else None
+                if master is None and cname:
+                    master = master_by_name.get(cname)
+                if not master:
+                    return item
+                budget = _row_budget(master)
+                if budget > 0:
+                    item['daily_budget'] = budget
+                md = str((master or {}).get('master_domain') or '').strip()
+                if md:
+                    item['master_domain'] = md
+                return item
+
+            # Daily budget / campaign aktif harus mengikuti campaign yang benar-benar
+            # punya aktivitas di tanggal terpilih (sama seperti Traffic Per Account),
+            # bukan sisa campaign ACTIVE dari lookback 7 hari.
+            from_spend = bool(spend_rows)
+            if from_spend:
+                rows = [_enrich_spend_row(row) for row in spend_rows]
+            else:
+                rows = [
+                    row for row in master_rows
+                    if self._is_active_master_status((row or {}).get('master_status'))
+                ]
 
             domain_specs = []
             for name in requested:
@@ -3503,18 +3538,19 @@ class data_mysql:
                 domain_specs.append({'name': name, 'primary': primary, 'keys': keys})
 
             assigned = {}
+            unnamed_seq = 0
             for row in (rows or []):
-                if not self._is_active_master_status((row or {}).get('master_status')):
+                if not from_spend and not self._is_active_master_status((row or {}).get('master_status')):
                     continue
                 cid = str((row or {}).get('campaign_id') or '').strip()
-                if not cid:
-                    continue
                 camp = str((row or {}).get('campaign_name') or '').strip().lower()
+                if not cid:
+                    if not camp:
+                        continue
+                    unnamed_seq += 1
+                    cid = 'name:' + camp + ':' + str(unnamed_seq)
                 md = str((row or {}).get('master_domain') or '').strip().lower()
-                try:
-                    budget = float((row or {}).get('daily_budget') or 0)
-                except Exception:
-                    budget = 0.0
+                budget = _row_budget(row)
                 best = None
                 for spec in domain_specs:
                     score = self._dashboard_domain_match_score(
