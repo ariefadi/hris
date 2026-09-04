@@ -6247,9 +6247,178 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
         justify-content: center;
         margin-top: 2px;
     }
+    .dashboard-data-health-banner__actions {
+        width: 100%;
+    }
+    .dashboard-data-health-banner__actions .btn {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
 }
 
-/* ...existing code... */
+/* Dashboard data health notification banner */
+.dashboard-data-health-banner {
+    display: none;
+    width: 100%;
+    margin-top: 14px;
+    margin-bottom: 0;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    background: linear-gradient(135deg, rgba(254, 243, 199, 0.95) 0%, rgba(253, 230, 138, 0.88) 100%);
+    box-shadow: 0 8px 24px rgba(245, 158, 11, 0.12);
+}
+.dashboard-data-health-banner.is-info {
+    border-color: rgba(14, 165, 233, 0.45);
+    background: linear-gradient(135deg, rgba(224, 242, 254, 0.96) 0%, rgba(186, 230, 253, 0.9) 100%);
+    box-shadow: 0 8px 24px rgba(14, 165, 233, 0.12);
+}
+.dashboard-data-health-banner__inner {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+.dashboard-data-health-banner__body {
+    flex: 1 1 320px;
+    min-width: 0;
+}
+.dashboard-data-health-banner__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 15px;
+    color: #92400e;
+    margin-bottom: 6px;
+}
+.dashboard-data-health-banner.is-info .dashboard-data-health-banner__title {
+    color: #0c4a6e;
+}
+.dashboard-data-health-banner__title .bi {
+    font-size: 18px;
+}
+.dashboard-data-health-banner__text {
+    font-size: 13px;
+    line-height: 1.55;
+    color: #78350f;
+}
+.dashboard-data-health-banner.is-info .dashboard-data-health-banner__text {
+    color: #0c4a6e;
+}
+.dashboard-data-health-banner__list {
+    margin: 10px 0 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+}
+.dashboard-data-health-banner__list li {
+    position: relative;
+    padding: 8px 12px 8px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    line-height: 1.45;
+    color: #451a03;
+}
+.dashboard-data-health-banner.is-info .dashboard-data-health-banner__list li {
+    color: #0c4a6e;
+}
+.dashboard-data-health-banner__list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: 999px;
+    background: #f59e0b;
+}
+.dashboard-data-health-banner.is-info .dashboard-data-health-banner__list li::before {
+    background: #0ea5e9;
+}
+.dashboard-data-health-banner__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 0 0 auto;
+    min-width: 210px;
+}
+.dashboard-data-health-banner__actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    white-space: nowrap;
+}
+.dashboard-data-health-banner__actions .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+}
+.dashboard-data-health-banner__actions .btn:disabled {
+    opacity: 0.72;
+    cursor: wait;
+}
+#dashboardRecapRefreshBtn {
+    background: #ffffff;
+    color: #1e293b;
+    border: 2px solid rgba(30, 41, 59, 0.18);
+}
+#dashboardRecapRefreshBtn:hover:not(:disabled) {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: rgba(30, 41, 59, 0.28);
+}
+#dashboardRecapHealthSyncBtn {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    color: #ffffff;
+    border: none;
+}
+#dashboardRecapHealthSyncBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+    color: #ffffff;
+}
+html[data-theme="dark"] .dashboard-data-health-banner {
+    border-color: rgba(251, 191, 36, 0.35);
+    background: linear-gradient(135deg, rgba(69, 26, 3, 0.92) 0%, rgba(120, 53, 15, 0.88) 100%);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+html[data-theme="dark"] .dashboard-data-health-banner.is-info {
+    border-color: rgba(56, 189, 248, 0.35);
+    background: linear-gradient(135deg, rgba(12, 74, 110, 0.92) 0%, rgba(7, 89, 133, 0.88) 100%);
+}
+html[data-theme="dark"] .dashboard-data-health-banner__title,
+html[data-theme="dark"] .dashboard-data-health-banner__text {
+    color: #fde68a;
+}
+html[data-theme="dark"] .dashboard-data-health-banner.is-info .dashboard-data-health-banner__title,
+html[data-theme="dark"] .dashboard-data-health-banner.is-info .dashboard-data-health-banner__text {
+    color: #bae6fd;
+}
+html[data-theme="dark"] .dashboard-data-health-banner__list li {
+    background: rgba(15, 23, 42, 0.45);
+    border-color: rgba(148, 163, 184, 0.18);
+    color: #fef3c7;
+}
+html[data-theme="dark"] .dashboard-data-health-banner.is-info .dashboard-data-health-banner__list li {
+    color: #e0f2fe;
+}
+html[data-theme="dark"] #dashboardRecapRefreshBtn {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: transparent;
+}
 
 /* Dashboard campaign notification bell */
 #dashboardCampaignNotif .nav-link {
@@ -6383,28 +6552,11 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                 <div class="card dashboard-card dashboard-recap-card">
                     <div class="card-header">
                         <div class="dashboard-recap-header">
-                            <div>
+                            <div class="dashboard-recap-header__intro">
                                 <div class="dashboard-recap-title">Dashboard Earning Adx Manager &amp; AdSense</div>
                                 <div class="dashboard-recap-subtitle">Default: hari ini</div>
                                 <div id="dashboardRecapSyncAlert" class="alert alert-info" style="display:none;border-radius:10px;margin-top:10px;margin-bottom:0;padding:10px 12px;">
                                     <span id="dashboardRecapSyncAlertText">Syncronize sedang berlangsung</span>
-                                </div>
-                                <div id="dashboardDataHealthBanner" class="alert alert-warning" style="display:none;border-radius:10px;margin-top:10px;margin-bottom:0;padding:12px 14px;">
-                                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                                        <div style="flex:1;min-width:220px;">
-                                            <div style="font-weight:800;margin-bottom:4px;"><i class="bi bi-exclamation-triangle me-1"></i> Perhatian Data Dashboard</div>
-                                            <div id="dashboardDataHealthText" style="font-size:13px;line-height:1.45;"></div>
-                                            <ul id="dashboardDataHealthList" style="margin:8px 0 0 18px;padding:0;font-size:12px;"></ul>
-                                        </div>
-                                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                                            <button type="button" id="dashboardRecapRefreshBtn" class="btn btn-sm btn-outline-light" title="Muat ulang dari database tanpa menjalankan cron">
-                                                <i class="bi bi-arrow-repeat"></i> Muat Ulang Data
-                                            </button>
-                                            <button type="button" id="dashboardRecapHealthSyncBtn" class="btn btn-sm btn-warning">
-                                                <i class="bi bi-cloud-arrow-down"></i> Tarik Ulang (Cron)
-                                            </button>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                             <div class="dashboard-recap-filters">
@@ -6426,6 +6578,28 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                     <button id="dashboardRecapSyncBtn" type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:8px;">
                                         <i class="bi bi-arrow-clockwise text-white"></i>
                                         <span>Synchronize</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="dashboardDataHealthBanner" class="dashboard-data-health-banner" role="alert" aria-live="polite">
+                            <div class="dashboard-data-health-banner__inner">
+                                <div class="dashboard-data-health-banner__body">
+                                    <div class="dashboard-data-health-banner__title">
+                                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                                        <span>Perhatian Data Dashboard</span>
+                                    </div>
+                                    <div id="dashboardDataHealthText" class="dashboard-data-health-banner__text"></div>
+                                    <ul id="dashboardDataHealthList" class="dashboard-data-health-banner__list"></ul>
+                                </div>
+                                <div class="dashboard-data-health-banner__actions">
+                                    <button type="button" id="dashboardRecapRefreshBtn" class="btn" title="Muat ulang dari database tanpa menjalankan cron">
+                                        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                                        <span>Muat Ulang Data</span>
+                                    </button>
+                                    <button type="button" id="dashboardRecapHealthSyncBtn" class="btn">
+                                        <i class="bi bi-cloud-arrow-down-fill" aria-hidden="true"></i>
+                                        <span>Tarik Ulang (Cron)</span>
                                     </button>
                                 </div>
                             </div>
@@ -6928,11 +7102,14 @@ function renderDashboardDataHealth(health) {
     const issues = Array.isArray(data.issues) ? data.issues : [];
     const notices = Array.isArray(data.notices) ? data.notices : [];
     const warnIssues = issues.filter(function(i){ return String(i?.severity || '').toLowerCase() === 'warn'; });
+    const infoIssues = issues.filter(function(i){ return String(i?.severity || '').toLowerCase() === 'info'; });
+    const hasAlerts = !!(missing.length || warnIssues.length || infoIssues.length || notices.length);
 
-    if (data.healthy || (!missing.length && !warnIssues.length && !notices.length)) {
+    if (!hasAlerts) {
         banner.style.display = 'none';
         textEl.textContent = '';
         listEl.innerHTML = '';
+        banner.classList.remove('is-info');
         return;
     }
 
@@ -6942,6 +7119,9 @@ function renderDashboardDataHealth(health) {
     }
     if (warnIssues.length) {
         parts.push(`${warnIssues.length} account revenue AdX sudah ada di DB tapi belum tampil (klik Muat Ulang Data).`);
+    }
+    if (infoIssues.length) {
+        parts.push(`${infoIssues.length} account spend sudah ada tapi revenue AdX/AdSense belum lengkap.`);
     }
     if (notices.length && !parts.length) {
         parts.push(String(notices[0]?.message || 'Data AdX per-negara belum ready — gunakan Muat Ulang Data.'));
@@ -6957,7 +7137,14 @@ function renderDashboardDataHealth(health) {
     warnIssues.slice(0, 4).forEach(function(row) {
         items.push(`<li><strong>${esc(String(row?.account || '-'))}</strong> — ${esc(String(row?.message || 'Revenue belum tampil'))}</li>`);
     });
+    infoIssues.slice(0, 6).forEach(function(row) {
+        items.push(`<li><strong>${esc(String(row?.account || '-'))}</strong> — ${esc(String(row?.message || 'Revenue belum tersedia'))}</li>`);
+    });
+    notices.slice(0, 2).forEach(function(row) {
+        items.push(`<li>${esc(String(row?.message || 'Data AdX per-negara belum ready.'))}</li>`);
+    });
     listEl.innerHTML = items.join('');
+    banner.classList.toggle('is-info', !missing.length && !warnIssues.length);
     banner.style.display = 'block';
 }
 
@@ -22643,7 +22830,10 @@ function initDashboardRecap() {
             const domLabel = domainsList.length
                 ? (domainsList.length <= 3 ? domainsList.join(', ') : `${domainsList.slice(0,3).join(', ')} +${domainsList.length - 3}`)
                 : 'Domain terfilter tabel';
-            metaEl.textContent = `${domLabel} • ${ymd}`;
+            const modeNote = (json && json.revenue_mode === 'daily_estimated' && json.revenue_note)
+                ? ` • ${String(json.revenue_note)}`
+                : '';
+            metaEl.textContent = `${domLabel} • ${ymd}${modeNote}`;
         }
     }
 

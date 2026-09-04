@@ -85,6 +85,104 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   html[data-theme="dark"] .meta-center,html[data-theme="dark"] .meta-right{background:#111827;border-color:#374151}
   html[data-theme="dark"] .meta-card{background:#1f2937;border-color:#374151;color:#e5e7eb}
   html[data-theme="dark"] .meta-card h6,html[data-theme="dark"] .meta-card label{color:#e5e7eb}
+  .fb-per-account-filters {
+    padding: 16px 18px;
+    border: 1px solid #dbe7ff;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.08);
+    margin-bottom: 18px;
+  }
+  .fb-per-account-filters__grid {
+    display: grid;
+    grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) minmax(180px, 1.4fr) minmax(220px, 1.8fr) auto;
+    gap: 14px;
+    align-items: end;
+  }
+  .fb-per-account-filters__item label,
+  .fb-per-account-filters__action-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 6px;
+  }
+  .fb-per-account-filters__item .form-control,
+  .fb-per-account-filters__item .select2-container--bootstrap4 .select2-selection--single {
+    min-height: 42px;
+    border-radius: 12px !important;
+    border-color: #cbd5e1 !important;
+  }
+  .fb-per-account-filters__item small.text-muted {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+  }
+  .fb-per-account-filters__action {
+    min-width: 148px;
+  }
+  .fb-per-account-load-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    color: #fff !important;
+    background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.24);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  }
+  .fb-per-account-load-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+    filter: brightness(1.03);
+    color: #fff !important;
+  }
+  .fb-per-account-load-btn:disabled,
+  .fb-per-account-load-btn.is-loading {
+    opacity: 0.88;
+    cursor: wait;
+    transform: none;
+  }
+  html[data-theme="dark"] .fb-per-account-filters {
+    border-color: #334155;
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  }
+  html[data-theme="dark"] .fb-per-account-filters__item label,
+  html[data-theme="dark"] .fb-per-account-filters__action-label {
+    color: #e2e8f0;
+  }
+  html[data-theme="dark"] .fb-per-account-filters__item .form-control {
+    background: #0f172a;
+    color: #e5e7eb;
+    border-color: #475569 !important;
+  }
+  @media (max-width: 1200px) {
+    .fb-per-account-filters__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .fb-per-account-filters__item--domain,
+    .fb-per-account-filters__action {
+      grid-column: 1 / -1;
+    }
+  }
+  @media (max-width: 768px) {
+    .fb-per-account-filters__grid {
+      grid-template-columns: 1fr;
+    }
+    .fb-per-account-filters__item--domain,
+    .fb-per-account-filters__action {
+      grid-column: auto;
+    }
+  }
 </style>
 <div class="card">
     <div class="card-header">
@@ -98,38 +196,40 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         </div>
     </div> <!-- /.card-header -->
     <div class="card-body">
-        <div class="form-row" id="facebookPerAccountFilters" data-title="Filter" data-intro="Pilih rentang tanggal, account, dan domain (opsional), lalu klik Muat Data untuk menampilkan traffic per account.">
-            <div class="col-md-2">
-                <label>Range Dari</label>
-                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="{{ seven_days_ago }}" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
-            </div>
-            <div class="col-md-2">
-                <label>Range Sampai</label>
-                <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="{{ today }}" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
-            </div>
-            <div class="col-md-3">
-                <label>Filter Account</label>
-                <select class="form-control select2" id="select_account" required="required">
-                    <option value=""></option>
-                    {% for data_account in data_account %}
-                    <option value="{{data_account.account_id}}">{{data_account.account_name}}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label>Filter Subdomain</label>
-                <select class="form-control" id="select_domain" multiple>
-                    {% for domain in data_domain %}
-                    <option value="{{ domain.site_name|default:domain.data_ads_domain|default:'' }}">{{ domain.site_name|default:domain.data_ads_domain|default:'' }}</option>
-                    {% endfor %}
-                </select>
-                <small class="text-muted">Ketik untuk mencari atau tambah subdomain baru.</small>
-            </div>
-            <div class="col-md-1">
-                <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data traffic sesuai filter yang dipilih dan memperbarui tabel.">
-                    <i class="fas fa-search"></i> Muat Data
-                </button>
+        <div class="fb-per-account-filters" id="facebookPerAccountFilters" data-title="Filter" data-intro="Pilih rentang tanggal, account, dan domain (opsional), lalu klik Muat Data untuk menampilkan traffic per account.">
+            <div class="fb-per-account-filters__grid">
+                <div class="fb-per-account-filters__item">
+                    <label for="tanggal_dari">Range Dari</label>
+                    <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="{{ seven_days_ago }}" data-mask="9999-99-99" placeholder="YYYY-MM-DD"/>
+                </div>
+                <div class="fb-per-account-filters__item">
+                    <label for="tanggal_sampai">Range Sampai</label>
+                    <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="{{ today }}" data-mask="9999-99-99" placeholder="YYYY-MM-DD"/>
+                </div>
+                <div class="fb-per-account-filters__item fb-per-account-filters__item--account">
+                    <label for="select_account">Filter Account</label>
+                    <select class="form-control select2" id="select_account" required="required">
+                        <option value=""></option>
+                        {% for data_account in data_account %}
+                        <option value="{{data_account.account_id}}">{{data_account.account_name}}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="fb-per-account-filters__item fb-per-account-filters__item--domain">
+                    <label for="select_domain">Filter Subdomain</label>
+                    <select class="form-control" id="select_domain" multiple>
+                        {% for domain in data_domain %}
+                        <option value="{{ domain.site_name|default:domain.data_ads_domain|default:'' }}">{{ domain.site_name|default:domain.data_ads_domain|default:'' }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="fb-per-account-filters__action">
+                    <label class="fb-per-account-filters__action-label" aria-hidden="true">&nbsp;</label>
+                    <button type="button" class="btn fb-per-account-load-btn" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data traffic sesuai filter yang dipilih dan memperbarui tabel.">
+                        <i class="fas fa-database" aria-hidden="true"></i>
+                        <span>Muat Data</span>
+                    </button>
+                </div>
             </div>
         </div>
 

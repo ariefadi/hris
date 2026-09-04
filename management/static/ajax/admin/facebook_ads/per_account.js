@@ -187,10 +187,10 @@ $().ready(function () {
         if(tanggal_dari && tanggal_dari !== '' && data_account!="") {
             var $btn = $('#btn_load_data');
             var btnHtml = $btn.html();
-            $btn.prop('disabled', true);
+            $btn.prop('disabled', true).addClass('is-loading').html('<i class="fas fa-spinner fa-spin" aria-hidden="true"></i><span>Memuat...</span>');
             destroy_table_data_per_account_facebook();
             table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain, function onDone() {
-                $btn.prop('disabled', false).html(btnHtml);
+                $btn.prop('disabled', false).removeClass('is-loading').html(btnHtml);
             });
         }    
     });
@@ -1121,7 +1121,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
             }, 1500);
             
             // Update header switch after table is loaded and on any switch change
-             table.on('draw', function() {
+             fbPerAccountTable.on('draw', function() {
                  // Use setTimeout to ensure DOM is fully updated
                  setTimeout(function() {
                      updateHeaderSwitch();

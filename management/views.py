@@ -15276,6 +15276,94 @@ def build_domain_filter_terms(selected_domains, include_original=True, include_b
 
     return terms
 
+
+def _heatmap_match_domain_keys(domain_name, db):
+    keys = []
+    try:
+        keys.extend(db._dashboard_domain_lookup_keys(domain_name))
+    except Exception:
+        pass
+    primary = ''
+    try:
+        primary = db._dashboard_primary_subdomain(domain_name)
+    except Exception:
+        primary = str(domain_name or '').split('.')[0].strip().lower()
+    if primary and primary not in keys:
+        keys.append(primary)
+    return [str(k or '').strip().lower() for k in keys if str(k or '').strip()]
+
+
+def _heatmap_sum_daily_revenue(db, tanggal, selected_domains, source):
+    """Total revenue harian untuk domain heatmap (fallback bila log hourly AdX kosong)."""
+    total = 0.0
+    matched_keys = set()
+
+    def _acc_rev_map(rev_map):
+        nonlocal total
+        if not isinstance(rev_map, dict):
+            return
+        if selected_domains:
+            for domain in selected_domains:
+                for k in _heatmap_match_domain_keys(domain, db):
+                    for rk, rv in rev_map.items():
+                        rkey = str(rk or '').strip().lower()
+                        if not rkey or rkey in matched_keys:
+                            continue
+                        if rkey == k or rkey.startswith(k + '.') or k in rkey:
+                            total += float(rv or 0)
+                            matched_keys.add(rkey)
+        else:
+            total += sum(float(v or 0) for v in rev_map.values())
+
+    if source in ('adx', 'all'):
+        terms = build_domain_filter_terms(
+            ','.join(selected_domains) if selected_domains else '',
+            include_original=True,
+            include_base=True,
+        ) if selected_domains else None
+        rev_res = db.get_adx_domain_revenue_map_by_params(tanggal, tanggal, terms)
+        if isinstance(rev_res, dict) and rev_res.get('status'):
+            _acc_rev_map(rev_res.get('data') or {})
+
+    if source in ('adsense', 'all'):
+        try:
+            params = [tanggal]
+            domain_clause = ''
+            if selected_domains:
+                terms = build_domain_filter_terms(
+                    ','.join(selected_domains),
+                    include_original=True,
+                    include_base=True,
+                )
+                if terms:
+                    like_conditions = ' OR '.join(
+                        ["LOWER(SUBSTRING_INDEX(a.data_adsense_domain, '.', 2)) LIKE %s"] * len(terms)
+                    )
+                    domain_clause = f' AND ({like_conditions})'
+                    params.extend([f'%{t.lower()}%' for t in terms])
+            sql = f"""
+                SELECT
+                    LOWER(SUBSTRING_INDEX(a.data_adsense_domain, '.', 2)) AS site_key,
+                    COALESCE(SUM(CAST(a.data_adsense_revenue AS DECIMAL(18,2))), 0) AS revenue
+                FROM data_adsense_domain a
+                WHERE DATE(a.data_adsense_tanggal) = %s
+                {domain_clause}
+                GROUP BY site_key
+                HAVING site_key <> ''
+            """
+            if db.execute_query(sql, tuple(params)):
+                ads_map = {}
+                for row in (db.fetch_all() or []):
+                    key = str((row or {}).get('site_key') or '').strip().lower()
+                    if key:
+                        ads_map[key] = float((row or {}).get('revenue') or 0)
+                _acc_rev_map(ads_map)
+        except Exception:
+            pass
+
+    return round(float(total or 0), 2)
+
+
 def normalize_score(val, min_val, max_val):
     try:
         val = float(val or 0)
@@ -15931,22 +16019,44 @@ class DashboardDomainHourlyHeatmapView(View):
                     continue
                 hkey = f"{hour:02d}"
                 spend_by_hour[hkey] = spend_by_hour.get(hkey, 0.0) + float(row.get('spend', 0) or 0)
+
             hours = [f"{h:02d}" for h in range(24)]
+            hourly_rev_total = sum(float(rev_by_hour.get(h, 0.0) or 0.0) for h in hours)
+            hourly_spend_total = sum(float(spend_by_hour.get(h, 0.0) or 0.0) for h in hours)
+            revenue_mode = 'hourly_logs'
+            revenue_note = ''
+            if hourly_rev_total <= 0 and hourly_spend_total > 0:
+                daily_rev = _heatmap_sum_daily_revenue(
+                    db,
+                    tanggal_formatted,
+                    selected_domains,
+                    source,
+                )
+                if daily_rev > 0:
+                    revenue_mode = 'daily_estimated'
+                    revenue_note = (
+                        'Log revenue AdX per jam belum tersedia hari ini. '
+                        'Heatmap memakai estimasi dari total revenue harian (data_adx_domain) '
+                        'dibagi proporsional spend per jam.'
+                    )
+                    for h in hours:
+                        s = float(spend_by_hour.get(h, 0.0) or 0.0)
+                        if s > 0:
+                            rev_by_hour[h] = daily_rev * (s / hourly_spend_total)
+
             revenue_series = []
             spend_series = []
             roi_series = []
-            cum_revenue = 0.0
-            cum_spend = 0.0
+            total_revenue = 0.0
+            total_spend = 0.0
             for h in hours:
                 r = float(rev_by_hour.get(h, 0.0) or 0.0)
                 s = float(spend_by_hour.get(h, 0.0) or 0.0)
-                cum_revenue = max(cum_revenue, r)
-                cum_spend = max(cum_spend, s)
-                revenue_series.append(round(cum_revenue, 2))
-                spend_series.append(round(cum_spend, 2))
-                roi_series.append(round((((cum_revenue - cum_spend) / cum_spend) * 100) if cum_spend > 0 else 0.0, 2))
-            total_revenue = cum_revenue
-            total_spend = cum_spend
+                total_revenue += r
+                total_spend += s
+                revenue_series.append(round(r, 2))
+                spend_series.append(round(s, 2))
+                roi_series.append(round((((r - s) / s) * 100) if s > 0 else 0.0, 2))
             result = {
                 'status': True,
                 'tanggal': tanggal_formatted,
@@ -15954,6 +16064,8 @@ class DashboardDomainHourlyHeatmapView(View):
                 'roi': roi_series,
                 'revenue': revenue_series,
                 'spend': spend_series,
+                'revenue_mode': revenue_mode,
+                'revenue_note': revenue_note,
                 'summary': {
                     'total_revenue': round(total_revenue, 2),
                     'total_spend': round(total_spend, 2),

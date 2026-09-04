@@ -5,61 +5,64 @@ APPDIR=/var/www/html/hris
 VENV=/var/www/html/hris/hris_env/bin/python3
 DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 
+# Timeout wrapper: cegah proses cron hang memblokir flock run berikutnya.
+# HRIS_TIMEOUT_HOURLY=2700 (45 menit), HRIS_TIMEOUT_DAILY=7200 (2 jam)
+
 
 # Master Ads Load: setiap 20 menit
-20 * * * * cd $APPDIR && flock -n /var/run/hris_ads_master.lock -c "$DJANGO_MANAGE cron_ads_master >> /var/log/hris/cron_ads_master.log 2>&1"
+20 * * * * cd $APPDIR && flock -n /var/run/hris_ads_master.lock -c "timeout --signal=TERM --kill-after=120 2700 $DJANGO_MANAGE cron_ads_master >> /var/log/hris/cron_ads_master.log 2>&1"
 
 # Adsense Domain Load: setiap 35 menit
-35 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_domain_load.lock -c "$DJANGO_MANAGE cron_adsense_domain_load >> /var/log/hris/cron_adsense_domain_load.log 2>&1"
+35 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_domain_load.lock -c "timeout --signal=TERM --kill-after=120 2700 $DJANGO_MANAGE cron_adsense_domain_load >> /var/log/hris/cron_adsense_domain_load.log 2>&1"
 
 # Adsense Country Load: setiap 35 menit
-35 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_country_load.lock -c "$DJANGO_MANAGE cron_adsense_country_load >> /var/log/hris/cron_adsense_country_load.log 2>&1"
+35 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_country_load.lock -c "timeout --signal=TERM --kill-after=120 2700 $DJANGO_MANAGE cron_adsense_country_load >> /var/log/hris/cron_adsense_country_load.log 2>&1"
 
 # Ads Campaign Load: setiap 35 menit
-35 * * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign_load.lock -c "$DJANGO_MANAGE cron_ads_campaign_load >> /var/log/hris/cron_ads_campaign_load.log 2>&1"
+35 * * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign_load.lock -c "timeout --signal=TERM --kill-after=120 2700 $DJANGO_MANAGE cron_ads_campaign_load >> /var/log/hris/cron_ads_campaign_load.log 2>&1"
 
 # Ads Rekap Bulanan: tanggal 1-10 setiap bulan jam 21:00 WIB (rekap bulan sebelumnya, contoh Juni -> Mei)
-0 21 1-10 * * cd $APPDIR && flock -n /var/run/hris_ads_rekap_load.lock -c "$DJANGO_MANAGE cron_ads_rekap_load >> /var/log/hris/cron_ads_rekap_load.log 2>&1"
-5 21 1-10 * * cd $APPDIR && flock -n /var/run/hris_adsense_rekap_load.lock -c "$DJANGO_MANAGE cron_adsense_rekap_load >> /var/log/hris/cron_adsense_rekap_load.log 2>&1"
-10 21 1-10 * * cd $APPDIR && flock -n /var/run/hris_adx_rekap_load.lock -c "$DJANGO_MANAGE cron_adx_rekap_load >> /var/log/hris/cron_adx_rekap_load.log 2>&1"
+0 21 1-10 * * cd $APPDIR && flock -n /var/run/hris_ads_rekap_load.lock -c "timeout --signal=TERM --kill-after=120 10800 $DJANGO_MANAGE cron_ads_rekap_load >> /var/log/hris/cron_ads_rekap_load.log 2>&1"
+5 21 1-10 * * cd $APPDIR && flock -n /var/run/hris_adsense_rekap_load.lock -c "timeout --signal=TERM --kill-after=120 10800 $DJANGO_MANAGE cron_adsense_rekap_load >> /var/log/hris/cron_adsense_rekap_load.log 2>&1"
+10 21 1-10 * * cd $APPDIR && flock -n /var/run/hris_adx_rekap_load.lock -c "timeout --signal=TERM --kill-after=120 10800 $DJANGO_MANAGE cron_adx_rekap_load >> /var/log/hris/cron_adx_rekap_load.log 2>&1"
 
 # Ads Country Load: setiap 35 menit
-35 * * * * cd $APPDIR && flock -n /var/run/hris_ads_country_load.lock -c "$DJANGO_MANAGE cron_ads_country_load >> /var/log/hris/cron_ads_country_load.log 2>&1"
+35 * * * * cd $APPDIR && flock -n /var/run/hris_ads_country_load.lock -c "timeout --signal=TERM --kill-after=120 2700 $DJANGO_MANAGE cron_ads_country_load >> /var/log/hris/cron_ads_country_load.log 2>&1"
 
 # AdX Domain Load: setiap 30 menit
-30 * * * * cd $APPDIR && flock -n /var/run/hris_adx_domain_load.lock -c "$DJANGO_MANAGE cron_adx_domain_load >> /var/log/hris/cron_adx_domain_load.log 2>&1"
+30 * * * * cd $APPDIR && flock -n /var/run/hris_adx_domain_load.lock -c "timeout --signal=TERM --kill-after=120 2700 $DJANGO_MANAGE cron_adx_domain_load >> /var/log/hris/cron_adx_domain_load.log 2>&1"
 
 # AdX Country Load: setiap 30 menit
-30 * * * * cd $APPDIR && flock -n /var/run/hris_adx_country_load.lock -c "$DJANGO_MANAGE cron_adx_country_load >> /var/log/hris/cron_adx_country_load.log 2>&1"
+30 * * * * cd $APPDIR && flock -n /var/run/hris_adx_country_load.lock -c "timeout --signal=TERM --kill-after=120 2700 $DJANGO_MANAGE cron_adx_country_load >> /var/log/hris/cron_adx_country_load.log 2>&1"
 
 # Sync ClickHouse (reporting): setiap 6 jam
-0 */6 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse.lock -c "$DJANGO_MANAGE sync_clickhouse >> /var/log/hris/sync_clickhouse.log 2>&1"
-59 23 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse_review.lock -c "$DJANGO_MANAGE sync_clickhouse_review >> /var/log/hris/sync_clickhouse_review.log 2>&1"
+0 */6 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse.lock -c "timeout --signal=TERM --kill-after=120 5400 $DJANGO_MANAGE sync_clickhouse >> /var/log/hris/sync_clickhouse.log 2>&1"
+59 23 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse_review.lock -c "timeout --signal=TERM --kill-after=120 5400 $DJANGO_MANAGE sync_clickhouse_review >> /var/log/hris/sync_clickhouse_review.log 2>&1"
 
 # AdX Domain: setiap hari jam 00:01
-1 0 * * * cd $APPDIR && flock -n /var/run/hris_adx_domain.lock -c "$DJANGO_MANAGE cron_adx_domain >> /var/log/hris/cron_adx_domain.log 2>&1"
+1 0 * * * cd $APPDIR && flock -n /var/run/hris_adx_domain.lock -c "timeout --signal=TERM --kill-after=120 7200 $DJANGO_MANAGE cron_adx_domain >> /var/log/hris/cron_adx_domain.log 2>&1"
 
 # AdX Country: setiap hari jam 00:01
-1 0 * * * cd $APPDIR && flock -n /var/run/hris_adx_country.lock -c "$DJANGO_MANAGE cron_adx_country >> /var/log/hris/cron_adx_country.log 2>&1"
+1 0 * * * cd $APPDIR && flock -n /var/run/hris_adx_country.lock -c "timeout --signal=TERM --kill-after=120 7200 $DJANGO_MANAGE cron_adx_country >> /var/log/hris/cron_adx_country.log 2>&1"
 
 # Ads Campaign: setiap hari jam 00:01
-1 0 * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign.lock -c "$DJANGO_MANAGE cron_ads_campaign >> /var/log/hris/cron_ads_campaign.log 2>&1"
+1 0 * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign.lock -c "timeout --signal=TERM --kill-after=120 7200 $DJANGO_MANAGE cron_ads_campaign >> /var/log/hris/cron_ads_campaign.log 2>&1"
 
 # Ads Country: setiap hari jam 00:01
-1 0 * * * cd $APPDIR && flock -n /var/run/hris_ads_country.lock -c "$DJANGO_MANAGE cron_ads_country >> /var/log/hris/cron_ads_country.log 2>&1"
+1 0 * * * cd $APPDIR && flock -n /var/run/hris_ads_country.lock -c "timeout --signal=TERM --kill-after=120 7200 $DJANGO_MANAGE cron_ads_country >> /var/log/hris/cron_ads_country.log 2>&1"
 
 # ROI Rekapitulasi Earning: jam 02,05,08,11,14,17,20,23 menit 59
-59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_rekapitulasi_earning.lock -c "$DJANGO_MANAGE cron_roi_rekapitulasi_earning_telegram >> /var/log/hris/cron_roi_rekapitulasi_earning_telegram.log 2>&1"
+59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_rekapitulasi_earning.lock -c "timeout --signal=TERM --kill-after=60 1800 $DJANGO_MANAGE cron_roi_rekapitulasi_earning_telegram >> /var/log/hris/cron_roi_rekapitulasi_earning_telegram.log 2>&1"
 
 # ROI Monitoring Country: jam 02,05,08,11,14,17,20,23 menit 59
-59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_country.lock -c "$DJANGO_MANAGE cron_roi_monitoring_country_telegram >> /var/log/hris/cron_roi_monitoring_country_telegram.log 2>&1"
+59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_country.lock -c "timeout --signal=TERM --kill-after=60 1800 $DJANGO_MANAGE cron_roi_monitoring_country_telegram >> /var/log/hris/cron_roi_monitoring_country_telegram.log 2>&1"
 
 # ROI Monitoring Domain: jam 02,05,08,11,14,17,20,23 menit 59
-59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_domain.lock -c "$DJANGO_MANAGE cron_roi_monitoring_domain_telegram >> /var/log/hris/cron_roi_monitoring_domain_telegram.log 2>&1"
+59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_domain.lock -c "timeout --signal=TERM --kill-after=60 1800 $DJANGO_MANAGE cron_roi_monitoring_domain_telegram >> /var/log/hris/cron_roi_monitoring_domain_telegram.log 2>&1"
 
 # Scoring Load: setiap jam menit 40
-40 * * * * cd $APPDIR && flock -n /var/run/cron_all_data_scoring.lock -c "$DJANGO_MANAGE cron_all_data_scoring >> /var/log/hris/cron_all_data_scoring.log 2>&1"
+40 * * * * cd $APPDIR && flock -n /var/run/cron_all_data_scoring.lock -c "timeout --signal=TERM --kill-after=120 3000 $DJANGO_MANAGE cron_all_data_scoring >> /var/log/hris/cron_all_data_scoring.log 2>&1"
 
 # Cron Create Scoring: jam 03,06,09,12,15,18,21,23 menit 45
-45 3-21/3 * * * cd $APPDIR && flock -n /var/run/hris_create_scoring.lock -c "$DJANGO_MANAGE cron_create_scoring >> /var/log/hris/cron_create_scoring.log 2>&1"
-45 23 * * * cd $APPDIR && flock -n /var/run/hris_create_scoring.lock -c "$DJANGO_MANAGE cron_create_scoring >> /var/log/hris/cron_create_scoring.log 2>&1"
+45 3-21/3 * * * cd $APPDIR && flock -n /var/run/hris_create_scoring.lock -c "timeout --signal=TERM --kill-after=120 3000 $DJANGO_MANAGE cron_create_scoring >> /var/log/hris/cron_create_scoring.log 2>&1"
+45 23 * * * cd $APPDIR && flock -n /var/run/hris_create_scoring.lock -c "timeout --signal=TERM --kill-after=120 3000 $DJANGO_MANAGE cron_create_scoring >> /var/log/hris/cron_create_scoring.log 2>&1"
