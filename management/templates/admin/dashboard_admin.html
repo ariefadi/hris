@@ -6582,6 +6582,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                 </div>
                             </div>
                         </div>
+                        {% if not hide_earning_finance %}
                         <div id="dashboardDataHealthBanner" class="dashboard-data-health-banner" role="alert" aria-live="polite">
                             <div class="dashboard-data-health-banner__inner">
                                 <div class="dashboard-data-health-banner__body">
@@ -6604,6 +6605,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                         <div class="mt-2 dashboard-recap-tabs" id="dashboardRecapDimTabs" role="tablist" aria-label="Rekap dimensi">
                             <button type="button" class="btn btn-sm btn-primary" data-dim="domain">Per Domain</button>
                             <button type="button" class="btn btn-sm btn-outline-primary" data-dim="country">Per Negara</button>
@@ -6717,10 +6719,10 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                             <th class="text-center">Daily <br> Budget</th>
                                             <th class="text-center">Spend</th>
                                             <th class="text-center js-earning-restricted-col">Pendapatan</th>
-                                            <th class="text-center">ROI</th>
+                                            <th class="text-center js-earning-restricted-col">ROI</th>
                                             <th class="text-center">Score</th>
                                             <th class="text-center">Hasil <br> Keputusan</th>
-                                            <th class="text-center js-earning-restricted-col">Detail</th>
+                                            <th class="text-center">Detail</th>
                                         </tr>
                                     </thead>
                                     <tbody id="dashboardRecapTbody"></tbody>
@@ -6780,6 +6782,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                         </div>
                         {% endif %}
 
+                        {% if not hide_earning_finance %}
                         <div class="card dashboard-card mt-2" id="dashboardPulseCard" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
                                 <div style="font-weight:900;"><i class="bi bi-activity me-2"></i> Grafik Matrik Data (14 Hari + Prediksi 3 Hari)</div>
@@ -6797,6 +6800,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
                         {% if not hide_earning_finance %}
                         <div class="card dashboard-card mt-2" id="dashboardRecapCompareCard" style="border-radius:16px;">
@@ -14142,6 +14146,11 @@ function initDashboardRecap() {
     }
 
     function scxRenderCampaignMetricSummaryBoxes(spend, revenue, profit, roi) {
+        if (hideEarningFinance) {
+            return `<div class="scx-metric-summary-grid">
+            <div class="scx-metric-summary-box spend"><div class="k">Total Spend</div><div class="v">${esc(fmtIdr(spend))}</div></div>
+        </div>`;
+        }
         return `<div class="scx-metric-summary-grid scx-metric-summary-grid--4col">
             <div class="scx-metric-summary-box spend"><div class="k">Total Spend</div><div class="v">${esc(fmtIdr(spend))}</div></div>
             <div class="scx-metric-summary-box revenue"><div class="k">Total Revenue</div><div class="v">${esc(fmtIdr(revenue))}</div></div>
@@ -15186,12 +15195,15 @@ function initDashboardRecap() {
 
     function scxRenderCampaignPane(defaultDate) {
         const d = esc(String(defaultDate || ''));
+        const lead = hideEarningFinance
+            ? 'Semua campaign pada subdomain ini — aktif maupun tidak aktif.'
+            : 'Semua campaign pada subdomain ini — aktif maupun tidak aktif — dengan ringkasan performa, grafik perbandingan, dan aksi cepat.';
         return `<div data-scx-tab-pane="campaign" hidden>
             <div class="scx-card scx-monitoring-shell scx-campaign-shell">
                 <div class="scx-monitoring-head">
                     <div>
                         <div class="scx-title">Campaign Subdomain</div>
-                        <div class="scx-sub scx-campaign-lead">Semua campaign pada subdomain ini — aktif maupun tidak aktif — dengan ringkasan performa, grafik perbandingan, dan aksi cepat.</div>
+                        <div class="scx-sub scx-campaign-lead">${lead}</div>
                     </div>
                     <span class="scx-sub scx-campaign-status" style="margin:0;"></span>
                 </div>
@@ -15682,33 +15694,34 @@ function initDashboardRecap() {
         }).slice(0, 10);
         if (!top.length) return;
         const labels = top.map(function(it) { return scxTruncateCampaignLabel(it.campaign_name, 24); });
+        const datasets = [{
+            label: 'Spend',
+            data: top.map(function(it) { return Number(it.spend || 0); }),
+            backgroundColor: 'rgba(239, 68, 68, 0.75)',
+            borderWidth: 0,
+            borderRadius: 4
+        }];
+        if (!hideEarningFinance) {
+            datasets.push({
+                label: 'Revenue',
+                data: top.map(function(it) { return Number(it.revenue || 0); }),
+                backgroundColor: 'rgba(124, 58, 237, 0.75)',
+                borderWidth: 0,
+                borderRadius: 4
+            });
+        }
         window.scxCampaignPerfChartInstance = new Chart(canvas.getContext('2d'), {
             type: 'bar',
             data: {
                 labels: labels,
-                datasets: [
-                    {
-                        label: 'Spend',
-                        data: top.map(function(it) { return Number(it.spend || 0); }),
-                        backgroundColor: 'rgba(239, 68, 68, 0.75)',
-                        borderWidth: 0,
-                        borderRadius: 4
-                    },
-                    {
-                        label: 'Revenue',
-                        data: top.map(function(it) { return Number(it.revenue || 0); }),
-                        backgroundColor: 'rgba(124, 58, 237, 0.75)',
-                        borderWidth: 0,
-                        borderRadius: 4
-                    }
-                ]
+                datasets: datasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'top' },
-                    tooltip: {
+                    tooltip: hideEarningFinance ? {} : {
                         callbacks: {
                             afterBody: function(ctx) {
                                 const idx = ctx[0]?.dataIndex;
@@ -17064,10 +17077,14 @@ function initDashboardRecap() {
                 zeroRecords: 'Data tidak ditemukan',
                 paginate: { previous: 'Sebelumnya', next: 'Berikutnya' }
             },
-            columnDefs: [
-                { targets: 0, className: 'text-center', width: '48px', orderable: false, searchable: false },
-                { targets: 10, className: 'text-center scx-campaign-col-aksi', orderable: false, searchable: false }
-            ]
+            columnDefs: hideEarningFinance
+                ? [
+                    { targets: 0, className: 'text-center', width: '48px', orderable: false, searchable: false }
+                ]
+                : [
+                    { targets: 0, className: 'text-center', width: '48px', orderable: false, searchable: false },
+                    { targets: 10, className: 'text-center scx-campaign-col-aksi', orderable: false, searchable: false }
+                ]
         });
         dt.on('order.dt search.dt page.dt', function() {
             const info = (dt.page && typeof dt.page.info === 'function') ? dt.page.info() : { start: 0 };
@@ -17468,14 +17485,18 @@ function initDashboardRecap() {
         html += '<th class="text-center" style="width:42px;">No</th>';
         html += '<th>Nama Campaign</th>';
         html += '<th class="text-end">Spend</th>';
-        html += '<th class="text-end">Revenue</th>';
-        html += '<th class="text-end">ROI</th>';
+        if (!hideEarningFinance) {
+            html += '<th class="text-end">Revenue</th>';
+            html += '<th class="text-end">ROI</th>';
+        }
         html += '<th>Status Campaign</th>';
         html += '<th>Status Scoring</th>';
         html += '<th>Prediksi</th>';
         html += '<th class="text-end">Rekomendasi</th>';
-        html += '<th class="text-end">Daily Budget</th>';
-        html += '<th class="text-center scx-campaign-col-aksi">Aksi</th>';
+        if (!hideEarningFinance) {
+            html += '<th class="text-end">Daily Budget</th>';
+            html += '<th class="text-center scx-campaign-col-aksi">Aksi</th>';
+        }
         html += '</tr></thead><tbody>';
         rows.forEach(function(row, idx) {
             const name = String(row?.campaign_name || '-');
@@ -17495,23 +17516,27 @@ function initDashboardRecap() {
             const bud = Number(row?.daily_budget || 0);
             const suggestedBudget = isStatusAction ? bud : Math.max(1, Math.round(bud * (1 + (recPct / 100))));
             const inputId = `scxCampBud_${cid || idx}`;
-            const canAct = !!(accountAds && cid);
+            const canAct = !hideEarningFinance && !!(accountAds && cid);
             html += '<tr>';
             html += `<td class="text-center">${esc(String(idx + 1))}</td>`;
             html += `<td data-search="${esc(name)}"><div class="scx-campaign-name-cell"><div class="scx-campaign-name-text" title="${esc(name)}">${esc(name)}</div>${scxCampaignRunningDaysBadgeHtml(row)}</div></td>`;
             html += `<td class="text-end" data-order="${esc(String(spend))}">${esc(fmtIdr(spend))}</td>`;
-            html += `<td class="text-end" data-order="${esc(String(revenue))}">${esc(fmtIdr(revenue))}</td>`;
-            html += `<td class="text-end" data-order="${esc(String(roi))}">${scxRoiBadgeHtml(roi)}</td>`;
+            if (!hideEarningFinance) {
+                html += `<td class="text-end" data-order="${esc(String(revenue))}">${esc(fmtIdr(revenue))}</td>`;
+                html += `<td class="text-end" data-order="${esc(String(roi))}">${scxRoiBadgeHtml(roi)}</td>`;
+            }
             html += `<td><span class="scx-pill ${scxCampaignStatusTone(row?.campaign_status)}">${esc(scxCampaignStatusLabel(row?.campaign_status))}</span></td>`;
             html += `<td><span class="scx-pill gray">${esc(tag.friendly || scxFriendlyLabel(tag.label))}</span></td>`;
             html += `<td><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:3px;"><span class="scx-pill ${fcTone}" style="font-size:10px;padding:2px 8px;">${esc(rec.fdir)}</span><span class="scx-pill gray" style="font-size:10px;padding:2px 8px;">${esc(String(rec.horizon))} jam</span><span class="scx-pill gray" style="font-size:10px;padding:2px 8px;">${esc(scxPct01(rec.conf, 0))}</span></div><div class="scx-sub" style="margin:0;font-size:11px;">${esc(rec.summary)}</div></td>`;
             html += `<td class="text-end"><span class="scx-pill ${actionTone}" style="font-size:10px;padding:2px 8px;">${esc(action)}</span><div style="font-size:11px;font-weight:700;margin-top:4px;">${esc(recPctTxt)}</div></td>`;
-            if (canAct) {
-                html += `<td class="text-end" data-order="${esc(String(suggestedBudget))}"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm scx-campaign-budget-input" data-cid="${esc(cid)}" value="${esc(fmtBudgetInput(suggestedBudget))}" style="text-align:right;max-width:132px;margin-left:auto;${isStatusAction ? 'opacity:.65;' : ''}" ${isStatusAction ? 'readonly' : ''}></td>`;
-                html += `<td class="text-center scx-campaign-col-aksi"><button type="button" class="btn btn-sm btn-outline-primary scx-campaign-act-btn" data-cid="${esc(cid)}" data-action="${esc(action)}" data-bud-input="${esc(inputId)}">Save</button></td>`;
-            } else {
-                html += `<td class="text-end" data-order="${esc(String(bud))}">${bud > 0 ? esc(fmtIdr(bud)) : '<span class="text-muted">—</span>'}</td>`;
-                html += '<td class="text-center scx-campaign-col-aksi"><span class="text-muted">—</span></td>';
+            if (!hideEarningFinance) {
+                if (canAct) {
+                    html += `<td class="text-end" data-order="${esc(String(suggestedBudget))}"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm scx-campaign-budget-input" data-cid="${esc(cid)}" value="${esc(fmtBudgetInput(suggestedBudget))}" style="text-align:right;max-width:132px;margin-left:auto;${isStatusAction ? 'opacity:.65;' : ''}" ${isStatusAction ? 'readonly' : ''}></td>`;
+                    html += `<td class="text-center scx-campaign-col-aksi"><button type="button" class="btn btn-sm btn-outline-primary scx-campaign-act-btn" data-cid="${esc(cid)}" data-action="${esc(action)}" data-bud-input="${esc(inputId)}">Save</button></td>`;
+                } else {
+                    html += `<td class="text-end" data-order="${esc(String(bud))}">${bud > 0 ? esc(fmtIdr(bud)) : '<span class="text-muted">—</span>'}</td>`;
+                    html += '<td class="text-center scx-campaign-col-aksi"><span class="text-muted">—</span></td>';
+                }
             }
             html += '</tr>';
         });
@@ -17641,7 +17666,11 @@ function initDashboardRecap() {
             if (tableWrap) tableWrap.innerHTML = '<div class="scx-sub" style="padding:14px;">Subdomain tidak ditemukan.</div>';
             return;
         }
-        if (leadEl) leadEl.textContent = `Semua campaign pada subdomain ${scope.domain} — aktif maupun tidak aktif — dengan ringkasan performa, grafik perbandingan, dan aksi cepat.`;
+        if (leadEl) {
+            leadEl.textContent = hideEarningFinance
+                ? `Semua campaign pada subdomain ${scope.domain} — aktif maupun tidak aktif.`
+                : `Semua campaign pada subdomain ${scope.domain} — aktif maupun tidak aktif — dengan ringkasan performa, grafik perbandingan, dan aksi cepat.`;
+        }
         if (!startEl || !endEl) return;
         let startYmd = String(startEl.value || state?.date || '').trim();
         let endYmd = String(endEl.value || state?.date || '').trim();
@@ -17897,7 +17926,7 @@ function initDashboardRecap() {
             b.onclick = function() { act(String(b.getAttribute('data-scx-tab-btn') || 'summary')).catch(function(){}); };
         });
         window.scoreDetailModalTabActivate = act;
-        const initialTab = window.__scoreDetailOpenCampaignTab ? 'campaign' : 'summary';
+        const initialTab = (window.__scoreDetailOpenCampaignTab || hideEarningFinance) ? 'campaign' : 'summary';
         if (window.__scoreDetailOpenCampaignTab) window.__scoreDetailOpenCampaignTab = false;
         act(initialTab).catch(function(){});
     }
@@ -20799,6 +20828,13 @@ function initDashboardRecap() {
             const monitoringSourceLabel = monitoringSource === 'adsense' ? 'AdSense' : 'ADX';
             const defaultScxDate = String(state?.date || '').trim();
             const isCountryScoringDetail = String(state?.dim || '').toLowerCase() === 'country';
+            if (hideEarningFinance) {
+                if (isCountryScoringDetail) {
+                    return `<div class="scx-card" style="padding:18px;"><div class="scx-title" style="margin-bottom:8px;">Detail Campaign</div><div class="scx-sub">Tab campaign hanya tersedia untuk detail scoring subdomain.</div></div>`;
+                }
+                const campaignOnlyNav = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">Navigasi hasil scoring</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="campaign">Campaign</button></div></div>`;
+                return campaignOnlyNav + scxRenderCampaignPane(defaultScxDate);
+            }
             const invalidDataTabBtn = isCountryScoringDetail ? '' : '<button type="button" class="scx-modal-tab" data-scx-tab-btn="invalid_data">Invalid data</button>';
             const campaignTabBtn = isCountryScoringDetail ? '' : '<button type="button" class="scx-modal-tab" data-scx-tab-btn="campaign">Campaign</button>';
             const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">Navigasi hasil scoring</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="decision">Hasil Keputusan</button><button type="button" class="scx-modal-tab" data-scx-tab-btn="analytic">Analytic</button>${invalidDataTabBtn}<button type="button" class="scx-modal-tab" data-scx-tab-btn="monitoring">Monitoring</button>${campaignTabBtn}</div></div>`;
@@ -21369,8 +21405,10 @@ function initDashboardRecap() {
                         state: state,
                         scoring: normalizedJson?.scoring || {}
                     };
-                    mountScoreDetailBackendTables(normalizedJson?.scoring || {}, { row, state });
-                    bindScoreMetric14Tabs(metricDailySeries.slice(-SCORE_METRIC_CHART_DAYS));
+                    if (!hideEarningFinance) {
+                        mountScoreDetailBackendTables(normalizedJson?.scoring || {}, { row, state });
+                        bindScoreMetric14Tabs(metricDailySeries.slice(-SCORE_METRIC_CHART_DAYS));
+                    }
                     bindScoreCountryTabs(async function(tabKey){
                         const endYmd = String(state.date || '').trim();
                         if (!endYmd) return;
@@ -21418,7 +21456,7 @@ function initDashboardRecap() {
                             return;
                         }
                     });
-                    if (String(state?.dim || '').toLowerCase() === 'domain' && rowWithTrend?.account_ads && state?.date) bindScoreCampaignControls(rowWithTrend, String(state.date || '').trim(), normalizedJson?.scoring || {});
+                    if (!hideEarningFinance && String(state?.dim || '').toLowerCase() === 'domain' && rowWithTrend?.account_ads && state?.date) bindScoreCampaignControls(rowWithTrend, String(state.date || '').trim(), normalizedJson?.scoring || {});
                 } catch (e) {}
             }, 0);
         } catch (e) {
@@ -21600,7 +21638,8 @@ function initDashboardRecap() {
                 if (dt.column(4).length) dt.column(4).visible(!isCountry, false);
                 if (hideEarningFinance) {
                     if (dt.column(6).length) dt.column(6).visible(false, false);
-                    if (dt.column(10).length) dt.column(10).visible(false, false);
+                    if (dt.column(7).length) dt.column(7).visible(false, false);
+                    if (dt.column(10).length) dt.column(10).visible(true, false);
                 }
             } catch (e) {}
         }
@@ -22177,7 +22216,7 @@ function initDashboardRecap() {
 
             const keputusanData = buildDecisionCellData(meta, { row: r, state: state });
             const detailBtn = (meta)
-                ? `<button type="button" class="btn btn-sm ds-detail-btn dashboard-open-score-detail-btn" data-score-key="${esc(k)}" title="Buka detail scoring" aria-label="Buka detail scoring"><i class="fas fa-eye mr-1" aria-hidden="true"></i>Detail</button>`
+                ? `<button type="button" class="btn btn-sm ds-detail-btn dashboard-open-score-detail-btn" data-score-key="${esc(k)}" title="${hideEarningFinance ? 'Buka detail campaign' : 'Buka detail scoring'}" aria-label="${hideEarningFinance ? 'Buka detail campaign' : 'Buka detail scoring'}"><i class="fas fa-eye mr-1" aria-hidden="true"></i>Detail</button>`
                 : `<button type="button" class="btn btn-sm ds-detail-btn" disabled title="Scoring belum tersedia">Detail</button>`;
 
             const scoreStats = recapDim === 'country' ? { activeCount: 0, totalBudget: 0 } : campaignStatsFromScoringMeta(meta);
@@ -22235,10 +22274,10 @@ function initDashboardRecap() {
                     <td class="text-right"${isCountry ? ' style="display:none;"' : ''}>${renderMoneyCell(row[4], 'display')}</td>
                     <td class="text-right">${renderMoneyCell(row[5], 'display')}</td>
                     ${hideEarningFinance ? '' : `<td class="text-right">${renderMoneyCell(row[6], 'display')}</td>`}
-                    <td class="text-center">${renderRoiCell(row[7], 'display')}</td>
+                    ${hideEarningFinance ? '' : `<td class="text-center">${renderRoiCell(row[7], 'display')}</td>`}
                     <td class="text-center">${renderScoreCell(row[8], 'display')}</td>
                     <td class="text-center ds-keputusan-cell">${row[9]?.html || ''}</td>
-                    ${hideEarningFinance ? '' : `<td class="text-center">${row[10]}</td>`}
+                    <td class="text-center">${row[10]}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -22379,6 +22418,7 @@ function initDashboardRecap() {
                     {
                         targets: 7,
                         className: 'text-center',
+                        visible: !hideEarningFinance,
                         render: function (data, type) {
                             return renderRoiCell(data, type);
                         }
@@ -22405,7 +22445,7 @@ function initDashboardRecap() {
                             return key;
                         }
                     },
-                    { targets: 10, className: 'text-center', orderable: false, searchable: false, visible: !hideEarningFinance }
+                    { targets: 10, className: 'text-center', orderable: false, searchable: false }
                 ]
             });
             bindNoColumn(window.dashboardRecapDt);
@@ -22588,6 +22628,7 @@ function initDashboardRecap() {
     }
 
     async function renderPortfolioPulse(ymd) {
+        if (hideEarningFinance) return;
         const card = document.getElementById('dashboardPulseCard');
         const metaEl = document.getElementById('dashboardPulseMeta');
         const canvas = document.getElementById('dashboardPortfolioPulseChart');
@@ -23184,17 +23225,21 @@ function initDashboardRecap() {
     initRecapSourceSelect2();
 
     setActive('dashboardRecapDimTabs', 'data-dim', 'domain');
-    setActive('dashboardPulseTabs', 'data-metric', 'roi');
-    window.dashboardPulseMetric = 'roi';
-
-    document.getElementById('dashboardPulseTabs').addEventListener('click', function(e){
-        const b = e.target.closest('button[data-metric]');
-        if (!b) return;
-        const m = b.getAttribute('data-metric') || 'roi';
-        window.dashboardPulseMetric = m;
-        setActive('dashboardPulseTabs', 'data-metric', m);
-        if (window.dashboardPulsePayload) renderPulseChart(m, window.dashboardPulsePayload);
-    });
+    if (!hideEarningFinance) {
+        setActive('dashboardPulseTabs', 'data-metric', 'roi');
+        window.dashboardPulseMetric = 'roi';
+        const pulseTabs = document.getElementById('dashboardPulseTabs');
+        if (pulseTabs) {
+            pulseTabs.addEventListener('click', function(e){
+                const b = e.target.closest('button[data-metric]');
+                if (!b) return;
+                const m = b.getAttribute('data-metric') || 'roi';
+                window.dashboardPulseMetric = m;
+                setActive('dashboardPulseTabs', 'data-metric', m);
+                if (window.dashboardPulsePayload) renderPulseChart(m, window.dashboardPulsePayload);
+            });
+        }
+    }
 
     if (!window.jQuery || !jQuery.fn || typeof jQuery.fn.select2 !== 'function' || !jQuery(sourceEl).data('select2')) {
         sourceEl.addEventListener('change', load);
@@ -23222,13 +23267,15 @@ function initDashboardRecap() {
         });
     }
 
-    document.getElementById('dashboardRecapDimTabs').addEventListener('click', function(e){
-
-        const b = e.target.closest('button[data-dim]');
-        if (!b) return;
-        setActive('dashboardRecapDimTabs', 'data-dim', b.getAttribute('data-dim'));
-        load();
-    });
+    const dimTabs = document.getElementById('dashboardRecapDimTabs');
+    if (dimTabs) {
+        dimTabs.addEventListener('click', function(e){
+            const b = e.target.closest('button[data-dim]');
+            if (!b) return;
+            setActive('dashboardRecapDimTabs', 'data-dim', b.getAttribute('data-dim'));
+            load();
+        });
+    }
 
     load();
 }
