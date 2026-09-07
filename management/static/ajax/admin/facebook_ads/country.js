@@ -361,6 +361,11 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                 }) : []
             });
             window.fbCountryDt = fbCountryTable;
+            if (window.HRIS_HIDE_EARNING_FINANCE) {
+                $('#fbTrafficTableWrap').addClass('hris-hide-table-totals');
+                $('#table_data_per_country_facebook tfoot').remove();
+                $('#table_data_per_country_facebook').closest('.dataTables_wrapper').find('tfoot, .dataTables_scrollFoot').remove();
+            }
 
 
             $('#table_data_per_country_facebook tbody')

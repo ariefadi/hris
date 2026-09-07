@@ -1,5 +1,6 @@
 {% extends "admin_base.html" %}
 {% load static %}
+{% load nav_context %}
 {% block page_title %}Facebook Ads{% endblock %}
 {% block page_heading %}Facebook Ads{% endblock %}
 {% block breadcrumbs %}
@@ -75,6 +76,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 </style>
 {% endblock %}
 {% block content %}
+{% hide_earning_finance_flag as hide_earning_finance %}
 {% csrf_token %}  
 <style>
   .dt-buttons{margin-bottom:16px}.dt-buttons .btn{border-radius:10px!important;font-weight:700!important;border:none!important;box-shadow:0 6px 14px rgba(15,23,42,.10)}
@@ -107,6 +109,11 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   .facebook-load-btn:hover,.facebook-load-btn:focus{color:#fff!important;filter:brightness(1.08);box-shadow:0 8px 18px rgba(79,70,229,.4)}
   html[data-theme="dark"] .facebook-load-btn{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)!important;box-shadow:0 6px 16px rgba(99,102,241,.28)}
   .facebook-filter-note{margin-top:8px}
+  .hris-hide-table-totals tfoot,
+  .hris-hide-table-totals .dataTables_scrollFoot,
+  .hris-hide-table-totals .dataTables_wrapper tfoot {
+      display: none !important;
+  }
 </style>
 <div class="card">
     <div class="card-header">
@@ -194,7 +201,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             <div class="fb-per-account-empty-title">Belum ada data ditampilkan</div>
             <div class="fb-per-account-empty-desc">Pilih rentang tanggal, account, domain, dan negara (opsional), lalu klik <strong>Muat Data</strong>.</div>
         </div>
-        <div id="fbTrafficTableWrap" class="dt-responsive-table" style="display:none;">
+        <div id="fbTrafficTableWrap" class="dt-responsive-table{% if hide_earning_finance %} hris-hide-table-totals{% endif %}" style="display:none;">
             <table id="table_data_per_country_facebook" class="table table-bordered" data-title="Tabel" data-intro="Tabel detail traffic per negara sesuai filter. Bagian footer menampilkan total agregat.">
             <thead>
                 <tr>
@@ -214,9 +221,10 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             </thead>
             <tbody>
             </tbody>
+            {% if not hide_earning_finance %}
             <tfoot>
                 <tr>
-                    <th colspan="1" class="text-center" style="font-size: 14px;">Total</th>
+                    <th class="text-center" style="font-size: 14px;">Total</th>
                     <th class="text-right" style="font-size: 12px;" id="total_spend"></th>
                     <th class="text-right" style="font-size: 12px;" id="total_impressions"></th>
                     <th class="text-right" style="font-size: 12px;" id="total_reach"></th>
@@ -230,6 +238,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     <th class="no-export"></th>
                 </tr>
             </tfoot>
+            {% endif %}
         </table>
         </div>
 
@@ -301,11 +310,15 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 </div>
 {% endblock %}
 {% block more_scripts %}
+{% hide_earning_finance_flag as hide_earning_finance %}
 <!-- Highcharts Maps Library -->
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+<script>
+window.HRIS_HIDE_EARNING_FINANCE = {{ hide_earning_finance|yesno:"true,false" }};
+</script>
 <script src="{% static 'ajax/admin/facebook_ads/country.js'%}?v={%now 'u'%}"></script>
 <script>
 (function() {

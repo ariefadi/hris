@@ -246,6 +246,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         </div>
 
         <div id="facebookSummaryResults" style="display:none;">
+        {% if not hide_earning_finance %}
         <div class="summary-section-card mb-3" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, Total Impresi, Total Klik, dan Total CPC.">
             <div class="summary-section-title"><i class="bi bi-grid-3x3-gap"></i> Ringkasan Performa</div>
             <div class="row mb-0" id="summary_boxes_campaign">
@@ -295,6 +296,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             </div>
             </div>
         </div>
+        {% endif %}
 
         <div class="summary-section-card mb-3" data-title="Tabel" data-intro="Tabel detail traffic per campaign sesuai filter. Bagian footer menampilkan total agregat.">
             <div class="summary-section-title"><i class="bi bi-table"></i> Detail Data Campaign</div>
@@ -321,9 +323,12 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             <tbody>
 
             </tbody>
+            {% if not hide_earning_finance %}
             <tfoot>
                 <tr>
-                    <th colspan="3" class="text-center" style="font-size: 14px;">Total</th>
+                    <th class="text-center" style="font-size: 14px;">Total</th>
+                    <th></th>
+                    <th></th>
                     <th class="text-right" style="font-size: 12px;" id="total_spend"></th>
                     <th class="text-right" style="font-size: 12px;" id="total_impressions"></th>
                     <th class="text-right" style="font-size: 12px;" id="total_reach"></th>
@@ -337,6 +342,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     <th class="no-export"></th>
                 </tr>
             </tfoot>
+            {% endif %}
         </table>
             </div>
         </div>
@@ -485,6 +491,9 @@ html[data-theme="dark"] #table_monitoring_campaign_facebook > :not(caption) > * 
     border-color: #2b2b2b !important;
 }
 </style>
+<script>
+window.HRIS_HIDE_EARNING_FINANCE = {{ hide_earning_finance|default:False|yesno:"true,false" }};
+</script>
 <script src="{% static 'ajax/admin/facebook_ads/summary.js'%}?v={%now 'u'%}"></script>
 <script>
 (function() {

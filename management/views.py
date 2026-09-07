@@ -6302,6 +6302,10 @@ class SummaryFacebookAds(View):
             'last_update': last_update,
             'data_account': data_account,
             'data_domain': data_domain,
+            'hide_earning_finance': _user_has_role(
+                (req.session.get('hris_admin') or {}).get('user_id'),
+                '03002',
+            ),
         }
         return render(req, 'admin/facebook_ads/summary/index.html', data)
     
@@ -10577,6 +10581,10 @@ class PerCampaignFacebookAds(View):
             'last_update': last_update,
             'data_account': data_account,
             'data_domain': data_domain,
+            'hide_earning_finance': _user_has_role(
+                (req.session.get('hris_admin') or {}).get('user_id'),
+                '03002',
+            ),
         }
         return render(req, 'admin/facebook_ads/campaign/index.html', data)
 
@@ -11319,6 +11327,10 @@ class PerCountryFacebookAds(View):
             'last_update': last_update,
             'data_account': data_account,
             'data_domain': data_domain,
+            'hide_earning_finance': _user_has_role(
+                (req.session.get('hris_admin') or {}).get('user_id'),
+                '03002',
+            ),
         }
         return render(req, 'admin/facebook_ads/country/index.html', data)
     

@@ -426,6 +426,69 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
             renderFacebookMonitoringCampaignTable((data_campaign && data_campaign.monitoring_campaign) ? data_campaign.monitoring_campaign : []);
 
             try {
+            const exportStamp = "laporan traffic per campaign facebook didownload pada "
+                + tanggal.getHours() + ":"
+                + tanggal.getMinutes() + " "
+                + tanggal.getDate() + "-"
+                + (tanggal.getMonth() + 1) + "-"
+                + tanggal.getFullYear();
+            const exportColumns = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+            function stripExportHtml(data, node) {
+                let text = '';
+                if (node && node.nodeType === 1) {
+                    text = String(node.textContent || node.innerText || '');
+                } else {
+                    const tmp = document.createElement('div');
+                    tmp.innerHTML = String(data == null ? '' : data);
+                    text = String(tmp.textContent || tmp.innerText || '');
+                }
+                return text.replace(/\s+/g, ' ').trim();
+            }
+            const exportOpts = {
+                columns: exportColumns,
+                stripHtml: true,
+                decodeEntities: true,
+                format: {
+                    header: function (data, _col, node) {
+                        return stripExportHtml(data, node);
+                    },
+                    body: function (data, _row, _column, node) {
+                        return stripExportHtml(data, node);
+                    }
+                }
+            };
+            function findPdfTableNode(doc) {
+                const content = Array.isArray(doc && doc.content) ? doc.content : [];
+                for (let i = 0; i < content.length; i++) {
+                    if (content[i] && content[i].table && Array.isArray(content[i].table.body)) {
+                        return content[i];
+                    }
+                }
+                return null;
+            }
+            function normalizePdfTable(tableNode) {
+                if (!tableNode || !tableNode.table || !Array.isArray(tableNode.table.body)) return;
+                const body = tableNode.table.body;
+                const colCount = Math.max.apply(null, body.map(function (row) {
+                    return Array.isArray(row) ? row.length : 0;
+                }).concat([exportColumns.length]));
+                body.forEach(function (row) {
+                    if (!Array.isArray(row)) return;
+                    for (let c = 0; c < colCount; c++) {
+                        const cell = row[c];
+                        if (cell == null) {
+                            row[c] = { text: '' };
+                        } else if (typeof cell !== 'object') {
+                            row[c] = { text: stripExportHtml(cell) };
+                        } else if (cell.text != null) {
+                            cell.text = stripExportHtml(cell.text);
+                        }
+                    }
+                    if (row.length > colCount) row.length = colCount;
+                });
+                const pct = (100 / Math.max(colCount, 1)).toFixed(4) + '%';
+                tableNode.table.widths = Array(colCount).fill(pct);
+            }
             $('#table_data_campaign_facebook').DataTable({
                 columnDefs: [
                     { targets: -1, orderable: false, searchable: false }
@@ -441,87 +504,69 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 searching: true,
                 buttons: [
                     {
-                        extend: 'excel',
+                        extend: 'excelHtml5',
                         filename: judul,
                         text: 'Download Excel',
                         title: judul,
-                        messageTop: "laporan traffic per campaign facebook didownload pada "
-                            + tanggal.getHours() + ":"
-                            + tanggal.getMinutes() + " "
-                            + tanggal.getDate() + "-"
-                            + (tanggal.getMonth() + 1) + "-"
-                            + tanggal.getFullYear(),
-                        exportOptions: {
-                            columns: ':visible',
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],      // tanpa kolom Detail
-                            modifier: {
-                                search: 'applied',      // sesuai filter pencarian
-                                order: 'applied'        // sesuai urutan saat itu
-                            }
-                        },
+                        footer: false,
+                        messageTop: exportStamp,
+                        exportOptions: exportOpts,
                         customize: function (xlsx) {
-                            const sheet = xlsx.xl.worksheets['sheet1.xml'];
-                            // =========================
-                            // Set column width secara manual (unit: character width)
-                            // =========================
-                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10];
-                            const cols = $('cols', sheet);
-                            cols.empty(); // Kosongkan default <col> dari DataTables
-                            for (let i = 0; i < colWidths.length; i++) {
-                                cols.append(
-                                    `<col min="${i + 1}" max="${i + 1}" width="${colWidths[i]}" customWidth="1"/>`
-                                );
+                            try {
+                                const sheet = xlsx.xl.worksheets['sheet1.xml'];
+                                const colWidths = [18, 22, 28, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12];
+                                const cols = $('cols', sheet);
+                                if (!cols.length) return;
+                                cols.empty();
+                                for (let i = 0; i < colWidths.length; i++) {
+                                    cols.append(
+                                        '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + colWidths[i] + '" customWidth="1"/>'
+                                    );
+                                }
+                            } catch (excelErr) {
+                                console.error('Customize Excel gagal:', excelErr);
                             }
-
                         }
                     },
                     {
-                        extend: 'pdf',
+                        extend: 'pdfHtml5',
                         orientation: 'landscape',
                         pageSize: 'A4',
                         filename: judul,
                         text: 'Download Pdf',
                         className: 'btn btn-warning',
                         title: judul,
-                        messageBottom: "laporan traffic per campaign facebook didownload pada "
-                            + tanggal.getHours() + ":"
-                            + tanggal.getMinutes()
-                            + " " + tanggal.getDate()
-                            + "-" + (tanggal.getMonth() + 1)
-                            + "-" + tanggal.getFullYear(),
+                        footer: false,
+                        messageBottom: exportStamp,
+                        exportOptions: exportOpts,
                         customize: function (doc) {
-                            // Header style (bold + center)
-                            doc.styles.tableHeader = {
-                                bold: true,
-                                fontSize: 11,
-                                color: 'black',
-                                alignment: 'center'
-                            };
-
-                            // Ambil body tabel (data + header)
-                            const body = doc.content[1].table.body;
-                            // Loop dari baris kedua (index 1, karena index 0 adalah header)
-                            for (let i = 1; i < body.length; i++) {
-                                if (body[i]) {
-                                    if (body[i][0]) body[i][0].alignment = 'center';
-                                    if (body[i][1]) body[i][1].alignment = 'left';
-                                    if (body[i][2]) body[i][2].alignment = 'left';
-                                    if (body[i][3]) body[i][3].alignment = 'right';
-                                    if (body[i][4]) body[i][4].alignment = 'right';
-                                    if (body[i][5]) body[i][5].alignment = 'right';
-                                    if (body[i][6]) body[i][6].alignment = 'right';
-                                    if (body[i][7]) body[i][7].alignment = 'right';
-                                    if (body[i][8]) body[i][8].alignment = 'right';
-                                    if (body[i][9]) body[i][9].alignment = 'right';
-                                    if (body[i][10]) body[i][10].alignment = 'right';
-                                    if (body[i][11]) body[i][11].alignment = 'right';
-                                    if (body[i][12]) body[i][12].alignment = 'right';
+                            try {
+                                doc.pageMargins = [24, 36, 24, 36];
+                                doc.styles = doc.styles || {};
+                                doc.styles.tableHeader = {
+                                    bold: true,
+                                    fontSize: 9,
+                                    color: 'black',
+                                    alignment: 'center'
+                                };
+                                const tableNode = findPdfTableNode(doc);
+                                if (!tableNode) return;
+                                normalizePdfTable(tableNode);
+                                const body = tableNode.table.body || [];
+                                for (let i = 1; i < body.length; i++) {
+                                    const row = body[i];
+                                    if (!row) continue;
+                                    if (row[0]) row[0].alignment = 'center';
+                                    if (row[1]) row[1].alignment = 'left';
+                                    if (row[2]) row[2].alignment = 'left';
+                                    for (let c = 3; c < row.length; c++) {
+                                        if (row[c]) row[c].alignment = 'right';
+                                    }
                                 }
+                                tableNode.margin = [0, 8, 0, 8];
+                            } catch (pdfErr) {
+                                console.error('Customize PDF gagal:', pdfErr);
                             }
-                            // Margin
-                            doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
-                            // Manual width sesuai presentase kolom HTML (tanpa kolom Detail)
-                            doc.content[1].table.widths = ['8%', '12%', '12%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%'];
                         }
                     }
                 ]

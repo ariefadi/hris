@@ -131,3 +131,29 @@ def render_menu_tree(items, current_path='/', level=1, max_depth=3):
         'level': level or 1,
         'max_depth': max_depth or 3,
     }
+
+
+@register.simple_tag(takes_context=True)
+def hide_earning_finance_flag(context):
+    """True when the logged-in admin has role 03002 (Earning Report User)."""
+    user_id = str(_get_user_id_from_context(context) or '').strip()
+    if not user_id:
+        return False
+    db = data_mysql()
+    try:
+        sql = """
+            SELECT 1 AS ok
+            FROM app_user_role
+            WHERE user_id = %s AND role_id = %s
+            LIMIT 1
+        """
+        if not db.execute_query(sql, (user_id, '03002')):
+            return False
+        return bool(db.cur_hris.fetchone())
+    except Exception:
+        return False
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass

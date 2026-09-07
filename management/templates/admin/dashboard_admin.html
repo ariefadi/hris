@@ -6709,8 +6709,8 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                                 <th class="text-center">Avg Score</th>
                                                 <th class="text-center">Avg Health</th>
                                                 <th class="text-center">Avg Risk</th>
-                                                <th class="text-end">Spend</th>
                                                 {% if not hide_earning_finance %}
+                                                <th class="text-end">Spend</th>
                                                 <th class="text-end">Pendapatan</th>
                                                 {% endif %}
                                                 <th class="text-center">Alert Dominan</th>
@@ -6813,8 +6813,8 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                             <th id="dashboardRecapThName" class="text-center">Sub <br> Negara</th>
                                             <th class="text-center">Account <br> Ads</th>
                                             <th class="text-center">Campaign <br> Aktif</th>
-                                            <th class="text-center">Daily <br> Budget</th>
-                                            <th class="text-center">Spend</th>
+                                            <th class="text-center{% if hide_earning_finance %} js-earning-restricted-col{% endif %}">Daily <br> Budget</th>
+                                            <th class="text-center{% if hide_earning_finance %} js-earning-restricted-col{% endif %}">Spend</th>
                                             <th class="text-center js-earning-restricted-col">Pendapatan</th>
                                             <th class="text-center js-earning-restricted-col">ROI</th>
                                             <th class="text-center">Score</th>
@@ -14244,11 +14244,7 @@ function initDashboardRecap() {
     }
 
     function scxRenderCampaignMetricSummaryBoxes(spend, revenue, profit, roi) {
-        if (hideEarningFinance) {
-            return `<div class="scx-metric-summary-grid">
-            <div class="scx-metric-summary-box spend"><div class="k">Total Spend</div><div class="v">${esc(fmtIdr(spend))}</div></div>
-        </div>`;
-        }
+        if (hideEarningFinance) return '';
         return `<div class="scx-metric-summary-grid scx-metric-summary-grid--4col">
             <div class="scx-metric-summary-box spend"><div class="k">Total Spend</div><div class="v">${esc(fmtIdr(spend))}</div></div>
             <div class="scx-metric-summary-box revenue"><div class="k">Total Revenue</div><div class="v">${esc(fmtIdr(revenue))}</div></div>
@@ -17262,7 +17258,10 @@ function initDashboardRecap() {
             return;
         }
         scxDestroyCampaignTabDataTable();
-        if (summaryEl) summaryEl.innerHTML = scxRenderTabLoadingState('Memuat Campaign', hint || 'Mengambil data campaign subdomain...');
+        if (summaryEl) {
+            summaryEl.hidden = !!hideEarningFinance;
+            summaryEl.innerHTML = hideEarningFinance ? '' : scxRenderTabLoadingState('Memuat Campaign', hint || 'Mengambil data campaign subdomain...');
+        }
         if (tableWrap) tableWrap.innerHTML = scxRenderTabInlineLoading('Menyiapkan tabel campaign...');
         if (chartBlock) chartBlock.style.visibility = 'hidden';
         scxDestroyChartInstance('scxCampaignPerfChartInstance');
@@ -17774,7 +17773,10 @@ function initDashboardRecap() {
         const filtered = scxFilterCampaignTabRows(cache.allRows, cache.searchQuery, !!cache.activeOnly, cache.perfFilter);
         cache.filteredRows = filtered;
         const totals = scxSummarizeCampaignRows(filtered);
-        if (summaryEl) summaryEl.innerHTML = scxRenderCampaignMetricSummaryBoxes(totals.spend, totals.revenue, totals.profit, totals.roi);
+        if (summaryEl) {
+            summaryEl.hidden = !!hideEarningFinance;
+            summaryEl.innerHTML = scxRenderCampaignMetricSummaryBoxes(totals.spend, totals.revenue, totals.profit, totals.roi);
+        }
         scxDestroyCampaignTabDataTable();
         if (tableWrap) tableWrap.innerHTML = scxRenderCampaignTabTable(filtered, cache);
         if (filtered.length) scxInitCampaignTabDataTable(cache);
@@ -21889,7 +21891,8 @@ function initDashboardRecap() {
             try {
                 if (dt.column(2).length) dt.column(2).visible(!isCountry, false);
                 if (dt.column(3).length) dt.column(3).visible(!isCountry, false);
-                if (dt.column(4).length) dt.column(4).visible(!isCountry, false);
+                if (dt.column(4).length) dt.column(4).visible(!isCountry && !hideEarningFinance, false);
+                if (dt.column(5).length) dt.column(5).visible(!hideEarningFinance, false);
                 if (hideEarningFinance) {
                     if (dt.column(6).length) dt.column(6).visible(false, false);
                     if (dt.column(7).length) dt.column(7).visible(false, false);
@@ -22250,7 +22253,7 @@ function initDashboardRecap() {
                     <td class="text-center">${x.score == null ? '-' : x.score.toFixed(1)}</td>
                     <td class="text-center">${x.health == null ? '-' : x.health.toFixed(1)}</td>
                     <td class="text-center">${x.risk == null ? '-' : x.risk.toFixed(1)}</td>
-                    <td class="text-end">${fmtIdr(x.spend)}</td>
+                    ${hideEarningFinance ? '' : `<td class="text-end">${fmtIdr(x.spend)}</td>`}
                     ${hideEarningFinance ? '' : `<td class="text-end">${fmtIdr(x.revenue)}</td>`}
                     <td class="text-center">${esc(x.dominant)}</td>
                     <td class="text-center">
@@ -22262,7 +22265,7 @@ function initDashboardRecap() {
                     ${hideEarningFinance ? '' : `<td class="text-center">${detailCell}</td>`}
                 </tr>`;
             }).join('')
-            : `<tr><td colspan="${hideEarningFinance ? 10 : 12}" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>`;
+            : `<tr><td colspan="${hideEarningFinance ? 9 : 12}" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>`;
 
         if (metaEl) {
             const orphanNote = rows.some(function(x){ return x.acc === 'Backend tanpa subdomain'; })
@@ -22529,8 +22532,8 @@ function initDashboardRecap() {
                     <td>${row[1]}</td>
                     <td class="text-left"${isCountry ? ' style="display:none;"' : ''}>${row[2]}</td>
                     <td class="text-center"${isCountry ? ' style="display:none;"' : ''}>${row[3]?.html || row[3] || '-'}</td>
-                    <td class="text-right"${isCountry ? ' style="display:none;"' : ''}>${renderMoneyCell(row[4], 'display')}</td>
-                    <td class="text-right">${renderMoneyCell(row[5], 'display')}</td>
+                    ${hideEarningFinance || isCountry ? '' : `<td class="text-right">${renderMoneyCell(row[4], 'display')}</td>`}
+                    ${hideEarningFinance ? '' : `<td class="text-right">${renderMoneyCell(row[5], 'display')}</td>`}
                     ${hideEarningFinance ? '' : `<td class="text-right">${renderMoneyCell(row[6], 'display')}</td>`}
                     ${hideEarningFinance ? '' : `<td class="text-center">${renderRoiCell(row[7], 'display')}</td>`}
                     <td class="text-center">${renderScoreCell(row[8], 'display')}</td>
@@ -22654,7 +22657,7 @@ function initDashboardRecap() {
                     {
                         targets: 4,
                         className: 'text-right',
-                        visible: recapDim !== 'country',
+                        visible: recapDim !== 'country' && !hideEarningFinance,
                         render: function (data, type) {
                             return renderMoneyCell(data, type);
                         }
@@ -22662,6 +22665,7 @@ function initDashboardRecap() {
                     {
                         targets: 5,
                         className: 'text-right',
+                        visible: !hideEarningFinance,
                         render: function (data, type) {
                             return renderMoneyCell(data, type);
                         }
