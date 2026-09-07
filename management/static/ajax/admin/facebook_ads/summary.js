@@ -151,6 +151,7 @@ $().ready(function () {
 });
 
 function renderFacebookSummaryCharts(rows) {
+    if (window.HRIS_HIDE_EARNING_FINANCE) return;
     if (typeof Highcharts === 'undefined') return;
     const toNum = (v) => {
         const n = Number(String(v == null ? 0 : v).replace(/[^0-9.-]/g, ''));

@@ -10,6 +10,7 @@
 {% endblock %}
 {% block more_stylesheet %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
 <style>
 :root {
@@ -176,6 +177,57 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   .facebook-filter-note {
       margin-top: 8px;
   }
+  .fb-campaign-modal .modal-dialog{max-width:min(1120px, calc(100vw - 32px))}
+  .fb-campaign-modal .modal-content{border:0;border-radius:24px;overflow:hidden;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);box-shadow:0 28px 70px rgba(15,23,42,.28)}
+  .fb-campaign-modal .modal-header.fb-detail-header{border:0;padding:18px 28px;background:linear-gradient(135deg,#1d4ed8 0%,#4f46e5 55%,#0891b2 100%);color:#fff}
+  .fb-campaign-modal .modal-title{display:flex;align-items:center;gap:12px;margin:0;font-size:1.15rem;font-weight:800;letter-spacing:.01em}
+  .fb-campaign-modal-title-icon{width:36px;height:36px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16)}
+  .fb-campaign-modal .close{color:#fff;opacity:.92;text-shadow:none;font-size:1.6rem;font-weight:400}
+  .fb-campaign-modal .close:hover{opacity:1;color:#fff}
+  .fb-campaign-modal .modal-body{padding:24px 28px 10px;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%)}
+  .fb-campaign-modal .modal-footer{border:0;padding:8px 28px 24px;background:transparent;justify-content:flex-end}
+  .fb-campaign-hero{padding:20px 22px;border-radius:18px;background:linear-gradient(135deg,#eff6ff 0%,#ecfeff 100%);border:1px solid #dbeafe}
+  .fb-campaign-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px}
+  .fb-campaign-hero-title{font-size:22px;font-weight:800;line-height:1.35;color:#0f172a;overflow-wrap:anywhere;word-break:break-word}
+  .fb-campaign-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:16px}
+  .fb-campaign-meta-item{min-width:0;padding:16px 18px;border-radius:16px;background:#fff;border:1px solid #e2e8f0}
+  .fb-campaign-meta-item--spend{background:linear-gradient(180deg,#eef2ff 0%,#fff 100%);border-color:#c7d2fe}
+  .fb-campaign-meta-item .label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:8px}
+  .fb-campaign-meta-item .value{display:block;font-size:16px;font-weight:800;color:#0f172a;line-height:1.35;overflow-wrap:anywhere;word-break:break-word}
+  .fb-campaign-meta-item--spend .value{font-size:22px;font-weight:900;color:#312e81}
+  .fb-campaign-section{margin-top:22px}
+  .fb-campaign-section-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#475569;margin-bottom:12px}
+  .fb-campaign-section-title::before{content:"";width:8px;height:8px;border-radius:999px;background:linear-gradient(135deg,#2563eb,#7c3aed)}
+  .fb-campaign-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+  .fb-campaign-stat{min-height:118px;padding:18px 16px;border-radius:16px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 8px 20px rgba(15,23,42,.05)}
+  .fb-campaign-stat .k{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:8px}
+  .fb-campaign-stat .v{font-size:24px;font-weight:900;color:#0f172a;line-height:1.15;overflow-wrap:anywhere}
+  .fb-campaign-stat .s{font-size:12px;color:#64748b;margin-top:8px;line-height:1.35}
+  .fb-campaign-close-btn{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:10px 18px;font-weight:800;border:0;color:#fff;background:#475569}
+  .fb-campaign-close-btn:hover,.fb-campaign-close-btn:focus{color:#fff;background:#334155}
+  @media (max-width:991.98px){.fb-campaign-meta,.fb-campaign-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:575.98px){.fb-campaign-modal .modal-header.fb-detail-header,.fb-campaign-modal .modal-body,.fb-campaign-modal .modal-footer{padding-left:16px;padding-right:16px}.fb-campaign-meta,.fb-campaign-grid{grid-template-columns:1fr}.fb-campaign-hero-title{font-size:18px}.fb-campaign-stat .v,.fb-campaign-meta-item--spend .value{font-size:20px}}
+  html[data-theme="dark"] .fb-campaign-modal .modal-content,
+  html[data-theme="dark"] .fb-campaign-modal .modal-body{background:linear-gradient(180deg,#0f172a 0%,#111827 100%)}
+  html[data-theme="dark"] .fb-campaign-hero{background:linear-gradient(135deg,rgba(30,41,59,.95) 0%,rgba(15,23,42,.95) 100%);border-color:#334155}
+  html[data-theme="dark"] .fb-campaign-badge{background:#0f172a;border-color:#334155;color:#93c5fd}
+  html[data-theme="dark"] .fb-campaign-hero-title,
+  html[data-theme="dark"] .fb-campaign-meta-item .value,
+  html[data-theme="dark"] .fb-campaign-stat .v{color:#f8fafc}
+  html[data-theme="dark"] .fb-campaign-meta-item,
+  html[data-theme="dark"] .fb-campaign-stat{background:#111827;border-color:#334155;box-shadow:0 10px 24px rgba(0,0,0,.25)}
+  html[data-theme="dark"] .fb-campaign-meta-item--spend{background:linear-gradient(180deg,#1e1b4b 0%,#111827 100%);border-color:#4338ca}
+  html[data-theme="dark"] .fb-campaign-meta-item--spend .value{color:#c7d2fe}
+  html[data-theme="dark"] .fb-campaign-meta-item .label,
+  html[data-theme="dark"] .fb-campaign-stat .k,
+  html[data-theme="dark"] .fb-campaign-stat .s,
+  html[data-theme="dark"] .fb-campaign-section-title{color:#94a3b8}
+  html[data-theme="dark"] .fb-campaign-close-btn{background:#334155}
+  html[data-theme="dark"] .fb-campaign-close-btn:hover,
+  html[data-theme="dark"] .fb-campaign-close-btn:focus{background:#1e293b}
+  .fb-campaign-meta--no-spend{grid-template-columns:repeat(3,minmax(0,1fr))}
+  @media (max-width:991.98px){.fb-campaign-meta--no-spend{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:575.98px){.fb-campaign-meta--no-spend{grid-template-columns:1fr}}
 </style>
 <div class="card">
     <div class="card-header">
@@ -347,6 +399,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             </div>
         </div>
 
+        {% if not hide_earning_finance %}
         <div class="row mt-1" data-title="Grafik" data-intro="Perbandingan metrik berdasarkan tanggal dan akun.">
             <div class="col-md-6 mb-3">
                 <div class="summary-section-card summary-chart-card">
@@ -361,6 +414,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <div class="summary-section-card mb-3" id="facebookMonitoringCampaignCard" data-title="Monitoring Campaign" data-intro="Campaign yang overspend atau status PAUSED berdasarkan join data_ads_country dan master_ads.">
             <div class="summary-section-title"><i class="bi bi-exclamation-triangle"></i> Monitoring Campaign (Overspend / PAUSED)</div>
@@ -383,93 +437,96 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 
         </div><!-- /#facebookSummaryResults -->
 
-        <div class="modal fade" id="facebookCampaignDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCampaignDetailModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg" role="document">
+        <div class="modal fade fb-campaign-modal" id="facebookCampaignDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCampaignDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
                 <div class="modal-content">
-                    <div class="modal-header">
+                    <div class="modal-header fb-detail-header">
                         <h5 class="modal-title" id="facebookCampaignDetailModalLabel">
-                            <i class="bi bi-eye-fill"></i> Detail Campaign
+                            <span class="fb-campaign-modal-title-icon"><i class="bi bi-eye-fill"></i></span>
+                            Detail Campaign
                         </h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                     </div>
                     <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-borderless mb-0">
-                                        <tbody>
-                                            <tr>
-                                                <th style="width: 40%;">Tanggal</th>
-                                                <td id="facebookCampaignDetailDate">-</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Account</th>
-                                                <td id="facebookCampaignDetailAccount">-</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Domain</th>
-                                                <td id="facebookCampaignDetailDomain">-</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Campaign</th>
-                                                <td id="facebookCampaignDetailCampaign">-</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                        <div class="fb-campaign-hero">
+                            <span class="fb-campaign-badge"><i class="bi bi-megaphone-fill"></i> Campaign Overview</span>
+                            <div id="facebookCampaignDetailCampaign" class="fb-campaign-hero-title">-</div>
+                        </div>
+                        <div class="fb-campaign-meta{% if hide_earning_finance %} fb-campaign-meta--no-spend{% endif %}">
+                            <div class="fb-campaign-meta-item">
+                                <span class="label"><i class="bi bi-calendar3"></i> Tanggal</span>
+                                <span id="facebookCampaignDetailDate" class="value">-</span>
+                            </div>
+                            <div class="fb-campaign-meta-item">
+                                <span class="label"><i class="bi bi-person-badge"></i> Account</span>
+                                <span id="facebookCampaignDetailAccount" class="value">-</span>
+                            </div>
+                            <div class="fb-campaign-meta-item">
+                                <span class="label"><i class="bi bi-globe2"></i> Domain</span>
+                                <span id="facebookCampaignDetailDomain" class="value">-</span>
+                            </div>
+                            {% if not hide_earning_finance %}
+                            <div class="fb-campaign-meta-item fb-campaign-meta-item--spend">
+                                <span class="label"><i class="bi bi-wallet2"></i> Total Spend</span>
+                                <span id="facebookCampaignDetailSpend" class="value">Rp 0</span>
+                            </div>
+                            {% else %}
+                            <span id="facebookCampaignDetailSpend" class="d-none">Rp 0</span>
+                            {% endif %}
+                        </div>
+                        <div class="fb-campaign-section">
+                            <div class="fb-campaign-section-title">Performa Iklan</div>
+                            <div class="fb-campaign-grid">
+                                <div class="fb-campaign-stat">
+                                    <div class="k">Impressions</div>
+                                    <div id="facebookCampaignDetailImpressions" class="v">0</div>
+                                    <div class="s">Jumlah tayangan iklan</div>
+                                </div>
+                                <div class="fb-campaign-stat">
+                                    <div class="k">Reach</div>
+                                    <div id="facebookCampaignDetailReach" class="v">0</div>
+                                    <div class="s">Akun yang berhasil dijangkau</div>
+                                </div>
+                                <div class="fb-campaign-stat">
+                                    <div class="k">Clicks</div>
+                                    <div id="facebookCampaignDetailClicks" class="v">0</div>
+                                    <div class="s">Klik yang dihasilkan</div>
+                                </div>
+                                <div class="fb-campaign-stat">
+                                    <div class="k">Frequency</div>
+                                    <div id="facebookCampaignDetailFrequency" class="v">0</div>
+                                    <div class="s">Rata-rata tayang per audiens</div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-borderless mb-0">
-                                        <tbody>
-                                            <tr>
-                                                <th style="width: 45%;">Spend</th>
-                                                <td id="facebookCampaignDetailSpend" class="text-right">Rp 0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Impressions</th>
-                                                <td id="facebookCampaignDetailImpressions" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Reach</th>
-                                                <td id="facebookCampaignDetailReach" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Clicks (Hasil)</th>
-                                                <td id="facebookCampaignDetailClicks" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Frequency</th>
-                                                <td id="facebookCampaignDetailFrequency" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>CPR</th>
-                                                <td id="facebookCampaignDetailCpr" class="text-right">Rp 0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>CPC</th>
-                                                <td id="facebookCampaignDetailCpc" class="text-right">Rp 0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>LPV</th>
-                                                <td id="facebookCampaignDetailLpv" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>LPV Rate</th>
-                                                <td id="facebookCampaignDetailLpvRate" class="text-right">0%</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                        </div>
+                        <div class="fb-campaign-section">
+                            <div class="fb-campaign-section-title">Biaya &amp; Landing Page</div>
+                            <div class="fb-campaign-grid">
+                                <div class="fb-campaign-stat">
+                                    <div class="k">CPR</div>
+                                    <div id="facebookCampaignDetailCpr" class="v">Rp 0</div>
+                                    <div class="s">Biaya per hasil</div>
+                                </div>
+                                <div class="fb-campaign-stat">
+                                    <div class="k">CPC</div>
+                                    <div id="facebookCampaignDetailCpc" class="v">Rp 0</div>
+                                    <div class="s">Biaya per klik</div>
+                                </div>
+                                <div class="fb-campaign-stat">
+                                    <div class="k">LPV</div>
+                                    <div id="facebookCampaignDetailLpv" class="v">0</div>
+                                    <div class="s">Landing page view</div>
+                                </div>
+                                <div class="fb-campaign-stat">
+                                    <div class="k">LPV Rate</div>
+                                    <div id="facebookCampaignDetailLpvRate" class="v">0%</div>
+                                    <div class="s">Rasio klik ke landing page</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                            <i class="bi bi-x"></i> Tutup
-                        </button>
+                        <button type="button" class="btn fb-campaign-close-btn" data-dismiss="modal"><i class="bi bi-x-lg"></i> Tutup</button>
                     </div>
                 </div>
             </div>
@@ -489,6 +546,81 @@ html[data-theme="dark"] #table_monitoring_campaign_facebook > :not(caption) > * 
     background-color: #1e1e1e !important;
     color: #e9ecef !important;
     border-color: #2b2b2b !important;
+}
+.fb-campaign-modal .modal-content {
+    background: linear-gradient(180deg, #f8fbff 0%, #fff 100%) !important;
+    color: #0f172a !important;
+    border: 0 !important;
+    border-radius: 24px !important;
+}
+.fb-campaign-modal .modal-header,
+.fb-campaign-modal .modal-footer {
+    border: 0 !important;
+}
+.fb-campaign-modal .modal-header.fb-detail-header {
+    background: linear-gradient(135deg, #1d4ed8 0%, #4f46e5 55%, #0891b2 100%) !important;
+    color: #fff !important;
+}
+.fb-campaign-modal .modal-body {
+    background: linear-gradient(180deg, #f8fbff 0%, #fff 100%) !important;
+}
+.fb-campaign-modal .modal-footer {
+    background: transparent !important;
+}
+html[data-theme="dark"] .fb-campaign-modal .modal-content,
+html[data-theme="dark"] .fb-campaign-modal .modal-body {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%) !important;
+    color: #e5e7eb !important;
+}
+html[data-theme="dark"] .fb-campaign-modal .modal-footer {
+    background: #111827 !important;
+}
+html[data-theme="dark"] .fb-campaign-hero {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+    border-color: #334155 !important;
+}
+html[data-theme="dark"] .fb-campaign-badge {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #93c5fd !important;
+}
+html[data-theme="dark"] .fb-campaign-hero-title,
+html[data-theme="dark"] .fb-campaign-meta-item .value,
+html[data-theme="dark"] .fb-campaign-stat .v {
+    color: #f8fafc !important;
+}
+html[data-theme="dark"] .fb-campaign-meta-item,
+html[data-theme="dark"] .fb-campaign-stat {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25) !important;
+}
+html[data-theme="dark"] .fb-campaign-meta-item--spend {
+    background: linear-gradient(180deg, #1e1b4b 0%, #1e293b 100%) !important;
+    border-color: #4338ca !important;
+}
+html[data-theme="dark"] .fb-campaign-meta-item--spend .value {
+    color: #c7d2fe !important;
+}
+html[data-theme="dark"] .fb-campaign-meta-item .label,
+html[data-theme="dark"] .fb-campaign-stat .k,
+html[data-theme="dark"] .fb-campaign-stat .s,
+html[data-theme="dark"] .fb-campaign-section-title {
+    color: #94a3b8 !important;
+}
+html[data-theme="dark"] .fb-campaign-close-btn {
+    background: #334155 !important;
+    color: #fff !important;
+}
+html[data-theme="dark"] .fb-campaign-close-btn:hover,
+html[data-theme="dark"] .fb-campaign-close-btn:focus {
+    background: #1e293b !important;
+    color: #fff !important;
+}
+html[data-theme="dark"] .fb-campaign-modal .close {
+    color: #fff !important;
+    text-shadow: none !important;
+    opacity: 0.92;
 }
 </style>
 <script>
@@ -532,8 +664,7 @@ window.HRIS_HIDE_EARNING_FINANCE = {{ hide_earning_finance|default:False|yesno:"
             '#btn_load_data',
             '#facebookCampaignLastUpdate',
             '#table_data_campaign_facebook',
-            '#facebookSummaryLineChart',
-            '#facebookSummaryAccountBarChart',
+            ...(window.HRIS_HIDE_EARNING_FINANCE ? [] : ['#facebookSummaryLineChart', '#facebookSummaryAccountBarChart']),
             '#facebookMonitoringCampaignCard'
         ];
 
