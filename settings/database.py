@@ -522,11 +522,22 @@ class SettingsDB(ManagementDB):
                 a.login_date,
                 a.logout_date,
                 a.ip_address,
-                a.lokasi
+                a.lokasi,
+                (
+                    SELECT nxt.login_date
+                    FROM app_user_login nxt
+                    WHERE nxt.user_id = a.user_id
+                      AND (
+                        nxt.login_date > a.login_date
+                        OR (nxt.login_date = a.login_date AND nxt.login_id > a.login_id)
+                      )
+                    ORDER BY nxt.login_date ASC, nxt.login_id ASC
+                    LIMIT 1
+                ) AS next_login_date
             FROM app_user_login a
             INNER JOIN app_users b ON b.user_id = a.user_id
             WHERE a.login_date < %s
-              AND COALESCE(a.logout_date, NOW()) >= %s
+              AND COALESCE(NULLIF(a.logout_date, '0000-00-00 00:00:00'), NOW()) >= %s
         '''
         params = [end_dt, start_dt]
         if user_id:

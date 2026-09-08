@@ -171,11 +171,15 @@ def _parse_dt(value):
     if value is None:
         return None
     if isinstance(value, datetime):
+        if value.year < 1971:
+            return None
         return value.replace(tzinfo=None) if value.tzinfo else value
     if isinstance(value, date) and not isinstance(value, datetime):
+        if value.year < 1971:
+            return None
         return datetime.combine(value, time.min)
     text = str(value).strip()
-    if not text:
+    if not text or text.lower() in ('none', 'null') or text.startswith('0000-00-00'):
         return None
     text = text.replace('T', ' ')[:19]
     for fmt in ('%Y-%m-%d %H:%M:%S', '%y-%m-%d %H:%M:%S', '%Y-%m-%d', '%y-%m-%d'):
@@ -216,6 +220,17 @@ def format_duration_short(seconds):
     return f"{minutes} mnt"
 
 
+def _is_missing_dt(value):
+    if value is None:
+        return True
+    if isinstance(value, datetime):
+        return value.year < 1971
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value.year < 1971
+    text = str(value).strip()
+    return (not text) or text.lower() in ('none', 'null') or text.startswith('0000-00-00')
+
+
 def _clip_seconds(start, end, range_start, range_end):
     if not start:
         return 0
@@ -242,6 +257,78 @@ def _split_seconds_by_day(start, end, range_start, range_end):
         buckets[cursor.date().isoformat()] = buckets.get(cursor.date().isoformat(), 0) + int((day_end - cursor).total_seconds())
         cursor = day_end
     return buckets
+
+
+def _effective_session_bounds(login_dt, logout_dt, next_login_dt, now):
+    if not login_dt:
+        return None, None, False
+    end = None if _is_missing_dt(logout_dt) else (logout_dt if isinstance(logout_dt, datetime) else _parse_dt(logout_dt))
+    nxt = next_login_dt if isinstance(next_login_dt, datetime) else _parse_dt(next_login_dt)
+    if end and end <= login_dt:
+        end = None
+    still_online = end is None and not nxt
+    if end is None:
+        end = nxt or now
+    elif nxt and nxt < end:
+        end = nxt
+        still_online = False
+    if still_online:
+        end = now
+    return login_dt, end, still_online
+
+
+def _merge_intervals(intervals):
+    cleaned = [(start, end) for start, end in intervals if start and end and end > start]
+    if not cleaned:
+        return []
+    cleaned.sort()
+    merged = [list(cleaned[0])]
+    for start, end in cleaned[1:]:
+        if start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return [(start, end) for start, end in merged]
+
+
+def _interval_seconds(intervals):
+    return sum(int((end - start).total_seconds()) for start, end in intervals if end > start)
+
+
+def _day_cap_seconds(day_key, now):
+    try:
+        day = date.fromisoformat(day_key)
+    except ValueError:
+        return 24 * 3600
+    if day < now.date():
+        return 24 * 3600
+    if day > now.date():
+        return 0
+    start = datetime.combine(day, time.min)
+    return max(0, int((now - start).total_seconds()))
+
+
+def _with_next_login(rows):
+    prepared = []
+    for row in rows:
+        item = dict(row or {})
+        prepared.append(item)
+    grouped = {}
+    for idx, row in enumerate(prepared):
+        grouped.setdefault(row.get('user_id'), []).append(idx)
+    for indexes in grouped.values():
+        ordered = []
+        for idx in indexes:
+            login_dt = _parse_dt(prepared[idx].get('login_date'))
+            ordered.append((login_dt or datetime.min, str(prepared[idx].get('login_id') or ''), idx))
+        ordered.sort()
+        for pos, (_, _, idx) in enumerate(ordered):
+            if prepared[idx].get('next_login_date'):
+                continue
+            if pos + 1 < len(ordered):
+                nxt_idx = ordered[pos + 1][2]
+                prepared[idx]['next_login_date'] = prepared[nxt_idx].get('login_date')
+    return prepared
 
 
 def ensure_settings_user_menu(db, admin=None, *, name, slug, icon, ref_like='%users/duration_activity%'):
@@ -336,25 +423,31 @@ def build_duration_activity_payload(start_date, end_date, user_id=None):
     users = users_res.get('data') or [] if users_res.get('status') else []
     sessions_res = db.login_sessions_in_range(range_start, range_end, user_id or None)
     rows = sessions_res.get('data') or [] if sessions_res.get('status') else []
+    rows = _with_next_login(rows)
 
     now = datetime.now()
     details = []
     user_map = {}
     daily_map = {}
+    user_intervals = {}
 
     for row in rows:
         login_dt = _parse_dt(row.get('login_date'))
-        logout_dt = _parse_dt(row.get('logout_date'))
-        still_online = logout_dt is None
-        seconds = _clip_seconds(login_dt, logout_dt, range_start, range_end)
+        logout_dt = None if _is_missing_dt(row.get('logout_date')) else _parse_dt(row.get('logout_date'))
+        next_login_dt = _parse_dt(row.get('next_login_date'))
+        start_dt, end_dt, still_online = _effective_session_bounds(login_dt, logout_dt, next_login_dt, now)
+        seconds = _clip_seconds(start_dt, end_dt, range_start, range_end)
+        if seconds <= 0:
+            continue
         uid = row.get('user_id')
         alias = row.get('user_alias') or row.get('user_name') or uid
+        display_logout = None if still_online else end_dt
         details.append({
             'login_id': row.get('login_id'),
             'user_id': uid,
             'user_alias': alias,
-            'login_date': login_dt.strftime('%Y-%m-%d %H:%M:%S') if login_dt else '-',
-            'logout_date': logout_dt.strftime('%Y-%m-%d %H:%M:%S') if logout_dt else None,
+            'login_date': start_dt.strftime('%Y-%m-%d %H:%M:%S') if start_dt else '-',
+            'logout_date': display_logout.strftime('%Y-%m-%d %H:%M:%S') if display_logout else None,
             'duration_seconds': seconds,
             'duration_label': format_duration_label(seconds),
             'ip_address': row.get('ip_address') or '-',
@@ -368,11 +461,13 @@ def build_duration_activity_payload(start_date, end_date, user_id=None):
             'session_count': 0,
             'still_online': 0,
         })
-        item['total_seconds'] += seconds
         item['session_count'] += 1
         if still_online:
             item['still_online'] += 1
-        for day_key, day_secs in _split_seconds_by_day(login_dt, logout_dt, range_start, range_end).items():
+        clipped_start = max(start_dt, range_start)
+        clipped_end = min(end_dt, range_end)
+        user_intervals.setdefault(uid, []).append((clipped_start, clipped_end))
+        for day_key, day_secs in _split_seconds_by_day(start_dt, end_dt, range_start, range_end).items():
             recap_key = (uid, day_key)
             recap = daily_map.setdefault(recap_key, {
                 'user_id': uid,
@@ -380,9 +475,21 @@ def build_duration_activity_payload(start_date, end_date, user_id=None):
                 'day': day_key,
                 'seconds': 0,
                 'session_count': 0,
+                'intervals': [],
             })
-            recap['seconds'] += day_secs
             recap['session_count'] += 1
+            recap['intervals'].append((
+                max(clipped_start, datetime.combine(date.fromisoformat(day_key), time.min)),
+                min(clipped_end, datetime.combine(date.fromisoformat(day_key) + timedelta(days=1), time.min)),
+            ))
+
+    range_cap = _clip_seconds(range_start, now, range_start, range_end)
+    for uid, item in user_map.items():
+        merged = _merge_intervals(user_intervals.get(uid) or [])
+        item['total_seconds'] = min(_interval_seconds(merged), range_cap)
+    for recap in daily_map.values():
+        merged = _merge_intervals(recap.pop('intervals', []) or [])
+        recap['seconds'] = min(_interval_seconds(merged), _day_cap_seconds(recap['day'], now))
 
     user_summaries = sorted(user_map.values(), key=lambda x: x['total_seconds'], reverse=True)
     for item in user_summaries:
