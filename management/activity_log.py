@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from urllib.parse import urlparse
 
 from .ip_utils import get_client_ip
 
@@ -42,6 +43,16 @@ ACTION_LABELS = {
     'export': 'Unduh Data',
     'switch_portal': 'Ganti Portal',
     'other': 'Aktivitas Lain',
+}
+
+GENERIC_PATH_SLUGS = frozenset({
+    'admin', 'management', 'settings', 'page', 'index', 'data', 'view',
+    'list', 'detail', 'process', 'ajax', 'api',
+})
+
+PATH_PARENT_HINTS = {
+    'update_daily_budget_monitoring_domain_campaign': 'dashboard',
+    'update_campaign_status_monitoring_domain_campaign': 'dashboard',
 }
 
 
@@ -211,6 +222,131 @@ def _infer_action(request):
     return 'other'
 
 
+def _normalize_menu_path(path):
+    return '/' + (str(path or '').split('?')[0].lstrip('/').rstrip('/') or '')
+
+
+def _last_slug(path):
+    parts = [p for p in _normalize_menu_path(path).split('/') if p]
+    return (parts[-1] if parts else '').lower()
+
+
+def _menu_from_exact_path(path, catalog=None):
+    if catalog:
+        path_lower = _normalize_menu_path(path).lower()
+        best = None
+        best_len = -1
+        for item in catalog:
+            url = str(item.get('nav_url') or '').split('?')[0].strip()
+            if url and not url.startswith('/'):
+                url = '/' + url
+            url_lower = (url.rstrip('/') or '/').lower()
+            if url_lower and (path_lower == url_lower or path_lower.startswith(url_lower + '/')):
+                if len(url_lower) > best_len:
+                    best = item
+                    best_len = len(url_lower)
+        if best:
+            return best['nav_id'], best['nav_name']
+        return None, None
+    try:
+        from .middleware import find_menu_by_path
+        info = find_menu_by_path(path)
+        if info.get('nav_name'):
+            return info.get('nav_id'), info.get('nav_name')
+        return info.get('nav_id'), None
+    except Exception:
+        return None, None
+
+
+def _load_menu_catalog(db=None):
+    close_db = False
+    rows = []
+    try:
+        if db is None:
+            from .database import data_mysql
+            db = data_mysql()
+            close_db = True
+        sql = '''
+            SELECT nav_id, nav_url, nav_name
+            FROM app_menu
+            WHERE nav_url IS NOT NULL AND nav_url <> ''
+        '''
+        if db.execute_query(sql):
+            rows = db.cur_hris.fetchall() or []
+    except Exception:
+        rows = []
+    finally:
+        if close_db:
+            try:
+                db.close()
+            except Exception:
+                pass
+    catalog = []
+    for row in rows:
+        try:
+            nav_id = row.get('nav_id')
+            nav_url = row.get('nav_url') or ''
+            nav_name = row.get('nav_name') or ''
+        except AttributeError:
+            nav_id = row[0] if row else None
+            nav_url = row[1] if len(row) > 1 else ''
+            nav_name = row[2] if len(row) > 2 else ''
+        slug = _last_slug(nav_url)
+        if not slug or not nav_name:
+            continue
+        catalog.append({
+            'nav_id': nav_id,
+            'nav_url': nav_url,
+            'nav_name': nav_name,
+            'slug': slug,
+        })
+    return catalog
+
+
+def _menu_from_catalog(path, catalog):
+    slug = _last_slug(path)
+    if not slug or not catalog:
+        return None, None
+    hint = PATH_PARENT_HINTS.get(slug)
+    if hint:
+        for item in catalog:
+            if item['slug'] == hint or item['slug'].endswith(hint):
+                return item['nav_id'], item['nav_name']
+        return None, hint.replace('_', ' ').title()
+    best = None
+    best_len = 0
+    for item in catalog:
+        menu_slug = item['slug']
+        if not menu_slug or menu_slug in GENERIC_PATH_SLUGS or len(menu_slug) < 4:
+            continue
+        if menu_slug in slug or slug in menu_slug:
+            if len(menu_slug) > best_len:
+                best = item
+                best_len = len(menu_slug)
+    if best:
+        return best['nav_id'], best['nav_name']
+    return None, None
+
+
+def _resolve_menu(path, referer_request=None, catalog=None):
+    if catalog is None:
+        catalog = _load_menu_catalog()
+    nav_id, menu_name = _menu_from_exact_path(path, catalog)
+    if menu_name:
+        return nav_id, menu_name
+    if referer_request is not None:
+        try:
+            referer = referer_request.META.get('HTTP_REFERER') or ''
+        except Exception:
+            referer = ''
+        ref_path = urlparse(referer).path if referer else ''
+        if ref_path:
+            ref_id, ref_name = _menu_from_exact_path(ref_path, catalog)
+            if ref_name:
+                return ref_id, ref_name
+    return _menu_from_catalog(path, catalog)
+
+
 def _menu_info(request):
     path = request.path or ''
     path_l = path.lower()
@@ -223,19 +359,13 @@ def _menu_info(request):
         portal_name = _portal_name(portal_id) or f'Portal {portal_id}'
         return None, portal_name
     nav_id = None
-    menu_name = None
     try:
         flags = getattr(request, 'menu_permissions', None) or {}
         nav_id = flags.get('nav_id')
     except Exception:
         nav_id = None
-    try:
-        from .middleware import find_menu_by_path
-        info = find_menu_by_path(request.path)
-        nav_id = nav_id or info.get('nav_id')
-        menu_name = info.get('nav_name')
-    except Exception:
-        pass
+    resolved_id, menu_name = _resolve_menu(path, referer_request=request)
+    nav_id = resolved_id or nav_id
     if nav_id and not menu_name:
         try:
             from .database import data_mysql
@@ -347,6 +477,64 @@ def repair_login_logout_logs(db=None):
         db.commit()
     except Exception as e:
         print(f"[ERROR] Gagal memperbaiki log login/logout: {e}")
+    finally:
+        if close_db:
+            try:
+                db.close()
+            except Exception:
+                pass
+
+
+def repair_missing_menu_logs(db=None):
+    close_db = False
+    try:
+        if db is None:
+            from .database import data_mysql
+            db = data_mysql()
+            close_db = True
+        catalog = _load_menu_catalog(db)
+        sql = '''
+            SELECT log_id, path, action_type
+            FROM app_user_access_log
+            WHERE (menu_name IS NULL OR menu_name = '' OR menu_name = '-')
+              AND path NOT LIKE %s
+              AND path NOT LIKE %s
+              AND path NOT LIKE %s
+        '''
+        rows = []
+        if db.execute_query(sql, ('%/login%', '%/logout%', '%/switch_portal/%')):
+            rows = db.cur_hris.fetchall() or []
+        resolved = {}
+        for row in rows:
+            try:
+                log_id = row.get('log_id')
+                path = row.get('path') or ''
+                action = row.get('action_type') or 'other'
+            except AttributeError:
+                log_id = row[0]
+                path = row[1] if len(row) > 1 else ''
+                action = row[2] if len(row) > 2 else 'other'
+            if path not in resolved:
+                resolved[path] = _resolve_menu(path, catalog=catalog)
+            nav_id, menu_name = resolved[path]
+            if not menu_name:
+                continue
+            db.execute_query(
+                '''
+                UPDATE app_user_access_log
+                SET menu_name = %s, nav_id = COALESCE(%s, nav_id), description = %s
+                WHERE log_id = %s
+                ''',
+                (
+                    (menu_name or '')[:255],
+                    nav_id,
+                    _description(action, menu_name, path)[:500],
+                    log_id,
+                ),
+            )
+        db.commit()
+    except Exception as e:
+        print(f"[ERROR] Gagal memperbaiki nama menu log: {e}")
     finally:
         if close_db:
             try:
