@@ -581,7 +581,7 @@ class DurationActivityView(View):
         context = {
             'title': 'Duration Activity',
             'user': admin,
-            'default_tanggal_dari': (today - timedelta(days=6)).isoformat(),
+            'default_tanggal_dari': today.isoformat(),
             'default_tanggal_sampai': today.isoformat(),
         }
         return render(request, 'users/duration_activity/index.html', context)
@@ -595,7 +595,7 @@ class DurationActivityDataView(View):
 
     def get(self, request):
         today = date.today()
-        start_date = _parse_date(request.GET.get('tanggal_dari'), today - timedelta(days=6))
+        start_date = _parse_date(request.GET.get('tanggal_dari'), today)
         end_date = _parse_date(request.GET.get('tanggal_sampai'), today)
         if end_date < start_date:
             start_date, end_date = end_date, start_date
@@ -794,7 +794,7 @@ class AccessActivityView(View):
         context = {
             'title': 'Access Activity',
             'user': admin,
-            'default_tanggal_dari': (today - timedelta(days=6)).isoformat(),
+            'default_tanggal_dari': today.isoformat(),
             'default_tanggal_sampai': today.isoformat(),
         }
         return render(request, 'users/access_activity/index.html', context)
@@ -808,7 +808,7 @@ class AccessActivityDataView(View):
 
     def get(self, request):
         today = date.today()
-        start_date = _parse_date(request.GET.get('tanggal_dari'), today - timedelta(days=6))
+        start_date = _parse_date(request.GET.get('tanggal_dari'), today)
         end_date = _parse_date(request.GET.get('tanggal_sampai'), today)
         if end_date < start_date:
             start_date, end_date = end_date, start_date
