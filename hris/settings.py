@@ -111,6 +111,7 @@ MIDDLEWARE = [
     'social_django.middleware.SocialAuthExceptionMiddleware',
     'management.middleware.AuthMiddleware',
     'management.middleware.PermissionMiddleware',
+    'management.middleware.AccessLogMiddleware',
     'management.middleware.RequestMiddleware',
     'management.middleware.OAuthCredentialsMiddleware',
 ]
@@ -220,6 +221,8 @@ SESSION_COOKIE_SECURE = not DEBUG  # True for production HTTPS, False for develo
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_SAVE_EVERY_REQUEST = True  # Important for OAuth state
+# Auto-logout when the user is idle (no real activity). Chat heartbeat does not count.
+HRIS_IDLE_TIMEOUT_SECONDS = int(os.getenv('HRIS_IDLE_TIMEOUT_SECONDS', '900'))
 
 # CSRF Configuration
 CSRF_COOKIE_SECURE = not DEBUG  # True for production HTTPS, False for development HTTP

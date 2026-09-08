@@ -1,4 +1,16 @@
+from django.conf import settings
+from django.urls import reverse
+
 from .database import data_mysql
+
+
+def _idle_timeout_context():
+    try:
+        seconds = int(getattr(settings, 'HRIS_IDLE_TIMEOUT_SECONDS', 900) or 900)
+    except (TypeError, ValueError):
+        seconds = 900
+    return {'hris_idle_timeout_seconds': max(60, seconds)}
+
 
 def nav_context(request):
     """
@@ -6,10 +18,18 @@ def nav_context(request):
     - Sets/uses `active_portal_id` in session
     - Exposes `global_portals`, `global_portal_menus`, `active_portal_id`
     """
+    idle_ctx = _idle_timeout_context()
     admin = request.session.get('hris_admin') or {}
     user_id = admin.get('user_id')
+    idle_ctx['hris_session_login_at'] = admin.get('login_date') or ''
+    try:
+        idle_ctx['hris_session_duration_url'] = reverse('users_session_duration')
+        idle_ctx['hris_duration_activity_url'] = reverse('users_duration_activity')
+    except Exception:
+        idle_ctx['hris_session_duration_url'] = '/settings/users/session_duration'
+        idle_ctx['hris_duration_activity_url'] = '/settings/users/duration_activity'
     if not user_id:
-        return {}
+        return idle_ctx
 
     db = data_mysql()
 
@@ -69,6 +89,7 @@ def nav_context(request):
             roots.append(by_id[m['nav_id']])
 
     return {
+        **idle_ctx,
         'global_portals': portals,
         'global_portal_menus': roots,
         'active_portal_id': active_portal_id,

@@ -1,0 +1,190 @@
+{% extends "admin_base.html" %}
+{% load static %}
+
+{% block page_title %}Access Activity{% endblock %}
+{% block page_heading %}Access Activity{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'overview' %}">Settings</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'users_data' %}">Users</a></li>
+    <li class="breadcrumb-item active">Access Activity</li>
+{% endblock %}
+
+{% block more_stylesheet %}
+<style>
+  .aa-filter-label { display:block; margin-bottom:.4rem; font-weight:600; font-size:.82rem; color:#64748b; }
+  html[data-theme="dark"] .aa-filter-label { color:#94a3b8; }
+  .aa-load-btn {
+    display:inline-flex !important; align-items:center; justify-content:center; gap:8px;
+    width:100%; height:calc(2.25rem + 2px); border:0 !important; border-radius:10px;
+    font-weight:700; color:#fff !important;
+    background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%) !important;
+    box-shadow:0 6px 16px rgba(79,70,229,.32);
+  }
+  .aa-summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:16px; }
+  .aa-user-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+  @media (max-width:991px) { .aa-summary-grid, .aa-user-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:575px) { .aa-summary-grid, .aa-user-grid { grid-template-columns:1fr; } }
+  .aa-stat, .aa-user-card {
+    border-radius:16px; padding:16px 18px; border:1px solid rgba(148,163,184,.18);
+    background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(248,250,252,.92));
+    box-shadow:0 10px 28px rgba(15,23,42,.06); min-height:104px;
+  }
+  .aa-stat .k, .aa-user-card .k { font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:800; color:#64748b; margin-bottom:8px; }
+  .aa-stat .v, .aa-user-card .v { font-size:24px; font-weight:800; color:#0f172a; line-height:1.2; }
+  .aa-stat .s, .aa-user-card .s { font-size:12px; color:#64748b; margin-top:6px; }
+  .aa-stat--total .v { color:#4f46e5; }
+  .aa-stat--user .v { color:#0284c7; }
+  .aa-stat--view .v { color:#16a34a; }
+  .aa-stat--change .v { color:#ea580c; }
+  .aa-chart-box { position:relative; height:300px; }
+  .aa-empty { color:#94a3b8; text-align:center; padding:24px 8px; }
+  html[data-theme="dark"] .aa-stat,
+  html[data-theme="dark"] .aa-user-card {
+    background:linear-gradient(180deg,#111827 0%,#0f172a 100%);
+    border-color:#334155;
+  }
+  html[data-theme="dark"] .aa-stat .v,
+  html[data-theme="dark"] .aa-user-card .v { color:#f8fafc; }
+  html[data-theme="dark"] .aa-stat--total .v { color:#a5b4fc; }
+  html[data-theme="dark"] .aa-stat--user .v { color:#7dd3fc; }
+  html[data-theme="dark"] .aa-stat--view .v { color:#86efac; }
+  html[data-theme="dark"] .aa-stat--change .v { color:#fdba74; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title mb-0"><i class="bi bi-journal-text"></i> Rekap Aktivitas User</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-row align-items-end mb-3">
+            <div class="col-md-2 mb-2 mb-md-0">
+                <label class="aa-filter-label">Tanggal Dari</label>
+                <input class="form-control datepicker-input" type="text" id="aa_tanggal_dari" value="{{ default_tanggal_dari }}" placeholder="YYYY-MM-DD" autocomplete="off">
+            </div>
+            <div class="col-md-2 mb-2 mb-md-0">
+                <label class="aa-filter-label">Tanggal Sampai</label>
+                <input class="form-control datepicker-input" type="text" id="aa_tanggal_sampai" value="{{ default_tanggal_sampai }}" placeholder="YYYY-MM-DD" autocomplete="off">
+            </div>
+            <div class="col-md-3 mb-2 mb-md-0">
+                <label class="aa-filter-label">Filter User</label>
+                <select class="form-control" id="aa_user_id">
+                    <option value="">Semua User</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-2 mb-md-0">
+                <label class="aa-filter-label">Jenis Aktivitas</label>
+                <select class="form-control" id="aa_action_type">
+                    <option value="">Semua Aktivitas</option>
+                    <option value="view">Buka Menu</option>
+                    <option value="create">Tambah Data</option>
+                    <option value="update">Ubah Data</option>
+                    <option value="delete">Hapus Data</option>
+                    <option value="export">Unduh Data</option>
+                    <option value="switch_portal">Ganti Portal</option>
+                    <option value="login">Login</option>
+                    <option value="logout">Logout</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn aa-load-btn" id="aa_btn_load"><i class="bi bi-search"></i> Muat Data</button>
+            </div>
+        </div>
+
+        <div class="aa-summary-grid">
+            <div class="aa-stat aa-stat--total">
+                <div class="k">Total Aktivitas</div>
+                <div class="v" id="aa_sum_total">0</div>
+                <div class="s">Semua aksi dalam rentang tanggal</div>
+            </div>
+            <div class="aa-stat aa-stat--user">
+                <div class="k">User Aktif</div>
+                <div class="v" id="aa_sum_user">0</div>
+                <div class="s">User yang tercatat aktivitasnya</div>
+            </div>
+            <div class="aa-stat aa-stat--view">
+                <div class="k">Buka Menu</div>
+                <div class="v" id="aa_sum_view">0</div>
+                <div class="s">Halaman yang dibuka</div>
+            </div>
+            <div class="aa-stat aa-stat--change">
+                <div class="k">Ubah Data</div>
+                <div class="v" id="aa_sum_change">0</div>
+                <div class="s">Tambah, edit, dan hapus</div>
+            </div>
+        </div>
+
+        <h5 class="mb-2">Ringkasan Per User</h5>
+        <div class="aa-user-grid" id="aa_user_cards">
+            <div class="aa-empty">Pilih filter lalu klik Muat Data.</div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6 mb-3">
+                <div class="card mb-0">
+                    <div class="card-header py-2"><strong>Perbandingan Aktivitas User</strong></div>
+                    <div class="card-body"><div class="aa-chart-box"><canvas id="aaUserChart"></canvas></div></div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="card mb-0">
+                    <div class="card-header py-2"><strong>Jenis Aktivitas</strong></div>
+                    <div class="card-body"><div class="aa-chart-box"><canvas id="aaActionChart"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header py-2"><strong>Aktivitas Harian</strong></div>
+            <div class="card-body"><div class="aa-chart-box"><canvas id="aaDailyChart"></canvas></div></div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header py-2"><strong>Menu yang Paling Sering Diakses</strong></div>
+            <div class="card-body">
+                <table id="aa_table_menu" class="table table-bordered table-striped" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Menu / Halaman</th>
+                            <th class="text-center">Jumlah Akses</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card mb-0">
+            <div class="card-header py-2"><strong>Detail Log Aktivitas</strong></div>
+            <div class="card-body">
+                <table id="aa_table_detail" class="table table-bordered table-striped" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th class="text-center">Waktu</th>
+                            <th>User</th>
+                            <th class="text-center">Aksi</th>
+                            <th>Aktivitas</th>
+                            <th>Menu</th>
+                            <th>Path</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+window.HRIS_ACCESS_ACTIVITY = {
+    dataUrl: "{% url 'users_access_activity_data' %}",
+    defaultDari: "{{ default_tanggal_dari }}",
+    defaultSampai: "{{ default_tanggal_sampai }}"
+};
+</script>
+<script src="{% static 'ajax/admin/access_activity/access_activity.js' %}?v={% now 'u' %}"></script>
+{% endblock %}

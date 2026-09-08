@@ -5,7 +5,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from settings.database import data_mysql
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 from django.conf import settings as django_settings
 from django.urls import reverse
 from urllib.parse import urlparse
@@ -165,6 +165,544 @@ def _set_hris_admin_session(request, user_data):
         request.session.modified = True
     except Exception:
         pass
+
+
+def _parse_dt(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None) if value.tzinfo else value
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return datetime.combine(value, time.min)
+    text = str(value).strip()
+    if not text:
+        return None
+    text = text.replace('T', ' ')[:19]
+    for fmt in ('%Y-%m-%d %H:%M:%S', '%y-%m-%d %H:%M:%S', '%Y-%m-%d', '%y-%m-%d'):
+        try:
+            parsed = datetime.strptime(text, fmt)
+            if fmt in ('%Y-%m-%d', '%y-%m-%d'):
+                return datetime.combine(parsed.date(), time.min)
+            return parsed
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_date(value, fallback):
+    parsed = _parse_dt(value)
+    if parsed:
+        return parsed.date()
+    return fallback
+
+
+def format_duration_label(seconds):
+    total = max(0, int(seconds or 0))
+    hours, rem = divmod(total, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours:
+        return f"{hours} jam {minutes} menit"
+    if minutes:
+        return f"{minutes} menit"
+    return f"{secs} detik"
+
+
+def format_duration_short(seconds):
+    total = max(0, int(seconds or 0))
+    hours, rem = divmod(total, 3600)
+    minutes = rem // 60
+    if hours:
+        return f"{hours}j {minutes}m"
+    return f"{minutes} mnt"
+
+
+def _clip_seconds(start, end, range_start, range_end):
+    if not start:
+        return 0
+    finish = end or datetime.now()
+    clipped_start = max(start, range_start)
+    clipped_end = min(finish, range_end)
+    if clipped_end <= clipped_start:
+        return 0
+    return int((clipped_end - clipped_start).total_seconds())
+
+
+def _split_seconds_by_day(start, end, range_start, range_end):
+    if not start:
+        return {}
+    finish = end or datetime.now()
+    clipped_start = max(start, range_start)
+    clipped_end = min(finish, range_end)
+    if clipped_end <= clipped_start:
+        return {}
+    buckets = {}
+    cursor = clipped_start
+    while cursor < clipped_end:
+        day_end = min(datetime.combine(cursor.date() + timedelta(days=1), time.min), clipped_end)
+        buckets[cursor.date().isoformat()] = buckets.get(cursor.date().isoformat(), 0) + int((day_end - cursor).total_seconds())
+        cursor = day_end
+    return buckets
+
+
+def ensure_settings_user_menu(db, admin=None, *, name, slug, icon, ref_like='%users/duration_activity%'):
+    url_slash = f'/settings/users/{slug}'
+    url_plain = f'settings/users/{slug}'
+    target_urls = (url_slash, url_plain)
+    try:
+        placeholders = ','.join(['%s'] * len(target_urls))
+        sql_exists = f'SELECT nav_id FROM app_menu WHERE nav_url IN ({placeholders}) LIMIT 1'
+        if db.execute_query(sql_exists, target_urls):
+            if db.cur_hris.fetchone():
+                return
+        sql_ref = '''
+            SELECT nav_id, portal_id, nav_parent, nav_order, nav_url
+            FROM app_menu
+            WHERE nav_url LIKE %s
+            ORDER BY LENGTH(nav_url) DESC
+            LIMIT 1
+        '''
+        ref = None
+        if db.execute_query(sql_ref, (ref_like,)):
+            ref = db.cur_hris.fetchone()
+        if not ref and db.execute_query(sql_ref, ('%users/login_activity%',)):
+            ref = db.cur_hris.fetchone()
+        if not ref:
+            return
+        from settings.sistem import generate_next_nav_id
+        portal_id = ref.get('portal_id')
+        nav_id = generate_next_nav_id(db, portal_id)
+        if not nav_id:
+            return
+        parent_id = ref.get('nav_parent') or ''
+        try:
+            nav_order = int(ref.get('nav_order') or 0) + 1
+        except (TypeError, ValueError):
+            nav_order = 99
+        ref_url = str(ref.get('nav_url') or '')
+        nav_url = url_slash
+        if ref_url and not ref_url.startswith('/'):
+            nav_url = url_plain
+        admin = admin or {}
+        sql_insert = '''
+            INSERT INTO app_menu
+            (nav_id, portal_id, nav_name, nav_url, nav_icon, nav_parent, nav_order, active_st, display_st, mdb, mdb_name, mdd)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        '''
+        if not db.execute_query(sql_insert, (
+            nav_id, portal_id, name, nav_url, icon,
+            parent_id, nav_order, '1', '1',
+            admin.get('user_id', ''), admin.get('user_alias', ''),
+        )):
+            return
+        sql_roles = 'SELECT role_id, role_tp FROM app_menu_role WHERE nav_id = %s'
+        roles = []
+        if db.execute_query(sql_roles, (ref.get('nav_id'),)):
+            roles = db.cur_hris.fetchall() or []
+        for role in roles:
+            db.execute_query(
+                'INSERT INTO app_menu_role (role_id, nav_id, role_tp) VALUES (%s, %s, %s)',
+                (role.get('role_id'), nav_id, role.get('role_tp') or '0100'),
+            )
+        db.commit()
+    except Exception as e:
+        print(f"[ERROR] Gagal membuat menu {name}: {e}")
+
+
+def ensure_duration_activity_menu(db, admin=None):
+    ensure_settings_user_menu(
+        db, admin,
+        name='Duration Activity',
+        slug='duration_activity',
+        icon='bi bi-clock-history',
+        ref_like='%users/login_activity%',
+    )
+
+
+def ensure_access_activity_menu(db, admin=None):
+    ensure_settings_user_menu(
+        db, admin,
+        name='Access Activity',
+        slug='access_activity',
+        icon='bi bi-journal-text',
+        ref_like='%users/duration_activity%',
+    )
+
+
+def build_duration_activity_payload(start_date, end_date, user_id=None):
+    range_start = datetime.combine(start_date, time.min)
+    range_end = datetime.combine(end_date + timedelta(days=1), time.min)
+    db = data_mysql()
+    users_res = db.list_users_for_filter()
+    users = users_res.get('data') or [] if users_res.get('status') else []
+    sessions_res = db.login_sessions_in_range(range_start, range_end, user_id or None)
+    rows = sessions_res.get('data') or [] if sessions_res.get('status') else []
+
+    now = datetime.now()
+    details = []
+    user_map = {}
+    daily_map = {}
+
+    for row in rows:
+        login_dt = _parse_dt(row.get('login_date'))
+        logout_dt = _parse_dt(row.get('logout_date'))
+        still_online = logout_dt is None
+        seconds = _clip_seconds(login_dt, logout_dt, range_start, range_end)
+        uid = row.get('user_id')
+        alias = row.get('user_alias') or row.get('user_name') or uid
+        details.append({
+            'login_id': row.get('login_id'),
+            'user_id': uid,
+            'user_alias': alias,
+            'login_date': login_dt.strftime('%Y-%m-%d %H:%M:%S') if login_dt else '-',
+            'logout_date': logout_dt.strftime('%Y-%m-%d %H:%M:%S') if logout_dt else None,
+            'duration_seconds': seconds,
+            'duration_label': format_duration_label(seconds),
+            'ip_address': row.get('ip_address') or '-',
+            'lokasi': row.get('lokasi') or '-',
+            'still_online': still_online,
+        })
+        item = user_map.setdefault(uid, {
+            'user_id': uid,
+            'user_alias': alias,
+            'total_seconds': 0,
+            'session_count': 0,
+            'still_online': 0,
+        })
+        item['total_seconds'] += seconds
+        item['session_count'] += 1
+        if still_online:
+            item['still_online'] += 1
+        for day_key, day_secs in _split_seconds_by_day(login_dt, logout_dt, range_start, range_end).items():
+            recap_key = (uid, day_key)
+            recap = daily_map.setdefault(recap_key, {
+                'user_id': uid,
+                'user_alias': alias,
+                'day': day_key,
+                'seconds': 0,
+                'session_count': 0,
+            })
+            recap['seconds'] += day_secs
+            recap['session_count'] += 1
+
+    user_summaries = sorted(user_map.values(), key=lambda x: x['total_seconds'], reverse=True)
+    for item in user_summaries:
+        item['total_label'] = format_duration_label(item['total_seconds'])
+        item['total_hours'] = round(item['total_seconds'] / 3600, 2)
+
+    daily_recap = sorted(daily_map.values(), key=lambda x: (x['day'], x['user_alias']), reverse=True)
+    for item in daily_recap:
+        item['duration_label'] = format_duration_label(item['seconds'])
+        item['total_hours'] = round(item['seconds'] / 3600, 2)
+
+    total_seconds = sum(x['total_seconds'] for x in user_summaries)
+    user_count = len(user_summaries)
+    session_count = len(details)
+    still_online = sum(x['still_online'] for x in user_summaries)
+    avg_seconds = int(total_seconds / user_count) if user_count else 0
+
+    day_labels = []
+    cursor = start_date
+    while cursor <= end_date:
+        day_labels.append(cursor.isoformat())
+        cursor += timedelta(days=1)
+
+    top_users = user_summaries[:10]
+    daily_series = []
+    for item in top_users:
+        data_points = []
+        for day_key in day_labels:
+            recap = daily_map.get((item['user_id'], day_key))
+            hours = round(((recap or {}).get('seconds') or 0) / 3600, 2)
+            data_points.append(hours)
+        daily_series.append({'name': item['user_alias'], 'data': data_points})
+
+    return {
+        'status': True,
+        'generated_at': now.strftime('%Y-%m-%d %H:%M:%S'),
+        'filters': {
+            'tanggal_dari': start_date.isoformat(),
+            'tanggal_sampai': end_date.isoformat(),
+            'user_id': user_id or '',
+        },
+        'users': [
+            {
+                'user_id': u.get('user_id'),
+                'user_alias': u.get('user_alias') or u.get('user_name') or u.get('user_id'),
+            }
+            for u in users
+        ],
+        'summary': {
+            'total_seconds': total_seconds,
+            'total_label': format_duration_label(total_seconds),
+            'avg_seconds': avg_seconds,
+            'avg_label': format_duration_label(avg_seconds),
+            'session_count': session_count,
+            'user_count': user_count,
+            'still_online': still_online,
+        },
+        'user_summaries': user_summaries,
+        'daily_recap': daily_recap,
+        'details': details,
+        'chart': {
+            'users': {
+                'labels': [x['user_alias'] for x in user_summaries],
+                'hours': [x['total_hours'] for x in user_summaries],
+            },
+            'daily': {
+                'labels': day_labels,
+                'series': daily_series,
+            },
+        },
+    }
+
+
+class DurationActivityView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        admin = request.session.get('hris_admin', {})
+        try:
+            ensure_duration_activity_menu(data_mysql(), admin)
+        except Exception:
+            pass
+        today = date.today()
+        context = {
+            'title': 'Duration Activity',
+            'user': admin,
+            'default_tanggal_dari': (today - timedelta(days=6)).isoformat(),
+            'default_tanggal_sampai': today.isoformat(),
+        }
+        return render(request, 'users/duration_activity/index.html', context)
+
+
+class DurationActivityDataView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        today = date.today()
+        start_date = _parse_date(request.GET.get('tanggal_dari'), today - timedelta(days=6))
+        end_date = _parse_date(request.GET.get('tanggal_sampai'), today)
+        if end_date < start_date:
+            start_date, end_date = end_date, start_date
+        user_id = (request.GET.get('user_id') or '').strip()
+        payload = build_duration_activity_payload(start_date, end_date, user_id)
+        return JsonResponse(_json_safe(payload))
+
+
+class SessionDurationView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        admin = request.session.get('hris_admin') or {}
+        login_dt = _parse_dt(admin.get('login_date'))
+        login_id = admin.get('login_id')
+        if not login_dt and login_id:
+            row = data_mysql().login_session_by_id(login_id).get('data')
+            if row:
+                login_dt = _parse_dt(row.get('login_date'))
+                if login_dt:
+                    admin['login_date'] = login_dt.strftime('%Y-%m-%d %H:%M:%S')
+                    request.session['hris_admin'] = admin
+                    request.session.modified = True
+        if not login_dt:
+            return JsonResponse({'status': False, 'error': 'Login time tidak ditemukan'}, status=404)
+        seconds = max(0, int((datetime.now() - login_dt).total_seconds()))
+        return JsonResponse({
+            'status': True,
+            'login_date': login_dt.strftime('%Y-%m-%d %H:%M:%S'),
+            'seconds': seconds,
+            'label': format_duration_label(seconds),
+            'short_label': format_duration_short(seconds),
+        })
+
+
+ACTION_LABELS = {
+    'login': 'Login',
+    'logout': 'Logout',
+    'view': 'Buka Menu',
+    'create': 'Tambah Data',
+    'update': 'Ubah Data',
+    'delete': 'Hapus Data',
+    'export': 'Unduh Data',
+    'switch_portal': 'Ganti Portal',
+    'other': 'Aktivitas Lain',
+}
+
+
+def build_access_activity_payload(start_date, end_date, user_id=None, action_type=None):
+    from management.activity_log import ensure_access_log_table
+    range_start = datetime.combine(start_date, time.min)
+    range_end = datetime.combine(end_date + timedelta(days=1), time.min)
+    db = data_mysql()
+    ensure_access_log_table(db)
+    users_res = db.list_users_for_filter()
+    users = users_res.get('data') or [] if users_res.get('status') else []
+    logs_res = db.access_logs_in_range(range_start, range_end, user_id or None, action_type or None)
+    rows = logs_res.get('data') or [] if logs_res.get('status') else []
+
+    details = []
+    user_map = {}
+    action_map = {}
+    menu_map = {}
+    daily_map = {}
+
+    for row in rows:
+        activity_dt = _parse_dt(row.get('activity_time'))
+        uid = row.get('user_id')
+        alias = row.get('user_alias') or row.get('user_name') or uid
+        action = row.get('action_type') or 'other'
+        menu_name = row.get('menu_name') or '-'
+        details.append({
+            'log_id': row.get('log_id'),
+            'user_id': uid,
+            'user_alias': alias,
+            'activity_time': activity_dt.strftime('%Y-%m-%d %H:%M:%S') if activity_dt else '-',
+            'method': row.get('method') or '-',
+            'action_type': action,
+            'action_label': ACTION_LABELS.get(action, action),
+            'menu_name': menu_name,
+            'description': row.get('description') or '-',
+            'path': row.get('path') or '-',
+            'ip_address': row.get('ip_address') or '-',
+        })
+        item = user_map.setdefault(uid, {
+            'user_id': uid,
+            'user_alias': alias,
+            'total': 0,
+            'view': 0,
+            'update': 0,
+            'create': 0,
+            'delete': 0,
+        })
+        item['total'] += 1
+        if action in item:
+            item[action] += 1
+        action_map[action] = action_map.get(action, 0) + 1
+        menu_item = menu_map.setdefault(menu_name, {'menu_name': menu_name, 'total': 0})
+        menu_item['total'] += 1
+        if activity_dt:
+            day_key = activity_dt.date().isoformat()
+            daily_map[day_key] = daily_map.get(day_key, 0) + 1
+
+    user_summaries = sorted(user_map.values(), key=lambda x: x['total'], reverse=True)
+    menu_summaries = sorted(menu_map.values(), key=lambda x: x['total'], reverse=True)[:20]
+    total = len(details)
+    day_labels = []
+    cursor = start_date
+    while cursor <= end_date:
+        day_labels.append(cursor.isoformat())
+        cursor += timedelta(days=1)
+
+    action_order = ['view', 'update', 'create', 'delete', 'export', 'switch_portal', 'login', 'logout', 'other']
+    action_labels = []
+    action_values = []
+    for key in action_order:
+        if action_map.get(key):
+            action_labels.append(ACTION_LABELS.get(key, key))
+            action_values.append(action_map[key])
+    for key, count in action_map.items():
+        if key not in action_order:
+            action_labels.append(ACTION_LABELS.get(key, key))
+            action_values.append(count)
+
+    return {
+        'status': True,
+        'filters': {
+            'tanggal_dari': start_date.isoformat(),
+            'tanggal_sampai': end_date.isoformat(),
+            'user_id': user_id or '',
+            'action_type': action_type or '',
+        },
+        'users': [
+            {
+                'user_id': u.get('user_id'),
+                'user_alias': u.get('user_alias') or u.get('user_name') or u.get('user_id'),
+            }
+            for u in users
+        ],
+        'actions': [{'id': key, 'label': ACTION_LABELS[key]} for key in action_order],
+        'summary': {
+            'total': total,
+            'user_count': len(user_summaries),
+            'view_count': action_map.get('view', 0),
+            'change_count': action_map.get('update', 0) + action_map.get('create', 0) + action_map.get('delete', 0),
+        },
+        'user_summaries': user_summaries,
+        'menu_summaries': menu_summaries,
+        'details': details,
+        'chart': {
+            'users': {
+                'labels': [x['user_alias'] for x in user_summaries[:12]],
+                'values': [x['total'] for x in user_summaries[:12]],
+            },
+            'actions': {
+                'labels': action_labels,
+                'values': action_values,
+            },
+            'daily': {
+                'labels': day_labels,
+                'values': [daily_map.get(day, 0) for day in day_labels],
+            },
+        },
+    }
+
+
+class AccessActivityView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        admin = request.session.get('hris_admin', {})
+        try:
+            from management.activity_log import (
+                ensure_access_log_table,
+                repair_switch_portal_logs,
+                cleanup_background_access_logs,
+            )
+            db = data_mysql()
+            ensure_access_log_table(db)
+            repair_switch_portal_logs(db)
+            cleanup_background_access_logs(db)
+            ensure_access_activity_menu(db, admin)
+        except Exception:
+            pass
+        today = date.today()
+        context = {
+            'title': 'Access Activity',
+            'user': admin,
+            'default_tanggal_dari': (today - timedelta(days=6)).isoformat(),
+            'default_tanggal_sampai': today.isoformat(),
+        }
+        return render(request, 'users/access_activity/index.html', context)
+
+
+class AccessActivityDataView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        today = date.today()
+        start_date = _parse_date(request.GET.get('tanggal_dari'), today - timedelta(days=6))
+        end_date = _parse_date(request.GET.get('tanggal_sampai'), today)
+        if end_date < start_date:
+            start_date, end_date = end_date, start_date
+        user_id = (request.GET.get('user_id') or '').strip()
+        action_type = (request.GET.get('action_type') or '').strip()
+        payload = build_access_activity_payload(start_date, end_date, user_id, action_type)
+        return JsonResponse(_json_safe(payload))
 
 
 class DataLoginUser(View):

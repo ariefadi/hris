@@ -53,6 +53,11 @@ urlpatterns = [
     # Users / Login Activity
     path('users/login_activity', users.DataLoginUser.as_view(), name='users_login_activity'),
     path('users/page_login_user', users.page_login_user.as_view()),
+    path('users/duration_activity', users.DurationActivityView.as_view(), name='users_duration_activity'),
+    path('users/duration_activity/data', users.DurationActivityDataView.as_view(), name='users_duration_activity_data'),
+    path('users/session_duration', users.SessionDurationView.as_view(), name='users_session_duration'),
+    path('users/access_activity', users.AccessActivityView.as_view(), name='users_access_activity'),
+    path('users/access_activity/data', users.AccessActivityDataView.as_view(), name='users_access_activity_data'),
     # Menu Master Plan
     path('users/master_plan', users.MasterPlan.as_view(), name='master_plan'),
     path('users/page_master_plan', users.page_master_plan.as_view()),

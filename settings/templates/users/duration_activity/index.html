@@ -1,0 +1,188 @@
+{% extends "admin_base.html" %}
+{% load static %}
+
+{% block page_title %}Duration Activity{% endblock %}
+{% block page_heading %}Duration Activity{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'overview' %}">Settings</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'users_data' %}">Users</a></li>
+    <li class="breadcrumb-item active">Duration Activity</li>
+{% endblock %}
+
+{% block more_stylesheet %}
+<style>
+  .da-filter-label { display:block; margin-bottom:.4rem; font-weight:600; font-size:.82rem; color:#64748b; }
+  html[data-theme="dark"] .da-filter-label { color:#94a3b8; }
+  .da-load-btn {
+    display:inline-flex !important; align-items:center; justify-content:center; gap:8px;
+    width:100%; height:calc(2.25rem + 2px); border:0 !important; border-radius:10px;
+    font-weight:700; color:#fff !important;
+    background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%) !important;
+    box-shadow:0 6px 16px rgba(79,70,229,.32);
+  }
+  .da-summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:16px; }
+  .da-user-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+  @media (max-width:991px) {
+    .da-summary-grid, .da-user-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  }
+  @media (max-width:575px) {
+    .da-summary-grid, .da-user-grid { grid-template-columns:1fr; }
+  }
+  .da-stat, .da-user-card {
+    border-radius:16px; padding:16px 18px; border:1px solid rgba(148,163,184,.18);
+    background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(248,250,252,.92));
+    box-shadow:0 10px 28px rgba(15,23,42,.06); min-height:104px;
+  }
+  .da-stat .k, .da-user-card .k {
+    font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:800; color:#64748b; margin-bottom:8px;
+  }
+  .da-stat .v, .da-user-card .v { font-size:24px; font-weight:800; color:#0f172a; line-height:1.2; }
+  .da-stat .s, .da-user-card .s { font-size:12px; color:#64748b; margin-top:6px; }
+  .da-stat--total .v { color:#4f46e5; }
+  .da-stat--avg .v { color:#0284c7; }
+  .da-stat--session .v { color:#ea580c; }
+  .da-stat--online .v { color:#16a34a; }
+  .da-user-card { min-height:96px; }
+  .da-user-card.is-online { border-color:rgba(34,197,94,.35); }
+  .da-chart-box { position:relative; height:320px; }
+  .da-empty { color:#94a3b8; text-align:center; padding:24px 8px; }
+  html[data-theme="dark"] .da-stat,
+  html[data-theme="dark"] .da-user-card {
+    background:linear-gradient(180deg,#111827 0%,#0f172a 100%);
+    border-color:#334155;
+    box-shadow:0 10px 24px rgba(0,0,0,.25);
+  }
+  html[data-theme="dark"] .da-stat .v,
+  html[data-theme="dark"] .da-user-card .v { color:#f8fafc; }
+  html[data-theme="dark"] .da-stat--total .v { color:#a5b4fc; }
+  html[data-theme="dark"] .da-stat--avg .v { color:#7dd3fc; }
+  html[data-theme="dark"] .da-stat--session .v { color:#fdba74; }
+  html[data-theme="dark"] .da-stat--online .v { color:#86efac; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title mb-0"><i class="bi bi-clock-history"></i> Rekap Durasi Aktivitas User</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-row align-items-end mb-3">
+            <div class="col-md-3 mb-2 mb-md-0">
+                <label class="da-filter-label">Tanggal Dari</label>
+                <input class="form-control datepicker-input" type="text" id="da_tanggal_dari" value="{{ default_tanggal_dari }}" placeholder="YYYY-MM-DD" autocomplete="off">
+            </div>
+            <div class="col-md-3 mb-2 mb-md-0">
+                <label class="da-filter-label">Tanggal Sampai</label>
+                <input class="form-control datepicker-input" type="text" id="da_tanggal_sampai" value="{{ default_tanggal_sampai }}" placeholder="YYYY-MM-DD" autocomplete="off">
+            </div>
+            <div class="col-md-4 mb-2 mb-md-0">
+                <label class="da-filter-label">Filter User</label>
+                <select class="form-control" id="da_user_id">
+                    <option value="">Semua User</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn da-load-btn" id="da_btn_load"><i class="bi bi-search"></i> Muat Data</button>
+            </div>
+        </div>
+
+        <div class="da-summary-grid">
+            <div class="da-stat da-stat--total">
+                <div class="k">Total Durasi</div>
+                <div class="v" id="da_sum_total">0 menit</div>
+                <div class="s">Akumulasi waktu di aplikasi</div>
+            </div>
+            <div class="da-stat da-stat--avg">
+                <div class="k">Rata-rata / User</div>
+                <div class="v" id="da_sum_avg">0 menit</div>
+                <div class="s">Durasi rata-rata per user</div>
+            </div>
+            <div class="da-stat da-stat--session">
+                <div class="k">Jumlah Sesi</div>
+                <div class="v" id="da_sum_session">0</div>
+                <div class="s">Login dalam rentang tanggal</div>
+            </div>
+            <div class="da-stat da-stat--online">
+                <div class="k">Masih Login</div>
+                <div class="v" id="da_sum_online">0</div>
+                <div class="s">Sesi belum logout</div>
+            </div>
+        </div>
+
+        <h5 class="mb-2">Ringkasan Per User</h5>
+        <div class="da-user-grid" id="da_user_cards">
+            <div class="da-empty">Pilih filter lalu klik Muat Data.</div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6 mb-3">
+                <div class="card mb-0">
+                    <div class="card-header py-2"><strong>Perbandingan Durasi User</strong></div>
+                    <div class="card-body">
+                        <div class="da-chart-box"><canvas id="daUserChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="card mb-0">
+                    <div class="card-header py-2"><strong>Durasi Harian</strong></div>
+                    <div class="card-body">
+                        <div class="da-chart-box"><canvas id="daDailyChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header py-2"><strong>Rekap Jam Per User Per Hari</strong></div>
+            <div class="card-body">
+                <table id="da_table_daily" class="table table-bordered table-striped" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th class="text-center">Tanggal</th>
+                            <th>User</th>
+                            <th class="text-center">Jumlah Sesi</th>
+                            <th class="text-right">Durasi</th>
+                            <th class="text-right">Jam</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card mb-0">
+            <div class="card-header py-2"><strong>Detail Login / Logout</strong></div>
+            <div class="card-body">
+                <table id="da_table_detail" class="table table-bordered table-striped" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th class="text-center">Login</th>
+                            <th class="text-center">Logout</th>
+                            <th class="text-right">Durasi</th>
+                            <th>IP</th>
+                            <th>Lokasi</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+window.HRIS_DURATION_ACTIVITY = {
+    dataUrl: "{% url 'users_duration_activity_data' %}",
+    defaultDari: "{{ default_tanggal_dari }}",
+    defaultSampai: "{{ default_tanggal_sampai }}"
+};
+</script>
+<script src="{% static 'ajax/admin/duration_activity/duration_activity.js' %}?v={% now 'u' %}"></script>
+{% endblock %}

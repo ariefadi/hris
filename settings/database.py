@@ -499,5 +499,98 @@ class SettingsDB(ManagementDB):
         except pymysql.Error as e:
             return {'status': False, 'data': [], 'count': 0, 'message': str(e)}
 
+    def list_users_for_filter(self):
+        sql = '''
+            SELECT user_id, user_alias, user_name
+            FROM app_users
+            ORDER BY user_alias ASC
+        '''
+        try:
+            if not self.execute_query(sql):
+                raise pymysql.Error("Failed to fetch users")
+            return {'status': True, 'data': self.cur_hris.fetchall() or []}
+        except pymysql.Error as e:
+            return {'status': False, 'data': [], 'message': str(e)}
+
+    def login_sessions_in_range(self, start_dt, end_dt, user_id=None):
+        sql = '''
+            SELECT
+                a.login_id,
+                a.user_id,
+                b.user_alias,
+                b.user_name,
+                a.login_date,
+                a.logout_date,
+                a.ip_address,
+                a.lokasi
+            FROM app_user_login a
+            INNER JOIN app_users b ON b.user_id = a.user_id
+            WHERE a.login_date < %s
+              AND COALESCE(a.logout_date, NOW()) >= %s
+        '''
+        params = [end_dt, start_dt]
+        if user_id:
+            sql += ' AND a.user_id = %s'
+            params.append(user_id)
+        sql += ' ORDER BY a.login_date DESC'
+        try:
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to fetch login sessions")
+            return {'status': True, 'data': self.cur_hris.fetchall() or []}
+        except pymysql.Error as e:
+            return {'status': False, 'data': [], 'message': str(e)}
+
+    def login_session_by_id(self, login_id):
+        sql = '''
+            SELECT login_id, user_id, login_date, logout_date
+            FROM app_user_login
+            WHERE login_id = %s
+            LIMIT 1
+        '''
+        try:
+            if not self.execute_query(sql, (login_id,)):
+                raise pymysql.Error("Failed to fetch login session")
+            return {'status': True, 'data': self.cur_hris.fetchone()}
+        except pymysql.Error as e:
+            return {'status': False, 'data': None, 'message': str(e)}
+
+    def access_logs_in_range(self, start_dt, end_dt, user_id=None, action_type=None, limit=2000):
+        sql = '''
+            SELECT
+                a.log_id,
+                a.user_id,
+                b.user_alias,
+                b.user_name,
+                a.activity_time,
+                a.method,
+                a.action_type,
+                a.path,
+                a.nav_id,
+                a.menu_name,
+                a.description,
+                a.ip_address,
+                a.status_code,
+                a.is_ajax
+            FROM app_user_access_log a
+            INNER JOIN app_users b ON b.user_id = a.user_id
+            WHERE a.activity_time >= %s
+              AND a.activity_time < %s
+        '''
+        params = [start_dt, end_dt]
+        if user_id:
+            sql += ' AND a.user_id = %s'
+            params.append(user_id)
+        if action_type:
+            sql += ' AND a.action_type = %s'
+            params.append(action_type)
+        sql += ' ORDER BY a.activity_time DESC LIMIT %s'
+        params.append(int(limit or 2000))
+        try:
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to fetch access logs")
+            return {'status': True, 'data': self.cur_hris.fetchall() or []}
+        except pymysql.Error as e:
+            return {'status': False, 'data': [], 'message': str(e)}
+
 # Re-export with the same name so existing code can import from settings.database
 data_mysql = SettingsDB

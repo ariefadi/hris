@@ -856,6 +856,46 @@
             visibility: hidden !important;
             pointer-events: none !important;
         }
+        .hris-session-duration-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 78px;
+        }
+        .hris-session-duration-link .hris-session-duration-text {
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .02em;
+            line-height: 1;
+        }
+        .hris-session-duration-menu {
+            min-width: 280px;
+            padding: 12px 0 8px;
+        }
+        .hris-session-duration-menu .da-drop-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: #64748b;
+            padding: 0 16px;
+        }
+        .hris-session-duration-menu .da-drop-value {
+            display: block;
+            font-size: 22px;
+            font-weight: 800;
+            color: #4f46e5;
+            padding: 4px 16px 8px;
+        }
+        .hris-session-duration-menu .da-drop-meta {
+            font-size: 12px;
+            color: #64748b;
+            padding: 0 16px 10px;
+        }
+        html[data-theme="dark"] .hris-session-duration-menu .da-drop-value { color: #a5b4fc; }
+        html[data-theme="dark"] .hris-session-duration-menu .da-drop-label,
+        html[data-theme="dark"] .hris-session-duration-menu .da-drop-meta { color: #94a3b8; }
         </style>
     </head>
     <body class="{% block body_class %}hold-transition sidebar-mini{% endblock %}">
@@ -881,6 +921,23 @@
             <!--begin::End Navbar Links-->
             <ul class="navbar-nav ms-auto">
                 {% block navbar_extra_items %}{% endblock %}
+                {% if request.session.hris_admin %}
+                <li class="nav-item dropdown" id="hrisSessionDurationNotif">
+                    <a class="nav-link hris-session-duration-link" data-toggle="dropdown" href="#" role="button" aria-expanded="false" aria-label="Durasi login">
+                        <i class="bi bi-clock-history"></i>
+                        <span class="hris-session-duration-text" id="hrisSessionDurationShort">0 mnt</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right hris-session-duration-menu">
+                        <span class="da-drop-label">Durasi sesi ini</span>
+                        <span class="da-drop-value" id="hrisSessionDurationFull">0 menit</span>
+                        <div class="da-drop-meta">Login sejak <span id="hrisSessionDurationSince">-</span></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="{% url 'users_duration_activity' %}" class="dropdown-item dropdown-footer">
+                            <i class="bi bi-bar-chart-line mr-1"></i> Lihat rekap durasi user
+                        </a>
+                    </div>
+                </li>
+                {% endif %}
                 {% if request.session.hris_admin %}
                 <li class="nav-item">
                     <a class="nav-link" href="#" id="hrisLiveChatToggle" role="button" aria-label="Live Chat">
@@ -1321,6 +1378,82 @@
         <script src="{% static 'ajax/admin/shared/hris_table_export.js' %}?v=21"></script>
         {% if request.session.hris_admin %}
         <script src="{% static 'ajax/admin/shared/hris_live_chat.js' %}?v=7"></script>
+        <script>
+        window.HRIS_IDLE_LOGOUT = {
+            timeoutMs: {{ hris_idle_timeout_seconds|default:900 }} * 1000,
+            logoutUrl: "{% url 'admin_logout' %}",
+            loginUrl: "{% url 'admin_login' %}"
+        };
+        window.HRIS_SESSION_LOGIN_AT = "{{ hris_session_login_at|default:'' }}";
+        window.HRIS_SESSION_DURATION_URL = "{{ hris_session_duration_url|default:'/settings/users/session_duration' }}";
+        </script>
+        <script src="{% static 'ajax/admin/shared/hris_idle_logout.js' %}?v=1"></script>
+        <script>
+        (function () {
+            var loginAt = window.HRIS_SESSION_LOGIN_AT || '';
+            var url = window.HRIS_SESSION_DURATION_URL || '';
+            var shortEl = document.getElementById('hrisSessionDurationShort');
+            var fullEl = document.getElementById('hrisSessionDurationFull');
+            var sinceEl = document.getElementById('hrisSessionDurationSince');
+            if (!shortEl || !fullEl) return;
+
+            function pad(n) { return String(n).padStart(2, '0'); }
+
+            function formatSince(dateObj) {
+                if (!dateObj || isNaN(dateObj.getTime())) return '-';
+                return pad(dateObj.getDate()) + '-' + pad(dateObj.getMonth() + 1) + '-' + dateObj.getFullYear() +
+                    ' ' + pad(dateObj.getHours()) + ':' + pad(dateObj.getMinutes());
+            }
+
+            function formatFull(seconds) {
+                seconds = Math.max(0, parseInt(seconds, 10) || 0);
+                var h = Math.floor(seconds / 3600);
+                var m = Math.floor((seconds % 3600) / 60);
+                var s = seconds % 60;
+                if (h) return h + ' jam ' + m + ' menit';
+                if (m) return m + ' menit ' + s + ' detik';
+                return s + ' detik';
+            }
+
+            function formatShort(seconds) {
+                seconds = Math.max(0, parseInt(seconds, 10) || 0);
+                var h = Math.floor(seconds / 3600);
+                var m = Math.floor((seconds % 3600) / 60);
+                if (h) return h + 'j ' + m + 'm';
+                return m + ' mnt';
+            }
+
+            function tick() {
+                if (!loginAt) return;
+                var start = new Date(String(loginAt).replace(/-/g, '/'));
+                if (isNaN(start.getTime())) return;
+                var seconds = Math.floor((Date.now() - start.getTime()) / 1000);
+                shortEl.textContent = formatShort(seconds);
+                fullEl.textContent = formatFull(seconds);
+                if (sinceEl) sinceEl.textContent = formatSince(start);
+            }
+
+            function startClock() {
+                tick();
+                window.setInterval(tick, 1000);
+            }
+
+            if (loginAt) {
+                startClock();
+                return;
+            }
+            if (!url) return;
+            fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+                .then(function (res) { return res.json(); })
+                .then(function (json) {
+                    if (json && json.login_date) {
+                        loginAt = json.login_date;
+                        startClock();
+                    }
+                })
+                .catch(function () {});
+        })();
+        </script>
         {% endif %}
         <script src="{% static 'plugins/datatables-buttons/js/buttons.html5.min.js' %}"></script>
         <script src="{% static 'plugins/datatables-buttons/js/buttons.print.min.js' %}"></script>

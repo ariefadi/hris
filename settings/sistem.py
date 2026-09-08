@@ -112,6 +112,12 @@ class Overview(View):
             return redirect('admin_login')
         admin = request.session.get('hris_admin', {})
         active_portal_id = request.session.get('active_portal_id', '12')
+        try:
+            from settings.users import ensure_duration_activity_menu, ensure_access_activity_menu
+            ensure_duration_activity_menu(data_mysql(), admin)
+            ensure_access_activity_menu(data_mysql(), admin)
+        except Exception:
+            pass
         overview_data = _build_settings_overview_payload()
         context = {
             'user': admin,

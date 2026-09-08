@@ -603,8 +603,10 @@ class OAuthRedirectView(View):
             'user_pass': '',  # Kosong untuk OAuth login
             'user_alias': user_data['data'][0]['user_alias'],
             'user_mail': user_data['data'][0]['user_mail'],  # Tambahkan user_mail ke session
-            'super_st': user_data['data'][0]['super_st']  # Tambahkan superadmin ke session
+            'super_st': user_data['data'][0]['super_st'],  # Tambahkan superadmin ke session
+            'login_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         }
+        request.session['hris_last_activity'] = time.time()
         # Set default active portal on first login
         try:
             request.session['active_portal_id'] = DEFAULT_ACTIVE_PORTAL_ID
@@ -714,9 +716,11 @@ class LoginProcess(View):
                     'user_pass': '',
                     'user_alias': rs_data['data']['user_alias'],
                     'user_mail': rs_data['data']['user_mail'],  # Tambahkan user_mail ke session
-                    'super_st': rs_data['data']['super_st']  # Tambahkan superadmin ke session
+                    'super_st': rs_data['data']['super_st'],  # Tambahkan superadmin ke session
+                    'login_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 }
                 req.session['hris_admin'] = user_data
+                req.session['hris_last_activity'] = time.time()
                 try:
                     print(f"[LOGIN_DEBUG] Session set for user_id={user_data['user_id']} login_id={login_id}")
                 except Exception:
@@ -3308,27 +3312,11 @@ def get_countries_adx(request):
 
 class LogoutAdmin(View):
     def get(self, req):
-        try:
-            if 'hris_admin' in req.session and 'login_id' in req.session['hris_admin']:
-                data_update = {
-                    'logout_date': datetime.now().strftime('%y-%m-%d %H:%M:%S'),
-                    'login_id': req.session['hris_admin']['login_id']
-                }
-                data_mysql().update_login(data_update)
-        except Exception as e:
-            print(f"[ERROR] Gagal update data logout: {e}")
-        try:
-            uid = (req.session.get('hris_admin') or {}).get('user_id')
-            if uid:
-                from . import chat as chat_db
-                db_chat = data_mysql()
-                chat_db.ensure_chat_tables(db_chat)
-                chat_db.clear_presence(db_chat, uid)
-                db_chat.close()
-        except Exception as e:
-            print(f"[ERROR] Gagal clear chat presence: {e}")
-        finally:
-            req.session.flush()
+        from .middleware import complete_admin_logout
+        timeout = req.GET.get('timeout') == '1'
+        complete_admin_logout(req)
+        if timeout:
+            return redirect(reverse('admin_login') + '?timeout=1')
         return redirect('admin_login')
 
 class ForgotPasswordView(View):

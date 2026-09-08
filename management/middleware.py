@@ -1,12 +1,79 @@
+import time
+from datetime import datetime
 from threading import local
+
 from django.conf import settings
-from .credential_loader import get_credentials_from_db
-from django.http import HttpResponseRedirect
-from django.urls import reverse
 from django.contrib import messages
-from django.conf import settings
+from django.http import HttpResponseRedirect, JsonResponse
+from django.urls import reverse
+
+from .credential_loader import get_credentials_from_db
 
 _thread_locals = local()
+
+LAST_ACTIVITY_SESSION_KEY = 'hris_last_activity'
+IDLE_KEEPALIVE_URL_NAMES = (
+    'chat_heartbeat',
+    'chat_messages',
+)
+
+
+def complete_admin_logout(request):
+    """Catat logout_date di app_user_login, hapus presence chat, lalu flush session."""
+    admin = request.session.get('hris_admin') or {}
+    try:
+        login_id = admin.get('login_id')
+        if login_id:
+            from .database import data_mysql
+            data_mysql().update_login({
+                'logout_date': datetime.now().strftime('%y-%m-%d %H:%M:%S'),
+                'login_id': login_id,
+            })
+    except Exception as e:
+        print(f"[ERROR] Gagal update data logout: {e}")
+    try:
+        uid = admin.get('user_id')
+        if uid:
+            from . import chat as chat_db
+            from .database import data_mysql
+            db_chat = data_mysql()
+            chat_db.ensure_chat_tables(db_chat)
+            chat_db.clear_presence(db_chat, uid)
+            db_chat.close()
+    except Exception as e:
+        print(f"[ERROR] Gagal clear chat presence: {e}")
+    request.session.flush()
+
+
+def _idle_timeout_seconds():
+    try:
+        return max(60, int(getattr(settings, 'HRIS_IDLE_TIMEOUT_SECONDS', 900) or 900))
+    except (TypeError, ValueError):
+        return 900
+
+
+def _is_ajax_request(request):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    accept = (request.headers.get('Accept') or '').lower()
+    if 'application/json' in accept and 'text/html' not in accept:
+        return True
+    content_type = (request.content_type or '').lower()
+    return 'application/json' in content_type
+
+
+def _url_name_path(name):
+    try:
+        return reverse(name)
+    except Exception:
+        return None
+
+
+def _path_matches(request_path, target_path):
+    if not target_path:
+        return False
+    path = (request_path or '').split('?')[0]
+    return path == target_path or path.rstrip('/') == target_path.rstrip('/')
 
 
 def get_current_user_mail():
@@ -27,12 +94,13 @@ def find_menu_by_path(path):
     result = {
         'nav_id': None,
         'nav_url': '',
+        'nav_name': '',
     }
     try:
         from .database import data_mysql
         db = data_mysql()
         q = """
-            SELECT nav_id, nav_url
+            SELECT nav_id, nav_url, nav_name
             FROM app_menu
             WHERE nav_url IS NOT NULL AND nav_url <> ''
             ORDER BY LENGTH(nav_url) DESC
@@ -46,9 +114,11 @@ def find_menu_by_path(path):
             try:
                 url = r.get('nav_url') or ''
                 nid = r.get('nav_id') or ''
+                nname = r.get('nav_name') or ''
             except AttributeError:
                 url = r[1]
                 nid = r[0]
+                nname = r[2] if len(r) > 2 else ''
             url = str(url or '').split('?')[0].strip()
             if url and not url.startswith('/'):
                 url = '/' + url
@@ -57,6 +127,7 @@ def find_menu_by_path(path):
             if url_lower and (path_lower == url_lower or path_lower.startswith(url_lower + '/')):
                 result['nav_id'] = nid
                 result['nav_url'] = url_norm
+                result['nav_name'] = nname
                 break
     except Exception:
         pass
@@ -65,8 +136,32 @@ def find_menu_by_path(path):
 class AuthMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+        self.logout_path = None
+        self.keepalive_paths = []
+        self._paths_ready = False
+
+    def _ensure_paths(self):
+        if self._paths_ready:
+            return
+        self.logout_path = _url_name_path('admin_logout')
+        self.keepalive_paths = [
+            path for path in (_url_name_path(name) for name in IDLE_KEEPALIVE_URL_NAMES) if path
+        ]
+        self._paths_ready = bool(self.logout_path)
+
+    def _expire_idle_session(self, request):
+        complete_admin_logout(request)
+        login_url = reverse('admin_login') + '?timeout=1'
+        if _is_ajax_request(request):
+            return JsonResponse({
+                'status': False,
+                'code': 'idle_timeout',
+                'error': 'Sesi berakhir karena tidak ada aktivitas selama 15 menit.',
+            }, status=401)
+        return HttpResponseRedirect(login_url)
 
     def __call__(self, request):
+        self._ensure_paths()
         # Skip authentication for static files
         if request.path.startswith('/static/'):
             return self.get_response(request)
@@ -116,6 +211,20 @@ class AuthMiddleware:
                 messages.warning(request, 'Silakan login terlebih dahulu')
                 return HttpResponseRedirect(reverse('admin_login'))
         else:
+            is_logout_request = _path_matches(request.path, self.logout_path)
+            if not is_logout_request:
+                last_activity = request.session.get(LAST_ACTIVITY_SESSION_KEY)
+                try:
+                    last_activity = float(last_activity) if last_activity is not None else None
+                except (TypeError, ValueError):
+                    last_activity = None
+                now_ts = time.time()
+                if last_activity is not None and (now_ts - last_activity) > _idle_timeout_seconds():
+                    return self._expire_idle_session(request)
+                is_keepalive = any(_path_matches(request.path, path) for path in self.keepalive_paths)
+                if not is_keepalive:
+                    request.session[LAST_ACTIVITY_SESSION_KEY] = now_ts
+
             # Ambil user_id dan user_mail dari session
             user_id = request.session.get('hris_admin', {}).get('user_id')
             user_mail = request.session.get('hris_admin', {}).get('user_mail')
@@ -127,6 +236,24 @@ class AuthMiddleware:
             }
 
         response = self.get_response(request)
+        return response
+
+class AccessLogMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        admin = {}
+        try:
+            admin = dict(request.session.get('hris_admin') or {})
+        except Exception:
+            admin = {}
+        response = self.get_response(request)
+        try:
+            from .activity_log import log_user_access
+            log_user_access(request, response, admin)
+        except Exception as e:
+            print(f"[ERROR] Access log middleware: {e}")
         return response
 
 class RequestMiddleware:
