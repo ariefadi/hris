@@ -213,6 +213,11 @@ def _infer_action(request):
 
 def _menu_info(request):
     path = request.path or ''
+    path_l = path.lower()
+    if 'logout' in path_l:
+        return None, 'Logout'
+    if '/login' in path_l or path_l.endswith('login'):
+        return None, 'Login'
     portal_id = _switch_portal_id(path)
     if portal_id:
         portal_name = _portal_name(portal_id) or f'Portal {portal_id}'
@@ -290,6 +295,58 @@ def repair_switch_portal_logs(db=None):
             db.commit()
     except Exception as e:
         print(f"[ERROR] Gagal memperbaiki log ganti portal: {e}")
+    finally:
+        if close_db:
+            try:
+                db.close()
+            except Exception:
+                pass
+
+
+def repair_login_logout_logs(db=None):
+    close_db = False
+    try:
+        if db is None:
+            from .database import data_mysql
+            db = data_mysql()
+            close_db = True
+        updates = [
+            (
+                '''
+                UPDATE app_user_access_log
+                SET menu_name = 'Logout',
+                    action_type = 'logout',
+                    description = 'Logout dari aplikasi'
+                WHERE path LIKE %s
+                ''',
+                ('%/logout%',),
+            ),
+            (
+                '''
+                UPDATE app_user_access_log
+                SET menu_name = 'Login',
+                    action_type = 'login',
+                    description = 'Login ke aplikasi'
+                WHERE path LIKE %s AND method = 'POST'
+                ''',
+                ('%/login%',),
+            ),
+            (
+                '''
+                UPDATE app_user_access_log
+                SET menu_name = 'Login',
+                    description = 'Membuka menu Login'
+                WHERE path LIKE %s
+                  AND (method = 'GET' OR method IS NULL)
+                ''',
+                ('%/login%',),
+            ),
+        ]
+        for sql, params in updates:
+            db.execute_query(sql, params)
+        db.commit()
+    except Exception as e:
+        print(f"[ERROR] Gagal memperbaiki log login/logout: {e}")
     finally:
         if close_db:
             try:

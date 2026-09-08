@@ -668,11 +668,13 @@ class AccessActivityView(View):
             from management.activity_log import (
                 ensure_access_log_table,
                 repair_switch_portal_logs,
+                repair_login_logout_logs,
                 cleanup_background_access_logs,
             )
             db = data_mysql()
             ensure_access_log_table(db)
             repair_switch_portal_logs(db)
+            repair_login_logout_logs(db)
             cleanup_background_access_logs(db)
             ensure_access_activity_menu(db, admin)
         except Exception:
