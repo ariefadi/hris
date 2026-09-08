@@ -63,7 +63,7 @@ def web_manifest(request):
 def favicon(request):
     path = _static_pwa('favicon.ico')
     response = HttpResponse(path.read_bytes(), content_type='image/x-icon')
-    response['Cache-Control'] = 'public, max-age=86400'
+    response['Cache-Control'] = 'public, max-age=3600'
     return response
 
 

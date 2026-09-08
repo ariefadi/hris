@@ -10,10 +10,10 @@
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
         <meta name="apple-mobile-web-app-title" content="Kiwipixel">
         <link rel="manifest" href="{% url 'pwa_manifest' %}">
-        <link rel="icon" href="{% static 'pwa/favicon.ico' %}" sizes="any">
-        <link rel="icon" type="image/png" sizes="32x32" href="{% static 'pwa/favicon-32.png' %}">
-        <link rel="icon" type="image/png" sizes="16x16" href="{% static 'pwa/favicon-16.png' %}">
-        <link rel="apple-touch-icon" href="{% static 'pwa/apple-touch-icon.png' %}">
+        <link rel="icon" href="{% static 'pwa/favicon.ico' %}?v=2" sizes="any">
+        <link rel="icon" type="image/png" sizes="32x32" href="{% static 'pwa/favicon-32.png' %}?v=2">
+        <link rel="icon" type="image/png" sizes="16x16" href="{% static 'pwa/favicon-16.png' %}?v=2">
+        <link rel="apple-touch-icon" href="{% static 'pwa/apple-touch-icon.png' %}?v=2">
         <title>{% block page_title %}Admin Dashboard{% endblock %} - Kiwipixel Analytics</title>
         <!-- Theme style -->
         <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
@@ -626,9 +626,10 @@
         .hris-sidebar-elegant .brand-image {
             width: 38px;
             height: 38px;
-            border-radius: 12px !important;
-            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+            border-radius: 50% !important;
+            box-shadow: 0 4px 14px rgba(10, 124, 255, 0.45);
             opacity: 1 !important;
+            object-fit: cover;
         }
         .hris-sidebar-elegant .brand-text {
             font-weight: 700 !important;
@@ -1083,7 +1084,7 @@
                 <!--begin::Brand Link-->
                 <a href="{% url 'dashboard_admin' %}" class="brand-link">
                     <!--begin::Brand Image-->
-                    <img src="{% static 'icon/png/trend_horizone.png' %}" alt="Trend Horizone Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+                    <img src="{% static 'icon/png/kiwipixel.png' %}?v=2" alt="Kiwipixel Logo" class="brand-image img-circle elevation-3">
                     <!--end::Brand Image-->
                     <!--begin::Brand Text-->
                     <span class="brand-text font-weight-light">Kiwipixel Analytics</span>
@@ -1433,7 +1434,7 @@
         <script>
         window.HRIS_PWA = { swUrl: "{% url 'pwa_service_worker' %}" };
         </script>
-        <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=1"></script>
+        <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=2"></script>
         <script src="{% static 'plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
         <!-- Select2 -->
         <script src="{% static 'plugins/select2/js/select2.full.min.js' %}"></script>
