@@ -536,10 +536,10 @@ class SettingsDB(ManagementDB):
                 ) AS next_login_date
             FROM app_user_login a
             INNER JOIN app_users b ON b.user_id = a.user_id
-            WHERE a.login_date < %s
-              AND COALESCE(NULLIF(a.logout_date, '0000-00-00 00:00:00'), NOW()) >= %s
+            WHERE a.login_date >= %s
+              AND a.login_date < %s
         '''
-        params = [end_dt, start_dt]
+        params = [start_dt, end_dt]
         if user_id:
             sql += ' AND a.user_id = %s'
             params.append(user_id)

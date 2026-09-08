@@ -433,6 +433,8 @@ def build_duration_activity_payload(start_date, end_date, user_id=None):
 
     for row in rows:
         login_dt = _parse_dt(row.get('login_date'))
+        if not login_dt or login_dt < range_start or login_dt >= range_end:
+            continue
         logout_dt = None if _is_missing_dt(row.get('logout_date')) else _parse_dt(row.get('logout_date'))
         next_login_dt = _parse_dt(row.get('next_login_date'))
         start_dt, end_dt, still_online = _effective_session_bounds(login_dt, logout_dt, next_login_dt, now)
