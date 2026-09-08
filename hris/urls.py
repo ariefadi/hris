@@ -6,6 +6,7 @@ from django.conf.urls.static import static
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from management import views
 from hris import views as project_views
+from hris import pwa as pwa_views
 
 # Mendaftarkan handler404 untuk halaman error kustom (project-level)
 handler404 = 'hris.views.custom_404'
@@ -16,6 +17,9 @@ def root_redirect(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('manifest.webmanifest', pwa_views.web_manifest, name='pwa_manifest'),
+    path('sw.js', pwa_views.service_worker, name='pwa_service_worker'),
+    path('favicon.ico', pwa_views.favicon, name='favicon'),
     path('', root_redirect),
     path('management/', include('management.urls')),
     path('settings/', include('settings.urls')),

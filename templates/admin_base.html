@@ -4,6 +4,16 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#4f46e5">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="Kiwipixel">
+        <link rel="manifest" href="{% url 'pwa_manifest' %}">
+        <link rel="icon" href="{% static 'pwa/favicon.ico' %}" sizes="any">
+        <link rel="icon" type="image/png" sizes="32x32" href="{% static 'pwa/favicon-32.png' %}">
+        <link rel="icon" type="image/png" sizes="16x16" href="{% static 'pwa/favicon-16.png' %}">
+        <link rel="apple-touch-icon" href="{% static 'pwa/apple-touch-icon.png' %}">
         <title>{% block page_title %}Admin Dashboard{% endblock %} - Kiwipixel Analytics</title>
         <!-- Theme style -->
         <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
@@ -896,6 +906,50 @@
         html[data-theme="dark"] .hris-session-duration-menu .da-drop-value { color: #a5b4fc; }
         html[data-theme="dark"] .hris-session-duration-menu .da-drop-label,
         html[data-theme="dark"] .hris-session-duration-menu .da-drop-meta { color: #94a3b8; }
+        .hris-pwa-install-menu {
+            min-width: 300px;
+            padding: 12px 0 8px;
+        }
+        .hris-pwa-install-menu .pwa-drop-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: #64748b;
+            padding: 0 16px;
+        }
+        .hris-pwa-install-menu .pwa-drop-value {
+            display: block;
+            font-size: 16px;
+            font-weight: 800;
+            color: #4f46e5;
+            padding: 4px 16px 6px;
+        }
+        .hris-pwa-install-menu .pwa-drop-meta {
+            font-size: 12px;
+            color: #64748b;
+            padding: 0 16px 10px;
+            line-height: 1.45;
+        }
+        .hris-pwa-install-menu .pwa-drop-action {
+            margin: 0 16px 8px;
+        }
+        .hris-pwa-install-btn {
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            border: 0 !important;
+            border-radius: 10px;
+            font-weight: 700;
+            color: #fff !important;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+        }
+        html[data-theme="dark"] .hris-pwa-install-menu .pwa-drop-value { color: #a5b4fc; }
+        html[data-theme="dark"] .hris-pwa-install-menu .pwa-drop-label,
+        html[data-theme="dark"] .hris-pwa-install-menu .pwa-drop-meta { color: #94a3b8; }
         </style>
     </head>
     <body class="{% block body_class %}hold-transition sidebar-mini{% endblock %}">
@@ -921,6 +975,22 @@
             <!--begin::End Navbar Links-->
             <ul class="navbar-nav ms-auto">
                 {% block navbar_extra_items %}{% endblock %}
+                <li class="nav-item dropdown" id="hrisPwaInstall">
+                    <a class="nav-link" data-toggle="dropdown" href="#" role="button" aria-expanded="false" aria-label="Install aplikasi">
+                        <i class="bi bi-download"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right hris-pwa-install-menu">
+                        <span class="pwa-drop-label">Progressive Web App</span>
+                        <span class="pwa-drop-value">Install Aplikasi</span>
+                        <div class="pwa-drop-meta" id="hrisPwaInstallHint">Pasang Kiwipixel Analytics ke layar HP Android atau iPhone.</div>
+                        <div class="pwa-drop-meta mb-0" id="hrisPwaInstallStatus"></div>
+                        <div class="pwa-drop-action">
+                            <button type="button" class="btn btn-sm hris-pwa-install-btn" id="hrisPwaInstallAction" data-hris-pwa-install="1">
+                                <i class="bi bi-phone"></i> Install Sekarang
+                            </button>
+                        </div>
+                    </div>
+                </li>
                 {% if request.session.hris_admin %}
                 <li class="nav-item dropdown" id="hrisSessionDurationNotif">
                     <a class="nav-link hris-session-duration-link" data-toggle="dropdown" href="#" role="button" aria-expanded="false" aria-label="Durasi login">
@@ -1360,6 +1430,10 @@
             }
         })(window, window.jQuery);
         </script>
+        <script>
+        window.HRIS_PWA = { swUrl: "{% url 'pwa_service_worker' %}" };
+        </script>
+        <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=1"></script>
         <script src="{% static 'plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
         <!-- Select2 -->
         <script src="{% static 'plugins/select2/js/select2.full.min.js' %}"></script>

@@ -187,6 +187,8 @@ class AuthMiddleware:
             # Partner BM: kirim token tanpa session login admin
             reverse('facebook_partner_submit_token'),
             reverse('facebook_account_oauth_callback'),
+            '/manifest.webmanifest',
+            '/sw.js',
         ]
 
         # Abaikan request untuk static/media/favicon/vite agar tidak men-trigger alert berulang

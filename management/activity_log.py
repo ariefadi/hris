@@ -12,6 +12,8 @@ SKIP_PREFIXES = (
     '/favicon.ico',
     '/@vite',
     '/accounts/',
+    '/sw.js',
+    '/manifest.webmanifest',
 )
 
 SKIP_PATH_PARTS = (

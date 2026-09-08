@@ -4,6 +4,16 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#4f46e5">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="Kiwipixel">
+        <link rel="manifest" href="{% url 'pwa_manifest' %}">
+        <link rel="icon" href="{% static 'pwa/favicon.ico' %}" sizes="any">
+        <link rel="icon" type="image/png" sizes="32x32" href="{% static 'pwa/favicon-32.png' %}">
+        <link rel="icon" type="image/png" sizes="16x16" href="{% static 'pwa/favicon-16.png' %}">
+        <link rel="apple-touch-icon" href="{% static 'pwa/apple-touch-icon.png' %}">
         <title>Kiwipixel Analytics</title>
         <!-- Google Font: Source Sans Pro -->
         <link rel="stylesheet"  href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
@@ -184,6 +194,15 @@
                 font-size: 12px;
                 font-weight: 700;
                 color: rgba(248, 250, 252, 0.92);
+            }
+            button.login-brand-badge {
+                cursor: pointer;
+                font-family: inherit;
+                appearance: none;
+            }
+            button.login-brand-badge:hover {
+                background: rgba(99, 102, 241, 0.28);
+                border-color: rgba(165, 180, 252, 0.45);
             }
 
             .login-box {
@@ -636,6 +655,9 @@
                 <div class="login-brand-badges">
                     <span class="login-brand-badge"><i class="bi bi-shield-check" aria-hidden="true"></i> Secure Access</span>
                     <span class="login-brand-badge"><i class="bi bi-graph-up-arrow" aria-hidden="true"></i> Real-time Analytics</span>
+                    <button type="button" class="login-brand-badge" id="hrisPwaLoginInstall" data-hris-pwa-install="1">
+                        <i class="bi bi-download" aria-hidden="true"></i> Install Aplikasi
+                    </button>
                 </div>
             </section>
 
@@ -920,5 +942,9 @@
             });
         })();
         </script>
+        <script>
+        window.HRIS_PWA = { swUrl: "{% url 'pwa_service_worker' %}" };
+        </script>
+        <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=1"></script>
     </body>
 </html>
