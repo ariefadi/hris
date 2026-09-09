@@ -15,7 +15,8 @@ from django.conf import settings
 import pprint
 from django.shortcuts import render, redirect
 from django.views import View
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
 from django.core import signing
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -549,6 +550,9 @@ class LoginAdmin(View):
             except Exception:
                 return redirect('dashboard_admin')
         return super(LoginAdmin, self).dispatch(request, *args, **kwargs)
+
+    @method_decorator(never_cache)
+    @method_decorator(ensure_csrf_cookie)
     def get(self, req):
         # Hapus pesan error OAuth setelah ditampilkan
         if 'oauth_error' in req.session:
