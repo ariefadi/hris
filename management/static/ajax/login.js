@@ -15,17 +15,29 @@ $().ready(function () {
     }
 
     function syncLoginCsrfToken() {
-        var token = readCsrfCookie();
-        if (!token) {
-            var $existing = $('input[name=csrfmiddlewaretoken]').first();
-            token = String($existing.val() || '').trim();
-        } else {
-            var $input = $('input[name=csrfmiddlewaretoken]').first();
-            if ($input.length) {
-                $input.val(token);
-            }
+        // CSRF token di form selalu fresh dari halaman saat ini (CSRF_USE_SESSIONS=True).
+        // Jangan timpa dengan cookie csrftoken lama — itu bikin 403 loop setelah timeout.
+        var $input = $('input[name=csrfmiddlewaretoken]').first();
+        var formToken = String($input.val() || '').trim();
+        if (formToken) {
+            return formToken;
         }
-        return token;
+        return readCsrfCookie();
+    }
+
+    function clearStaleCsrfCookieIfNeeded() {
+        var $input = $('input[name=csrfmiddlewaretoken]').first();
+        var formToken = String($input.val() || '').trim();
+        var cookieToken = readCsrfCookie();
+        if (!cookieToken || !formToken || cookieToken === formToken) {
+            return;
+        }
+        try {
+            document.cookie = 'csrftoken=; Max-Age=0; path=/; SameSite=Lax';
+            if (window.location && window.location.hostname) {
+                document.cookie = 'csrftoken=; Max-Age=0; path=/; domain=' + window.location.hostname + '; SameSite=Lax';
+            }
+        } catch (_e) {}
     }
 
     function showLoginError(title, text, opts) {
@@ -51,14 +63,15 @@ $().ready(function () {
 
     report_eror = function (jqXHR, exception) {
         if (jqXHR.status === 403) {
+            clearStaleCsrfCookieIfNeeded();
             showLoginError(
                 'Sesi Form Kedaluwarsa',
-                'Token keamanan login sudah tidak valid (biasanya setelah idle 15 menit atau tab dibiarkan terbuka lama). Halaman akan dimuat ulang — silakan login kembali.',
+                'Token keamanan login sudah tidak valid (biasanya setelah idle 15 menit atau tab dibiarkan terbuka lama). Klik Muat Ulang, lalu login kembali.',
                 {
                     icon: 'warning',
                     confirmButtonText: 'Muat Ulang',
                     onClose: function () {
-                        window.location.reload();
+                        window.location.href = '/management/admin/login?_=' + Date.now();
                     }
                 }
             );
@@ -142,6 +155,8 @@ $().ready(function () {
         }
     });
 
+    clearStaleCsrfCookieIfNeeded();
+
     $(document).on('submit', '#loginForm', function (e) {
         e.preventDefault();
         var form_data = new FormData(this);
@@ -157,6 +172,7 @@ $().ready(function () {
             contentType: false,
             processData: false,
             dataType: 'json',
+            credentials: 'same-origin',
             headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {},
             beforeSend: function () {
                 showLoginLoader('Login Process');
@@ -209,6 +225,7 @@ $().ready(function () {
             contentType: false,
             processData: false,
             dataType: 'json',
+            credentials: 'same-origin',
             headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {},
             beforeSend: function () {
                 showLoginLoader('Register Process');
