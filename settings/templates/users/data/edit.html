@@ -249,17 +249,62 @@
 
         <script>
           (function(){
+            var MAX_PHOTO_BYTES = 2 * 1024 * 1024;
             var fileInput = document.getElementById('user_foto_input');
             var fileLabel = document.querySelector('label.custom-file-label[for="user_foto_input"]');
             var img = document.getElementById('user_foto_preview');
+            var profileForm = fileInput ? fileInput.closest('form') : null;
+
+            function formatFileSize(bytes) {
+              var n = Number(bytes) || 0;
+              if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + ' MB';
+              if (n >= 1024) return Math.round(n / 1024) + ' KB';
+              return n + ' B';
+            }
+
+            function showPhotoError(message) {
+              if (window.Swal && Swal.fire) {
+                Swal.fire({ icon: 'warning', title: 'Foto tidak valid', text: String(message || '') });
+                return;
+              }
+              alert(String(message || 'Foto tidak valid'));
+            }
+
+            function validatePhotoFile(file) {
+              if (!file) return true;
+              if (!String(file.type || '').toLowerCase().startsWith('image/')) {
+                showPhotoError('File harus berupa gambar (JPG, PNG, atau WEBP).');
+                return false;
+              }
+              if (Number(file.size || 0) > MAX_PHOTO_BYTES) {
+                showPhotoError('Ukuran foto maksimal 2MB. File Anda: ' + formatFileSize(file.size) + '. Silakan kompres atau pilih foto lain.');
+                return false;
+              }
+              return true;
+            }
+
             if (fileInput) {
               fileInput.addEventListener('change', function(){
                 var f = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+                if (f && !validatePhotoFile(f)) {
+                  fileInput.value = '';
+                  if (fileLabel) fileLabel.textContent = 'Pilih foto...';
+                  return;
+                }
                 if (fileLabel) { fileLabel.textContent = f ? f.name : 'Pilih foto...'; }
                 if (f && img) {
                   var reader = new FileReader();
                   reader.onload = function(e){ img.src = e.target.result; };
                   reader.readAsDataURL(f);
+                }
+              });
+            }
+
+            if (profileForm) {
+              profileForm.addEventListener('submit', function(e){
+                var f = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+                if (f && !validatePhotoFile(f)) {
+                  e.preventDefault();
                 }
               });
             }
