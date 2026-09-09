@@ -239,16 +239,9 @@ def upsert_presence(db, user_id):
 
 
 def clear_presence(db, user_id):
+    """Jangan hapus last_seen supaya daftar chat tetap bisa menampilkan terakhir online."""
     uid = str(user_id or '').strip()
-    if not uid:
-        return False
-    if not db.execute_query("DELETE FROM app_chat_presence WHERE user_id = %s", (uid,)):
-        return False
-    try:
-        db.commit()
-    except Exception:
-        return False
-    return True
+    return bool(uid)
 
 
 def _seed_team_watermark(db, user_id):
@@ -466,6 +459,46 @@ def list_group_members(db, current_user_id, group_id):
     }, None
 
 
+def _last_seen_map(db, user_ids=None):
+    out = {}
+    ids = [str(uid) for uid in (user_ids or []) if uid]
+    sql = 'SELECT user_id, last_seen FROM app_chat_presence'
+    params = None
+    if user_ids is not None:
+        if not ids:
+            return out
+        sql += ' WHERE user_id IN (' + ','.join(['%s'] * len(ids)) + ')'
+        params = tuple(ids)
+    if db.execute_query(sql, params):
+        for row in db.cur_hris.fetchall() or []:
+            uid = str(_row_get(row, 'user_id') or '')
+            seen = _row_get(row, 'last_seen')
+            if uid and seen:
+                out[uid] = seen
+    missing = []
+    if user_ids is not None:
+        missing = [uid for uid in ids if uid not in out]
+    if missing:
+        placeholders = ','.join(['%s'] * len(missing))
+        sql_login = f'''
+            SELECT a.user_id, COALESCE(a.logout_date, a.login_date) AS last_seen
+            FROM app_user_login a
+            INNER JOIN (
+                SELECT user_id, MAX(login_date) AS max_login
+                FROM app_user_login
+                WHERE user_id IN ({placeholders})
+                GROUP BY user_id
+            ) t ON t.user_id = a.user_id AND t.max_login = a.login_date
+        '''
+        if db.execute_query(sql_login, tuple(missing)):
+            for row in db.cur_hris.fetchall() or []:
+                uid = str(_row_get(row, 'user_id') or '')
+                seen = _row_get(row, 'last_seen')
+                if uid and seen and uid not in out:
+                    out[uid] = seen
+    return out
+
+
 def list_directory_users(db, current_user_id):
     uid = str(current_user_id or '').strip()
     sql = """
@@ -487,6 +520,9 @@ def list_directory_users(db, current_user_id):
             continue
         item['online'] = item['user_id'] in online_ids
         out.append(item)
+    seen_map = _last_seen_map(db, [item['user_id'] for item in out])
+    for item in out:
+        item['last_seen'] = _fmt_dt(seen_map.get(item['user_id']))
     return out
 
 
@@ -1036,7 +1072,11 @@ def _recent_direct_conversations(db, user_id, unread_map, online_ids):
             'unread': int(unread_map.get(peer_id) or 0),
             'last_body': _preview_body(_row_get(row, 'body'), _row_get(row, 'file_name')),
             'last_at': _fmt_dt(_row_get(row, 'created_at')),
+            'last_seen': None,
         })
+    seen_map = _last_seen_map(db, [item['user_id'] for item in out])
+    for item in out:
+        item['last_seen'] = _fmt_dt(seen_map.get(item['user_id']))
     return out
 
 
@@ -1102,6 +1142,7 @@ def snapshot(db, current_user_id):
             'unread': int(unread_map.get(user['user_id']) or 0),
             'last_body': '',
             'last_at': None,
+            'last_seen': _fmt_dt(_now()),
         })
 
     conversations.sort(key=lambda c: (
