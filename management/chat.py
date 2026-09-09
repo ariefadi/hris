@@ -1127,9 +1127,7 @@ def snapshot(db, current_user_id):
     groups = list_my_groups(db, uid, unread_group_map)
 
     conv_ids = {c['user_id'] for c in conversations}
-    for user in online:
-        if user.get('is_me'):
-            continue
+    for user in list_directory_users(db, uid):
         if user['user_id'] in conv_ids:
             continue
         conversations.append({
@@ -1138,16 +1136,17 @@ def snapshot(db, current_user_id):
             'user_name': user['user_name'],
             'user_mail': user['user_mail'],
             'user_foto': user['user_foto'],
-            'online': True,
+            'online': bool(user.get('online')),
             'unread': int(unread_map.get(user['user_id']) or 0),
             'last_body': '',
             'last_at': None,
-            'last_seen': _fmt_dt(_now()),
+            'last_seen': user.get('last_seen'),
         })
 
     conversations.sort(key=lambda c: (
         0 if c.get('online') else 1,
         -int(c.get('unread') or 0),
+        0 if c.get('last_at') else 1,
         str(c.get('user_alias') or '').lower(),
     ))
 

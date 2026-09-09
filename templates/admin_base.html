@@ -36,7 +36,7 @@
         <!-- DataTables Responsive Custom CSS -->
         <link rel="stylesheet" href="{% static 'css/datatable-responsive.css' %}">
         <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_roi_badge.css' %}?v=2">
-        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_live_chat.css' %}?v=9">
+        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_live_chat.css' %}?v=10">
         {% block more_stylesheet %}{% endblock %}
         <style>
         /* FixedColumns CSS removed as requested */
@@ -1452,7 +1452,7 @@
         <script src="{% static 'ajax/admin/shared/hris_roi_tier_filter.js' %}?v=1"></script>
         <script src="{% static 'ajax/admin/shared/hris_table_export.js' %}?v=21"></script>
         {% if request.session.hris_admin %}
-        <script src="{% static 'ajax/admin/shared/hris_live_chat.js' %}?v=8"></script>
+        <script src="{% static 'ajax/admin/shared/hris_live_chat.js' %}?v=9"></script>
         <script>
         window.HRIS_IDLE_LOGOUT = {
             timeoutMs: {{ hris_idle_timeout_seconds|default:900 }} * 1000,
