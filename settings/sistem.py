@@ -64,6 +64,79 @@ def _get_active_session_login_ids():
         return []
 
 
+def _today_activity_snapshot():
+    today = date.today()
+    duration_today = {
+        'total_label': '0 menit',
+        'total_hours': 0,
+        'user_count': 0,
+        'session_count': 0,
+        'chart': {'labels': [], 'hours': []},
+        'users': [],
+    }
+    access_today = {
+        'total': 0,
+        'user_count': 0,
+        'view_count': 0,
+        'change_count': 0,
+        'chart_users': {'labels': [], 'values': []},
+        'chart_actions': {'labels': [], 'values': []},
+        'users': [],
+    }
+    try:
+        from settings.users import build_duration_activity_payload, build_access_activity_payload
+        duration = build_duration_activity_payload(today, today) or {}
+        dsum = duration.get('summary') or {}
+        dchart = (duration.get('chart') or {}).get('users') or {}
+        duration_today = {
+            'total_label': dsum.get('total_label') or '0 menit',
+            'total_hours': round((dsum.get('total_seconds') or 0) / 3600, 2),
+            'user_count': int(dsum.get('user_count') or 0),
+            'session_count': int(dsum.get('session_count') or 0),
+            'chart': {
+                'labels': (dchart.get('labels') or [])[:12],
+                'hours': (dchart.get('hours') or [])[:12],
+            },
+            'users': [
+                {
+                    'user_alias': item.get('user_alias') or '-',
+                    'hours': item.get('total_hours') or 0,
+                    'label': item.get('total_label') or '0 menit',
+                    'sessions': item.get('session_count') or 0,
+                }
+                for item in (duration.get('user_summaries') or [])[:12]
+            ],
+        }
+        access = build_access_activity_payload(today, today) or {}
+        asum = access.get('summary') or {}
+        achart = access.get('chart') or {}
+        access_today = {
+            'total': int(asum.get('total') or 0),
+            'user_count': int(asum.get('user_count') or 0),
+            'view_count': int(asum.get('view_count') or 0),
+            'change_count': int(asum.get('change_count') or 0),
+            'chart_users': achart.get('users') or {'labels': [], 'values': []},
+            'chart_actions': achart.get('actions') or {'labels': [], 'values': []},
+            'users': [
+                {
+                    'user_alias': item.get('user_alias') or '-',
+                    'total': item.get('total') or 0,
+                    'view': item.get('view') or 0,
+                    'update': item.get('update') or 0,
+                    'create': item.get('create') or 0,
+                    'delete': item.get('delete') or 0,
+                }
+                for item in (access.get('user_summaries') or [])[:12]
+            ],
+        }
+    except Exception as e:
+        print(f"[ERROR] Gagal memuat rekap overview hari ini: {e}")
+    return {
+        'duration_today': duration_today,
+        'access_today': access_today,
+    }
+
+
 def _build_settings_overview_payload(db=None):
     db = db or data_mysql()
     summary_resp = db.get_overview_user_summary()
@@ -103,6 +176,7 @@ def _build_settings_overview_payload(db=None):
         'recent_logins': recent_logins,
         'current_users': current_users,
         'current_users_count': int((online_resp or {}).get('count') or len(current_users)),
+        **_today_activity_snapshot(),
     })
 
 

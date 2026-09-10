@@ -77,6 +77,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+    flex-wrap: wrap;
   }
   .so-panel__title {
     font-size: 14px;
@@ -92,6 +93,7 @@
   .so-panel__body { padding: 14px 16px 16px; }
   .so-chart-box { position: relative; height: 220px; }
   .so-chart-box--bar { height: 240px; margin-top: 14px; }
+  .so-chart-box--monitor { height: 280px; margin-top: 0; }
 
   .so-login-list {
     max-height: 360px;
@@ -203,6 +205,41 @@
     text-align: center;
     padding: 28px 12px;
   }
+  .so-monitor-grid { margin-top: 16px; }
+  .so-breakdown {
+    margin-top: 12px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .so-breakdown__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    font-size: 12px;
+  }
+  .so-breakdown__row:last-child { border-bottom: 0; }
+  .so-breakdown__name {
+    font-weight: 700;
+    color: #0f172a;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .so-breakdown__val { color: #64748b; font-weight: 650; white-space: nowrap; }
+  .so-panel__head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .so-kpi {
+    font-size: 12px;
+    font-weight: 800;
+    color: #4f46e5;
+  }
+
+  html[data-theme="dark"] .so-breakdown__name { color: #e2e8f0; }
+  html[data-theme="dark"] .so-breakdown__val { color: #94a3b8; }
+  html[data-theme="dark"] .so-kpi { color: #a5b4fc; }
 
   html[data-theme="dark"] .so-stat-card,
   html[data-theme="dark"] .so-panel {
@@ -320,13 +357,58 @@
             <h4 class="so-panel__title">Log Login User</h4>
             <p class="so-panel__sub">15 login terbaru</p>
           </div>
-          <a href="{% url 'users_duration_activity' %}" class="btn btn-sm btn-outline-primary mr-1">Durasi</a>
-          <a href="{% url 'users_access_activity' %}" class="btn btn-sm btn-outline-primary mr-1">Aktivitas</a>
           <a href="{% url 'users_login_activity' %}" class="btn btn-sm btn-outline-primary">Lihat Semua</a>
         </div>
         <div class="so-panel__body">
           <div id="soLoginList" class="so-login-list">
             <div class="so-empty">Memuat log login...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row so-monitor-grid">
+    <div class="col-lg-6 col-12 mb-3 mb-lg-0">
+      <div class="so-panel so-panel--fill">
+        <div class="so-panel__head">
+          <div>
+            <h4 class="so-panel__title">Durasi User Hari Ini</h4>
+            <p class="so-panel__sub" id="soDurationTodaySub">Total waktu di aplikasi, di-breakdown per user</p>
+          </div>
+          <div class="so-panel__head-actions">
+            <span class="so-kpi" id="soDurationTodayKpi">0 menit</span>
+            <a href="{% url 'users_duration_activity' %}" class="btn btn-sm btn-outline-primary">Detail</a>
+          </div>
+        </div>
+        <div class="so-panel__body">
+          <div class="so-chart-box so-chart-box--bar so-chart-box--monitor">
+            <canvas id="soDurationTodayChart"></canvas>
+          </div>
+          <div class="so-breakdown" id="soDurationBreakdown">
+            <div class="so-empty">Memuat durasi user...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6 col-12">
+      <div class="so-panel so-panel--fill">
+        <div class="so-panel__head">
+          <div>
+            <h4 class="so-panel__title">Access Activity Hari Ini</h4>
+            <p class="so-panel__sub" id="soAccessTodaySub">Jumlah akses menu/aksi, di-breakdown per user</p>
+          </div>
+          <div class="so-panel__head-actions">
+            <span class="so-kpi" id="soAccessTodayKpi">0 akses</span>
+            <a href="{% url 'users_access_activity' %}" class="btn btn-sm btn-outline-primary">Detail</a>
+          </div>
+        </div>
+        <div class="so-panel__body">
+          <div class="so-chart-box so-chart-box--bar so-chart-box--monitor">
+            <canvas id="soAccessTodayChart"></canvas>
+          </div>
+          <div class="so-breakdown" id="soAccessBreakdown">
+            <div class="so-empty">Memuat aktivitas user...</div>
           </div>
         </div>
       </div>
@@ -449,6 +531,8 @@
 
   var loginHourChart = null;
   var userCompareChart = null;
+  var durationTodayChart = null;
+  var accessTodayChart = null;
 
   function chartColors() {
     var dark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -456,6 +540,156 @@
       text: dark ? '#cbd5e1' : '#475569',
       grid: dark ? 'rgba(148,163,184,0.14)' : 'rgba(148,163,184,0.22)',
     };
+  }
+
+  function palette(n) {
+    var colors = ['#6366f1', '#22c55e', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#84cc16', '#06b6d4', '#f97316', '#64748b'];
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(colors[i % colors.length]);
+    return out;
+  }
+
+  function renderBreakdown(id, rows, valueKey, suffix) {
+    var wrap = document.getElementById(id);
+    if (!wrap) return;
+    var list = Array.isArray(rows) ? rows : [];
+    if (!list.length) {
+      wrap.innerHTML = '<div class="so-empty">Belum ada data hari ini.</div>';
+      return;
+    }
+    var html = '';
+    list.forEach(function (row) {
+      html += '<div class="so-breakdown__row">';
+      html += '<span class="so-breakdown__name">' + escHtml(row.user_alias || '-') + '</span>';
+      html += '<span class="so-breakdown__val">' + escHtml(row[valueKey] == null ? '-' : row[valueKey]) + (suffix || '') + '</span>';
+      html += '</div>';
+    });
+    wrap.innerHTML = html;
+  }
+
+  function renderDurationToday(data) {
+    var payload = data || {};
+    var kpi = document.getElementById('soDurationTodayKpi');
+    if (kpi) kpi.textContent = payload.total_label || '0 menit';
+    var sub = document.getElementById('soDurationTodaySub');
+    if (sub) {
+      var userCount = Number(payload.user_count) || 0;
+      var sessionCount = Number(payload.session_count) || 0;
+      sub.textContent = userCount
+        ? (fmtNum(userCount) + ' user · ' + fmtNum(sessionCount) + ' sesi hari ini')
+        : 'Belum ada durasi user hari ini';
+    }
+    var canvas = document.getElementById('soDurationTodayChart');
+    var chart = payload.chart || {};
+    var labels = chart.labels || [];
+    var hours = (chart.hours || []).map(function (v) { return Number(v) || 0; });
+    var durationRows = (payload.users || []).map(function (row) {
+      var extra = row.sessions ? (' · ' + fmtNum(row.sessions) + ' sesi') : '';
+      return { user_alias: row.user_alias, label: (row.label || '0 menit') + extra };
+    });
+    renderBreakdown('soDurationBreakdown', durationRows, 'label', '');
+    if (!canvas || !window.Chart) return;
+    var colors = chartColors();
+    if (durationTodayChart) durationTodayChart.destroy();
+    durationTodayChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels.length ? labels : ['Tidak ada data'],
+        datasets: [{
+          label: 'Jam',
+          data: labels.length ? hours : [0],
+          backgroundColor: palette(labels.length || 1),
+          borderRadius: 8,
+          maxBarThickness: 42,
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var val = Number(ctx.raw || 0);
+                return val.toFixed(2) + ' jam';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: { color: colors.text },
+            grid: { color: colors.grid },
+            title: { display: true, text: 'Jam', color: colors.text },
+          },
+          y: {
+            ticks: { color: colors.text },
+            grid: { display: false },
+          },
+        },
+      },
+    });
+  }
+
+  function renderAccessToday(data) {
+    var payload = data || {};
+    var kpi = document.getElementById('soAccessTodayKpi');
+    if (kpi) kpi.textContent = fmtNum(payload.total || 0) + ' akses';
+    var sub = document.getElementById('soAccessTodaySub');
+    if (sub) {
+      var userCount = Number(payload.user_count) || 0;
+      sub.textContent = userCount
+        ? (fmtNum(userCount) + ' user · ' + fmtNum(payload.view_count || 0) + ' lihat · ' + fmtNum(payload.change_count || 0) + ' ubah')
+        : 'Belum ada access activity hari ini';
+    }
+    var canvas = document.getElementById('soAccessTodayChart');
+    var chart = payload.chart_users || {};
+    var labels = chart.labels || [];
+    var values = (chart.values || []).map(function (v) { return Number(v) || 0; });
+    var rows = (payload.users || []).map(function (row) {
+      return {
+        user_alias: row.user_alias,
+        label: fmtNum(row.total) + ' akses · ' + fmtNum(row.view) + ' lihat · ' + fmtNum((row.update || 0) + (row.create || 0) + (row.delete || 0)) + ' ubah',
+      };
+    });
+    renderBreakdown('soAccessBreakdown', rows, 'label', '');
+    if (!canvas || !window.Chart) return;
+    var colors = chartColors();
+    if (accessTodayChart) accessTodayChart.destroy();
+    accessTodayChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels.length ? labels : ['Tidak ada data'],
+        datasets: [{
+          label: 'Akses',
+          data: labels.length ? values : [0],
+          backgroundColor: palette(labels.length || 1),
+          borderRadius: 8,
+          maxBarThickness: 42,
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: { color: colors.text, precision: 0 },
+            grid: { color: colors.grid },
+            title: { display: true, text: 'Jumlah akses', color: colors.text },
+          },
+          y: {
+            ticks: { color: colors.text },
+            grid: { display: false },
+          },
+        },
+      },
+    });
   }
 
   function renderLoginHourChart(series, days) {
@@ -554,6 +788,8 @@
     renderUserCompareChart(payload.summary || {});
     renderCurrentUsers(payload.current_users || [], payload.current_users_count);
     renderLoginList(payload.recent_logins || []);
+    renderDurationToday(payload.duration_today || {});
+    renderAccessToday(payload.access_today || {});
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -565,6 +801,8 @@
         if (!data) return;
         renderLoginHourChart(data.login_by_hour || [], data.login_hour_days || 7);
         renderUserCompareChart(data.summary || {});
+        renderDurationToday(data.duration_today || {});
+        renderAccessToday(data.access_today || {});
       });
     });
   });
