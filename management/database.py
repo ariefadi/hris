@@ -3487,6 +3487,117 @@ class data_mysql:
                 pass
         return out
 
+    def get_dashboard_domain_account_map(self, start_date, end_date):
+        """Map subdomain/domain key -> account_name dari data FB (country + campaign)."""
+        try:
+            if not self.ensure_connection():
+                raise pymysql.Error('Could not establish database connection')
+            self.cur_hris = self.mysql_cur
+
+            domain_best = {}
+
+            def register(raw_domain, account_name, weight):
+                name = str(account_name or '').strip()
+                raw = str(raw_domain or '').strip()
+                if not name or not raw:
+                    return
+                w = float(weight or 0)
+                keys = set(self._dashboard_domain_lookup_keys(raw))
+                primary = self._normalize_subdomain_key(raw)
+                if primary:
+                    keys.add(primary)
+                match_key = self._normalize_domain_match_key(raw)
+                if match_key:
+                    keys.add(match_key)
+                for key in keys:
+                    k = str(key or '').strip().lower()
+                    if not k:
+                        continue
+                    prev = domain_best.get(k)
+                    if not prev or w > float(prev.get('weight') or 0):
+                        domain_best[k] = {'account_name': name, 'weight': w}
+
+            sql_country = """
+                SELECT
+                    b.data_ads_domain AS raw_domain,
+                    a.account_name,
+                    COALESCE(SUM(b.data_ads_country_spend), 0) AS weight
+                FROM data_ads_country b
+                INNER JOIN master_account_ads a ON a.account_id = b.account_ads_id
+                WHERE b.data_ads_country_tanggal BETWEEN %s AND %s
+                  AND TRIM(COALESCE(b.data_ads_domain, '')) <> ''
+                  AND TRIM(COALESCE(a.account_name, '')) <> ''
+                GROUP BY b.data_ads_domain, a.account_name
+            """
+            self.cur_hris.execute(sql_country, (start_date, end_date))
+            for row in (self.cur_hris.fetchall() or []):
+                register(row.get('raw_domain'), row.get('account_name'), row.get('weight'))
+
+            sql_campaign = """
+                SELECT
+                    b.data_ads_domain AS raw_domain,
+                    a.account_name,
+                    COUNT(*) AS weight
+                FROM data_ads_campaign b
+                INNER JOIN master_account_ads a ON a.account_id = b.account_ads_id
+                WHERE b.data_ads_tanggal BETWEEN %s AND %s
+                  AND TRIM(COALESCE(b.data_ads_domain, '')) <> ''
+                  AND TRIM(COALESCE(a.account_name, '')) <> ''
+                GROUP BY b.data_ads_domain, a.account_name
+            """
+            self.cur_hris.execute(sql_campaign, (start_date, end_date))
+            for row in (self.cur_hris.fetchall() or []):
+                register(row.get('raw_domain'), row.get('account_name'), row.get('weight'))
+
+            spend_totals = {}
+
+            def register_spend(raw_domain, spend_val):
+                raw = str(raw_domain or '').strip()
+                if not raw:
+                    return
+                spend_amount = float(spend_val or 0)
+                if spend_amount <= 0:
+                    return
+                keys = set(self._dashboard_domain_lookup_keys(raw))
+                primary = self._normalize_subdomain_key(raw)
+                if primary:
+                    keys.add(primary)
+                match_key = self._normalize_domain_match_key(raw)
+                if match_key:
+                    keys.add(match_key)
+                for key in keys:
+                    k = str(key or '').strip().lower()
+                    if not k:
+                        continue
+                    spend_totals[k] = float(spend_totals.get(k, 0) or 0) + spend_amount
+
+            sql_spend = """
+                SELECT
+                    b.data_ads_domain AS raw_domain,
+                    COALESCE(SUM(b.data_ads_country_spend), 0) AS spend
+                FROM data_ads_country b
+                WHERE b.data_ads_country_tanggal BETWEEN %s AND %s
+                  AND TRIM(COALESCE(b.data_ads_domain, '')) <> ''
+                GROUP BY b.data_ads_domain
+            """
+            self.cur_hris.execute(sql_spend, (start_date, end_date))
+            for row in (self.cur_hris.fetchall() or []):
+                register_spend(row.get('raw_domain'), row.get('spend'))
+
+            data = {
+                str(k).strip().lower(): str(v.get('account_name') or '').strip()
+                for k, v in domain_best.items()
+                if str(v.get('account_name') or '').strip()
+            }
+            spend = {
+                str(k).strip().lower(): round(float(v or 0), 2)
+                for k, v in spend_totals.items()
+                if float(v or 0) > 0
+            }
+            return {'status': True, 'data': data, 'spend': spend}
+        except Exception as e:
+            return {'status': False, 'data': {}, 'spend': {}, 'error': str(e)}
+
     def get_dashboard_domain_campaign_stats(self, ymd, domain_names):
         try:
             requested = []
@@ -10156,6 +10267,48 @@ class data_mysql:
             }
         return {"hasil": hasil}
 
+    def _mysql_ads_roi_monitoring_sql(self, like_clause):
+        return [
+            "SELECT",
+            "\trs.date,",
+            "\trs.account_id, rs.account_name,",
+            "\trs.domain, rs.country_code,",
+            "\tSUM(rs.spend) AS spend,",
+            "\tSUM(rs.impressions) AS impressions,",
+            "\tSUM(rs.clicks) AS clicks,",
+            "\tCASE WHEN SUM(rs.impressions) > 0 THEN ROUND((SUM(rs.clicks) / SUM(rs.impressions)) * 100, 4) ELSE 0 END AS ctr,",
+            "\tCASE WHEN SUM(rs.clicks) > 0 THEN ROUND(SUM(rs.spend) / SUM(rs.clicks), 4) ELSE 0 END AS cpc,",
+            "\tCASE WHEN SUM(rs.impressions) > 0 THEN ROUND((SUM(rs.spend) / SUM(rs.impressions)) * 1000, 4) ELSE 0 END AS cpm",
+            "FROM (",
+                "\tSELECT",
+                "\t\tb.data_ads_country_tanggal AS date,",
+                "\t\ta.account_id, a.account_name,",
+                "\t\tb.data_ads_domain AS domain_raw,",
+                "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
+                "\t\tb.data_ads_country_cd AS country_code,",
+                "\t\tb.data_ads_country_spend AS spend,",
+                "\t\tb.data_ads_country_impresi AS impressions,",
+                "\t\tb.data_ads_country_click AS clicks",
+                "\tFROM master_account_ads a",
+                "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                f"{like_clause}",
+            ") rs",
+            "GROUP BY",
+            "\trs.date,",
+            "\trs.account_id,",
+            "\trs.account_name,",
+            "\trs.domain,",
+            "\trs.country_code"
+        ]
+
+    def _fetch_mysql_rows(self, sql, params):
+        if not self.ensure_connection():
+            raise pymysql.Error("Could not establish database connection")
+        self.cur_hris = self.mysql_cur
+        self.cur_hris.execute(sql, params)
+        return self.cur_hris.fetchall() or []
+
     def get_all_ads_roi_monitoring_campaign_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None):
         try:
             # --- 1. Pastikan data_sub_domain adalah list string
@@ -10172,6 +10325,7 @@ class data_mysql:
             # --- 3. Susun query
             engine = (self._report_engine() or '').strip().lower()
             use_clickhouse = engine in ('clickhouse', 'ch')
+            mysql_sql = "\n".join(self._mysql_ads_roi_monitoring_sql(like_clause))
 
             if use_clickhouse:
                 domain_expr = "concat(arrayElement(splitByChar('.', b.data_ads_domain), 1), '.', arrayElement(splitByChar('.', b.data_ads_domain), 2), '.com')"
@@ -10208,48 +10362,25 @@ class data_mysql:
                     "\trs.domain,",
                     "\trs.country_code"
                 ]
+                sql = "\n".join(base_sql)
             else:
-                base_sql = [
-                    "SELECT",
-                    "\trs.date,",
-                    "\trs.account_id, rs.account_name,",
-                    "\trs.domain, rs.country_code,",
-                    "\tSUM(rs.spend) AS spend,",
-                    "\tSUM(rs.impressions) AS impressions,",
-                    "\tSUM(rs.clicks) AS clicks,",
-                    "\tCASE WHEN SUM(rs.impressions) > 0 THEN ROUND((SUM(rs.clicks) / SUM(rs.impressions)) * 100, 4) ELSE 0 END AS ctr,",
-                    "\tCASE WHEN SUM(rs.clicks) > 0 THEN ROUND(SUM(rs.spend) / SUM(rs.clicks), 4) ELSE 0 END AS cpc,",
-                    "\tCASE WHEN SUM(rs.impressions) > 0 THEN ROUND((SUM(rs.spend) / SUM(rs.impressions)) * 1000, 4) ELSE 0 END AS cpm",
-                    "FROM (",
-                        "\tSELECT",
-                        "\t\tb.data_ads_country_tanggal AS date,",
-                        "\t\ta.account_id, a.account_name,",
-                        "\t\tb.data_ads_domain AS domain_raw,",
-                        "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
-                        "\t\tb.data_ads_country_cd AS country_code,",
-                        "\t\tb.data_ads_country_spend AS spend,",
-                        "\t\tb.data_ads_country_impresi AS impressions,",
-                        "\t\tb.data_ads_country_click AS clicks",
-                        "\tFROM master_account_ads a",
-                        "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                        "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-                        f"{like_clause}",
-                    ") rs",
-                    "GROUP BY",
-                    "\trs.date,",
-                    "\trs.account_id,",
-                    "\trs.account_name,",
-                    "\trs.domain,",
-                    "\trs.country_code"
-                ]
+                sql = mysql_sql
 
             # --- 4. Gabungkan parameter
             params = [start_date_formatted, end_date_formatted] + like_params
             # --- 5. Eksekusi query
-            sql = "\n".join(base_sql)
-            if not self.execute_query(sql, tuple(params)):
-                raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
-            data = self.fetch_all()
+            data = []
+            if use_clickhouse:
+                if self.execute_query(sql, tuple(params)):
+                    data = self.fetch_all() or []
+            else:
+                data = self._fetch_mysql_rows(sql, tuple(params))
+
+            if use_clickhouse and not data:
+                try:
+                    data = self._fetch_mysql_rows(mysql_sql, tuple(params))
+                except Exception:
+                    data = []
 
             if use_clickhouse and isinstance(data, list) and data:
                 try:

@@ -988,6 +988,87 @@ def get_countries_facebook_ads(request):
             'countries': []
         }, status=500)
 
+def _facebook_domain_suggest_account_tokens(selected_account):
+    account_list = [s.strip() for s in str(selected_account or '').split(',') if s.strip() and s.strip() != '%']
+    account_tokens = []
+    for a in account_list:
+        v = str(a or '').strip()
+        if not v:
+            continue
+        account_tokens.append(v)
+        if v.lower().startswith('act_'):
+            account_tokens.append(v[4:])
+        else:
+            account_tokens.append(f"act_{v}")
+    return list(dict.fromkeys([x for x in account_tokens if x]))
+
+
+def _facebook_domain_suggest_from_mysql(db, start_date, end_date, like, account_tokens, limit):
+    rows = []
+    if not db.ensure_connection():
+        return rows
+    db.cur_hris = db.mysql_cur
+    acc_clause = ''
+    acc_params = []
+    if account_tokens:
+        acc_clause = " AND (" + " OR ".join(["b.account_ads_id LIKE %s"] * len(account_tokens)) + ")"
+        acc_params = [f"%{a}%" for a in account_tokens]
+    sql_country = """
+        SELECT DISTINCT b.data_ads_domain AS site_name
+        FROM data_ads_country b
+        WHERE b.data_ads_country_tanggal BETWEEN %s AND %s
+          AND b.data_ads_domain LIKE %s
+    """ + acc_clause + """
+        ORDER BY site_name ASC
+        LIMIT %s
+    """
+    params = [start_date, end_date, like] + acc_params + [limit]
+    db.cur_hris.execute(sql_country, tuple(params))
+    rows.extend(db.cur_hris.fetchall() or [])
+    if len(rows) >= limit:
+        return rows[:limit]
+    remain = max(0, limit - len(rows))
+    if remain <= 0:
+        return rows
+    sql_campaign = """
+        SELECT DISTINCT b.data_ads_domain AS site_name
+        FROM data_ads_campaign b
+        WHERE b.data_ads_tanggal BETWEEN %s AND %s
+          AND b.data_ads_domain LIKE %s
+    """ + acc_clause + """
+        ORDER BY site_name ASC
+        LIMIT %s
+    """
+    db.cur_hris.execute(sql_campaign, tuple([start_date, end_date, like] + acc_params + [remain]))
+    rows.extend(db.cur_hris.fetchall() or [])
+    return rows
+
+
+def _facebook_domain_suggest_from_clickhouse(db, start_date, end_date, like, account_tokens, limit):
+    db._ensure_report_connection()
+    db.cur_hris = db.report_cur
+    where = [
+        "toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+        "lowerUTF8(b.data_ads_domain) LIKE lowerUTF8(%s)",
+    ]
+    params = [start_date, end_date, like]
+    if account_tokens:
+        acc_like = " OR ".join(
+            ["replaceRegexpAll(lowerUTF8(toString(b.account_ads_id)), '^act_', '') LIKE %s"] * len(account_tokens)
+        )
+        where.append(f"({acc_like})")
+        params.extend([f"%{str(a).lower().removeprefix('act_')}%" for a in account_tokens])
+    sql = "\n".join([
+        "SELECT DISTINCT b.data_ads_domain AS site_name",
+        "FROM data_ads_country b",
+        "WHERE " + " AND ".join(where),
+        "ORDER BY site_name ASC",
+        f"LIMIT {limit}",
+    ])
+    db.cur_hris.execute(sql, tuple(params))
+    return db.fetch_all() or []
+
+
 class FacebookDomainSuggestView(View):
     """AJAX endpoint suggest subdomain Facebook Ads (Select2)"""
     def dispatch(self, request, *args, **kwargs):
@@ -1017,68 +1098,23 @@ class FacebookDomainSuggestView(View):
             account_ids = [str((r or {}).get('account_id') or '').strip() for r in rows if str((r or {}).get('account_id') or '').strip()]
             selected_account = ','.join(account_ids)
 
-        account_list = [s.strip() for s in selected_account.split(',') if s.strip()]
+        account_tokens = _facebook_domain_suggest_account_tokens(selected_account)
         like = f"%{q}%"
         limit = 100
-
-        account_tokens = []
-        for a in account_list:
-            v = str(a or '').strip()
-            if not v:
-                continue
-            account_tokens.append(v)
-            if v.lower().startswith('act_'):
-                account_tokens.append(v[4:])
-            else:
-                account_tokens.append(f"act_{v}")
-        account_tokens = list(dict.fromkeys([x for x in account_tokens if x]))
-
         db = data_mysql()
         rows = []
 
-        try:
-            db._ensure_report_connection()
-            db.cur_hris = db.report_cur
-            where = [
-                "toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
-                "lowerUTF8(b.data_ads_domain) LIKE lowerUTF8(%s)",
-            ]
-            params = [start_date, end_date, like]
-            if account_tokens:
-                acc_like = " OR ".join(["replaceRegexpAll(lowerUTF8(toString(b.account_ads_id)), '^act_', '') LIKE %s"] * len(account_tokens))
-                where.append(f"({acc_like})")
-                params.extend([f"%{str(a).lower().removeprefix('act_')}%" for a in account_tokens])
-            sql = "\n".join([
-                "SELECT DISTINCT b.data_ads_domain AS site_name",
-                "FROM data_ads_country b",
-                "WHERE " + " AND ".join(where),
-                "ORDER BY site_name ASC",
-                f"LIMIT {limit}",
-            ])
-            db.cur_hris.execute(sql, tuple(params))
-            rows = db.fetch_all()
-        except Exception:
+        engine = (db._report_engine() or '').strip().lower()
+        use_clickhouse = engine in ('clickhouse', 'ch')
+        if use_clickhouse:
             try:
-                if db.ensure_connection():
-                    db.cur_hris = db.mysql_cur
-                    where = [
-                        "b.data_ads_country_tanggal BETWEEN %s AND %s",
-                        "b.data_ads_domain LIKE %s",
-                    ]
-                    params = [start_date, end_date, like]
-                    if account_tokens:
-                        acc_like = " OR ".join(["b.account_ads_id LIKE %s"] * len(account_tokens))
-                        where.append(f"({acc_like})")
-                        params.extend([f"%{a}%" for a in account_tokens])
-                    sql = "\n".join([
-                        "SELECT DISTINCT b.data_ads_domain AS site_name",
-                        "FROM data_ads_country b",
-                        "WHERE " + " AND ".join(where),
-                        "ORDER BY site_name ASC",
-                        f"LIMIT {limit}",
-                    ])
-                    db.cur_hris.execute(sql, tuple(params))
-                    rows = db.fetch_all()
+                rows = _facebook_domain_suggest_from_clickhouse(db, start_date, end_date, like, account_tokens, limit)
+            except Exception:
+                rows = []
+
+        if not rows:
+            try:
+                rows = _facebook_domain_suggest_from_mysql(db, start_date, end_date, like, account_tokens, limit)
             except Exception:
                 rows = []
 
@@ -1088,11 +1124,17 @@ class FacebookDomainSuggestView(View):
             site = str((r or {}).get('site_name') or '').strip()
             if not site:
                 continue
-            k = site.lower()
-            if k in seen:
+            label = extract_base_subdomain(site)
+            for suffix in ('.adx', '.disp', '.display'):
+                if label.lower().endswith(suffix):
+                    label = extract_base_subdomain(label)
+                    break
+            display = (label or site).strip()
+            k = display.lower()
+            if not k or k in seen:
                 continue
             seen.add(k)
-            results.append({'id': site, 'text': site})
+            results.append({'id': display, 'text': display})
             if len(results) >= limit:
                 break
 
@@ -5602,13 +5644,24 @@ def _dashboard_scoring_meta_get(cache_key, loader):
     _DASHBOARD_SCORING_META_CACHE[cache_key] = {'ts': now, 'value': value}
     return value
 
+STALE_ADS_COUNTRY_HOURS = 2
+
+
+def _db_use_mysql(db):
+    """Pastikan cursor aktif mengarah ke MySQL, bukan ClickHouse/report."""
+    db.ensure_connection()
+    db.cur_hris = db.mysql_cur
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 def _analyze_dashboard_data_health(target_date):
     """Deteksi account/domain yang berisiko tidak tampil atau revenue Rp 0 di dashboard."""
     db = data_mysql()
+    _db_use_mysql(db)
     issues = []
     missing_accounts = []
     notices = []
+    stale_accounts = []
 
     adx_country_rows = 0
     adx_domain_rows = 0
@@ -5647,6 +5700,7 @@ def _analyze_dashboard_data_health(target_date):
     except Exception:
         domain_rev = {}
 
+    _db_use_mysql(db)
     fb_rows = []
     try:
         db.cur_hris.execute(
@@ -5756,17 +5810,157 @@ def _analyze_dashboard_data_health(target_date):
                 'fix_action': 'sync',
             })
 
-    healthy = not missing_accounts and not any(i.get('severity') == 'warn' for i in issues)
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    if target_date == today_str:
+        _db_use_mysql(db)
+        yesterday = (datetime.now().date() - timedelta(days=1)).strftime('%Y-%m-%d')
+        now = datetime.now()
+        account_rows = []
+        try:
+            db.cur_hris.execute(
+                """
+                SELECT
+                    a.account_name,
+                    a.account_id,
+                    COALESCE(t.today_rows, 0) AS today_rows,
+                    t.last_mdd,
+                    COALESCE(y.yday_spend, 0) AS yday_spend
+                FROM master_account_ads a
+                LEFT JOIN (
+                    SELECT
+                        account_ads_id,
+                        COUNT(*) AS today_rows,
+                        MAX(mdd) AS last_mdd
+                    FROM data_ads_country
+                    WHERE data_ads_country_tanggal = %s
+                    GROUP BY account_ads_id
+                ) t ON t.account_ads_id = a.account_id
+                LEFT JOIN (
+                    SELECT
+                        account_ads_id,
+                        SUM(data_ads_country_spend) AS yday_spend
+                    FROM data_ads_country
+                    WHERE data_ads_country_tanggal = %s
+                    GROUP BY account_ads_id
+                ) y ON y.account_ads_id = a.account_id
+                """,
+                (target_date, yesterday),
+            )
+            account_rows = db.cur_hris.fetchall() or []
+        except Exception:
+            account_rows = []
+
+        for row in account_rows:
+            name = str((row or {}).get('account_name') or '').strip()
+            account_id = str((row or {}).get('account_id') or '').strip()
+            if not name:
+                continue
+
+            yday_spend = float((row or {}).get('yday_spend') or 0)
+            today_rows = int((row or {}).get('today_rows') or 0)
+            last_mdd = (row or {}).get('last_mdd')
+
+            if yday_spend <= 0 and today_rows <= 0:
+                continue
+
+            is_stale = False
+            hours_stale = None
+            reason = ''
+            last_mdd_text = ''
+
+            if today_rows <= 0:
+                if now.hour >= 3 and yday_spend > 0:
+                    is_stale = True
+                    reason = (
+                        f'{name}: data Facebook Ads hari ini belum ditarik cron (0 baris). '
+                        'Klik Tarik Ulang (Cron) atau periksa token akun.'
+                    )
+            elif last_mdd:
+                if isinstance(last_mdd, datetime):
+                    last_mdd_dt = last_mdd
+                else:
+                    last_mdd_dt = datetime.strptime(str(last_mdd)[:19], '%Y-%m-%d %H:%M:%S')
+                delta = now - last_mdd_dt
+                hours_stale = round(delta.total_seconds() / 3600.0, 1)
+                last_mdd_text = last_mdd_dt.strftime('%Y-%m-%d %H:%M:%S')
+                if hours_stale > STALE_ADS_COUNTRY_HOURS:
+                    is_stale = True
+                    reason = (
+                        f'{name}: data Facebook Ads terakhir di-update {last_mdd_dt.strftime("%H:%M")} '
+                        f'({hours_stale:g} jam lalu). Cron mungkin gagal — klik Tarik Ulang (Cron).'
+                    )
+
+            if not is_stale:
+                continue
+
+            stale_entry = {
+                'account': name,
+                'account_id': account_id,
+                'today_rows': today_rows,
+                'last_mdd': last_mdd_text,
+                'hours_stale': hours_stale,
+                'yday_spend': int(round(yday_spend)),
+                'reason': reason,
+                'fix_action': 'sync',
+            }
+            stale_accounts.append(stale_entry)
+            issues.append({
+                'type': 'ads_country_stale',
+                'severity': 'warn',
+                'account': name,
+                'account_id': account_id,
+                'message': reason,
+                'fix_action': 'sync',
+            })
+
+    healthy = (
+        not missing_accounts
+        and not stale_accounts
+        and not any(i.get('severity') == 'warn' for i in issues)
+    )
     return {
         'healthy': healthy,
         'date': target_date,
         'missing_accounts': missing_accounts,
+        'stale_accounts': stale_accounts,
         'issues': issues,
         'notices': notices,
         'adx_country_rows': adx_country_rows,
         'adx_domain_rows': adx_domain_rows,
         'accounts_with_spend': len(by_account),
+        'stale_threshold_hours': STALE_ADS_COUNTRY_HOURS,
     }
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DashboardDomainAccountMapView(View):
+    """Lookup subdomain/domain -> account_name untuk dashboard Detail Scoring."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            date = str(req.GET.get('date') or req.GET.get('tanggal') or '').strip()
+            if not date:
+                date = datetime.now().strftime('%Y-%m-%d')
+            datetime.strptime(date, '%Y-%m-%d')
+            result = data_mysql().get_dashboard_domain_account_map(date, date)
+            if not result.get('status'):
+                return JsonResponse({'status': False, 'error': result.get('error') or 'Gagal memuat map domain-account', 'data': {}}, status=500)
+            return JsonResponse({
+                'status': True,
+                'date': date,
+                'data': result.get('data') or {},
+                'spend': result.get('spend') or {},
+            })
+        except ValueError:
+            return JsonResponse({'status': False, 'error': 'Format date harus YYYY-MM-DD'}, status=400)
+        except Exception as e:
+            logger.exception('DashboardDomainAccountMapView failed')
+            return JsonResponse({'status': False, 'error': str(e), 'data': {}}, status=500)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -5815,6 +6009,7 @@ class DashboardSyncView(View):
 
             source = str(payload.get('source') or 'all').strip().lower()
             mode = str(payload.get('mode') or 'sync').strip().lower()
+            account_filter = str(payload.get('account') or payload.get('account_name') or '').strip()
 
             if mode == 'refresh':
                 admin = req.session.get('hris_admin') or {}
@@ -5888,10 +6083,12 @@ class DashboardSyncView(View):
                 buf = _LimitedStringIO(max_chars=20000)
                 step = {'command': cmd}
                 try:
+                    cmd_kwargs = {'stdout': buf}
                     if tanggal != '%':
-                        call_command(cmd, tanggal=tanggal, stdout=buf)
-                    else:
-                        call_command(cmd, stdout=buf)
+                        cmd_kwargs['tanggal'] = tanggal
+                    if account_filter and cmd == 'cron_ads_country_load':
+                        cmd_kwargs['account'] = account_filter
+                    call_command(cmd, **cmd_kwargs)
                     step['status'] = True
                 except Exception as e:
                     step['status'] = False

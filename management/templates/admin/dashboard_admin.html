@@ -6441,6 +6441,17 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
     opacity: 0.72;
     cursor: wait;
 }
+.dashboard-data-health-banner__list .dashboard-stale-sync-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    vertical-align: middle;
+}
 #dashboardRecapRefreshBtn {
     background: #ffffff;
     color: #1e293b;
@@ -7201,11 +7212,16 @@ function renderDashboardDataHealth(health) {
 
     const data = (health && typeof health === 'object') ? health : {};
     const missing = Array.isArray(data.missing_accounts) ? data.missing_accounts : [];
+    const stale = Array.isArray(data.stale_accounts) ? data.stale_accounts : [];
     const issues = Array.isArray(data.issues) ? data.issues : [];
     const notices = Array.isArray(data.notices) ? data.notices : [];
-    const warnIssues = issues.filter(function(i){ return String(i?.severity || '').toLowerCase() === 'warn'; });
+    const warnIssues = issues.filter(function(i){
+        const t = String(i?.type || '').toLowerCase();
+        return String(i?.severity || '').toLowerCase() === 'warn' && t !== 'ads_country_stale';
+    });
+    const staleIssues = issues.filter(function(i){ return String(i?.type || '').toLowerCase() === 'ads_country_stale'; });
     const infoIssues = issues.filter(function(i){ return String(i?.severity || '').toLowerCase() === 'info'; });
-    const hasAlerts = !!(missing.length || warnIssues.length || infoIssues.length || notices.length);
+    const hasAlerts = !!(missing.length || stale.length || warnIssues.length || staleIssues.length || infoIssues.length || notices.length);
 
     if (!hasAlerts) {
         banner.style.display = 'none';
@@ -7218,6 +7234,11 @@ function renderDashboardDataHealth(health) {
     const parts = [];
     if (missing.length) {
         parts.push(`${missing.length} account berisiko tidak tampil lengkap di dashboard.`);
+    }
+    if (stale.length || staleIssues.length) {
+        const staleCount = stale.length || staleIssues.length;
+        const staleHours = Number(data?.stale_threshold_hours || 2);
+        parts.push(`${staleCount} account data Facebook Ads belum di-update >${staleHours} jam (cron gagal atau token expired).`);
     }
     if (warnIssues.length) {
         parts.push(`${warnIssues.length} account revenue AdX sudah ada di DB tapi belum tampil (klik Muat Ulang Data).`);
@@ -7236,6 +7257,17 @@ function renderDashboardDataHealth(health) {
         const spend = Number(row?.spend || 0);
         items.push(`<li><strong>${esc(name)}</strong> — spend Rp ${esc((Math.round(spend)).toLocaleString('id-ID'))}: ${esc(String(row?.reason || 'Data belum lengkap'))}</li>`);
     });
+    (stale.length ? stale : staleIssues).slice(0, 6).forEach(function(row) {
+        const name = String(row?.account || '-');
+        const reason = String(row?.reason || row?.message || 'Data Facebook Ads belum di-update.');
+        const accountKey = String(row?.account || row?.account_id || name);
+        items.push(
+            `<li><strong>${esc(name)}</strong> — ${esc(reason)} `
+            + `<button type="button" class="btn btn-sm btn-outline-warning ms-1 dashboard-stale-sync-btn" `
+            + `data-account="${esc(accountKey)}" title="Tarik ulang data Facebook Ads akun ini">`
+            + `<i class="bi bi-cloud-arrow-down"></i> Tarik Akun</button></li>`
+        );
+    });
     warnIssues.slice(0, 4).forEach(function(row) {
         items.push(`<li><strong>${esc(String(row?.account || '-'))}</strong> — ${esc(String(row?.message || 'Revenue belum tampil'))}</li>`);
     });
@@ -7246,8 +7278,18 @@ function renderDashboardDataHealth(health) {
         items.push(`<li>${esc(String(row?.message || 'Data AdX per-negara belum ready.'))}</li>`);
     });
     listEl.innerHTML = items.join('');
-    banner.classList.toggle('is-info', !missing.length && !warnIssues.length);
+    banner.classList.toggle('is-info', !missing.length && !warnIssues.length && !(stale.length || staleIssues.length));
     banner.style.display = 'block';
+
+    listEl.querySelectorAll('.dashboard-stale-sync-btn').forEach(function(btn) {
+        btn.addEventListener('click', async function(ev) {
+            ev.preventDefault();
+            const account = String(btn.getAttribute('data-account') || '').trim();
+            if (!account || typeof window.dashboardRecapGetState !== 'function') return;
+            const state = window.dashboardRecapGetState();
+            await runDashboardDataRefresh(state, { mode: 'sync', account: account });
+        });
+    });
 }
 
 async function fetchDashboardDataHealth(state) {
@@ -7285,12 +7327,25 @@ async function runDashboardDataRefresh(state, opts) {
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-arrow-clockwise bi-spin"></i> ' + (mode === 'sync' ? 'Synchronize...' : 'Memuat ulang...');
     }
-    setSyncAlert('info', mode === 'sync' ? 'Synchronize sedang berlangsung...' : 'Memuat ulang data dari database...');
+    const accountLabel = String((opts && opts.account) || '').trim();
+    const syncLabel = accountLabel
+        ? `Tarik ulang data Facebook Ads untuk ${accountLabel}...`
+        : (mode === 'sync' ? 'Synchronize sedang berlangsung...' : 'Memuat ulang data dari database...');
+    setSyncAlert('info', syncLabel);
     try {
+        const payload = {
+            tanggal: tanggal,
+            source: state?.source || 'all',
+            mode: mode
+        };
+        const account = String((opts && opts.account) || '').trim();
+        if (account) {
+            payload.account = account;
+        }
         const res = await fetch('/management/admin/dashboard_sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({ tanggal: tanggal, source: state?.source || 'all', mode: mode }),
+            body: JSON.stringify(payload),
             credentials: 'same-origin'
         });
         const json = await res.json();
@@ -21761,10 +21816,32 @@ function initDashboardRecap() {
         return '/management/admin/dashboard/account_detail?' + params.toString();
     }
 
+    async function loadDomainAccountMap(state) {
+        window.dashboardRecapDomainAccountMap = {};
+        const date = String(state?.date || '').trim();
+        if (!date) return;
+        try {
+            const res = await fetch(
+                `/management/admin/dashboard_domain_account_map?date=${encodeURIComponent(date)}`,
+                { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+            );
+            const json = await res.json();
+            if (json && json.status && json.data && typeof json.data === 'object') {
+                window.dashboardRecapDomainAccountMap = json.data;
+            }
+            if (json && json.spend && typeof json.spend === 'object') {
+                window.dashboardRecapDomainSpendMap = json.spend;
+            }
+        } catch (_e) {
+            window.dashboardRecapDomainAccountMap = {};
+            window.dashboardRecapDomainSpendMap = {};
+        }
+    }
+
     async function loadSiteAccountMap(state) {
         window.dashboardRecapSiteAccountMap = {};
+        if (!state?.date) return;
         const dim = String(state?.dim || '').toLowerCase();
-        if (dim !== 'country' || !state?.date) return;
         const src = String(state?.source || 'all').toLowerCase();
         try {
             let domainRows = [];
@@ -21804,9 +21881,20 @@ function initDashboardRecap() {
     function resolveDetailAccount(cd, siteAccountMap, campaignAccountMap) {
         const direct = String(cd?.account_ads || cd?.account_name || cd?.meta_account || '').trim();
         if (direct) return direct;
-        const site = String(resolveDetailSite(cd) || '').trim().toLowerCase().replace(/^www\./i, '');
+        const site = String(resolveDetailSite(cd) || cd?.name || cd?.domain || cd?.site || cd?.site_name || '').trim().toLowerCase().replace(/^www\./i, '');
         const map = (siteAccountMap && typeof siteAccountMap === 'object') ? siteAccountMap : {};
-        if (site && map[site]) return map[site];
+        const domainMap = window.dashboardRecapDomainAccountMap || {};
+        const siteKeys = uniqKeepOrder([
+            site,
+            normalizeTrafficDomainKey(site),
+            String(cd?.name || cd?.domain || cd?.site || '').trim().toLowerCase().replace(/^www\./i, ''),
+            normalizeTrafficDomainKey(String(cd?.name || cd?.domain || cd?.site || '').trim())
+        ].filter(Boolean));
+        for (let i = 0; i < siteKeys.length; i += 1) {
+            const key = siteKeys[i];
+            if (key && map[key]) return map[key];
+            if (key && domainMap[key]) return domainMap[key];
+        }
         const base = normalizeTrafficDomainKey(site);
         if (base && map[base]) return map[base];
         const camp = scxCampaignValue(cd);
@@ -21997,7 +22085,11 @@ function initDashboardRecap() {
         const metaEl = document.getElementById('dashboardAccountRelationMeta');
         if (!tbody) return;
         const isCountryDim = String(state?.dim || '').toLowerCase() === 'country';
-        const siteAccountMap = window.dashboardRecapSiteAccountMap || {};
+        const siteAccountMap = Object.assign(
+            {},
+            window.dashboardRecapSiteAccountMap || {},
+            buildSiteAccountLookup((scored || []).map(function(item){ return item?.r; }))
+        );
         const campaignAccountMap = window.dashboardRecapCampaignAccountMap || {};
 
         const avg = function(num, den) {
@@ -22121,7 +22213,11 @@ function initDashboardRecap() {
                 return;
             }
 
-            const accountName = String(r?.account_ads || '').trim() || 'Tanpa Account';
+            let accountName = String(r?.account_ads || '').trim();
+            if (!accountName) {
+                accountName = resolveDetailAccount(r, siteAccountMap, campaignAccountMap);
+            }
+            if (!accountName) return;
             const current = accMap.get(accountName) || makeBucket();
 
             if (!isCountryDim) {
@@ -22205,7 +22301,12 @@ function initDashboardRecap() {
             accMap.set(accountName, current);
         });
 
-        const rows = Array.from(accMap.entries()).map(function(entry){
+        const rows = Array.from(accMap.entries())
+            .filter(function(entry){
+                const accountName = String(entry[0] || '').trim().toLowerCase();
+                return accountName && accountName !== 'tanpa account';
+            })
+            .map(function(entry){
             const accountName = entry[0];
             const data = entry[1];
             const avgScore = avg(data.scoreNum, data.scoreDen);
@@ -22504,7 +22605,11 @@ function initDashboardRecap() {
 
         rebuildDashboardCampaignAlerts();
 
-        setDetailScoringMeta(`${rows.length} baris`);
+        const hiddenCount = Math.max(0, Number(window.dashboardRecapDetailRowTotal || 0) - Number(window.dashboardRecapDetailRowShown || rows.length));
+        const hiddenNote = hiddenCount > 0
+            ? ` · ${hiddenCount} subdomain tanpa account/spend FB disembunyikan`
+            : '';
+        setDetailScoringMeta(`${rows.length} baris${hiddenNote}`);
 
         const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
         const hasDtButtons = !!(hasDt && jQuery.fn.dataTable && jQuery.fn.dataTable.Buttons);
@@ -23161,6 +23266,60 @@ function initDashboardRecap() {
             : (Array.isArray(json?.data) ? json.data : []);
     }
 
+    function recapRowLookupKeys(row) {
+        const name = String(row?.name || row?.domain || row?.site || '').trim().toLowerCase().replace(/^www\./i, '');
+        return uniqKeepOrder([name, normalizeTrafficDomainKey(name)].filter(Boolean));
+    }
+
+    function enrichRecapRowAccounts(rows, extraMap) {
+        const domainMap = window.dashboardRecapDomainAccountMap || {};
+        const map = Object.assign({}, domainMap, extraMap || {}, buildSiteAccountLookup(rows));
+        return (rows || []).map(function(r) {
+            if (String(r?.account_ads || '').trim()) return r;
+            const acc = resolveDetailAccount(r, map, window.dashboardRecapCampaignAccountMap || {});
+            return acc ? Object.assign({}, r, { account_ads: acc }) : r;
+        });
+    }
+
+    function enrichRecapRowSpend(rows) {
+        const spendMap = window.dashboardRecapDomainSpendMap || {};
+        return (rows || []).map(function(r) {
+            const curSpend = Number(r?.spend) || 0;
+            if (curSpend > 0) return r;
+            let spend = 0;
+            recapRowLookupKeys(r).some(function(key) {
+                const val = Number(spendMap[key] || 0);
+                if (val > 0) {
+                    spend = val;
+                    return true;
+                }
+                return false;
+            });
+            if (spend <= 0) return r;
+            const revenue = Number(r?.revenue) || 0;
+            return Object.assign({}, r, {
+                spend: spend,
+                net: revenue - spend,
+                roi: spend > 0 ? ((revenue - spend) / spend * 100) : 0,
+                spend_source: 'facebook_country',
+            });
+        });
+    }
+
+    function prepareRecapRows(rows, extraMap) {
+        return enrichRecapRowSpend(enrichRecapRowAccounts(rows, extraMap));
+    }
+
+    function filterDetailScoringRows(rows, dim) {
+        return (rows || []).filter(function(r) {
+            const account = String(r?.account_ads || '').trim();
+            if (!account) return false;
+            const lower = account.toLowerCase();
+            if (lower === 'tanpa account' || lower === 'backend tanpa subdomain') return false;
+            return (Number(r?.spend) || 0) > 0;
+        });
+    }
+
     function mergeRows(rowsA, rowsB) {
         const m = new Map();
 
@@ -23417,19 +23576,23 @@ function initDashboardRecap() {
                 });
             } catch (e) {}
 
-            summary = summarize(rows);
-            const scoringPromise = fetchDashboardScoring(rows, st);
             await Promise.all([
                 loadScoringBaselineHourly(st, rows),
+                loadDomainAccountMap(st),
                 loadSiteAccountMap(st),
                 loadAccountKeyMap()
             ]);
+            rows = prepareRecapRows(rows, window.dashboardRecapSiteAccountMap || {});
+            const detailRows = filterDetailScoringRows(rows, st.dim);
+            window.dashboardRecapDetailRowTotal = rows.length;
+            window.dashboardRecapDetailRowShown = detailRows.length;
+            const scoringPromise = fetchDashboardScoring(detailRows, st);
 
-            renderSummary(summary);
+            renderSummary(summarize(rows));
             const subMeta = st.subdomain ? ` • subdomain: ${st.subdomain}` : '';
             const meta = `${sourceLabel(st.source)} • ${st.dim==='country'?'Per Negara':'Per Domain'} • ${st.date}${subMeta}`;
             renderChart(st.dim, rows, meta);
-            await renderTable(st.dim, rows, st, scoringPromise);
+            await renderTable(st.dim, detailRows, st, scoringPromise);
 
             renderPortfolioPulse(st.date).catch(function(){});
 
