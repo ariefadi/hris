@@ -230,6 +230,11 @@ class AuthMiddleware:
             # Ambil user_id dan user_mail dari session
             user_id = request.session.get('hris_admin', {}).get('user_id')
             user_mail = request.session.get('hris_admin', {}).get('user_mail')
+            try:
+                from .context_processors import ensure_session_user_foto
+                ensure_session_user_foto(request)
+            except Exception:
+                pass
 
             # Update kredensial sebelum request diproses dengan parameter user_id dan user_mail
             request.oauth_user = {

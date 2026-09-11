@@ -132,6 +132,7 @@ def set_hris_session(backend, user, response, request, *args, **kwargs):
             'user_mail': user_data.get('user_mail'),
             'user_name': user_data.get('user_name'),
             'user_alias': user_data.get('user_alias'),
+            'user_foto': user_data.get('user_foto') or '',
             'login_time': datetime.now().isoformat(),
             'oauth_login': True
         }

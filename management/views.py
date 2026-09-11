@@ -607,6 +607,7 @@ class OAuthRedirectView(View):
             'user_pass': '',  # Kosong untuk OAuth login
             'user_alias': user_data['data'][0]['user_alias'],
             'user_mail': user_data['data'][0]['user_mail'],  # Tambahkan user_mail ke session
+            'user_foto': user_data['data'][0].get('user_foto') or '',
             'super_st': user_data['data'][0]['super_st'],  # Tambahkan superadmin ke session
             'login_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         }
@@ -720,6 +721,7 @@ class LoginProcess(View):
                     'user_pass': '',
                     'user_alias': rs_data['data']['user_alias'],
                     'user_mail': rs_data['data']['user_mail'],  # Tambahkan user_mail ke session
+                    'user_foto': rs_data['data'].get('user_foto') or '',
                     'super_st': rs_data['data']['super_st'],  # Tambahkan superadmin ke session
                     'login_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 }

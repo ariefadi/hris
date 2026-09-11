@@ -853,7 +853,7 @@ class data_mysql:
         if params and 'user_mail' in params:
             sql='''
                 SELECT user_id, user_name, user_alias, 
-                user_mail, user_telp, user_alamat, user_st, super_st 
+                user_mail, user_telp, user_alamat, user_st, user_foto, super_st 
                 FROM `app_users`
                 WHERE user_mail = %s
                 ORDER BY user_alias ASC
