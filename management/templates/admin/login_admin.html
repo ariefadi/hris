@@ -357,6 +357,18 @@
                 text-decoration: underline;
             }
 
+            .login-location-hint {
+                margin: -4px 0 16px;
+                font-size: 12px;
+                line-height: 1.5;
+                color: #64748b;
+                text-align: left;
+            }
+            .login-location-hint i {
+                color: #4f46e5;
+                margin-right: 4px;
+            }
+
             .nav-pills .nav-link {
                 border-radius: 10px;
             }
@@ -735,6 +747,10 @@
                             <button type="submit" id="loginButton" class="btn btn-login-primary mb-3" data-title="Sign-In" data-intro="Klik untuk proses login.">
                                 Sign-In &nbsp;<i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
                             </button>
+                            <p class="login-location-hint">
+                                <i class="bi bi-geo-alt"></i>
+                                Izinkan akses lokasi browser saat login agar Lokasi Akses tercatat dari GPS, bukan perkiraan IP.
+                            </p>
                             <a href="/accounts/login/google-oauth2/?next=/management/admin/oauth_redirect" class="btn btn-login-google d-flex align-items-center justify-content-center" id="btnGoogleLogin" data-title="Login Google" data-intro="Alternatif login menggunakan akun Google (OAuth).">
                                 Login with Google &nbsp;<i class="bi bi-google" aria-hidden="true"></i> 
                             </a>
@@ -801,7 +817,7 @@
         <script src="{% static 'dist/js/adminlte.min.js' %}"></script>
         <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
         <!-- untuk login -->
-        <script src="{% static 'ajax/login.js'%}"></script>
+        <script src="{% static 'ajax/login.js'%}?v=3"></script>
         <script>
         (function() {
             function decorateTourButtons() {

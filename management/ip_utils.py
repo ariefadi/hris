@@ -159,3 +159,111 @@ def resolve_ip_location(ip_address: str) -> Tuple[str, List[Optional[str]], Opti
             continue
 
     return ip_address, lat_long, None
+
+
+def parse_browser_coords(lat_raw, lng_raw):
+    try:
+        lat = float(lat_raw)
+        lng = float(lng_raw)
+    except (TypeError, ValueError):
+        return None
+    if lat == 0 and lng == 0:
+        return None
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        return None
+    return lat, lng
+
+
+def reverse_geocode(lat: float, lng: float) -> Optional[str]:
+    """Ubah koordinat GPS menjadi alamat (Nominatim / OpenStreetMap)."""
+    try:
+        response = requests.get(
+            'https://nominatim.openstreetmap.org/reverse',
+            params={
+                'lat': lat,
+                'lon': lng,
+                'format': 'jsonv2',
+                'accept-language': 'id',
+                'zoom': 18,
+                'addressdetails': 1,
+            },
+            headers={
+                'User-Agent': 'Kiwipixel-HRIS/1.0 (login-location)',
+                'Accept': 'application/json',
+            },
+            timeout=6,
+        )
+        response.raise_for_status()
+        data = response.json()
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    address = data.get('address') or {}
+    parts = []
+    road = None
+    for key in ('road', 'pedestrian', 'footway', 'residential'):
+        text = str(address.get(key) or '').strip()
+        if text:
+            road = text
+            break
+    locality = None
+    for key in ('village', 'hamlet', 'suburb', 'neighbourhood', 'city_district'):
+        text = str(address.get(key) or '').strip()
+        if text:
+            locality = text
+            break
+    city = None
+    for key in ('city', 'town', 'municipality', 'county'):
+        text = str(address.get(key) or '').strip()
+        if text:
+            city = text
+            break
+    for text in (road, locality, city, str(address.get('state') or '').strip(), str(address.get('country') or '').strip()):
+        if text and text not in parts:
+            parts.append(text)
+    if not parts:
+        display = str(data.get('display_name') or '').strip()
+        if not display:
+            return None
+        parts = [part.strip() for part in display.split(',') if part.strip()][:4]
+    location = ', '.join(parts)
+    postal = str(address.get('postcode') or '').strip()
+    if postal and postal not in location:
+        location = f'{location} {postal}'
+    return location or None
+
+
+def resolve_login_location(request, ip_address: str = ''):
+    """
+    Prioritaskan GPS browser (akurat), IP hanya cadangan.
+    Return: (ip, [lat, lng], lokasi, source) dengan source 'gps' atau 'ip'.
+    """
+    ip_address = ip_address or get_client_ip(request)
+    coords = coords_from_request(request)
+    if coords:
+        lat, lng = coords
+        location = reverse_geocode(lat, lng)
+        if not location:
+            location = f'{lat:.5f}, {lng:.5f}'
+        return ip_address, [str(lat), str(lng)], location, 'gps'
+
+    resolved_ip, lat_long, location = resolve_ip_location(ip_address)
+    return resolved_ip, lat_long, location, 'ip'
+
+
+def coords_from_request(request):
+    lat = request.POST.get('latitude')
+    lng = request.POST.get('longitude')
+    content_type = (request.content_type or '').lower()
+    if (not lat or not lng) and 'application/json' in content_type:
+        try:
+            import json
+            body = request.body.decode('utf-8') if isinstance(request.body, (bytes, bytearray)) else (request.body or '')
+            payload = json.loads(body) if body else {}
+            lat = payload.get('latitude', lat)
+            lng = payload.get('longitude', lng)
+        except Exception:
+            pass
+    return parse_browser_coords(lat, lng)

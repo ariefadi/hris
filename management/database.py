@@ -815,6 +815,33 @@ class data_mysql:
             }
         return hasil
     
+    def update_login_location(self, data):
+        sql = """
+            UPDATE app_user_login
+            SET app_user_login.latitude=%s,
+                app_user_login.longitude=%s,
+                app_user_login.lokasi=%s
+            WHERE app_user_login.login_id=%s
+              AND app_user_login.user_id=%s
+            """
+        try:
+            if not self.execute_query(sql, (
+                data.get('latitude'),
+                data.get('longitude'),
+                data.get('lokasi'),
+                data.get('login_id'),
+                data.get('user_id'),
+            )):
+                raise pymysql.Error("Failed to update login location")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit login location")
+            return {"status": True, "message": "Lokasi login berhasil diupdate"}
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+
     def data_login_user(self):
         sql = '''
             SELECT a.login_id, a.user_id, sub.login_day, sub.login_time, a.login_date, 

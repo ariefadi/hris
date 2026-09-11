@@ -15,6 +15,7 @@ urlpatterns = [
     # LOGIN / LOGOUT
     path('admin/login', views.LoginAdmin.as_view(), name='admin_login'),
     path('admin/login_process', views.LoginProcess.as_view(), name='admin_login_process'),
+    path('admin/login_location', views.LoginLocationUpdateView.as_view(), name='admin_login_location'),
     path('admin/register_account', views.RegisterAccountAdmin.as_view(), name='admin_register_account'),
     path('admin/forgot_password', views.ForgotPasswordView.as_view(), name='forgot_password'),
     path('admin/logout', views.LogoutAdmin.as_view(), name='admin_logout'),

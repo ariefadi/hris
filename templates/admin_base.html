@@ -1465,8 +1465,11 @@
         };
         window.HRIS_SESSION_LOGIN_AT = "{{ hris_session_login_at|default:'' }}";
         window.HRIS_SESSION_DURATION_URL = "{{ hris_session_duration_url|default:'/settings/users/session_duration' }}";
+        window.HRIS_LOGIN_LOCATION_URL = "{% url 'admin_login_location' %}";
+        window.HRIS_LOCATION_GPS = {% if request.session.hris_location_gps %}true{% else %}false{% endif %};
         </script>
         <script src="{% static 'ajax/admin/shared/hris_idle_logout.js' %}?v=1"></script>
+        <script src="{% static 'ajax/admin/shared/hris_login_location.js' %}?v=1"></script>
         <script>
         (function () {
             var loginAt = window.HRIS_SESSION_LOGIN_AT || '';

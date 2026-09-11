@@ -186,7 +186,7 @@ def get_user_refresh_token(email):
 geocode = Nominatim(user_agent="hris_trendHorizone") if Nominatim else None
 
 
-from management.ip_utils import get_client_ip, resolve_ip_location
+from management.ip_utils import get_client_ip, resolve_ip_location, resolve_login_location
 data_bulan = {
     1: 'Januari',
     2: 'Februari',
@@ -583,7 +583,7 @@ class OAuthRedirectView(View):
         # Insert login record
         login_id = str(uuid.uuid4())
         ip_address = get_client_ip(request)
-        ip_address, lat_long, location = resolve_ip_location(ip_address)
+        ip_address, lat_long, location, geo_source = resolve_login_location(request, ip_address)
 
         data_insert = {
             'login_id': login_id,
@@ -612,6 +612,7 @@ class OAuthRedirectView(View):
             'login_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         }
         request.session['hris_last_activity'] = time.time()
+        request.session['hris_location_gps'] = (geo_source == 'gps')
         # Set default active portal on first login
         try:
             request.session['active_portal_id'] = DEFAULT_ACTIVE_PORTAL_ID
@@ -698,7 +699,7 @@ class LoginProcess(View):
                 }
             else:
                 ip_address = get_client_ip(req)
-                ip_address, lat_long, location_address = resolve_ip_location(ip_address)
+                ip_address, lat_long, location_address, geo_source = resolve_login_location(req, ip_address)
                 # insert user login
                 data_insert = {
                     'login_id': str(uuid.uuid4()),
@@ -727,6 +728,7 @@ class LoginProcess(View):
                 }
                 req.session['hris_admin'] = user_data
                 req.session['hris_last_activity'] = time.time()
+                req.session['hris_location_gps'] = (geo_source == 'gps')
                 try:
                     print(f"[LOGIN_DEBUG] Session set for user_id={user_data['user_id']} login_id={login_id}")
                 except Exception:
@@ -748,6 +750,45 @@ class LoginProcess(View):
         return JsonResponse(hasil)
 
     
+class LoginLocationUpdateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        admin = request.session.get('hris_admin') or {}
+        login_id = admin.get('login_id')
+        user_id = admin.get('user_id')
+        if not login_id or not user_id:
+            return JsonResponse({'status': False, 'error': 'Sesi login tidak lengkap'}, status=400)
+
+        coords = None
+        try:
+            from management.ip_utils import coords_from_request, reverse_geocode
+            coords = coords_from_request(request)
+        except Exception:
+            coords = None
+        if not coords:
+            return JsonResponse({'status': False, 'error': 'Koordinat GPS tidak valid'}, status=400)
+
+        lat, lng = coords
+        location = reverse_geocode(lat, lng) or f'{lat:.5f}, {lng:.5f}'
+        updated = data_mysql().update_login_location({
+            'login_id': login_id,
+            'user_id': user_id,
+            'latitude': str(lat),
+            'longitude': str(lng),
+            'lokasi': location,
+        })
+        ok = bool((updated or {}).get('status') or (updated or {}).get('hasil', {}).get('status'))
+        if ok:
+            request.session['hris_location_gps'] = True
+            request.session.modified = True
+        return JsonResponse({
+            'status': ok,
+            'lokasi': location if ok else None,
+            'source': 'gps' if ok else None,
+        })
+
+
 class RegisterAccountAdmin(View):
     def post(self, req):
         username = (req.POST.get('reg_username') or '').strip()

@@ -157,56 +157,110 @@ $().ready(function () {
 
     clearStaleCsrfCookieIfNeeded();
 
+    function getBrowserLocation(timeoutMs) {
+        return new Promise(function (resolve) {
+            if (!navigator.geolocation) {
+                resolve(null);
+                return;
+            }
+            var finished = false;
+            var timer = setTimeout(function () {
+                if (finished) return;
+                finished = true;
+                resolve(null);
+            }, timeoutMs || 8000);
+            navigator.geolocation.getCurrentPosition(
+                function (pos) {
+                    if (finished) return;
+                    finished = true;
+                    clearTimeout(timer);
+                    resolve({
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude
+                    });
+                },
+                function () {
+                    if (finished) return;
+                    finished = true;
+                    clearTimeout(timer);
+                    resolve(null);
+                },
+                { enableHighAccuracy: true, timeout: timeoutMs || 8000, maximumAge: 30000 }
+            );
+        });
+    }
+
+    $(document).on('click', '#btnGoogleLogin', function (e) {
+        var href = this.href;
+        if (!href) return;
+        e.preventDefault();
+        getBrowserLocation(8000).then(function (loc) {
+            try {
+                if (loc) sessionStorage.setItem('hris_pending_gps', JSON.stringify(loc));
+            } catch (_err) {}
+            window.location.href = href;
+        });
+    });
+
     $(document).on('submit', '#loginForm', function (e) {
         e.preventDefault();
-        var form_data = new FormData(this);
-        var csrfToken = syncLoginCsrfToken();
-        if (csrfToken) {
-            form_data.set('csrfmiddlewaretoken', csrfToken);
-        }
-        $.ajax({
-            type: 'POST',
-            url: '/management/admin/login_process',
-            data: form_data,
-            cache: false,
-            contentType: false,
-            processData: false,
-            dataType: 'json',
-            credentials: 'same-origin',
-            headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {},
-            beforeSend: function () {
-                showLoginLoader('Login Process');
-            },
-            error: function (jqXHR, exception) {
-                hideLoginLoader(function () {
-                    report_eror(jqXHR, exception);
-                });
-            },
-            success: function (data) {
-                hideLoginLoader(function () {
-                    if (data.status === true) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil Login',
-                            text: data.message,
-                            timer: 2000,
-                            timerProgressBar: true,
-                            showConfirmButton: false
-                        });
-                        setTimeout(function () {
-                            location.reload();
-                        }, 2000);
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Gagal Login',
-                            text: data.message,
-                        }).then(function () {
-                            location.reload();
-                        });
-                    }
-                });
+        var formEl = this;
+        showLoginLoader('Meminta akses lokasi...');
+        getBrowserLocation(8000).then(function (loc) {
+            var form_data = new FormData(formEl);
+            var csrfToken = syncLoginCsrfToken();
+            if (csrfToken) {
+                form_data.set('csrfmiddlewaretoken', csrfToken);
             }
+            if (loc) {
+                form_data.set('latitude', String(loc.latitude));
+                form_data.set('longitude', String(loc.longitude));
+                try { sessionStorage.setItem('hris_pending_gps', JSON.stringify(loc)); } catch (_err) {}
+            }
+            $.ajax({
+                type: 'POST',
+                url: '/management/admin/login_process',
+                data: form_data,
+                cache: false,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                credentials: 'same-origin',
+                headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {},
+                beforeSend: function () {
+                    showLoginLoader('Login Process');
+                },
+                error: function (jqXHR, exception) {
+                    hideLoginLoader(function () {
+                        report_eror(jqXHR, exception);
+                    });
+                },
+                success: function (data) {
+                    hideLoginLoader(function () {
+                        if (data.status === true) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil Login',
+                                text: data.message,
+                                timer: 2000,
+                                timerProgressBar: true,
+                                showConfirmButton: false
+                            });
+                            setTimeout(function () {
+                                location.reload();
+                            }, 2000);
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal Login',
+                                text: data.message,
+                            }).then(function () {
+                                location.reload();
+                            });
+                        }
+                    });
+                }
+            });
         });
     });
 
