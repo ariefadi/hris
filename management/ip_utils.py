@@ -253,6 +253,16 @@ def resolve_login_location(request, ip_address: str = ''):
     return resolved_ip, lat_long, location, 'ip'
 
 
+def coords_from_cookie(request):
+    raw = str((request.COOKIES.get('hris_login_gps') or '')).strip()
+    if not raw:
+        return None
+    parts = raw.split(',')
+    if len(parts) != 2:
+        return None
+    return parse_browser_coords(parts[0].strip(), parts[1].strip())
+
+
 def coords_from_request(request):
     lat = request.POST.get('latitude')
     lng = request.POST.get('longitude')
@@ -266,4 +276,7 @@ def coords_from_request(request):
             lng = payload.get('longitude', lng)
         except Exception:
             pass
-    return parse_browser_coords(lat, lng)
+    coords = parse_browser_coords(lat, lng)
+    if coords:
+        return coords
+    return coords_from_cookie(request)

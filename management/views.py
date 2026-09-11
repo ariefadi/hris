@@ -186,7 +186,7 @@ def get_user_refresh_token(email):
 geocode = Nominatim(user_agent="hris_trendHorizone") if Nominatim else None
 
 
-from management.ip_utils import get_client_ip, resolve_ip_location, resolve_login_location
+from management.ip_utils import get_client_ip, resolve_ip_location, resolve_login_location, coords_from_request
 data_bulan = {
     1: 'Januari',
     2: 'Februari',
@@ -574,6 +574,16 @@ class OAuthRedirectView(View):
     def get(self, request):
         if not request.user.is_authenticated:
             return redirect('admin_login')
+        if not coords_from_request(request):
+            from django.contrib.auth import logout as django_logout
+            from .middleware import complete_admin_logout
+            django_logout(request)
+            complete_admin_logout(request)
+            request.session['oauth_error'] = (
+                'Aktifkan akses lokasi di browser terlebih dahulu. '
+                'Klik ikon gembok pada address bar, izinkan Location, lalu login ulang.'
+            )
+            return redirect('admin_login')
         # Get user data from database based on email
         user_data = data_mysql().data_user_by_params(params={'user_mail': request.user.email})
         if not user_data['status'] or not user_data['data']:
@@ -674,6 +684,16 @@ class LoginProcess(View):
                 'status': False,
                 'data': f"Username dan Password tidak boleh kosong !",
                 'message': "Silahkan isi username dan password anda."
+            }
+        elif not coords_from_request(req):
+            hasil = {
+                'status': False,
+                'code': 'LOCATION_REQUIRED',
+                'data': 'Akses lokasi belum diaktifkan',
+                'message': (
+                    'Aktifkan akses lokasi di browser terlebih dahulu sebelum masuk. '
+                    'Klik ikon gembok pada address bar, izinkan Location, lalu coba login lagi.'
+                ),
             }
         else:
             rs_data = data_mysql().login_admin({
