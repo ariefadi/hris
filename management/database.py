@@ -278,6 +278,42 @@ _REPORT_ACCOUNT_ADX_DATE_COL = 'data_adx_country_tanggal'
 _REPORT_ACCOUNT_ADX_REVENUE_COL = 'data_adx_country_revenue'
 _REPORT_ACCOUNT_ADX_DOMAIN_COL = 'data_adx_country_domain'
 
+
+def normalize_roi_domain_merge_key(raw_value):
+    """Kunci gabungan AdX (FQDN) + Facebook (campaign / data_ads_domain) → subdomain.domain."""
+    s = str(raw_value or '').strip().lower()
+    if not s or s in ('unknown', '-', 'all', '%'):
+        return ''
+    s = re.sub(r'^https?://', '', s)
+    s = re.sub(r'^www\.', '', s)
+    s = s.split('/')[0].split('?')[0].split('#')[0].strip()
+    if ' - ' in s:
+        s = s.split(' - ', 1)[0].strip()
+    if ' ' in s and '.' in s:
+        s = s.split()[0].strip()
+    s = s.split('_')[0].strip()
+    for suffix in ('.adx', '.disp', '.display'):
+        if s.endswith(suffix):
+            s = s[: -len(suffix)]
+    tlds = (
+        '.co.id', '.web.id', '.my.id', '.or.id', '.ac.id', '.go.id',
+        '.com', '.net', '.org', '.id', '.top', '.io',
+    )
+    for tld in sorted(tlds, key=len, reverse=True):
+        if s.endswith(tld):
+            s = s[: -len(tld)]
+            break
+    s = s.strip('.')
+    parts = []
+    for part in s.split('.'):
+        token = re.sub(r'\s+.*$', '', str(part or '').strip())
+        if token:
+            parts.append(token)
+    if len(parts) >= 2:
+        return parts[0] + '.' + parts[1]
+    return s
+
+
 class data_mysql:
     
     def __init__(self):
@@ -297,6 +333,69 @@ class data_mysql:
         if s.startswith('act_'):
             s = s[4:]
         return s
+
+    def _enrich_master_account_names(self, rows, id_key='account_id', name_key='account_name', email_key='account_email'):
+        """Isi account_name dari MySQL bila query report (ClickHouse) tidak punya master_account_ads."""
+        if not isinstance(rows, list) or not rows:
+            return
+        try:
+            account_ids = []
+            seen_ids = set()
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                aid = str(row.get(id_key) or '').strip()
+                if aid and aid not in seen_ids:
+                    seen_ids.add(aid)
+                    account_ids.append(aid)
+            if not account_ids:
+                return
+            placeholders = ','.join(['%s'] * len(account_ids))
+            sql_map = (
+                f"SELECT account_id, account_name, account_email FROM master_account_ads "
+                f"WHERE account_id IN ({placeholders})"
+            )
+            rows_map = self._fetch_mysql_rows(sql_map, tuple(account_ids))
+            name_map = {}
+            email_map = {}
+            for item in rows_map:
+                aid = str((item or {}).get('account_id') or '').strip()
+                if not aid:
+                    continue
+                nm = str((item or {}).get('account_name') or '').strip()
+                em = str((item or {}).get('account_email') or '').strip()
+                name_map[aid] = nm
+                email_map[aid] = em
+                norm = self._normalize_fb_account_key(aid)
+                if norm:
+                    name_map.setdefault(f'act_{norm}', nm)
+                    name_map.setdefault(norm, nm)
+                    email_map.setdefault(f'act_{norm}', em)
+                    email_map.setdefault(norm, em)
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                aid = str(row.get(id_key) or '').strip()
+                if not aid:
+                    continue
+                if not str(row.get(name_key) or '').strip():
+                    norm = self._normalize_fb_account_key(aid)
+                    row[name_key] = (
+                        name_map.get(aid)
+                        or name_map.get(f'act_{norm}')
+                        or name_map.get(norm)
+                        or ''
+                    )
+                if email_key and not str(row.get(email_key) or '').strip():
+                    norm = self._normalize_fb_account_key(aid)
+                    row[email_key] = (
+                        email_map.get(aid)
+                        or email_map.get(f'act_{norm}')
+                        or email_map.get(norm)
+                        or ''
+                    )
+        except Exception:
+            pass
 
     def _report_tables(self):
         raw = str(os.getenv('REPORT_DB_TABLES', '') or os.getenv('DB_REPORT_TABLES', '') or '').strip()
@@ -3266,6 +3365,9 @@ class data_mysql:
         add(s)
         if len(parts) >= 2:
             add('.'.join(parts[:2]))
+        merge_key = normalize_roi_domain_merge_key(name)
+        if merge_key:
+            add(merge_key)
         match_key = self._normalize_domain_match_key(s)
         if match_key:
             add(match_key)
@@ -4566,6 +4668,9 @@ class data_mysql:
         return s
 
     def _normalize_domain_match_key(self, raw_value):
+        key = normalize_roi_domain_merge_key(raw_value)
+        if key:
+            return key
         s = self._normalize_domain_full(raw_value)
         if not s:
             return ''
@@ -9391,6 +9496,9 @@ class data_mysql:
                 if not self.commit():
                     raise pymysql.Error("Failed to commit get all adx traffic account by params")
 
+            if use_clickhouse and isinstance(data, list) and data:
+                self._enrich_master_account_names(data)
+
             hasil = {
                 "status": True,
                 "message": "Data ads traffic campaign berhasil diambil",
@@ -10383,28 +10491,7 @@ class data_mysql:
                     data = []
 
             if use_clickhouse and isinstance(data, list) and data:
-                try:
-                    account_ids = []
-                    seen_ids = set()
-                    for r in data:
-                        aid = str((r or {}).get('account_id') or '').strip()
-                        if aid and aid not in seen_ids:
-                            seen_ids.add(aid)
-                            account_ids.append(aid)
-                    if account_ids:
-                        placeholders = ','.join(['%s'] * len(account_ids))
-                        sql_map = f"SELECT account_id, account_name FROM master_account_ads WHERE account_id IN ({placeholders})"
-                        if self.execute_query(sql_map, tuple(account_ids)):
-                            rows_map = self.fetch_all() or []
-                            name_map = {str((x or {}).get('account_id') or '').strip(): str((x or {}).get('account_name') or '').strip() for x in (rows_map or [])}
-                            for r in data:
-                                if not isinstance(r, dict):
-                                    continue
-                                aid = str(r.get('account_id') or '').strip()
-                                if aid and not str(r.get('account_name') or '').strip():
-                                    r['account_name'] = name_map.get(aid, '')
-                except Exception:
-                    pass
+                self._enrich_master_account_names(data)
 
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
@@ -10514,28 +10601,7 @@ class data_mysql:
             data = self.fetch_all()
 
             if use_clickhouse and isinstance(data, list) and data:
-                try:
-                    account_ids = []
-                    seen_ids = set()
-                    for r in data:
-                        aid = str((r or {}).get('account_id') or '').strip()
-                        if aid and aid not in seen_ids:
-                            seen_ids.add(aid)
-                            account_ids.append(aid)
-                    if account_ids:
-                        placeholders = ','.join(['%s'] * len(account_ids))
-                        sql_map = f"SELECT account_id, account_name FROM master_account_ads WHERE account_id IN ({placeholders})"
-                        if self.execute_query(sql_map, tuple(account_ids)):
-                            rows_map = self.fetch_all() or []
-                            name_map = {str((x or {}).get('account_id') or '').strip(): str((x or {}).get('account_name') or '').strip() for x in (rows_map or [])}
-                            for r in data:
-                                if not isinstance(r, dict):
-                                    continue
-                                aid = str(r.get('account_id') or '').strip()
-                                if aid and not str(r.get('account_name') or '').strip():
-                                    r['account_name'] = name_map.get(aid, '')
-                except Exception:
-                    pass
+                self._enrich_master_account_names(data)
 
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
@@ -13341,6 +13407,9 @@ class data_mysql:
 
     def _report_account_normalize_campaign_domain(self, raw_value):
         """Normalisasi domain dari campaign FB (buang suffix .ADX/.DISP/.display)."""
+        key = normalize_roi_domain_merge_key(raw_value)
+        if key:
+            return key
         s = self._normalize_domain_full(raw_value)
         if not s:
             return ''
@@ -13394,37 +13463,29 @@ class data_mysql:
         domain_key = str(domain_key or '').strip()
         if not domain_key:
             return 0.0
+        canonical = normalize_roi_domain_merge_key(domain_key) or self._normalize_domain_match_key(domain_key)
+        if not canonical:
+            return 0.0
         cred_ids = [str(c).strip() for c in (cred_ids or []) if str(c).strip()]
-        total = 0.0
-        for fk in self._report_account_fuzzy_adx_keys(domain_key, adx_map):
-            if cred_ids:
-                scoped = 0.0
-                for cid in cred_ids:
-                    scoped += float((adx_by_cred.get(cid) or {}).get(fk) or 0)
-                if scoped == 0.0:
-                    scoped = float(adx_map.get(fk) or 0)
-                total += scoped
-            else:
-                total += float(adx_map.get(fk) or 0)
-        return total
+        if cred_ids:
+            scoped = 0.0
+            for cid in cred_ids:
+                scoped += float((adx_by_cred.get(cid) or {}).get(canonical) or 0)
+            if scoped == 0.0:
+                scoped = float(adx_map.get(canonical) or 0)
+            return scoped
+        return float(adx_map.get(canonical) or 0)
 
     def _report_account_register_domain_revenue(self, global_map, by_cred_map, raw_domain, rev, account_id=None):
-        dk = self._normalize_domain_match_key(raw_domain)
-        full = self._normalize_domain_full(raw_domain)
-        keys = set()
-        if dk:
-            keys.add(dk)
-        if full and full != dk:
-            keys.add(full)
-        if not keys:
+        dk = normalize_roi_domain_merge_key(raw_domain) or self._normalize_domain_match_key(raw_domain)
+        if not dk:
             return
         rev = float(rev or 0)
         cid = str(account_id or '').strip()
-        for k in keys:
-            global_map[k] = global_map.get(k, 0.0) + rev
-            if cid:
-                bucket = by_cred_map.setdefault(cid, {})
-                bucket[k] = bucket.get(k, 0.0) + rev
+        global_map[dk] = global_map.get(dk, 0.0) + rev
+        if cid:
+            bucket = by_cred_map.setdefault(cid, {})
+            bucket[dk] = bucket.get(dk, 0.0) + rev
 
     def _report_account_fetch_adx_revenue_by_account(self, start_date, end_date, account_keys=None):
         """Sum AdX revenue per FB account via domain join key (selaras invalid report)."""
@@ -13656,34 +13717,31 @@ class data_mysql:
                 continue
             rev = float(row.get('revenue') or 0)
             cid = str(row.get('account_id') or '').strip()
-            keys = set()
-            dk = self._normalize_domain_match_key(row.get('raw_domain'))
-            full = self._normalize_domain_full(row.get('raw_domain'))
-            if dk:
-                keys.add(dk)
-            if full and full != dk:
-                keys.add(full)
-            if not keys:
+            dk = normalize_roi_domain_merge_key(row.get('raw_domain')) or self._normalize_domain_match_key(row.get('raw_domain'))
+            if not dk:
                 continue
             global_out.setdefault(d, {})
-            for k in keys:
-                global_out[d][k] = global_out[d].get(k, 0.0) + rev
-                if cid:
-                    by_cred_out.setdefault(cid, {})
-                    by_cred_out[cid].setdefault(d, {})
-                    by_cred_out[cid][d][k] = by_cred_out[cid][d].get(k, 0.0) + rev
+            global_out[d][dk] = global_out[d].get(dk, 0.0) + rev
+            if cid:
+                by_cred_out.setdefault(cid, {})
+                by_cred_out[cid].setdefault(d, {})
+                by_cred_out[cid][d][dk] = by_cred_out[cid][d].get(dk, 0.0) + rev
         return global_out, by_cred_out
 
     def _report_account_sum_adx_revenue(self, domain_keys, adx_global, adx_by_cred, cred_ids):
         domains = [str(d).strip() for d in (domain_keys or []) if str(d).strip()]
         if not domains:
             return 0.0
-        all_fk = set()
-        for dk in domains:
-            all_fk |= self._report_account_fuzzy_adx_keys(dk, adx_global)
         total = 0.0
-        for fk in all_fk:
-            total += self._report_account_lookup_adx_map_amount(fk, adx_global, adx_by_cred, cred_ids)
+        seen = set()
+        for dk in domains:
+            canonical = normalize_roi_domain_merge_key(dk) or self._normalize_domain_match_key(dk)
+            if not canonical or canonical in seen:
+                continue
+            seen.add(canonical)
+            total += self._report_account_lookup_adx_map_amount(
+                canonical, adx_global, adx_by_cred, cred_ids
+            )
         return total
 
     def _report_account_sum_adx_revenue_daily(self, date_key, domain_keys, adx_daily_global, adx_daily_by_cred, cred_ids):
@@ -13691,21 +13749,25 @@ class data_mysql:
         if not domains:
             return 0.0
         day_global = adx_daily_global.get(date_key) or {}
-        all_fk = set()
-        for dk in domains:
-            all_fk |= self._report_account_fuzzy_adx_keys(dk, day_global)
         total = 0.0
-        for fk in all_fk:
+        seen = set()
+        for dk in domains:
+            canonical = normalize_roi_domain_merge_key(dk) or self._normalize_domain_match_key(dk)
+            if not canonical or canonical in seen:
+                continue
+            seen.add(canonical)
             cred_ids_list = [str(c).strip() for c in (cred_ids or []) if str(c).strip()]
             if cred_ids_list:
                 scoped = 0.0
                 for cid in cred_ids_list:
-                    scoped += float(((adx_daily_by_cred.get(cid) or {}).get(date_key) or {}).get(fk) or 0)
+                    scoped += float(
+                        ((adx_daily_by_cred.get(cid) or {}).get(date_key) or {}).get(canonical) or 0
+                    )
                 if scoped == 0.0:
-                    scoped = float(day_global.get(fk) or 0)
+                    scoped = float(day_global.get(canonical) or 0)
                 total += scoped
             else:
-                total += float(day_global.get(fk) or 0)
+                total += float(day_global.get(canonical) or 0)
         return total
 
     def _report_account_build_rekap_revenue_maps(self, table, domain_col, revenue_col, year, month, tanggal_tarik):
@@ -14339,21 +14401,23 @@ class data_mysql:
             domain_adsense = float(adsense_rev_map.get(domain_key) or 0)
 
             key_expr = self._report_account_fb_key_sql('b.account_ads_id')
-            dom_expr = self._report_account_domain_key_sql('b.data_ads_domain')
             sql = f"""
                 SELECT TRIM(COALESCE(b.data_ads_campaign_nm, '')) AS campaign,
+                       b.data_ads_domain AS raw_domain,
                        COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend,
                        COALESCE(SUM(CAST(b.data_ads_lpv AS DECIMAL(18,4))), 0) AS lpv
                 FROM data_ads_campaign b
                 WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
                   AND {key_expr} = %s
-                  AND {dom_expr} = %s
-                GROUP BY campaign
+                GROUP BY campaign, b.data_ads_domain
                 HAVING campaign <> ''
             """
-            self.cur_hris.execute(sql, (start_date, end_date, account_key, domain_key))
+            self.cur_hris.execute(sql, (start_date, end_date, account_key))
             campaign_rows = {}
             for row in (self.cur_hris.fetchall() or []):
+                row_domain = self._report_account_normalize_campaign_domain(row.get('raw_domain'))
+                if row_domain != domain_key:
+                    continue
                 camp = str(row.get('campaign') or '').strip() or 'unknown_campaign'
                 bucket = campaign_rows.setdefault(camp, {'spend': 0.0, 'lpv': 0.0})
                 bucket['spend'] += float(row.get('spend') or 0)
@@ -14600,13 +14664,19 @@ class data_mysql:
 
             chart = []
             spend_daily = self._report_account_fetch_spend_daily(start_date, end_date, [account_key])
-            adx_daily_by_account = self._report_account_fetch_adx_revenue_daily_for_accounts(
-                start_date, end_date, [account_key]
+            adx_daily_global, adx_daily_by_cred = self._report_account_build_revenue_daily_maps(
+                _REPORT_ACCOUNT_ADX_TABLE,
+                _REPORT_ACCOUNT_ADX_DATE_COL,
+                _REPORT_ACCOUNT_ADX_REVENUE_COL,
+                _REPORT_ACCOUNT_ADX_DOMAIN_COL,
+                start_date,
+                end_date,
             )
             adsense_daily, _adsense_daily_by_cred = self._report_account_build_revenue_daily_maps(
                 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
             )
             domain_set = set(all_domains)
+            chart_domain_keys = list(domain_set)
             try:
                 from datetime import datetime as dt
                 d0 = dt.strptime(start_date, '%Y-%m-%d').date()
@@ -14615,10 +14685,14 @@ class data_mysql:
                 while cur <= d1:
                     ds = cur.isoformat()
                     day_spend = float((spend_daily.get(ds) or {}).get(account_key) or 0)
-                    day_adx = float((adx_daily_by_account.get(ds) or {}).get(account_key) or 0)
+                    day_adx = self._report_account_sum_adx_revenue_daily(
+                        ds, chart_domain_keys, adx_daily_global, adx_daily_by_cred, cred_ids
+                    )
                     day_adsense = 0.0
                     for dk in domain_set:
-                        day_adsense += float((adsense_daily.get(ds) or {}).get(dk) or 0)
+                        canonical = normalize_roi_domain_merge_key(dk) or self._normalize_domain_match_key(dk)
+                        if canonical:
+                            day_adsense += float((adsense_daily.get(ds) or {}).get(canonical) or 0)
                     day_revenue = day_adx + day_adsense
                     chart.append({
                         'date': ds,
@@ -14688,21 +14762,23 @@ class data_mysql:
             domain_adsense = float(adsense_rev_map.get(domain_key) or 0)
 
             key_expr = self._report_account_fb_key_sql('b.account_ads_id')
-            dom_expr = self._report_account_domain_key_sql('b.data_ads_domain')
             sql = f"""
                 SELECT TRIM(COALESCE(b.data_ads_campaign_nm, '')) AS campaign,
+                       b.data_ads_domain AS raw_domain,
                        COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend,
                        COALESCE(SUM(CAST(b.data_ads_lpv AS DECIMAL(18,4))), 0) AS lpv
                 FROM data_ads_campaign b
                 WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
                   AND {key_expr} = %s
-                  AND {dom_expr} = %s
-                GROUP BY campaign
+                GROUP BY campaign, b.data_ads_domain
                 HAVING campaign <> ''
             """
-            self.cur_hris.execute(sql, (start_date, end_date, account_key, domain_key))
+            self.cur_hris.execute(sql, (start_date, end_date, account_key))
             campaign_rows = {}
             for row in (self.cur_hris.fetchall() or []):
+                row_domain = self._report_account_normalize_campaign_domain(row.get('raw_domain'))
+                if row_domain != domain_key:
+                    continue
                 camp = str(row.get('campaign') or '').strip() or 'unknown_campaign'
                 bucket = campaign_rows.setdefault(camp, {'spend': 0.0, 'lpv': 0.0})
                 bucket['spend'] += float(row.get('spend') or 0)

@@ -15446,14 +15446,15 @@ class RoiTrafficPerDomainDataView(View):
             return JsonResponse({'status': False, 'error': str(e)})
 
 def extract_base_subdomain(full_string):
-    parts = full_string.split('.')
-    # jika ada minimal 2 bagian (1 titik), ambil dua bagian pertama
+    from management.database import normalize_roi_domain_merge_key
+    key = normalize_roi_domain_merge_key(full_string)
+    if key:
+        return key
+    s = str(full_string or '').strip()
+    parts = s.split('.')
     if len(parts) >= 2:
-        main_domain = ".".join(parts[:2])
-    else:
-        main_domain = full_string
-    # jika tidak ada titik, kembalikan string asli
-    return main_domain
+        return '.'.join(parts[:2])
+    return s
 
 
 def accumulate_facebook_monitoring_map(facebook_map, fb_item, date_key, subdomain, country_code):

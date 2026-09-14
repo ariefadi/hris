@@ -11760,6 +11760,12 @@ function initDashboardRecap() {
     function normalizeTrafficDomainKey(domain) {
         let value = String(domain || '').toLowerCase().trim();
         if (!value || value === '%') return '';
+        const dashIdx = value.indexOf(' - ');
+        if (dashIdx >= 0) value = value.slice(0, dashIdx).trim();
+        if (value.indexOf(' ') >= 0 && value.indexOf('.') >= 0) {
+            value = value.split(/\s+/)[0].trim();
+        }
+        value = value.split('_')[0].trim();
         if (value.endsWith('.adx')) value = value.slice(0, -4);
         if (value.endsWith('.ads')) value = value.slice(0, -4);
         const tlds = ['.co.id', '.web.id', '.my.id', '.or.id', '.ac.id', '.go.id', '.com', '.net', '.org', '.id', '.top', '.io'];

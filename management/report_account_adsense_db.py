@@ -144,35 +144,50 @@ def _report_cred_adsense_fetch_daily_revenue_by_account(
     return out
 
 
+def _report_cred_adsense_spend_alias_keys(db, raw_domain):
+    keys = set()
+    for candidate in (
+        str(raw_domain or '').strip(),
+        db._report_account_normalize_campaign_domain(raw_domain),
+        db._normalize_domain_match_key(raw_domain),
+        db._normalize_subdomain_key(raw_domain),
+    ):
+        k = str(candidate or '').strip()
+        if k:
+            keys.add(k)
+    return keys
+
+
 def _report_cred_adsense_fetch_spend_by_domain(db, start_date, end_date):
-    dom_expr = db._report_account_domain_key_sql('b.data_ads_domain')
-    sql = f"""
-        SELECT {dom_expr} AS domain_key,
+    sql = """
+        SELECT b.data_ads_domain AS raw_domain,
                COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend
         FROM data_ads_campaign b
         WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
           AND TRIM(COALESCE(b.data_ads_domain, '')) <> ''
-        GROUP BY domain_key
+        GROUP BY b.data_ads_domain
     """
     if not db.execute_query(sql, (start_date, end_date)):
         return {}
     out = {}
     for row in (db.cur_hris.fetchall() or []):
-        k = str(row.get('domain_key') or '').strip()
-        if k:
-            out[k] = float(row.get('spend') or 0)
+        spend = float(row.get('spend') or 0)
+        if spend <= 0:
+            continue
+        for k in _report_cred_adsense_spend_alias_keys(db, row.get('raw_domain')):
+            out[k] = float(out.get(k, 0) or 0) + spend
     return out
 
 
 def _report_cred_adsense_fetch_spend_daily_by_domain(db, start_date, end_date):
-    dom_expr = db._report_account_domain_key_sql('b.data_ads_domain')
-    sql = f"""
-        SELECT DATE(b.data_ads_tanggal) AS d, {dom_expr} AS domain_key,
+    sql = """
+        SELECT DATE(b.data_ads_tanggal) AS d,
+               b.data_ads_domain AS raw_domain,
                COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend
         FROM data_ads_campaign b
         WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
           AND TRIM(COALESCE(b.data_ads_domain, '')) <> ''
-        GROUP BY d, domain_key
+        GROUP BY d, b.data_ads_domain
     """
     if not db.execute_query(sql, (start_date, end_date)):
         return {}
@@ -185,11 +200,12 @@ def _report_cred_adsense_fetch_spend_daily_by_domain(db, start_date, end_date):
             d = str(d or '')[:10]
         if not d:
             continue
-        k = str(row.get('domain_key') or '').strip()
-        if not k:
+        spend = float(row.get('spend') or 0)
+        if spend <= 0:
             continue
-        out.setdefault(d, {})
-        out[d][k] = float(row.get('spend') or 0)
+        bucket = out.setdefault(d, {})
+        for k in _report_cred_adsense_spend_alias_keys(db, row.get('raw_domain')):
+            bucket[k] = float(bucket.get(k, 0) or 0) + spend
     return out
 
 
@@ -257,7 +273,21 @@ def _report_cred_adsense_lookup_domain_spend(db, subdomain_key, spend_by_domain)
 
 
 def _report_cred_adsense_campaign_platform(raw_domain):
-    token = str(raw_domain or '').strip().lower().split('_')[0].split()[0]
+    s = str(raw_domain or '').strip().lower()
+    if not s:
+        return 'adsense'
+    if '.adx' in s or s.endswith('.adx'):
+        return 'adx'
+    if ' - adm' in s or 'adm#' in s:
+        return 'adx'
+    for suffix in ('.disp', '.display'):
+        if s.endswith(suffix) or f'{suffix}.' in s or f'{suffix}_' in s:
+            return 'adsense'
+    token = s.split('_')[0]
+    if ' - ' in token:
+        token = token.split(' - ', 1)[0].strip()
+    else:
+        token = token.split()[0].strip() if token.split() else token
     if not token:
         return 'adsense'
     for suffix in ('.adx',):
@@ -278,17 +308,15 @@ def _report_cred_adsense_campaign_platform(raw_domain):
 
 def _report_cred_adsense_fetch_running_campaign_counts_by_subdomain(db, start_date, end_date):
     """Campaign per subdomain dari data_ads_campaign (spend > 0 di periode), dipisah AdX vs AdSense."""
-    dom_expr = db._report_account_domain_key_sql('b.data_ads_domain')
-    sql = f"""
-        SELECT {dom_expr} AS domain_key,
-               MAX(LOWER(TRIM(b.data_ads_domain))) AS raw_domain,
+    sql = """
+        SELECT LOWER(TRIM(b.data_ads_domain)) AS raw_domain,
                b.data_ads_campaign_id,
                COALESCE(SUM(CAST(b.data_ads_spend AS DECIMAL(18,4))), 0) AS spend
         FROM data_ads_campaign b
         WHERE DATE(b.data_ads_tanggal) BETWEEN %s AND %s
           AND TRIM(COALESCE(b.data_ads_domain, '')) <> ''
           AND TRIM(COALESCE(b.data_ads_campaign_id, '')) <> ''
-        GROUP BY domain_key, b.data_ads_campaign_id
+        GROUP BY raw_domain, b.data_ads_campaign_id
         HAVING spend > 0
     """
     if not db.execute_query(sql, (start_date, end_date)):
@@ -300,16 +328,7 @@ def _report_cred_adsense_fetch_running_campaign_counts_by_subdomain(db, start_da
             continue
         raw = str(row.get('raw_domain') or '').strip()
         platform = _report_cred_adsense_campaign_platform(raw)
-        domain_keys = set()
-        primary = str(row.get('domain_key') or '').strip()
-        if primary:
-            domain_keys.add(primary)
-        normalized = db._normalize_subdomain_key(db._report_account_normalize_campaign_domain(raw or primary))
-        if normalized:
-            domain_keys.add(normalized)
-        match_key = db._normalize_domain_match_key(raw or primary)
-        if match_key:
-            domain_keys.add(match_key)
+        domain_keys = _report_cred_adsense_spend_alias_keys(db, raw)
         for key in domain_keys:
             if not key:
                 continue
