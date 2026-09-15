@@ -27,7 +27,7 @@ from django.http import HttpResponse, JsonResponse, QueryDict, HttpResponseRedir
 from django.core.management import call_command
 from django.core.cache import cache
 
-from management.database import insert_df, query_df
+from management.database import insert_df, query_df, normalize_roi_domain_merge_key
 try:
     from .database import data_mysql
 except Exception:
@@ -3781,12 +3781,18 @@ class DashboardScoringDataView(View):
             history_start_sql = history_start_obj.isoformat() if history_start_obj else target_date
             target_date_sql = target_date_obj.isoformat() if target_date_obj else target_date
             def normalize_site_entity(v):
+                merged = normalize_roi_domain_merge_key(v)
+                if merged:
+                    return merged
                 s = str(v or '').strip().lower()
                 s = re.sub(r'^https?://', '', s)
                 s = s.split('/')[0].split('?')[0].split('#')[0]
                 s = re.sub(r'^www\.', '', s)
                 return s
             def extract_site_base(v):
+                merged = normalize_roi_domain_merge_key(v)
+                if merged:
+                    return merged
                 s = normalize_site_entity(v)
                 if not s:
                     return ''
@@ -17734,6 +17740,7 @@ class RoiMonitoringDomainCampaignBreakdownView(View):
                 end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
                 start_date = (end_dt - timedelta(days=6)).strftime('%Y-%m-%d')
 
+            site_name = normalize_roi_domain_merge_key(site_name) or site_name
             parts = [p for p in site_name.split('.') if p]
             if len(parts) >= 2:
                 site_name = '.'.join(parts[:2])

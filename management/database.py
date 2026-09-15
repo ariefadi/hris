@@ -314,6 +314,29 @@ def normalize_roi_domain_merge_key(raw_value):
     return s
 
 
+def clickhouse_scoring_merge_domain_expr(source_sql: str) -> str:
+    """ClickHouse: kunci domain untuk join Meta/AdX/Adsense (setara normalize_roi_domain_merge_key)."""
+    inner = f"lower(toString({source_sql}))"
+    two_part = f"arrayStringConcat(arraySlice(splitByChar('.', {inner}), 1, 2), '.')"
+    no_campaign_suffix = f"replaceRegexpOne({two_part}, ' - .*$', '')"
+    return (
+        f"multiIf("
+        f"endsWith({no_campaign_suffix}, '.co.id'), replaceRegexpOne({no_campaign_suffix}, '\\\\.co\\\\.id$', ''), "
+        f"endsWith({no_campaign_suffix}, '.web.id'), replaceRegexpOne({no_campaign_suffix}, '\\\\.web\\\\.id$', ''), "
+        f"endsWith({no_campaign_suffix}, '.my.id'), replaceRegexpOne({no_campaign_suffix}, '\\\\.my\\\\.id$', ''), "
+        f"endsWith({no_campaign_suffix}, '.or.id'), replaceRegexpOne({no_campaign_suffix}, '\\\\.or\\\\.id$', ''), "
+        f"endsWith({no_campaign_suffix}, '.ac.id'), replaceRegexpOne({no_campaign_suffix}, '\\\\.ac\\\\.id$', ''), "
+        f"endsWith({no_campaign_suffix}, '.go.id'), replaceRegexpOne({no_campaign_suffix}, '\\\\.go\\\\.id$', ''), "
+        f"endsWith({no_campaign_suffix}, '.com'), replaceRegexpOne({no_campaign_suffix}, '\\\\.com$', ''), "
+        f"endsWith({no_campaign_suffix}, '.net'), replaceRegexpOne({no_campaign_suffix}, '\\\\.net$', ''), "
+        f"endsWith({no_campaign_suffix}, '.org'), replaceRegexpOne({no_campaign_suffix}, '\\\\.org$', ''), "
+        f"endsWith({no_campaign_suffix}, '.top'), replaceRegexpOne({no_campaign_suffix}, '\\\\.top$', ''), "
+        f"endsWith({no_campaign_suffix}, '.io'), replaceRegexpOne({no_campaign_suffix}, '\\\\.io$', ''), "
+        f"endsWith({no_campaign_suffix}, '.id'), replaceRegexpOne({no_campaign_suffix}, '\\\\.id$', ''), "
+        f"{no_campaign_suffix})"
+    )
+
+
 class data_mysql:
     
     def __init__(self):
@@ -12393,6 +12416,10 @@ class data_mysql:
         Jalankan query ClickHouse untuk mengambil data meta/adx/adsense per domain/country.
         """
         try:
+            ch_dom_ads = clickhouse_scoring_merge_domain_expr('a.data_ads_domain')
+            ch_dom_master = clickhouse_scoring_merge_domain_expr('master_domain')
+            ch_dom_adx = clickhouse_scoring_merge_domain_expr('data_adx_country_domain')
+            ch_dom_adsense = clickhouse_scoring_merge_domain_expr('data_adsense_country_domain')
             sql = f"""
             		SELECT
                     toHour(toTimeZone(now(), 'Asia/Jakarta')) AS run_hour,
@@ -12470,12 +12497,7 @@ class data_mysql:
                         ) AS lpv_weight
                     FROM
                     (
-                        WITH lower(
-                                arrayStringConcat(
-                                    arraySlice(splitByChar('.',data_ads_domain),1,2),
-                                    '.'
-                                )
-                            ) AS domain
+                        WITH {ch_dom_ads} AS domain
                         SELECT
                             domain,
                             upper(a.data_ads_country_cd) AS country_cd,
@@ -12493,9 +12515,7 @@ class data_mysql:
                         INNER JOIN (
                             SELECT
                                 master_date,
-                                lower(arrayStringConcat(
-                                    arraySlice(splitByChar('.',master_domain),1,2),'.'
-                                )) AS master_domain,
+                                {ch_dom_master} AS master_domain,
                                 max(master_budget) AS master_budget
                             FROM hris_trendHorizone.master_ads
                             GROUP BY master_date, master_domain
@@ -12516,7 +12536,7 @@ class data_mysql:
                 LEFT JOIN
                 (
                     SELECT
-                        lower(arrayStringConcat(arraySlice(splitByChar('.', data_adx_country_domain),1,2),'.')) AS domain,
+                        {ch_dom_adx} AS domain,
                         upper(data_adx_country_cd) AS country_cd,
                         toDate(data_adx_country_tanggal) AS date,
                         argMax(data_adx_country_revenue,data_adx_country_tanggal) AS revenue,
@@ -12542,7 +12562,7 @@ class data_mysql:
                 LEFT JOIN
                 (
                     SELECT
-                        lower(arrayStringConcat(arraySlice(splitByChar('.', data_adsense_country_domain),1,2),'.')) AS domain,
+                        {ch_dom_adsense} AS domain,
                         upper(data_adsense_country_cd) AS country_cd,
                         toDate(data_adsense_country_tanggal) AS date,
                         argMax(data_adsense_country_revenue,data_adsense_country_tanggal) AS revenue,
@@ -12593,11 +12613,8 @@ class data_mysql:
 
     def _ch_domain_join_key_expr(self, column_expr):
         col = str(column_expr or '').strip()
-        return (
-            "lower(arrayStringConcat(arraySlice(splitByChar('.', "
-            f"replaceRegexpAll(lower(trimBoth({col})), '^www\\\\.', '')"
-            "), 1, 2), '.'))"
-        )
+        inner = f"replaceRegexpAll(lower(trimBoth({col})), '^www\\\\.', '')"
+        return clickhouse_scoring_merge_domain_expr(inner)
 
     def get_monitoring_domain_campaign_breakdown_by_params(self, start_date, end_date, site_name):
         try:
@@ -12815,6 +12832,10 @@ class data_mysql:
         Jalankan query ClickHouse untuk mengambil data meta/adx/adsense per domain/country.
         """
         try:
+            ch_dom_ads = clickhouse_scoring_merge_domain_expr('a.log_ads_domain')
+            ch_dom_master = clickhouse_scoring_merge_domain_expr('master_domain')
+            ch_dom_adx = clickhouse_scoring_merge_domain_expr('log_adx_country_domain')
+            ch_dom_adsense = clickhouse_scoring_merge_domain_expr('log_adsense_country_domain')
             sql = f"""
             		SELECT
                     m.run_date AS run_date,
@@ -12960,12 +12981,7 @@ class data_mysql:
                     FROM
                     (
                         -- META SOURCE (QUERY m KAMU)
-                        WITH lower(
-                                arrayStringConcat(
-                                    arraySlice(splitByChar('.',a.log_ads_domain),1,2),
-                                    '.'
-                                )
-                            ) AS domain
+                        WITH {ch_dom_ads} AS domain
                         
                         SELECT
                             toDate(a.mdd) AS run_date,
@@ -12987,9 +13003,7 @@ class data_mysql:
                         INNER JOIN (
                             SELECT
                                 master_date,
-                                lower(arrayStringConcat(
-                                    arraySlice(splitByChar('.',master_domain),1,2),'.'
-                                )) AS domain,
+                                {ch_dom_master} AS domain,
                                 max(master_budget) AS master_budget
                             FROM hris_trendHorizone.master_ads
                             GROUP BY master_date, domain
@@ -13010,7 +13024,7 @@ class data_mysql:
                 LEFT JOIN
                 (
                     SELECT
-                        lower(arrayStringConcat(arraySlice(splitByChar('.',log_adx_country_domain),1,2),'.')) AS domain,
+                        {ch_dom_adx} AS domain,
                         upper(log_adx_country_cd) AS country_cd,
                         toDate(log_adx_country_tanggal) AS date,
                         toHour(toTimeZone(mdd,'Asia/Jakarta')) AS run_hour,
@@ -13037,7 +13051,7 @@ class data_mysql:
                 LEFT JOIN
                 (
                     SELECT
-                        lower(arrayStringConcat(arraySlice(splitByChar('.',log_adsense_country_domain),1,2),'.')) AS domain,
+                        {ch_dom_adsense} AS domain,
                         upper(log_adsense_country_cd) AS country_cd,
                         toDate(log_adsense_country_tanggal) AS date,
                         toHour(toTimeZone(mdd,'Asia/Jakarta')) AS run_hour,
@@ -13161,9 +13175,12 @@ class data_mysql:
             def _derive_site(row):
                 s = _to_str(row.get("domain")) or _to_str(row.get("site"))
                 if s:
-                    return s.lower()
+                    merged = normalize_roi_domain_merge_key(s)
+                    return (merged or s).lower()
                 ek = _to_str(row.get("entity_key"))
-                return (ek.split("|", 1)[0] if "|" in ek else ek).lower() or "unknown"
+                base = (ek.split("|", 1)[0] if "|" in ek else ek).lower() or "unknown"
+                merged = normalize_roi_domain_merge_key(base)
+                return merged or base
 
             def compute_join_status(row):
                 meta_active = _to_float(row.get("meta_spend", 0)) > 0

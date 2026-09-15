@@ -11100,10 +11100,11 @@ function initDashboardRecap() {
             return uniqKeepOrder(out.filter(Boolean));
         }
         const key = String(row?.name || row?.domain || row?.site || row?.entity_key || '').trim().toLowerCase();
-        const site = key.replace(/^www\./i, '');
+        const site = normalizeTrafficDomainKey(key) || key.replace(/^www\./i, '');
         const campaign = String(row?.meta_campaign || row?.campaign || row?.campaign_name || row?.meta_campaign_name || row?.status_campaign || '').trim().toUpperCase();
         const country = String(row?.code || row?.country_cd || row?.country_code || '').trim().toUpperCase();
         const out = [key, site];
+        if (site && site !== key) out.push(site);
         if (site && campaign && country) out.push(`${site}|${campaign}|${country}`);
         if (site && country) out.push(`${site}||${country}`);
         return uniqKeepOrder(out.filter(Boolean));
@@ -11118,9 +11119,11 @@ function initDashboardRecap() {
                 return code === 'TU' ? 'TR' : code;
             }).filter(Boolean));
         }
-        return uniqKeepOrder((rows || []).map(function(r){
-            return String(r?.name || r?.domain || r?.site || '').trim().toLowerCase().replace(/^www\./i, '');
-        }).filter(Boolean));
+        return uniqKeepOrder((rows || []).flatMap(function(r){
+            const raw = String(r?.name || r?.domain || r?.site || '').trim().toLowerCase().replace(/^www\./i, '');
+            const norm = normalizeTrafficDomainKey(raw);
+            return [raw, norm].filter(Boolean);
+        }));
     }
 
     function chunkArray(arr, size) {
