@@ -22271,8 +22271,12 @@ function initDashboardRecap() {
                 });
             }
 
-            const rowSpend = detailSpend > 0 ? detailSpend : (num(r?.spend) || 0);
-            const rowRevenue = detailRevenue > 0 ? detailRevenue : (num(r?.revenue) || 0);
+            // Finance: ikuti baris Detail Scoring (recap ROI), bukan jumlah country_details scoring
+            // (country_details = alokasi per negara/jam pipeline scoring, sering < total domain harian).
+            const recapSpend = num(r?.spend) || 0;
+            const recapRevenue = num(r?.revenue) || 0;
+            const rowSpend = recapSpend > 0 ? recapSpend : detailSpend;
+            const rowRevenue = recapRevenue > 0 ? recapRevenue : detailRevenue;
             current.spend += rowSpend;
             current.revenue += rowRevenue;
 

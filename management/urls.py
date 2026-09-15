@@ -29,6 +29,10 @@ urlpatterns = [
     path('admin/chat_group_create', views_chat.ChatCreateGroupView.as_view(), name='chat_group_create'),
     path('admin/chat_group_members', views_chat.ChatGroupMembersView.as_view(), name='chat_group_members'),
     path('admin/chat_forward', views_chat.ChatForwardView.as_view(), name='chat_forward'),
+    path('admin/chat_user_profile', views_chat.ChatUserProfileView.as_view(), name='chat_user_profile'),
+    path('admin/chat_pin_message', views_chat.ChatPinMessageView.as_view(), name='chat_pin_message'),
+    path('admin/chat_clear_conversation', views_chat.ChatClearConversationView.as_view(), name='chat_clear_conversation'),
+    path('admin/chat_delete_message', views_chat.ChatDeleteMessageView.as_view(), name='chat_delete_message'),
     # DASHBOARD
     path('admin/dashboard', views.DashboardAdmin.as_view(), name='dashboard_admin'),
     path('admin/dashboard_data', views.DashboardData.as_view(), name='dashboard_data'),

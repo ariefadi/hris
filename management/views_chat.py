@@ -73,10 +73,15 @@ class ChatMessagesView(View):
             err = chat_db.ensure_chat_tables(db)
             if err:
                 return JsonResponse({'status': False, 'error': err}, status=500)
-            messages = chat_db.list_messages(db, user['user_id'], peer, after_id=after)
+            query = str(request.GET.get('q') or '').strip()
+            if query:
+                messages = chat_db.search_messages(db, user['user_id'], peer, query)
+            else:
+                messages = chat_db.list_messages(db, user['user_id'], peer, after_id=after)
             chat_db.mark_read(db, user['user_id'], peer)
             receipt = chat_db.get_peer_receipt(db, user['user_id'], peer)
-            return JsonResponse({'status': True, 'peer': peer, 'messages': messages, **receipt})
+            prefs = chat_db.get_peer_prefs(db, user['user_id'], peer)
+            return JsonResponse({'status': True, 'peer': peer, 'messages': messages, **receipt, **prefs})
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)}, status=500)
         finally:
@@ -174,7 +179,11 @@ class ChatFileView(View):
                 raise Http404()
             filename = str(row.get('file_name') or os.path.basename(abs_path))
             mime = str(row.get('file_mime') or '')
-            as_attachment = not (mime.startswith('image/') or mime in ('application/pdf',))
+            as_attachment = not (
+                mime.startswith('image/')
+                or mime.startswith('audio/')
+                or mime in ('application/pdf',)
+            )
             handle = open(abs_path, 'rb')
             response = FileResponse(handle, as_attachment=as_attachment, filename=filename)
             if mime:
@@ -250,6 +259,94 @@ class ChatGroupMembersView(View):
             if error:
                 return JsonResponse({'status': False, 'error': error}, status=400)
             return JsonResponse({'status': True, **info})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+        finally:
+            db.close()
+
+
+class ChatUserProfileView(View):
+    def get(self, request):
+        user = _session_user(request)
+        if not user:
+            return _unauthorized()
+        target = str(request.GET.get('user_id') or '').strip()
+        db = data_mysql()
+        try:
+            err = chat_db.ensure_chat_tables(db)
+            if err:
+                return JsonResponse({'status': False, 'error': err}, status=500)
+            profile, error = chat_db.get_user_chat_profile(db, user['user_id'], target)
+            if error:
+                return JsonResponse({'status': False, 'error': error}, status=400)
+            return JsonResponse({'status': True, 'profile': profile})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+        finally:
+            db.close()
+
+
+class ChatPinMessageView(View):
+    def post(self, request):
+        user = _session_user(request)
+        if not user:
+            return _unauthorized()
+        payload = _request_payload(request)
+        peer = str(payload.get('peer') or chat_db.TEAM_ROOM).strip() or chat_db.TEAM_ROOM
+        message_id = str(payload.get('message_id') or '').strip() or None
+        db = data_mysql()
+        try:
+            err = chat_db.ensure_chat_tables(db)
+            if err:
+                return JsonResponse({'status': False, 'error': err}, status=500)
+            prefs, error = chat_db.set_pinned_message(db, user['user_id'], peer, message_id)
+            if error:
+                return JsonResponse({'status': False, 'error': error}, status=400)
+            return JsonResponse({'status': True, **prefs})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+        finally:
+            db.close()
+
+
+class ChatClearConversationView(View):
+    def post(self, request):
+        user = _session_user(request)
+        if not user:
+            return _unauthorized()
+        payload = _request_payload(request)
+        peer = str(payload.get('peer') or chat_db.TEAM_ROOM).strip() or chat_db.TEAM_ROOM
+        db = data_mysql()
+        try:
+            err = chat_db.ensure_chat_tables(db)
+            if err:
+                return JsonResponse({'status': False, 'error': err}, status=500)
+            result, error = chat_db.clear_conversation_for_user(db, user['user_id'], peer)
+            if error:
+                return JsonResponse({'status': False, 'error': error}, status=400)
+            return JsonResponse({'status': True, **(result or {})})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+        finally:
+            db.close()
+
+
+class ChatDeleteMessageView(View):
+    def post(self, request):
+        user = _session_user(request)
+        if not user:
+            return _unauthorized()
+        payload = _request_payload(request)
+        message_id = str(payload.get('message_id') or '').strip()
+        db = data_mysql()
+        try:
+            err = chat_db.ensure_chat_tables(db)
+            if err:
+                return JsonResponse({'status': False, 'error': err}, status=500)
+            result, error = chat_db.delete_message_for_user(db, user['user_id'], message_id)
+            if error:
+                return JsonResponse({'status': False, 'error': error}, status=400)
+            return JsonResponse({'status': True, **(result or {})})
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)}, status=500)
         finally:

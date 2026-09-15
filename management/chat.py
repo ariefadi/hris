@@ -10,6 +10,7 @@ ALLOWED_FILE_EXT = {
     '.jpg', '.jpeg', '.png', '.gif', '.webp',
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt',
     '.zip', '.ppt', '.pptx',
+    '.webm', '.ogg', '.mp3', '.m4a', '.wav', '.aac', '.opus',
 }
 
 
@@ -79,6 +80,7 @@ def ensure_chat_tables(db):
         pass
     _ensure_file_columns(db)
     _ensure_group_tables(db)
+    _ensure_chat_prefs(db)
     return None
 
 
@@ -119,6 +121,30 @@ def _ensure_file_columns(db):
             db.commit()
         except Exception:
             pass
+
+
+def _ensure_chat_prefs(db):
+    existing = _existing_columns(db, 'app_chat_read')
+    if 'cleared_at' not in existing:
+        if db.execute_query('ALTER TABLE app_chat_read ADD COLUMN cleared_at DATETIME NULL'):
+            try:
+                db.commit()
+            except Exception:
+                pass
+    db.execute_query(
+        """
+        CREATE TABLE IF NOT EXISTS app_chat_peer_prefs (
+            user_id VARCHAR(36) NOT NULL,
+            room_key VARCHAR(80) NOT NULL,
+            pinned_message_id VARCHAR(36) NULL,
+            PRIMARY KEY (user_id, room_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """
+    )
+    try:
+        db.commit()
+    except Exception:
+        pass
 
 
 def _ensure_group_tables(db):
@@ -169,6 +195,16 @@ def _is_image_file(file_name, file_mime):
     if '.' in str(file_name or ''):
         ext = '.' + str(file_name).rsplit('.', 1)[-1].lower()
     return ext in {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+
+
+def _is_audio_file(file_name, file_mime):
+    mime = str(file_mime or '').lower()
+    if mime.startswith('audio/'):
+        return True
+    ext = ''
+    if '.' in str(file_name or ''):
+        ext = '.' + str(file_name).rsplit('.', 1)[-1].lower()
+    return ext in {'.webm', '.ogg', '.mp3', '.m4a', '.wav', '.aac', '.opus'}
 
 
 def room_key_for(peer):
@@ -254,6 +290,219 @@ def _seed_team_watermark(db, user_id):
         db.commit()
     except Exception:
         pass
+
+
+def _cleared_at_for(db, user_id, peer):
+    uid = str(user_id or '').strip()
+    key = room_key_for(peer)
+    if not uid or not key:
+        return None
+    if not db.execute_query(
+        "SELECT cleared_at FROM app_chat_read WHERE user_id = %s AND room_key = %s LIMIT 1",
+        (uid, key),
+    ):
+        return None
+    row = db.cur_hris.fetchone()
+    return _row_get(row, 'cleared_at') if row else None
+
+
+def get_peer_prefs(db, user_id, peer):
+    uid = str(user_id or '').strip()
+    key = room_key_for(peer)
+    pinned_id = ''
+    if uid and key and db.execute_query(
+        "SELECT pinned_message_id FROM app_chat_peer_prefs WHERE user_id = %s AND room_key = %s LIMIT 1",
+        (uid, key),
+    ):
+        row = db.cur_hris.fetchone()
+        pinned_id = str(_row_get(row, 'pinned_message_id') or '').strip()
+    pinned_msg = None
+    if pinned_id:
+        src = get_accessible_message(db, uid, pinned_id)
+        if src:
+            pinned_msg = serialize_message(src, uid)
+        else:
+            pinned_id = ''
+    return {'pinned_message_id': pinned_id or None, 'pinned_message': pinned_msg}
+
+
+def set_pinned_message(db, user_id, peer, message_id):
+    uid = str(user_id or '').strip()
+    key = room_key_for(peer)
+    mid = str(message_id or '').strip() or None
+    if not uid or not key:
+        return None, 'Percakapan tidak valid'
+    if mid:
+        src = get_accessible_message(db, uid, mid)
+        if not src:
+            return None, 'Pesan tidak ditemukan'
+        if room_key_for(peer_key_from_message(src, uid)) != key:
+            return None, 'Pesan harus dari percakapan ini'
+    sql = """
+        INSERT INTO app_chat_peer_prefs (user_id, room_key, pinned_message_id)
+        VALUES (%s, %s, %s)
+        ON DUPLICATE KEY UPDATE pinned_message_id = VALUES(pinned_message_id)
+    """
+    if not db.execute_query(sql, (uid, key, mid)):
+        return None, getattr(db, 'last_error', None) or 'Gagal menyimpan pin'
+    try:
+        db.commit()
+    except Exception as e:
+        return None, str(e)
+    return get_peer_prefs(db, uid, peer), None
+
+
+def clear_conversation_for_user(db, user_id, peer):
+    uid = str(user_id or '').strip()
+    if not uid:
+        return None, 'User tidak valid'
+    key = room_key_for(peer)
+    now = _now()
+    sql = """
+        INSERT INTO app_chat_read (user_id, room_key, last_read_at, cleared_at)
+        VALUES (%s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE cleared_at = VALUES(cleared_at), last_read_at = VALUES(last_read_at)
+    """
+    if not db.execute_query(sql, (uid, key, now, now)):
+        return None, getattr(db, 'last_error', None) or 'Gagal menghapus riwayat'
+    db.execute_query(
+        "DELETE FROM app_chat_peer_prefs WHERE user_id = %s AND room_key = %s",
+        (uid, key),
+    )
+    try:
+        db.commit()
+    except Exception as e:
+        return None, str(e)
+    return {'cleared_at': _fmt_dt(now)}, None
+
+
+def delete_message_for_user(db, user_id, message_id):
+    uid = str(user_id or '').strip()
+    mid = str(message_id or '').strip()
+    if not uid or not mid:
+        return None, 'Pesan tidak valid'
+    src = get_accessible_message(db, uid, mid)
+    if not src:
+        return None, 'Pesan tidak ditemukan'
+    if str(_row_get(src, 'from_user_id') or '') != uid:
+        return None, 'Hanya bisa menghapus pesan sendiri'
+    if not db.execute_query("DELETE FROM app_chat_message WHERE message_id = %s", (mid,)):
+        return None, getattr(db, 'last_error', None) or 'Gagal menghapus pesan'
+    db.execute_query(
+        "UPDATE app_chat_peer_prefs SET pinned_message_id = NULL WHERE pinned_message_id = %s",
+        (mid,),
+    )
+    try:
+        db.commit()
+    except Exception as e:
+        return None, str(e)
+    return {'message_id': mid}, None
+
+
+def search_messages(db, current_user_id, peer, query, limit=40):
+    uid = str(current_user_id or '').strip()
+    q = str(query or '').strip()
+    if len(q) < 2:
+        return []
+    peer = str(peer or TEAM_ROOM).strip() or TEAM_ROOM
+    try:
+        limit = max(1, min(int(limit or 40), 80))
+    except (TypeError, ValueError):
+        limit = 40
+    kind, pid = parse_peer(peer)
+    if kind == 'team':
+        where = "m.room_type = 'team'"
+        params = []
+    elif kind == 'group':
+        if not is_group_member(db, uid, pid):
+            return []
+        where = "m.room_type = 'group' AND m.group_id = %s"
+        params = [pid]
+    else:
+        where = """
+            m.room_type = 'direct'
+            AND (
+                (m.from_user_id = %s AND m.to_user_id = %s)
+                OR (m.from_user_id = %s AND m.to_user_id = %s)
+            )
+        """
+        params = [uid, pid, pid, uid]
+    cleared = _cleared_at_for(db, uid, peer)
+    if cleared:
+        where += " AND m.created_at > %s"
+        params.append(cleared)
+    like = '%' + q.replace('%', '\\%').replace('_', '\\_') + '%'
+    where += " AND (m.body LIKE %s OR m.file_name LIKE %s)"
+    params.extend([like, like])
+    sql = f"""
+        SELECT m.message_id, m.room_type, m.from_user_id, m.to_user_id, m.body, m.created_at,
+               m.file_name, m.file_path, m.file_mime, m.file_size, m.group_id,
+               m.reply_to_id, m.forwarded_from_id, m.forwarded_from_alias,
+               u.user_alias AS from_alias, u.user_foto AS from_foto,
+               rm.body AS reply_body, rm.file_name AS reply_file_name,
+               ru.user_alias AS reply_from_alias
+        FROM app_chat_message m
+        LEFT JOIN app_users u ON u.user_id = m.from_user_id
+        LEFT JOIN app_chat_message rm ON rm.message_id = m.reply_to_id
+        LEFT JOIN app_users ru ON ru.user_id = rm.from_user_id
+        WHERE {where}
+        ORDER BY m.created_at DESC, m.message_id DESC
+        LIMIT {int(limit)}
+    """
+    rows = []
+    if db.execute_query(sql, tuple(params)):
+        rows = list(db.cur_hris.fetchall() or [])
+        rows.reverse()
+    return [serialize_message(row, uid) for row in rows]
+
+
+def get_user_chat_profile(db, viewer_id, target_user_id):
+    viewer = str(viewer_id or '').strip()
+    target = str(target_user_id or '').strip()
+    if not target:
+        return None, 'User tidak ditemukan'
+    sql = """
+        SELECT u.user_id, u.user_alias, u.user_name, u.user_mail, u.user_telp,
+               u.user_foto, u.user_alamat, u.mdb_name,
+               (
+                   SELECT g.group_name
+                   FROM app_user_role ur
+                   INNER JOIN app_role r ON r.role_id = ur.role_id
+                   INNER JOIN app_group g ON g.group_id = r.group_id
+                   WHERE ur.user_id = u.user_id
+                   ORDER BY ur.role_display DESC, g.group_name ASC
+                   LIMIT 1
+               ) AS department
+        FROM app_users u
+        WHERE u.user_id = %s AND CAST(COALESCE(u.user_st, '0') AS CHAR) = '1'
+        LIMIT 1
+    """
+    if not db.execute_query(sql, (target,)):
+        return None, getattr(db, 'last_error', None) or 'Gagal memuat profil'
+    row = db.cur_hris.fetchone()
+    if not row:
+        return None, 'User tidak ditemukan'
+    online_ids = {u['user_id'] for u in list_online_users(db, viewer) if not u.get('is_me')}
+    seen_map = _last_seen_map(db, [target])
+    last_seen = seen_map.get(target)
+    dept = str(_row_get(row, 'department') or '').strip()
+    code = str(_row_get(row, 'mdb_name') or '').strip()
+    return {
+        'user_id': target,
+        'user_alias': str(_row_get(row, 'user_alias') or _row_get(row, 'user_name') or 'User'),
+        'user_name': str(_row_get(row, 'user_name') or ''),
+        'user_mail': str(_row_get(row, 'user_mail') or ''),
+        'user_telp': str(_row_get(row, 'user_telp') or '').strip(),
+        'user_foto': str(_row_get(row, 'user_foto') or ''),
+        'user_alamat': str(_row_get(row, 'user_alamat') or '').strip(),
+        'department': dept,
+        'employee_code': code,
+        'npwp': '-',
+        'ptkp': '-',
+        'online': target in online_ids,
+        'last_seen': _fmt_dt(last_seen),
+        'last_seen_label': None,
+    }, None
 
 
 def mark_read(db, user_id, peer):
@@ -763,6 +1012,7 @@ def serialize_message(row, current_user_id):
         'file_mime': file_mime,
         'file_size': _row_get(row, 'file_size'),
         'file_is_image': _is_image_file(file_name, file_mime) if has_file else False,
+        'file_is_audio': _is_audio_file(file_name, file_mime) if has_file else False,
         'file_url': ('/management/admin/chat_file/' + message_id) if has_file else '',
         'reply_to_id': reply_to_id or None,
         'reply_body': str(_row_get(row, 'reply_body') or ''),
@@ -919,6 +1169,11 @@ def list_messages(db, current_user_id, peer, after_id=None, limit=MESSAGE_PAGE):
     elif after_id:
         where += " AND m.message_id <> %s"
         params.append(after_id)
+
+    cleared = _cleared_at_for(db, uid, peer)
+    if cleared:
+        where += " AND m.created_at > %s"
+        params.append(cleared)
 
     sql = f"""
         SELECT m.message_id, m.room_type, m.from_user_id, m.to_user_id, m.body, m.created_at,

@@ -14225,12 +14225,18 @@ class data_mysql:
             totals_rekap = {'subdomain_count': 0, 'spend': 0.0, 'revenue': 0.0, 'profit': 0.0}
 
             spend_daily = self._report_account_fetch_spend_daily(start_date, end_date, account_keys)
-            adx_daily_by_account = self._report_account_fetch_adx_revenue_daily_for_accounts(
-                start_date, end_date, account_keys
+            adx_daily_global, adx_daily_by_cred = self._report_account_build_revenue_daily_maps(
+                _REPORT_ACCOUNT_ADX_TABLE,
+                _REPORT_ACCOUNT_ADX_DATE_COL,
+                _REPORT_ACCOUNT_ADX_REVENUE_COL,
+                _REPORT_ACCOUNT_ADX_DOMAIN_COL,
+                start_date,
+                end_date,
             )
             adsense_daily, _adsense_daily_by_cred = self._report_account_build_revenue_daily_maps(
                 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
             )
+            account_chart_meta = {}
 
             for acct in accounts:
                 ak = acct['account_key']
@@ -14308,6 +14314,10 @@ class data_mysql:
                 totals['revenue'] += metrics['revenue']
                 totals['profit'] += metrics['profit']
                 rows_out.append(row)
+                account_chart_meta[ak] = {
+                    'cred_ids': cred_ids,
+                    'active_domains': list(active_domains),
+                }
 
             rows_out.sort(key=lambda r: float(r.get('revenue') or 0), reverse=True)
 
@@ -14323,16 +14333,19 @@ class data_mysql:
                     day_adsense = 0.0
                     for ak in account_keys:
                         day_spend += float((spend_daily.get(ds) or {}).get(ak) or 0)
-                        day_adx += float((adx_daily_by_account.get(ds) or {}).get(ak) or 0)
-                        acct = next((a for a in accounts if a.get('account_key') == ak), None)
-                        cred_ids = self._report_account_cred_ids_for_account(
-                            acct or {}, owner_cred_map, email_cred_map
+                        meta = account_chart_meta.get(ak) or {}
+                        cred_ids = meta.get('cred_ids') or []
+                        domain_keys = meta.get('active_domains') or []
+                        day_adx += self._report_account_sum_adx_revenue_daily(
+                            ds, domain_keys, adx_daily_global, adx_daily_by_cred, cred_ids
                         )
-                        domains = set(account_domains.get(ak, set()))
-                        for cid in cred_ids:
-                            domains |= set((adx_rev_by_cred.get(cid) or {}).keys())
-                        for dk in domains:
-                            day_adsense += float((adsense_daily.get(ds) or {}).get(dk) or 0)
+                        seen_adsense = set()
+                        for dk in domain_keys:
+                            canonical = normalize_roi_domain_merge_key(dk) or self._normalize_domain_match_key(dk)
+                            if not canonical or canonical in seen_adsense:
+                                continue
+                            seen_adsense.add(canonical)
+                            day_adsense += float((adsense_daily.get(ds) or {}).get(canonical) or 0)
                     day_revenue = day_adx + day_adsense
                     chart.append({
                         'date': ds,
