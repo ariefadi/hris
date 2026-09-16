@@ -9382,6 +9382,42 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
+    def _normalize_fb_account_filter_list(self, account_list):
+        if isinstance(account_list, str):
+            account_list = [account_list.strip()]
+        elif account_list is None:
+            account_list = []
+        elif isinstance(account_list, (set, tuple)):
+            account_list = list(account_list)
+        out = []
+        seen = set()
+        for raw in account_list:
+            norm = self._normalize_fb_account_key(raw)
+            if norm and norm not in seen:
+                seen.add(norm)
+                out.append(norm)
+        return out
+
+    def _sql_fb_account_ads_filter(self, account_list, b_col='b.account_ads_id', a_col='a.account_id', include_master_cols=True):
+        accounts = self._normalize_fb_account_filter_list(account_list)
+        if not accounts:
+            return '', []
+        parts = []
+        params = []
+        for acc in accounts:
+            p = f"%{acc}%"
+            if include_master_cols:
+                parts.append(
+                    f"(REPLACE(LOWER({b_col}), 'act_', '') LIKE %s "
+                    f"OR REPLACE(LOWER({a_col}), 'act_', '') LIKE %s "
+                    f"OR REPLACE(LOWER(CAST(a.account_ads_id AS CHAR)), 'act_', '') LIKE %s)"
+                )
+                params.extend([p, p, p])
+            else:
+                parts.append(f"REPLACE(LOWER({b_col}), 'act_', '') LIKE %s")
+                params.append(p)
+        return f" AND ({' OR '.join(parts)})", params
+
     def get_all_ads_traffic_campaign_by_params(self, tanggal_dari, tanggal_sampai, selected_account_list = None, selected_domain_list = None):   
         try:
             if isinstance(selected_account_list, str):
@@ -10156,7 +10192,9 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_ads_roi_traffic_campaign_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None):
+    def get_all_ads_roi_traffic_campaign_by_params(
+        self, start_date_formatted, end_date_formatted, data_sub_domain=None, selected_account_ads_list=None
+    ):
         try:
             # --- 1. Pastikan data_sub_domain adalah list string
             if isinstance(data_sub_domain, str):
@@ -10177,6 +10215,9 @@ class data_mysql:
             if use_clickhouse:
                 domain_expr = "concat(arrayElement(splitByChar('.', b.data_ads_domain), 1), '.', arrayElement(splitByChar('.', b.data_ads_domain), 2), '.com')"
                 like_conditions_ch = " OR ".join([f"{domain_expr} LIKE %s"] * len(data_sub_domain))
+                acct_sql_ch, acct_params_ch = self._sql_fb_account_ads_filter(
+                    selected_account_ads_list, b_col='b.account_ads_id', include_master_cols=False
+                )
                 base_sql = [
                     "SELECT",
                     "\t'' AS 'account_id',",
@@ -10194,12 +10235,17 @@ class data_mysql:
                     "FROM data_ads_country b",
                     "WHERE toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
                     f"\tAND ({like_conditions_ch})",
+                ]
+                if acct_sql_ch:
+                    base_sql.append(acct_sql_ch.strip())
+                base_sql.extend([
                     f"GROUP BY toDate(b.data_ads_country_tanggal), {domain_expr}, b.data_ads_country_cd",
                     "ORDER BY toDate(b.data_ads_country_tanggal) ASC",
-                ]
-                params = [start_date_formatted, end_date_formatted] + like_params
+                ])
+                params = [start_date_formatted, end_date_formatted] + like_params + acct_params_ch
                 sql = "\n".join(base_sql)
             else:
+                acct_sql, acct_params = self._sql_fb_account_ads_filter(selected_account_ads_list)
                 base_sql = [
                     "SELECT",
                     "\trs.account_id, rs.account_name, rs.account_email,",
@@ -10225,11 +10271,15 @@ class data_mysql:
                         "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
                         "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
                         f"\tAND ({like_conditions})",
+                ]
+                if acct_sql:
+                    base_sql.append(f"\t{acct_sql.strip()}")
+                base_sql.extend([
                     ") rs",
                     "GROUP BY rs.date, rs.domain, rs.country_code",
                     "ORDER BY rs.account_id, rs.date",
-                ]
-                params = [start_date_formatted, end_date_formatted] + like_params
+                ])
+                params = [start_date_formatted, end_date_formatted] + like_params + acct_params
                 sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
@@ -10255,7 +10305,9 @@ class data_mysql:
 
         return {"hasil": hasil}
 
-    def get_all_ads_adsense_roi_traffic_campaign_by_params( self, start_date_formatted, end_date_formatted, data_sub_domain=None ):
+    def get_all_ads_adsense_roi_traffic_campaign_by_params(
+        self, start_date_formatted, end_date_formatted, data_sub_domain=None, selected_account_ads_list=None
+    ):
         try:
             # --- 1. Normalize input
             if isinstance(data_sub_domain, str):
@@ -10288,6 +10340,7 @@ class data_mysql:
                     )
                     like_params.extend([d, d, d_first])
                 like_clause = f"AND ({' OR '.join(cond_parts)})" if cond_parts else ""
+                acct_sql, acct_params = self._sql_fb_account_ads_filter(selected_account_ads_list)
                 query = f"""
                 SELECT
                     rs.account_id,
@@ -10324,6 +10377,7 @@ class data_mysql:
                     INNER JOIN hris_trendHorizone.data_ads_country b ON a.account_id = b.account_ads_id
                     WHERE b.data_ads_country_tanggal BETWEEN toDate(%s) AND toDate(%s)
                     {like_clause}
+                    {acct_sql}
                 ) rs
                 GROUP BY
                     rs.account_id,
@@ -10334,7 +10388,7 @@ class data_mysql:
                     rs.account_id,
                     rs.date
                 """
-                params_tuple = tuple([start_date_formatted, end_date_formatted] + like_params)
+                params_tuple = tuple([start_date_formatted, end_date_formatted] + like_params + acct_params)
                 self._ensure_report_connection()
                 self.cur_hris = self.report_cur
                 self.cur_hris.execute(query, params_tuple)
@@ -10374,11 +10428,16 @@ class data_mysql:
                     "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
                     "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
                     f"\tAND ({like_conditions})",
+                ]
+                acct_sql, acct_params = self._sql_fb_account_ads_filter(selected_account_ads_list)
+                if acct_sql:
+                    base_sql.append(f"\t{acct_sql.strip()}")
+                base_sql.extend([
                     ") rs",
                     "GROUP BY rs.date, rs.country_code, SUBSTRING_INDEX(rs.domain, '.', -2)",
                     "ORDER BY rs.account_id, rs.date",
-                ]
-                params = [start_date_formatted, end_date_formatted] + like_params
+                ])
+                params = [start_date_formatted, end_date_formatted] + like_params + acct_params
                 sql = "\n".join(base_sql)
                 if not self.execute_query(sql, tuple(params)):
                     raise pymysql.Error("Failed to get all ads adsense roi traffic campaign by params")
@@ -11245,8 +11304,9 @@ class data_mysql:
             hasil = {"status": False, "data": f"Terjadi error {e!r}"}
         return {"hasil": hasil}
 
-    def get_all_ads_roi_country_detail_adsense_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
-        # ... existing code ...
+    def get_all_ads_roi_country_detail_adsense_by_params(
+        self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None, selected_account_ads_list=None
+    ):
         try:
             if isinstance(data_sub_domain, str):
                 data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
@@ -11274,6 +11334,10 @@ class data_mysql:
                 f"\tAND ({like_conditions})",
             ]
             params = [start_date_formatted, end_date_formatted] + like_params
+            acct_sql, acct_params = self._sql_fb_account_ads_filter(selected_account_ads_list)
+            if acct_sql:
+                sql_parts.append(acct_sql.strip())
+                params.extend(acct_params)
             country_codes = []
             if countries_list:
                 if isinstance(countries_list, str):
@@ -11899,7 +11963,9 @@ class data_mysql:
         except Exception as e:
             hasil = {"status": False, "data": f"Terjadi error {e!r}"}
         return {"hasil": hasil}
-    def get_all_ads_adsense_country_detail_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
+    def get_all_ads_adsense_country_detail_by_params(
+        self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None, selected_account_ads_list=None
+    ):
         try:
             if isinstance(data_sub_domain, str):
                 data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
@@ -11917,6 +11983,10 @@ class data_mysql:
 
             like_conditions = " OR ".join([f"{domain_expr} LIKE %s"] * len(data_sub_domain))
             like_params = [f"%{d}%" for d in data_sub_domain]
+            acct_sql_ch, acct_params_ch = self._sql_fb_account_ads_filter(
+                selected_account_ads_list, b_col='b.account_ads_id', include_master_cols=False
+            )
+            acct_sql_my, acct_params_my = self._sql_fb_account_ads_filter(selected_account_ads_list)
 
             country_codes = []
             if countries_list:
@@ -11947,6 +12017,7 @@ class data_mysql:
                     "WHERE toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
                     f"\tAND ({like_conditions})",
                     f"\t{country_sql}",
+                    f"\t{acct_sql_ch.strip() if acct_sql_ch else ''}",
                     "GROUP BY",
                     "\ttoDate(b.data_ads_country_tanggal),",
                     "\tb.data_ads_country_cd,",
@@ -11955,7 +12026,7 @@ class data_mysql:
                     "ORDER BY date ASC"
                 ]
                 sql = "\n".join(sql_parts)
-                params = [start_date_formatted, end_date_formatted] + like_params + country_params
+                params = [start_date_formatted, end_date_formatted] + like_params + country_params + acct_params_ch
             else:
                 sql_parts = [
                     "SELECT",
@@ -11984,6 +12055,10 @@ class data_mysql:
                         "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
                         f"\t\tAND ({like_conditions})",
                         f"\t\t{country_sql}",
+                ])
+                if acct_sql_my:
+                    sql_parts.append(f"\t\t{acct_sql_my.strip()}")
+                sql_parts.extend([
                         "\tGROUP BY",
                         "\t\tb.data_ads_country_tanggal,",
                         "\t\tb.data_ads_country_cd,",
@@ -11998,7 +12073,7 @@ class data_mysql:
                     "ORDER BY rs.date ASC"
                 ])
                 sql = "\n".join(sql_parts)
-                params = [start_date_formatted, end_date_formatted] + like_params + country_params
+                params = [start_date_formatted, end_date_formatted] + like_params + country_params + acct_params_my
 
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get adsense country detail by params")
@@ -14088,10 +14163,24 @@ class data_mysql:
                 out[k] = float(row.get('revenue') or 0)
         return out
 
+    def _report_account_lookup_adsense_map_amount(self, domain_key, adsense_map):
+        domain_key = str(domain_key or '').strip()
+        if not domain_key:
+            return 0.0
+        canonical = normalize_roi_domain_merge_key(domain_key) or self._normalize_domain_match_key(domain_key)
+        if not canonical:
+            return 0.0
+        return float((adsense_map or {}).get(canonical) or 0)
+
     def _report_account_sum_revenue_for_account(self, domain_keys, revenue_map):
         total = 0.0
+        seen = set()
         for dk in (domain_keys or []):
-            total += float(revenue_map.get(dk) or 0)
+            canonical = normalize_roi_domain_merge_key(dk) or self._normalize_domain_match_key(dk)
+            if not canonical or canonical in seen:
+                continue
+            seen.add(canonical)
+            total += float((revenue_map or {}).get(canonical) or 0)
         return total
 
     def _report_account_build_row_metrics(self, spend, revenue, subdomain_count):
@@ -14132,12 +14221,10 @@ class data_mysql:
         rows = []
         for dk in sorted(active_domains or []):
             spend = float(spend_map.get(dk) or 0)
-            adx_rev = float(adx_map.get(dk) or 0)
-            if adx_rev <= 0:
-                adx_rev = self._report_account_lookup_adx_map_amount(
-                    dk, adx_rev_map, adx_rev_by_cred, cred_ids
-                )
-            adsense_rev = float(adsense_rev_map.get(dk) or 0)
+            adx_rev = self._report_account_lookup_adx_map_amount(
+                dk, adx_rev_map, adx_rev_by_cred, cred_ids
+            )
+            adsense_rev = self._report_account_lookup_adsense_map_amount(dk, adsense_rev_map)
             revenue = adx_rev + adsense_rev
             metrics = self._report_account_build_row_metrics(spend, revenue, 1)
             rows.append({
@@ -14193,7 +14280,6 @@ class data_mysql:
             adx_by_account_domain = self._report_account_fetch_adx_revenue_by_account_domain(
                 start_date, end_date, account_keys
             )
-            adx_by_account = self._report_account_fetch_adx_revenue_by_account(start_date, end_date, account_keys)
             adx_rev_map, adx_rev_by_cred = self._report_account_build_revenue_maps(
                 _REPORT_ACCOUNT_ADX_TABLE, _REPORT_ACCOUNT_ADX_DATE_COL, _REPORT_ACCOUNT_ADX_REVENUE_COL, _REPORT_ACCOUNT_ADX_DOMAIN_COL, start_date, end_date
             )
@@ -14252,18 +14338,16 @@ class data_mysql:
                     )
                     if (
                         adx_hint > 0
-                        or float(adsense_rev_map.get(dk) or 0) > 0
+                        or self._report_account_lookup_adsense_map_amount(dk, adsense_rev_map) > 0
                         or account_spend > 0
                     ):
                         active_domains.add(dk)
                 if not active_domains and domains:
                     active_domains = set(domains)
 
-                adx_rev = float(adx_by_account.get(ak) or 0)
-                if adx_rev <= 0 and active_domains:
-                    adx_rev = self._report_account_sum_adx_revenue(
-                        active_domains, adx_rev_map, adx_rev_by_cred, cred_ids
-                    )
+                adx_rev = self._report_account_sum_adx_revenue(
+                    active_domains, adx_rev_map, adx_rev_by_cred, cred_ids
+                ) if active_domains else 0.0
                 adsense_rev = self._report_account_sum_revenue_for_account(active_domains, adsense_rev_map)
                 revenue = adx_rev + adsense_rev
                 spend = float(spend_map.get(ak) or 0)
@@ -14425,10 +14509,10 @@ class data_mysql:
                 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
             )
 
-            domain_adx = float(adx_by_domain.get(domain_key) or 0)
-            if domain_adx <= 0:
-                domain_adx = self._report_account_sum_adx_revenue([domain_key], adx_rev_map, adx_rev_by_cred, cred_ids)
-            domain_adsense = float(adsense_rev_map.get(domain_key) or 0)
+            domain_adx = self._report_account_sum_adx_revenue(
+                [domain_key], adx_rev_map, adx_rev_by_cred, cred_ids
+            )
+            domain_adsense = self._report_account_lookup_adsense_map_amount(domain_key, adsense_rev_map)
 
             key_expr = self._report_account_fb_key_sql('b.account_ads_id')
             sql = f"""
@@ -14625,10 +14709,10 @@ class data_mysql:
             totals = {'spend': 0.0, 'revenue': 0.0, 'profit': 0.0, 'adx_revenue': 0.0, 'adsense_revenue': 0.0}
             totals_rekap = {'spend': 0.0, 'revenue': 0.0, 'profit': 0.0}
             for dk in all_domains:
-                adx_rev = float(adx_by_domain.get(dk) or 0)
-                if adx_rev <= 0:
-                    adx_rev = self._report_account_sum_adx_revenue([dk], adx_rev_map, adx_rev_by_cred, cred_ids)
-                adsense_rev = float(adsense_rev_map.get(dk) or 0)
+                adx_rev = self._report_account_sum_adx_revenue(
+                    [dk], adx_rev_map, adx_rev_by_cred, cred_ids
+                )
+                adsense_rev = self._report_account_lookup_adsense_map_amount(dk, adsense_rev_map)
                 spend = float(spend_by_domain.get(dk) or 0)
                 revenue = adx_rev + adsense_rev
                 metrics = self._report_account_build_row_metrics(spend, revenue, 1)
@@ -14786,10 +14870,10 @@ class data_mysql:
                 'data_adsense_domain', 'data_adsense_tanggal', 'data_adsense_revenue', 'data_adsense_domain', start_date, end_date
             )
 
-            domain_adx = float(adx_by_domain.get(domain_key) or 0)
-            if domain_adx <= 0:
-                domain_adx = self._report_account_sum_adx_revenue([domain_key], adx_rev_map, adx_rev_by_cred, cred_ids)
-            domain_adsense = float(adsense_rev_map.get(domain_key) or 0)
+            domain_adx = self._report_account_sum_adx_revenue(
+                [domain_key], adx_rev_map, adx_rev_by_cred, cred_ids
+            )
+            domain_adsense = self._report_account_lookup_adsense_map_amount(domain_key, adsense_rev_map)
 
             key_expr = self._report_account_fb_key_sql('b.account_ads_id')
             sql = f"""

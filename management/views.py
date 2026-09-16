@@ -13624,6 +13624,7 @@ class RoiTrafficPerCountryDataView(View):
         selected_domain_list = build_domain_filter_terms(selected_domain, include_original=True, include_base=True)
         selected_domain_list_fb = build_domain_filter_terms(selected_domain, include_original=False, include_base=True)
         selected_account_ads = req.GET.get('selected_account_ads', '')
+        selected_account_ads_list = parse_fb_ads_account_filter(selected_account_ads)
         selected_countries = req.GET.get('selected_countries', '')
         try:
             # Validasi parameter tanggal terlebih dahulu
@@ -13690,7 +13691,7 @@ class RoiTrafficPerCountryDataView(View):
                     print(f"[DEBUG ROI] Unable to derive sites_for_fb: {_sites_err}")
             # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
             response_cache_key = generate_cache_key(
-                'roi_traffic_country_response_v2',
+                'roi_traffic_country_response_v3',
                 start_date,
                 end_date,
                 selected_account_list,
@@ -13698,134 +13699,105 @@ class RoiTrafficPerCountryDataView(View):
                 selected_account_ads or '',
                 ','.join(countries_list_query) if countries_list_query else ''
             )
-            cached_response = get_cached_data(response_cache_key)
+            cached_response = None if (selected_domain_list or selected_account_ads_list) else get_cached_data(response_cache_key)
             if cached_response is not None:
                 attach_kiwipixel_visitors_to_country_result(
                     cached_response, start_date, end_date, selected_domain_list
                 )
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
-            # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
-            if selected_account_list and not selected_domain_list:
-                with ThreadPoolExecutor(max_workers=2) as executor:
-                    adx_future = executor.submit(
-                        data_mysql().get_all_adx_roi_country_detail_by_params,
-                        start_date,
-                        end_date,
-                        selected_account_list,
-                        selected_domain_list,
-                        countries_list_query
-                    )
-                    data_adx = adx_future.result()
-                    unique_name_site = []
-                    if data_adx.get("status") and data_adx.get("data"):
-                        unique_sites = set()
-                        for row in data_adx["data"]:
-                            site_name = (row.get("site_name") or "").strip().lower()
-                            if not site_name or site_name == "unknown":
-                                continue
-                            unique_sites.add(site_name)
-                        extracted_names = []
-                        for site in unique_sites:
-                            if "." not in site:
-                                continue
-
-                            parts = site.split(".")
-
-                            if len(parts) >= 2:
-                                main_domain = ".".join(parts[:2])   # ✅ ambil depan
-                            else:
-                                main_domain = site
-
-                            extracted_names.append(main_domain)
-                        unique_name_site = list(set(extracted_names))
-                    fb_future = executor.submit(
-                        data_mysql().get_all_ads_roi_country_detail_by_params,
-                        start_date,
-                        end_date,
-                        unique_name_site,
-                        countries_list_query
-                    )
-                    data_adx = adx_future.result()
+            unique_name_site = []
+            if selected_domain_list:
+                data_adx = data_mysql().get_all_adx_roi_country_detail_by_params(
+                    start_date,
+                    end_date,
+                    selected_account_list,
+                    selected_domain_list,
+                    countries_list_query,
+                )
+                data_adx = scope_adx_payload_for_fb_account(
+                    data_adx,
+                    start_date,
+                    end_date,
+                    selected_account_ads_list,
+                    selected_domain_list,
+                )
+                if selected_domain_list_fb:
+                    seen_sites = set()
+                    for site_item in selected_domain_list_fb:
+                        site_name = str(site_item or '').strip().strip("\"'")
+                        if not site_name or site_name == 'Unknown' or site_name in seen_sites:
+                            continue
+                        seen_sites.add(site_name)
+                        unique_name_site.append(site_name)
+                if selected_account_ads_list:
+                    scoped_sites = unique_fb_domains_from_adx_payload(data_adx)
+                    if scoped_sites:
+                        unique_name_site = scoped_sites
+                if unique_name_site:
                     try:
-                        # Hapus timeout: tunggu hingga FB selesai agar data lengkap
-                        data_facebook = fb_future.result()
-                    except Exception as e:
-                        data_facebook = None
-            elif selected_domain_list :
-                with ThreadPoolExecutor(max_workers=2) as executor:
-                    adx_future = executor.submit(
-                        data_mysql().get_all_adx_roi_country_detail_by_params,
-                        start_date,
-                        end_date,
-                        selected_account_list,
-                        selected_domain_list,
-                        countries_list_query
-                    )
-                    unique_name_site = []
-                    if selected_domain_list_fb:
-                        seen_sites = set()
-                        for site_item in selected_domain_list_fb:
-                            site_name = str(site_item or '').strip().strip("\"'")
-                            if not site_name or site_name == 'Unknown' or site_name in seen_sites:
-                                continue
-                            seen_sites.add(site_name)
-                            unique_name_site.append(site_name)
-                    fb_future = executor.submit(
-                        data_mysql().get_all_ads_roi_country_detail_by_params,
-                        start_date,
-                        end_date,
-                        unique_name_site,
-                        countries_list_query
-                    )
-                    data_adx = adx_future.result()
-                    try:
-                        # Hapus timeout: tunggu hingga FB selesai agar data lengkap
-                        data_facebook = fb_future.result()
-                    except Exception as e:
+                        data_facebook = data_mysql().get_all_ads_roi_country_detail_adsense_by_params(
+                            start_date,
+                            end_date,
+                            unique_name_site,
+                            countries_list_query,
+                            selected_account_ads_list,
+                        )
+                    except Exception:
                         data_facebook = None
             else:
-                # Filter Domain kosong: tampilkan data semua domain dari akun AdX terpilih
                 data_adx = data_mysql().get_all_adx_roi_country_detail_by_params(
-                    start_date, 
-                    end_date, 
-                    selected_account_list, 
-                    selected_domain_list, 
-                    countries_list_query
+                    start_date,
+                    end_date,
+                    selected_account_list,
+                    selected_domain_list,
+                    countries_list_query,
+                )
+                data_adx = scope_adx_payload_for_fb_account(
+                    data_adx,
+                    start_date,
+                    end_date,
+                    selected_account_ads_list,
+                    selected_domain_list,
                 )
                 try:
-                    unique_name_site = []
-                    with ThreadPoolExecutor(max_workers=1) as executor:
-                        if sites_for_fb:
-                            unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
-                            extracted_names = []
-                            for site in unique_sites:
-                                main_domain = extract_base_subdomain(site.strip())
-                                if main_domain and main_domain != 'Unknown':
-                                    extracted_names.append(main_domain)
-                            unique_name_site = list(set(extracted_names))
-
-                        if not unique_name_site:
-                            adx_payload_tmp = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
-                            adx_items_tmp = adx_payload_tmp.get('data') if isinstance(adx_payload_tmp, dict) else []
-                            if adx_items_tmp:
-                                extracted_names = []
-                                for adx_item in (adx_items_tmp or []):
-                                    site_name = str(adx_item.get('site_name', '') or '')
-                                    main_domain = extract_base_subdomain(site_name.strip())
-                                    if main_domain and main_domain != 'Unknown':
-                                        extracted_names.append(main_domain)
-                                unique_name_site = list(set(extracted_names))
-                        if unique_name_site:
-                            fb_future = executor.submit(
-                                data_mysql().get_all_ads_roi_country_detail_by_params,
-                                start_date, end_date, unique_name_site, countries_list_query
-                            )
-                            data_facebook = fb_future.result()
-                        else:
-                            data_facebook = None
-                except Exception as e:
+                    if sites_for_fb and not selected_account_ads_list:
+                        unique_sites = set(
+                            site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown'
+                        )
+                        extracted_names = []
+                        for site in unique_sites:
+                            main_domain = extract_base_subdomain(site.strip())
+                            if main_domain and main_domain != 'Unknown':
+                                extracted_names.append(main_domain)
+                        unique_name_site = list(set(extracted_names))
+                    if not unique_name_site:
+                        unique_name_site = unique_fb_domains_from_adx_payload(data_adx)
+                    if unique_name_site:
+                        data_facebook = data_mysql().get_all_ads_roi_country_detail_adsense_by_params(
+                            start_date,
+                            end_date,
+                            unique_name_site,
+                            countries_list_query,
+                            selected_account_ads_list,
+                        )
+                    else:
+                        data_facebook = None
+                except Exception:
                     data_facebook = None
+            if (not data_facebook or not ((data_facebook.get('hasil') or {}).get('data'))):
+                fallback_sites = unique_fb_domains_from_adx_payload(data_adx)
+                if fallback_sites:
+                    try:
+                        data_facebook = data_mysql().get_all_ads_roi_country_detail_adsense_by_params(
+                            start_date,
+                            end_date,
+                            fallback_sites,
+                            countries_list_query,
+                            selected_account_ads_list,
+                        )
+                    except Exception:
+                        pass
             # Ringkas data Facebook untuk diagnosa
             try:
                 if data_facebook and isinstance(data_facebook, dict) and data_facebook.get('hasil') and data_facebook['hasil'].get('data'):
@@ -15005,6 +14977,7 @@ class RoiTrafficPerDomainDataView(View):
                 selected_accounts = req.GET.get('selected_account_adx', '')
             selected_domain_filter = str(req.GET.get('selected_domains') or '').strip()
             selected_account_ads = req.GET.get('selected_account_ads')
+            selected_account_ads_list = parse_fb_ads_account_filter(selected_account_ads or '')
             domain_terms = build_domain_filter_terms(selected_domain_filter, include_original=True, include_base=True)
             domain_terms_fb = build_domain_filter_terms(selected_domain_filter, include_original=False, include_base=True)
             # --- 1. Parse tanggal aman
@@ -15027,6 +15000,13 @@ class RoiTrafficPerDomainDataView(View):
                 selected_account_list,
                 domain_terms
             )
+            adx_result = scope_adx_payload_for_fb_account(
+                adx_result,
+                start_date_formatted,
+                end_date_formatted,
+                selected_account_ads_list,
+                domain_terms,
+            )
             # --- 4. Proses Facebook data
             facebook_data = None
             unique_name_site = []
@@ -15038,26 +15018,19 @@ class RoiTrafficPerDomainDataView(View):
                         continue
                     seen_sites.add(site_name)
                     unique_name_site.append(site_name)
+                if selected_account_ads_list:
+                    scoped_sites = unique_fb_domains_from_adx_payload(adx_result)
+                    if scoped_sites:
+                        unique_name_site = scoped_sites
             elif adx_result:
-                # Ambil unique site dari AdX
-                extracted_sites = set()
-                for adx_item in adx_result['hasil']['data']:
-                    site_name = str(adx_item.get('site_name', '')).strip()
-                    if site_name and site_name != 'Unknown':
-                        extracted_sites.add(site_name)
-                for site in extracted_sites:
-                    if "." in site:
-                        parts = site.split(".")       # pisah berdasarkan titik
-                        main_domain = ".".join(parts[:2])
-                    else:
-                        main_domain = site
-                    unique_name_site.append(main_domain)
+                unique_name_site = unique_fb_domains_from_adx_payload(adx_result)
             unique_name_site = list(set(unique_name_site))
             if unique_name_site:
                 facebook_data = data_mysql().get_all_ads_roi_traffic_campaign_by_params(
                     start_date_formatted,
                     end_date_formatted,
-                    unique_name_site
+                    unique_name_site,
+                    selected_account_ads_list,
                 )
             kiwi_traffic_indexes = _fetch_kiwipixel_campaign_traffic(start_date_formatted, end_date_formatted)
             campaign_ids_by_domain = _fetch_fb_campaign_ids_by_domain(
@@ -15490,6 +15463,157 @@ def accumulate_facebook_monitoring_map(facebook_map, fb_item, date_key, subdomai
         if not str(cur.get('account_name') or '').strip():
             cur['account_name'] = str((fb_item or {}).get('account_name', '') or '')
     return key
+
+
+def parse_fb_ads_account_filter(raw):
+    val = str(raw or '').strip()
+    if not val:
+        return []
+    tokens = []
+    seen = set()
+
+    def _add_token(v):
+        try:
+            norm = data_mysql()._normalize_fb_account_key(v)
+        except Exception:
+            norm = str(v or '').replace('act_', '').lower().strip()
+        if norm and norm not in seen:
+            seen.add(norm)
+            tokens.append(norm)
+
+    try:
+        rs = data_mysql().master_account_ads_by_params({'data_account': val})
+        rows = (rs or {}).get('data') if isinstance(rs, dict) else None
+        if rows:
+            if isinstance(rows, dict):
+                rows = [rows]
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                _add_token(row.get('account_id'))
+                _add_token(row.get('account_ads_id'))
+    except Exception:
+        pass
+    if not tokens:
+        try:
+            rs = data_mysql().master_account_ads_by_id({'data_account': val})
+            row = (rs or {}).get('data') if isinstance(rs, dict) else None
+            if isinstance(row, dict):
+                _add_token(row.get('account_id'))
+                _add_token(row.get('account_ads_id'))
+        except Exception:
+            pass
+    if not tokens:
+        _add_token(val)
+    return tokens
+
+
+def fb_campaign_domain_terms_for_account_ads(start_date, end_date, account_ads_list):
+    if not account_ads_list:
+        return []
+    try:
+        raw = data_mysql().get_all_ads_traffic_campaign_by_params(
+            start_date, end_date, list(account_ads_list), None
+        )
+    except Exception:
+        return []
+    rows = (((raw or {}).get('hasil') or {}).get('data') or [])
+    seen = set()
+    terms = []
+    for row in rows:
+        dom = str((row or {}).get('domain') or '').strip()
+        if not dom:
+            continue
+        for cand in build_domain_filter_terms(dom, include_original=True, include_base=True):
+            key = str(cand or '').strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                terms.append(cand)
+    return terms
+
+
+def adx_row_matches_domain_terms(site_name, domain_terms):
+    if not domain_terms:
+        return True
+    site = str(site_name or '').strip().lower().strip('.')
+    base = str(extract_base_subdomain(site_name) or '').strip().lower().strip('.')
+    for term in domain_terms:
+        tk = str(term or '').strip().lower().strip('.')
+        if not tk:
+            continue
+        if tk == site or tk == base:
+            return True
+        if site and (tk in site or site in tk):
+            return True
+        if base and (tk in base or base in tk):
+            return True
+    return False
+
+
+def filter_adx_rows_for_fb_account(rows, start_date, end_date, account_ads_list, selected_domain_list):
+    if not account_ads_list:
+        return rows or []
+    domain_terms = fb_campaign_domain_terms_for_account_ads(start_date, end_date, account_ads_list)
+    if not domain_terms:
+        return []
+    out = []
+    for r in (rows or []):
+        site = (r or {}).get('site_name', '')
+        if not adx_row_matches_domain_terms(site, domain_terms):
+            continue
+        if selected_domain_list and not adx_row_matches_domain_terms(site, selected_domain_list):
+            continue
+        out.append(r)
+    return out
+
+
+def _adx_payload_and_rows(data_adx):
+    if isinstance(data_adx, dict) and isinstance(data_adx.get('hasil'), dict):
+        payload = data_adx['hasil']
+    elif isinstance(data_adx, dict):
+        payload = data_adx
+    else:
+        payload = {}
+    rows = (payload.get('data') if isinstance(payload, dict) else []) or []
+    return payload, rows
+
+
+def scope_adx_payload_for_fb_account(data_adx, start_date, end_date, account_ads_list, selected_domain_list):
+    if not account_ads_list:
+        return data_adx
+    try:
+        payload, rows = _adx_payload_and_rows(data_adx)
+        rows = filter_adx_rows_for_fb_account(
+            rows,
+            start_date,
+            end_date,
+            account_ads_list,
+            selected_domain_list,
+        )
+        if isinstance(payload, dict):
+            payload['data'] = rows
+        if isinstance(data_adx, dict) and isinstance(data_adx.get('hasil'), dict):
+            data_adx['hasil'] = payload
+    except Exception:
+        pass
+    return data_adx
+
+
+def unique_fb_domains_from_adx_payload(data_adx):
+    _, rows = _adx_payload_and_rows(data_adx)
+    extracted_names = []
+    for adx_item in (rows or []):
+        site_name = str((adx_item or {}).get('site_name', '') or '').strip().strip('.')
+        if not site_name or site_name == 'Unknown':
+            continue
+        if '.' in site_name:
+            parts = site_name.split('.')
+            main_domain = '.'.join(parts[:2])
+        else:
+            main_domain = site_name
+        if main_domain:
+            extracted_names.append(main_domain)
+    return list(set(extracted_names))
 
 
 def build_domain_filter_terms(selected_domains, include_original=True, include_base=True):

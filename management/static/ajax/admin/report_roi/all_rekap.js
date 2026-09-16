@@ -22,6 +22,20 @@ function showRoiSummaryContent() {
 
 function resetRoiSummarySections() {
     $('#summary_boxes, #charts_section').hide();
+    clearRoiDailyChart();
+}
+
+function clearRoiDailyChart() {
+    if (window.dailyRoiChart && typeof window.dailyRoiChart.destroy === 'function') {
+        try {
+            window.dailyRoiChart.destroy();
+        } catch (e) {
+            console.warn('Failed to destroy ROI daily chart:', e);
+        }
+    }
+    window.dailyRoiChart = null;
+    $('#chart_roi_daily').hide();
+    $('#chartRoiDailyEmpty').show();
 }
 
 function maybeHideRoiSummaryOverlay() {
@@ -312,8 +326,13 @@ function create_roi_daily_chart(data) {
     }
     // Hancurkan chart sebelumnya
     if (window.dailyRoiChart && typeof window.dailyRoiChart.destroy === 'function') {
-        window.dailyRoiChart.destroy();
+        try {
+            window.dailyRoiChart.destroy();
+        } catch (e) {
+            console.warn('Failed to destroy ROI daily chart:', e);
+        }
     }
+    window.dailyRoiChart = null;
 
     // Kumpulkan tanggal & domain unik, serta agregasi metrik per (domain, tanggal)
     var dateSet = new Set();
@@ -342,7 +361,7 @@ function create_roi_daily_chart(data) {
 
     var dates = Array.from(dateSet).sort();
     if (dates.length === 0 || domainSet.size === 0) {
-        console.warn('No data to render ROI daily chart');
+        window.dailyRoiChart = null;
         $('#chart_roi_daily').hide();
         $('#chartRoiDailyEmpty').show();
         return;
@@ -699,9 +718,9 @@ function load_ROI_summary_data(tanggal_dari, tanggal_sampai) {
                     $('#summary_boxes').show();
                     showRoiSummaryContent();
                 }
+                create_roi_daily_chart(response.data || []);
                 if (response.data && response.data.length > 0) {
                     $('#charts_section').show();
-                    create_roi_daily_chart(response.data);
                 }
             } else {
                 alert('Error: ' + (response && response.error ? response.error : 'Unknown error occurred'));
@@ -711,6 +730,7 @@ function load_ROI_summary_data(tanggal_dari, tanggal_sampai) {
         error: function (jqXHR, textStatus, errorThrown) {
             window.fetchStatus = window.fetchStatus || { summary: false, country: false };
             window.fetchStatus.summary = true;
+            clearRoiDailyChart();
             maybeHideRoiSummaryOverlay();
             report_eror(jqXHR, textStatus);
         },
