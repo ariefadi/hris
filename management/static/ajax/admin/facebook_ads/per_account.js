@@ -1020,6 +1020,8 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                 "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
                 "searching": true,
                 "ordering": true,
+                scrollX: true,
+                scrollCollapse: true,
                 responsive: false,
                 autoWidth: false,
                 dom: 'Blfrtip',

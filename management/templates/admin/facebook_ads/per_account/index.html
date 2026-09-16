@@ -165,6 +165,17 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
     color: #e5e7eb;
     border-color: #475569 !important;
   }
+  html[data-theme="dark"] .fb-per-account-filters__item .select2-container--bootstrap4 .select2-selection--single {
+    background: #0f172a !important;
+    color: #e5e7eb !important;
+    border-color: #475569 !important;
+  }
+  html[data-theme="dark"] .fb-per-account-filters__item .select2-container--bootstrap4 .select2-selection__rendered {
+    color: #e5e7eb !important;
+  }
+  html[data-theme="dark"] .fb-per-account-filters__item small.text-muted {
+    color: #94a3b8 !important;
+  }
   @media (max-width: 1200px) {
     .fb-per-account-filters__grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -368,10 +379,30 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(8, 145, 178, 0.12));
         }
         html[data-theme="dark"] .fb-per-account-empty-title { color: #e5e7eb; }
-        .dt-responsive-table { width: 100% !important; border:1px solid #dbe7ff; border-radius:18px; overflow:hidden; background:linear-gradient(180deg,#f8fbff 0%,#ffffff 100%); box-shadow:0 10px 24px rgba(37,99,235,.08); }
+        #fbPerAccountTableWrap.dt-responsive-table {
+            width: 100% !important;
+            max-width: 100%;
+            border:1px solid #dbe7ff;
+            border-radius:18px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            background:linear-gradient(180deg,#f8fbff 0%,#ffffff 100%);
+            box-shadow:0 10px 24px rgba(37,99,235,.08);
+        }
+        #fbPerAccountTableWrap .dataTables_wrapper {
+            width: 100% !important;
+            max-width: 100%;
+            overflow-x: auto !important;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+        }
+        #fbPerAccountTableWrap .dataTables_scrollBody {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
         .dt-buttons { margin-bottom: 16px; }
         .dt-buttons .btn { border-radius:10px !important; font-weight:700 !important; border:none !important; box-shadow:0 6px 14px rgba(15,23,42,.10); }
-        .dataTables_wrapper { width: 100% !important; overflow: visible !important; }
         .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter { margin-bottom: 12px; }
         .dataTables_wrapper .dataTables_filter input, .dataTables_wrapper .dataTables_length select { border-radius:10px !important; border:1px solid #cbd5e1 !important; }
         #table_data_per_account_facebook { width: 100% !important; table-layout: auto; border-collapse: separate; border-spacing: 0; }
@@ -399,28 +430,119 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         .form-switch .form-check-input { width: 2em !important; height: 1em !important; }
         #headerSwitch { width: 2.8em !important; height: 1.5em !important; transform: scale(0.8) !important; }
         td .form-switch .form-check-input { width: 2em !important; height: 1em !important; transform: scale(0.8) !important; }
-        html[data-theme="dark"] .dt-responsive-table { border-color:#334155; background:linear-gradient(180deg,#0f172a 0%,#111827 100%); box-shadow:0 14px 28px rgba(0,0,0,.35); }
-        html[data-theme="dark"] #table_data_per_account_facebook, html[data-theme="dark"] #table_data_per_account_facebook > :not(caption) > * > *, html[data-theme="dark"] .dataTables_wrapper { color:#e5e7eb !important; }
+        html[data-theme="dark"] #fbPerAccountTableWrap.dt-responsive-table {
+            border-color: #334155 !important;
+            background: linear-gradient(180deg, #0f172a 0%, #111827 100%) !important;
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
+        }
+        html[data-theme="dark"] #fbPerAccountTableWrap .table,
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollFoot table,
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollHead table,
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollBody table {
+            --bs-table-bg: #111827;
+            --bs-table-color: #e5e7eb;
+            --bs-table-border-color: #334155;
+            --bs-table-striped-bg: #162033;
+            --bs-table-hover-bg: #1e3a5f;
+            --bs-table-active-bg: #1e3a5f;
+        }
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper,
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_wrapper,
+        html[data-theme="dark"] #table_data_per_account_facebook,
+        html[data-theme="dark"] #table_data_per_account_facebook > :not(caption) > * > * {
+            color: #e5e7eb !important;
+        }
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollHead,
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollFoot,
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollBody {
+            background: #111827 !important;
+        }
         html[data-theme="dark"] #table_data_per_account_facebook tbody tr:nth-child(odd) td { background:#162033 !important; }
         html[data-theme="dark"] #table_data_per_account_facebook tbody tr:nth-child(even) td { background:#111827 !important; }
         html[data-theme="dark"] #table_data_per_account_facebook tbody tr:hover td { background:#1e3a5f !important; }
-        html[data-theme="dark"] .dt-scroll-head th, html[data-theme="dark"] #table_data_per_account_facebook thead th { background:linear-gradient(135deg,#2563eb 0%,#0f766e 100%) !important; }
-        html[data-theme="dark"] #table_data_per_account_facebook tfoot th {
-            background: linear-gradient(180deg, #1e293b 0%, #172033 100%) !important;
-            color: #e5e7eb !important; border-color: #334155 !important;
+        html[data-theme="dark"] #fbPerAccountTableWrap .dt-scroll-head th,
+        html[data-theme="dark"] #fbPerAccountTableWrap #table_data_per_account_facebook thead th {
+            background: linear-gradient(135deg,#2563eb 0%,#0f766e 100%) !important;
+            color: #fff !important;
         }
-        html[data-theme="dark"] #table_data_per_account_facebook tfoot th:first-child { color: #93c5fd !important; }
-        html[data-theme="dark"] #table_data_per_account_facebook th, html[data-theme="dark"] #table_data_per_account_facebook td { border-color: #334155 !important; }
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollFoot table tfoot th,
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollFootInner table tfoot th,
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollFoot tfoot th,
+        html[data-theme="dark"] #fbPerAccountTableWrap #table_data_per_account_facebook tfoot th,
+        html[data-theme="dark"] #fbPerAccountTableWrap .table tfoot th {
+            background: linear-gradient(180deg, #1e293b 0%, #172033 100%) !important;
+            color: #e5e7eb !important;
+            border-color: #334155 !important;
+            box-shadow: none !important;
+        }
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollFoot table tfoot th:first-child,
+        html[data-theme="dark"] #fbPerAccountTableWrap #table_data_per_account_facebook tfoot th:first-child {
+            color: #93c5fd !important;
+        }
+        html[data-theme="dark"] #table_data_per_account_facebook th,
+        html[data-theme="dark"] #table_data_per_account_facebook td { border-color: #334155 !important; }
         html[data-theme="dark"] #table_data_per_account_facebook tbody td:first-child { color: #e5e7eb !important; }
         html[data-theme="dark"] #table_data_per_account_facebook tbody .form-control {
             background: #0f172a !important; color: #e5e7eb !important; border-color: #334155 !important;
         }
-        html[data-theme="dark"] .dataTables_wrapper .dataTables_info,
-        html[data-theme="dark"] .dataTables_wrapper .dataTables_length label,
-        html[data-theme="dark"] .dataTables_wrapper .dataTables_filter label { color: #cbd5e1 !important; }
-        html[data-theme="dark"] .dataTables_wrapper .dataTables_empty { color: #94a3b8 !important; }
-        html[data-theme="dark"] .dtfc-fixed-left, html[data-theme="dark"] .dtfc-fixed-left th, html[data-theme="dark"] .dtfc-fixed-left td, html[data-theme="dark"] .dt-fixedcolumns-left, html[data-theme="dark"] .dt-fixedcolumns-left th, html[data-theme="dark"] .dt-fixedcolumns-left td { background-color:#172554 !important; color:#e5e7eb !important; border-color:#334155 !important; }
-        html[data-theme="dark"] .dataTables_wrapper .dataTables_filter input, html[data-theme="dark"] .dataTables_wrapper .dataTables_length select { background:#0f172a !important; color:#e5e7eb !important; border-color:#334155 !important; }
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dataTables_info,
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dataTables_length label,
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dataTables_filter label {
+            color: #cbd5e1 !important;
+        }
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dataTables_empty,
+        html[data-theme="dark"] #table_data_per_account_facebook td.dataTables_empty {
+            background: #111827 !important;
+            color: #94a3b8 !important;
+        }
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dataTables_filter input,
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dataTables_length select {
+            background: #0f172a !important;
+            color: #e5e7eb !important;
+            border-color: #334155 !important;
+        }
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dt-buttons .btn-default,
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dt-buttons .btn-light,
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dt-buttons .btn-secondary,
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dt-buttons .dt-button {
+            background: #1e293b !important;
+            color: #e5e7eb !important;
+            border: 1px solid #334155 !important;
+            box-shadow: none !important;
+        }
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dataTables_paginate .paginate_button {
+            background: #1e293b !important;
+            color: #cbd5e1 !important;
+            border-color: #334155 !important;
+        }
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dataTables_paginate .paginate_button.current {
+            background: #2563eb !important;
+            color: #fff !important;
+            border-color: #2563eb !important;
+        }
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dataTables_paginate .paginate_button.disabled,
+        html[data-theme="dark"] #table_data_per_account_facebook_wrapper .dataTables_paginate .paginate_button.disabled:hover {
+            color: #64748b !important;
+            background: #111827 !important;
+        }
+        html[data-theme="dark"] .dtfc-fixed-left,
+        html[data-theme="dark"] .dtfc-fixed-left th,
+        html[data-theme="dark"] .dtfc-fixed-left td,
+        html[data-theme="dark"] .dt-fixedcolumns-left,
+        html[data-theme="dark"] .dt-fixedcolumns-left th,
+        html[data-theme="dark"] .dt-fixedcolumns-left td {
+            background-color: #172554 !important;
+            color: #e5e7eb !important;
+            border-color: #334155 !important;
+        }
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollBody::-webkit-scrollbar-track,
+        html[data-theme="dark"] #fbPerAccountTableWrap::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        html[data-theme="dark"] #fbPerAccountTableWrap .dataTables_scrollBody::-webkit-scrollbar-thumb,
+        html[data-theme="dark"] #fbPerAccountTableWrap::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
     </style>
 <script src="{% static 'ajax/admin/facebook_ads/per_account.js'%}?v={%now 'u'%}"></script>
 <script>
