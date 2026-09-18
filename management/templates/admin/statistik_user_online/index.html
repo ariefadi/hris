@@ -1,0 +1,481 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Users Online{% endblock %}
+{% block page_heading %}Users Online{% endblock %}
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+<li class="breadcrumb-item">Statistik</li>
+<li class="breadcrumb-item active">Users Online</li>
+{% endblock %}
+{% block more_stylesheet %}
+<style>
+.hs-shell {
+    --hs-navy: #163a66;
+    --hs-navy-2: #1f4f86;
+    --hs-blue: #2f7ae5;
+    --hs-panel: #ffffff;
+    --hs-muted: #64748b;
+    --hs-line: #dbe4ef;
+    --hs-bg: #eef3f8;
+    background: var(--hs-bg);
+    border: 1px solid var(--hs-line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+html[data-theme="dark"] .hs-shell {
+    --hs-panel: #111827;
+    --hs-muted: #94a3b8;
+    --hs-line: rgba(148, 163, 184, 0.18);
+    --hs-bg: #0b1220;
+    box-shadow: none;
+}
+.hs-topbar, .uo-livebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(90deg, var(--hs-navy), var(--hs-navy-2));
+    color: #fff;
+}
+.hs-topbar h2, .uo-livebar h2 { margin: 0; font-size: 1.05rem; font-weight: 800; }
+.hs-live, .uo-live-meta { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; }
+.hs-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 4px rgba(74,222,128,.18); }
+.hs-dot.is-paused { background: #fbbf24; box-shadow: none; }
+.hs-toolbar, .hs-toolbar-auth {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: end;
+    padding: 14px 16px; background: var(--hs-panel);
+}
+.hs-toolbar { border-bottom: 1px solid var(--hs-line); }
+.hs-toolbar label, .hs-toolbar-auth label {
+    display: block; font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--hs-muted); margin-bottom: 4px;
+}
+.hs-toolbar .form-control, .hs-toolbar-auth .form-control { min-width: 200px; height: 38px; }
+.hs-toolbar-site { flex: 1 1 320px; }
+.hs-toolbar-sid { flex: 0 1 180px; }
+.hs-toolbar .select2-container { width: 100% !important; }
+.hs-note { font-size: 12px; color: var(--hs-muted); padding: 0 16px 12px; }
+.hs-error {
+    margin: 0 16px 12px; padding: 10px 12px; border-radius: 10px;
+    background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: none;
+}
+.hs-auth-status { font-size: 12px; font-weight: 700; color: #16a34a; padding-bottom: 8px; }
+.uo-livebar { margin: 0; border-radius: 0; }
+.uo-livebar b { font-size: 18px; }
+.uo-tabs {
+    display: flex; flex-wrap: wrap; gap: 0;
+    padding: 0 16px; background: var(--hs-panel);
+    border-bottom: 2px solid var(--hs-navy);
+}
+.uo-tab {
+    border: 0; background: transparent; color: var(--hs-navy);
+    padding: 10px 14px; font-size: 13px; font-weight: 800; cursor: pointer;
+}
+html[data-theme="dark"] .uo-tab { color: #93c5fd; }
+.uo-tab.is-on { background: var(--hs-navy); color: #fff; }
+.uo-body { padding: 12px 16px 16px; }
+.uo-panel { background: var(--hs-panel); border: 1px solid var(--hs-line); border-radius: 12px; overflow: hidden; }
+.uo-panel h3 {
+    margin: 0; padding: 8px 12px; font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: #f4f7fb; color: var(--hs-navy); border-bottom: 1px solid var(--hs-line);
+}
+html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
+.uo-panel h3 input {
+    height: 28px; min-width: 140px; font-size: 12px; font-weight: 600;
+    border: 1px solid var(--hs-line); border-radius: 6px; padding: 0 8px;
+    background: var(--hs-panel); color: inherit;
+}
+.uo-summary {
+    display: grid; grid-template-columns: 1.15fr .85fr; gap: 12px;
+}
+.uo-recent { grid-column: 1 / -1; }
+@media (max-width: 991px) {
+    .uo-summary { grid-template-columns: 1fr; }
+    .uo-recent { grid-column: auto; }
+}
+.uo-list { max-height: 420px; overflow: auto; }
+.uo-list.sm { max-height: 220px; }
+.uo-row {
+    display: grid; grid-template-columns: 54px 1fr auto; gap: 8px;
+    align-items: center; padding: 7px 12px;
+    border-bottom: 1px solid var(--hs-line); font-size: 13px;
+}
+.uo-row:nth-child(even) { background: rgba(148,163,184,.08); }
+.uo-ago { color: #b45309; font-weight: 800; font-size: 15px; }
+.uo-count { color: #1d4ed8; font-weight: 800; min-width: 28px; text-align: center; }
+.uo-title { color: inherit; text-decoration: none; font-weight: 600; }
+.uo-title:hover { text-decoration: underline; }
+.uo-meta { color: var(--hs-muted); font-size: 11px; font-weight: 600; }
+.uo-flag { width: 20px; height: 14px; object-fit: cover; border-radius: 2px; margin-right: 6px; }
+.uo-empty { padding: 28px 16px; text-align: center; color: var(--hs-muted); }
+.uo-ip { font-weight: 800; }
+.uo-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; color: var(--hs-muted);
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="hs-shell">
+    <div class="hs-topbar">
+        <h2><i class="bi bi-broadcast"></i> <span id="hsDomainTitle">Users Online</span></h2>
+        <div class="hs-live">
+            <span class="hs-dot" id="hsLiveDot"></span>
+            <span id="hsClock">--:--:--</span>
+            <button type="button" class="btn btn-sm btn-light" id="hsPauseBtn">Pause</button>
+        </div>
+    </div>
+    <div class="hs-toolbar">
+        {% csrf_token %}
+        <div class="hs-toolbar-site">
+            <label for="hsSite">Website / Subdomain</label>
+            <select id="hsSite" class="form-control" multiple></select>
+        </div>
+        <div class="hs-toolbar-sid">
+            <label for="hsSidManual">Histats SID</label>
+            <input id="hsSidManual" class="form-control" inputmode="numeric" placeholder="Ketik SID dari Histats">
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" id="hsLoadBtn"><i class="bi bi-arrow-repeat"></i> Muat Live</button>
+        </div>
+    </div>
+    <div class="hs-toolbar-auth">
+        <div>
+            <label for="hsHistatsUser">Email Histats</label>
+            <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats">
+        </div>
+        <div>
+            <label for="hsHistatsPass">Password Histats</label>
+            <input id="hsHistatsPass" class="form-control" type="password" autocomplete="current-password" placeholder="password Histats">
+        </div>
+        <div class="hs-auth-status" id="hsAuthStatus"{% if not histats_logged_in %} style="display:none"{% endif %}>Terhubung ke Histats</div>
+    </div>
+    <p class="hs-note">Halaman ini meniru Users online Histats: Summary, Terbaru, Most active visitors, Popular pages, Popular referrer, dan Geolocation. Data live, tidak disimpan ke database.</p>
+    <div class="hs-error" id="hsError"></div>
+    <div class="uo-livebar">
+        <h2>Users online: <b id="uoCount">0</b></h2>
+        <div class="uo-live-meta">browsing: <b id="uoPages">0</b> halaman</div>
+    </div>
+    <div class="uo-tabs" id="uoTabs">
+        <button type="button" class="uo-tab is-on" data-tab="summary">Summary</button>
+        <button type="button" class="uo-tab" data-tab="recent">Terbaru</button>
+        <button type="button" class="uo-tab" data-tab="visitors">Most active visitors</button>
+        <button type="button" class="uo-tab" data-tab="pages">Popular pages</button>
+        <button type="button" class="uo-tab" data-tab="referrers">Popular referrer</button>
+        <button type="button" class="uo-tab" data-tab="geo">Geolocation</button>
+    </div>
+    <div class="uo-body" id="uoBody"></div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script>
+(function () {
+    var DATA_URL = "{% url 'statistik_user_online_data' %}";
+    var LOGIN_URL = "{% url 'statistik_ringkasan_login' %}";
+    var histatsLoggedIn = {% if histats_logged_in %}true{% else %}false{% endif %};
+    var paused = false;
+    var timer = null;
+    var lastSid = '';
+    var currentTab = 'summary';
+    var lastData = null;
+    var filters = { recent: '', pages: '', visitors: '', referrers: '', geo: '' };
+
+    function $(id) { return document.getElementById(id); }
+    function num(v) { return Number(v || 0); }
+    function fmt(v) { return num(v).toLocaleString('id-ID'); }
+    function esc(v) {
+        return String(v || '').replace(/[&<>"']/g, function (ch) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+        });
+    }
+    function decodeTxt(v) {
+        var s = String(v || '');
+        try {
+            s = s.replace(/\+/g, '%20');
+            for (var i = 0; i < 4; i++) {
+                var next = decodeURIComponent(s);
+                if (next === s) break;
+                s = next;
+            }
+        } catch (_e) {}
+        s = s.replace(/^(https?)::+\/+/i, '$1://');
+        return s;
+    }
+    function selectedWebsite() {
+        if (window.jQuery && jQuery.fn.select2) {
+            var val = jQuery('#hsSite').val();
+            if (Array.isArray(val)) return String(val[0] || '').trim();
+            return String(val || '').trim();
+        }
+        return String(($('hsSite').value || '')).trim();
+    }
+    function currentSid() { return String(($('hsSidManual').value || '')).trim(); }
+    function csrfToken() {
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (el && el.value) return el.value;
+        var match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+    function setError(msg) {
+        var el = $('hsError');
+        if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+        el.style.display = 'block';
+        el.textContent = msg;
+    }
+    function setAuthStatus(ok, msg) {
+        var el = $('hsAuthStatus');
+        histatsLoggedIn = !!ok;
+        if (!el) return;
+        if (ok) {
+            el.style.display = 'block';
+            el.textContent = msg || 'Terhubung ke Histats';
+            el.style.color = '#16a34a';
+        } else if (msg) {
+            el.style.display = 'block';
+            el.textContent = msg;
+            el.style.color = '#dc2626';
+        } else {
+            el.style.display = 'none';
+        }
+    }
+    function flagHtml(code, label) {
+        if (!code) return '<span class="uo-meta">' + esc(label || '-') + '</span>';
+        return '<img class="uo-flag" alt="" src="https://flagcdn.com/w40/' + encodeURIComponent(String(code).toLowerCase()) + '.png"> <span class="uo-meta">' + esc(label || code.toUpperCase()) + '</span>';
+    }
+    function deviceIcon(os) {
+        var o = String(os || '').toLowerCase();
+        if (o.indexOf('android') >= 0) return 'bi-phone';
+        if (o.indexOf('iphone') >= 0 || o.indexOf('ipad') >= 0 || o.indexOf('ipod') >= 0) return 'bi-apple';
+        if (o.indexOf('win') >= 0) return 'bi-windows';
+        return 'bi-globe2';
+    }
+    function matchFilter(row, q) {
+        if (!q) return true;
+        q = String(q).toLowerCase();
+        return ['title', 'url', 'ip', 'city', 'country', 'label', 'referrer', 'os', 'browser'].some(function (key) {
+            return String(row[key] || '').toLowerCase().indexOf(q) >= 0;
+        });
+    }
+    function panel(title, key, body, compact) {
+        return '<div class="uo-panel ' + (compact || '') + '"><h3>' + esc(title) +
+            ' <input type="search" data-filter="' + key + '" placeholder="cari..." value="' + esc(filters[key] || '') + '"></h3>' +
+            '<div class="uo-list ' + (compact ? 'sm' : '') + '">' + (body || '<div class="uo-empty">Tidak ada data</div>') + '</div></div>';
+    }
+    function recentRows(items, compact) {
+        items = (items || []).filter(function (row) { return matchFilter(row, filters.recent); });
+        if (!items.length) return '';
+        return items.map(function (row) {
+            var loc = [decodeTxt(row.city), decodeTxt(row.country)].filter(Boolean).join(', ');
+            return '<div class="uo-row"><div class="uo-ago">' + esc(row.ago || '') + '</div>' +
+                '<div><a class="uo-title" href="' + esc(decodeTxt(row.url || '#')) + '" target="_blank" rel="noopener">' + esc(decodeTxt(row.title || row.url || '-')) + '</a>' +
+                (row.referrer ? '<div class="uo-meta">ref: ' + esc(decodeTxt(row.referrer)) + '</div>' : '') + '</div>' +
+                '<div>' + flagHtml(row.country_code, loc) +
+                ' <span class="uo-chip"><i class="bi ' + deviceIcon(row.os) + '"></i></span></div></div>';
+        }).join('');
+    }
+    function countRows(items, key, labelKey) {
+        items = (items || []).filter(function (row) { return matchFilter(row, filters[key]); });
+        if (!items.length) return '';
+        return items.map(function (row) {
+            var label = decodeTxt(row[labelKey] || row.title || row.label || row.url || '-');
+            var href = row.url ? ' href="' + esc(decodeTxt(row.url)) + '" target="_blank" rel="noopener"' : '';
+            return '<div class="uo-row"><div class="uo-count">' + fmt(row.hits || row.count) + '</div>' +
+                '<div><a class="uo-title"' + href + '>' + esc(label) + '</a></div>' +
+                '<div class="uo-meta">' + (row.share != null ? row.share + '%' : '') + '</div></div>';
+        }).join('');
+    }
+    function visitorRows(items) {
+        items = (items || []).filter(function (row) { return matchFilter(row, filters.visitors); });
+        if (!items.length) return '';
+        return items.map(function (row) {
+            var loc = [decodeTxt(row.city), decodeTxt(row.country)].filter(Boolean).join(', ');
+            return '<div class="uo-row"><div class="uo-count">' + fmt(row.hits) + '</div>' +
+                '<div><div class="uo-ip">' + esc(row.ip || '-') + '</div>' +
+                '<a class="uo-title" href="' + esc(decodeTxt(row.url || '#')) + '" target="_blank" rel="noopener">' + esc(decodeTxt(row.title || row.url || '-')) + '</a></div>' +
+                '<div>' + flagHtml(row.country_code, loc) +
+                ' <span class="uo-chip"><i class="bi ' + deviceIcon(row.os) + '"></i></span></div></div>';
+        }).join('');
+    }
+    function geoRows(items) {
+        items = (items || []).filter(function (row) { return matchFilter(row, filters.geo); });
+        if (!items.length) return '';
+        return items.map(function (row) {
+            var loc = [decodeTxt(row.city), decodeTxt(row.state), decodeTxt(row.country)].filter(Boolean).join(', ');
+            return '<div class="uo-row"><div class="uo-count">' + fmt(row.count) + '</div>' +
+                '<div>' + flagHtml(row.country_code, loc) + '</div><div></div></div>';
+        }).join('');
+    }
+    function render(data) {
+        lastData = data || lastData || {};
+        $('uoCount').textContent = fmt(lastData.users_online);
+        $('uoPages').textContent = fmt(lastData.pages_browsing);
+        $('hsDomainTitle').textContent = selectedWebsite() || lastData.domain || lastData.title || 'Users Online';
+        var html = '';
+        if (currentTab === 'summary') {
+            html = '<div class="uo-summary">' +
+                panel('Terbaru', 'recent', recentRows(lastData.recent), 'uo-recent') +
+                panel('Popular pages', 'pages', countRows(lastData.pages, 'pages', 'title')) +
+                panel('Geolocation', 'geo', geoRows(lastData.geo)) +
+                panel('Popular referrer', 'referrers', countRows(lastData.referrers, 'referrers', 'label')) +
+                panel('Most active visitors', 'visitors', visitorRows(lastData.visitors)) +
+                '</div>';
+        } else if (currentTab === 'recent') {
+            html = panel('Terbaru', 'recent', recentRows(lastData.recent));
+        } else if (currentTab === 'visitors') {
+            html = panel('Most active visitors', 'visitors', visitorRows(lastData.visitors));
+        } else if (currentTab === 'pages') {
+            html = panel('Popular pages', 'pages', countRows(lastData.pages, 'pages', 'title'));
+        } else if (currentTab === 'referrers') {
+            html = panel('Popular referrer', 'referrers', countRows(lastData.referrers, 'referrers', 'label'));
+        } else {
+            html = panel('Geolocation', 'geo', geoRows(lastData.geo));
+        }
+        $('uoBody').innerHTML = html;
+        Array.prototype.forEach.call(document.querySelectorAll('[data-filter]'), function (input) {
+            input.addEventListener('input', function () {
+                filters[input.getAttribute('data-filter')] = input.value || '';
+                render(lastData);
+                var again = document.querySelector('[data-filter="' + input.getAttribute('data-filter') + '"]');
+                if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+            });
+        });
+    }
+    function syncTabs() {
+        Array.prototype.forEach.call(document.querySelectorAll('.uo-tab'), function (btn) {
+            btn.classList.toggle('is-on', btn.getAttribute('data-tab') === currentTab);
+        });
+    }
+    function loadLive() {
+        var sid = currentSid();
+        if (!sid) {
+            setError('Isi Histats SID secara manual, lalu klik Muat Live.');
+            return;
+        }
+        var site = selectedWebsite();
+        try {
+            localStorage.setItem('hs_last_sid', sid);
+            if (site) {
+                localStorage.setItem('hs_last_site', site);
+                localStorage.setItem('hs_sid:' + site.toLowerCase(), sid);
+            }
+        } catch (_e) {}
+        var user = String(($('hsHistatsUser').value || '')).trim();
+        var pass = String(($('hsHistatsPass').value || ''));
+        fetch(DATA_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken()
+            },
+            body: JSON.stringify({ sid: sid, tab: currentTab, user: user, pass: pass })
+        })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+            .then(function (res) {
+                if (!res.json || !res.json.status) {
+                    if (res.json && res.json.need_login) {
+                        lastSid = '';
+                        setAuthStatus(false, 'SID diproteksi. Isi email dan password Histats, lalu Muat Live lagi.');
+                    }
+                    setError((res.json && res.json.error) || 'Gagal memuat Users online.');
+                    return;
+                }
+                lastSid = sid;
+                setError('');
+                if (res.json.logged_in) {
+                    $('hsHistatsPass').value = '';
+                    setAuthStatus(true);
+                }
+                render(res.json.data || {});
+            })
+            .catch(function (e) {
+                setError(String(e && e.message || e || 'Gagal memuat Users online'));
+            });
+    }
+    function tickClock() {
+        var now = new Date();
+        $('hsClock').textContent = now.toLocaleTimeString('id-ID', { hour12: false }) + ' , ' +
+            now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+    function initWebsiteFilter() {
+        if (!window.jQuery || !jQuery.fn.select2) return;
+        var $site = jQuery('#hsSite');
+        function ymd(d) {
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var day = String(d.getDate()).padStart(2, '0');
+            return d.getFullYear() + '-' + m + '-' + day;
+        }
+        var end = new Date();
+        var start = new Date();
+        start.setDate(start.getDate() - 30);
+        $site.select2({
+            placeholder: 'Ketik subdomain, contoh: experience.aksarabrita.com',
+            allowClear: true, width: '100%', theme: 'bootstrap4', tags: true,
+            tokenSeparators: [','], maximumSelectionLength: 1, dropdownParent: jQuery('body'),
+            minimumInputLength: 1,
+            ajax: {
+                url: "{% url 'adx_domain_suggest' %}",
+                dataType: 'json', delay: 250,
+                data: function (params) {
+                    return { q: params.term || '', start_date: ymd(start), end_date: ymd(end), selected_account: '' };
+                },
+                processResults: function (data) { return { results: (data && data.results) ? data.results : [] }; },
+                cache: true
+            },
+            createTag: function (params) {
+                var term = String(params.term || '').trim();
+                return term ? { id: term, text: term, newTag: true } : null;
+            }
+        });
+        $site.on('select2:select', function (e) {
+            var site = String((e.params && e.params.data && e.params.data.id) || selectedWebsite()).trim();
+            try {
+                var saved = localStorage.getItem('hs_sid:' + site.toLowerCase()) || '';
+                if (saved) $('hsSidManual').value = saved;
+            } catch (_e) {}
+            if (site) $('hsDomainTitle').textContent = site;
+        });
+    }
+    $('hsPauseBtn').addEventListener('click', function () {
+        paused = !paused;
+        this.textContent = paused ? 'Play' : 'Pause';
+        $('hsLiveDot').classList.toggle('is-paused', paused);
+    });
+    $('hsLoadBtn').addEventListener('click', loadLive);
+    $('uoTabs').addEventListener('click', function (e) {
+        var btn = e.target.closest('.uo-tab');
+        if (!btn) return;
+        currentTab = btn.getAttribute('data-tab') || 'summary';
+        syncTabs();
+        if (lastSid) loadLive();
+        else render(lastData);
+    });
+    $('hsSidManual').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); loadLive(); }
+    });
+    $('hsHistatsPass').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); loadLive(); }
+    });
+    initWebsiteFilter();
+    try {
+        var savedSite = localStorage.getItem('hs_last_site') || '';
+        var savedSid = localStorage.getItem('hs_last_sid') || '';
+        if (savedSite && window.jQuery && jQuery.fn.select2) {
+            var option = new Option(savedSite, savedSite, true, true);
+            jQuery('#hsSite').append(option).trigger('change');
+            $('hsDomainTitle').textContent = savedSite;
+        }
+        if (savedSid) $('hsSidManual').value = savedSid;
+    } catch (_e) {}
+    setInterval(tickClock, 1000);
+    tickClock();
+    timer = setInterval(function () {
+        if (!paused && lastSid) loadLive();
+    }, 10000);
+    if (currentSid()) loadLive();
+})();
+</script>
+{% endblock %}

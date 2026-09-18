@@ -1,0 +1,849 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Traffic Stats{% endblock %}
+{% block page_heading %}Traffic Stats{% endblock %}
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+<li class="breadcrumb-item">Statistik</li>
+<li class="breadcrumb-item active">Traffic Stats</li>
+{% endblock %}
+{% block more_stylesheet %}
+<style>
+.hs-shell {
+    --hs-navy: #163a66;
+    --hs-navy-2: #1f4f86;
+    --hs-blue: #2f7ae5;
+    --hs-panel: #ffffff;
+    --hs-muted: #64748b;
+    --hs-line: #dbe4ef;
+    --hs-bg: #eef3f8;
+    --ts-day: #334155;
+    --ts-day-muted: #94a3b8;
+    --ts-tab: #f3f6fa;
+    --ts-tab-on: #ffffff;
+    --ts-tab-text: #334155;
+    --ts-tab-on-text: #1d4ed8;
+    --ts-thead: #f1f5f9;
+    --ts-thead-text: #334155;
+    --ts-mode: #f8fafc;
+    --ts-mode-on: #dbeafe;
+    --ts-cal-border: #b9cbe0;
+    --ts-head-grad: linear-gradient(90deg, #2f78c9, #4aa3f5);
+    --ts-cal-head: linear-gradient(180deg, #4b8fd4, #2f6db6);
+    --ts-kpi-red: #b91c1c;
+    --ts-kpi-blue: #1d4ed8;
+    --ts-weekend: #dc2626;
+    --ts-compare: #f8fafc;
+    background: var(--hs-bg);
+    border: 1px solid var(--hs-line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    color: inherit;
+}
+html[data-theme="dark"] .hs-shell {
+    --hs-panel: #151b28;
+    --hs-muted: #94a3b8;
+    --hs-line: rgba(148, 163, 184, 0.16);
+    --hs-bg: #0b1220;
+    --ts-day: #e2e8f0;
+    --ts-day-muted: #64748b;
+    --ts-tab: #1a2333;
+    --ts-tab-on: #243044;
+    --ts-tab-text: #94a3b8;
+    --ts-tab-on-text: #93c5fd;
+    --ts-thead: #1e293b;
+    --ts-thead-text: #e2e8f0;
+    --ts-mode: #1e293b;
+    --ts-mode-on: rgba(59, 130, 246, 0.22);
+    --ts-cal-border: rgba(148, 163, 184, 0.22);
+    --ts-head-grad: linear-gradient(90deg, #1e4976, #1d4e89);
+    --ts-cal-head: linear-gradient(180deg, #1e4976, #163a66);
+    --ts-kpi-red: #f87171;
+    --ts-kpi-blue: #93c5fd;
+    --ts-weekend: #f87171;
+    --ts-compare: rgba(15, 23, 42, 0.55);
+    box-shadow: none;
+    color: #e2e8f0;
+}
+.hs-topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; background: linear-gradient(90deg, var(--hs-navy), var(--hs-navy-2)); color: #fff;
+}
+.hs-topbar h2 { margin: 0; font-size: 1.05rem; font-weight: 800; }
+.hs-live { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; }
+.hs-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 4px rgba(74,222,128,.18); }
+.hs-dot.is-paused { background: #fbbf24; box-shadow: none; }
+.hs-toolbar, .hs-toolbar-auth {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: end;
+    padding: 14px 16px; background: var(--hs-panel);
+}
+.hs-toolbar { border-bottom: 1px solid var(--hs-line); }
+.hs-toolbar label, .hs-toolbar-auth label {
+    display: block; font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--hs-muted); margin-bottom: 4px;
+}
+.hs-toolbar .form-control, .hs-toolbar-auth .form-control { min-width: 200px; height: 38px; }
+.hs-toolbar-site { flex: 1 1 320px; }
+.hs-toolbar-sid { flex: 0 1 180px; }
+.hs-toolbar .select2-container { width: 100% !important; }
+.hs-note { font-size: 12px; color: var(--hs-muted); padding: 0 16px 12px; }
+.hs-auth-status { font-size: 12px; font-weight: 700; color: #16a34a; padding-bottom: 8px; }
+.hs-error {
+    margin: 0 16px 12px; padding: 10px 12px; border-radius: 10px;
+    background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: none;
+}
+.ts-head {
+    display: grid; grid-template-columns: 1.45fr .85fr; gap: 12px;
+    padding: 0 16px 12px;
+}
+@media (max-width: 1100px) { .ts-head { grid-template-columns: 1fr; } }
+.ts-kpis {
+    background: var(--hs-panel); border: 1px solid var(--hs-line); border-radius: 12px; overflow: hidden;
+}
+.ts-kpis h3 {
+    margin: 0; padding: 8px 14px; font-size: 16px; font-weight: 800; color: #fff;
+    background: var(--ts-head-grad);
+}
+.ts-kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.ts-kpi { padding: 12px 14px 14px; border-right: 1px solid var(--hs-line); border-bottom: 1px solid var(--hs-line); }
+.ts-kpi:nth-child(3n) { border-right: 0; }
+.ts-kpi .v { font-size: 26px; font-weight: 800; color: var(--ts-kpi-red); line-height: 1.1; }
+.ts-kpi .v.blue { color: var(--ts-kpi-blue); }
+.ts-kpi .k { font-size: 12px; font-weight: 700; color: var(--hs-muted); margin-top: 2px; }
+.ts-cal {
+    background: var(--hs-panel); border: 1px solid var(--ts-cal-border); border-radius: 8px; overflow: hidden;
+}
+.ts-cal-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 10px; color: #fff; font-size: 18px; font-weight: 800;
+    background: var(--ts-cal-head);
+}
+.ts-cal-head button {
+    border: 0; background: transparent; color: #fff; width: 28px; height: 28px; cursor: pointer;
+}
+.ts-cal-tabs { display: flex; border-bottom: 1px solid var(--hs-line); background: var(--ts-tab); }
+.ts-cal-tab {
+    flex: 1; border: 0; background: transparent; color: var(--ts-tab-text); font-size: 12px; font-weight: 800;
+    padding: 7px 6px; cursor: pointer;
+}
+.ts-cal-tab.is-on { background: var(--ts-tab-on); color: var(--ts-tab-on-text); box-shadow: inset 0 -2px 0 #2f7ae5; }
+.ts-cal-weekdays, .ts-cal-week {
+    display: grid; grid-template-columns: 62px repeat(7, 1fr); align-items: center;
+}
+.ts-cal-weekdays { padding: 6px 6px 0; font-size: 11px; font-weight: 800; color: var(--hs-muted); text-align: center; }
+.ts-cal-weekdays span:nth-child(n+7) { color: var(--ts-weekend); }
+.ts-cal-week { padding: 1px 6px; }
+.ts-month-lab { font-size: 10px; font-weight: 800; color: var(--hs-muted); padding-left: 4px; }
+.ts-day {
+    border: 0; background: transparent; height: 26px; font-size: 12px; font-weight: 700;
+    color: var(--ts-day); border-radius: 4px; cursor: pointer;
+}
+.ts-day:hover { background: rgba(47, 122, 229, 0.16); }
+.ts-day.weekend { color: var(--ts-weekend); }
+.ts-day.muted { color: var(--ts-day-muted); font-weight: 600; }
+.ts-day.muted.weekend { color: var(--ts-weekend); opacity: 0.72; }
+.ts-day.has-data { text-decoration: underline; text-underline-offset: 2px; }
+.ts-day.is-on { background: #2f7ae5; color: #fff !important; opacity: 1; }
+.ts-day.is-anchor { box-shadow: inset 0 0 0 2px #f59e0b; }
+.ts-cal-modes {
+    display: flex; gap: 6px; align-items: center; justify-content: space-between;
+    padding: 8px; border-top: 1px solid var(--hs-line);
+}
+.ts-mode {
+    border: 1px solid var(--hs-line); background: var(--ts-mode); color: var(--hs-muted);
+    border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.ts-mode.is-on { background: var(--ts-mode-on); color: var(--ts-tab-on-text); border-color: #93c5fd; }
+.ts-chart-types { display: inline-flex; gap: 4px; }
+.ts-chart-type {
+    width: 28px; height: 24px; border: 1px solid var(--hs-line); background: var(--ts-mode);
+    color: var(--hs-muted); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.ts-chart-type.is-on, .ts-chart-type:hover { color: var(--ts-tab-on-text); border-color: #93c5fd; }
+.ts-legend {
+    display: flex; flex-wrap: wrap; gap: 14px; padding: 0 16px 8px;
+    font-size: 12px; font-weight: 700; color: var(--hs-muted);
+}
+.hs-swatch { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.hs-chart-wrap { position: relative; height: 280px; margin: 0 16px 8px; }
+.ts-compare {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    margin: 0 16px 10px; padding: 8px 10px; border: 1px solid var(--hs-line); border-radius: 10px;
+    background: var(--ts-compare);
+}
+.ts-compare-title {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--hs-muted);
+}
+.hs-compare-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.hs-compare-btn {
+    border: 1px solid var(--hs-line); background: var(--hs-panel); color: var(--hs-muted);
+    border-radius: 8px; padding: 4px 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.hs-compare-btn.is-on { color: var(--ts-tab-on-text); background: var(--ts-mode-on); border-color: rgba(37,99,235,.35); }
+.hs-compare-btn[data-compare="no"].is-on { color: var(--ts-kpi-red); background: rgba(220,38,38,.12); border-color: rgba(248,113,113,.35); }
+.ts-table-wrap { margin: 0 16px 16px; overflow: auto; background: var(--hs-panel); border: 1px solid var(--hs-line); border-radius: 10px; }
+.ts-table { width: 100%; border-collapse: collapse; font-size: 13px; color: inherit; }
+.ts-table th {
+    text-align: left; padding: 8px 10px; background: var(--ts-thead); color: var(--ts-thead-text); font-size: 12px; font-weight: 800;
+    border-bottom: 1px solid var(--hs-line); white-space: nowrap;
+}
+.ts-table td { padding: 6px 10px; border-bottom: 1px solid var(--hs-line); color: inherit; }
+.ts-table tr:nth-child(even) td { background: rgba(148,163,184,.08); }
+html[data-theme="dark"] .ts-table tr:nth-child(even) td { background: rgba(148,163,184,.06); }
+html[data-theme="dark"] .hs-error {
+    background: rgba(127, 29, 29, 0.35); color: #fecaca; border-color: rgba(248, 113, 113, 0.35);
+}
+.ts-bar {
+    display: inline-block; height: 10px; background: #86efac; border-radius: 2px; vertical-align: middle; margin-right: 6px;
+}
+html[data-theme="dark"] .ts-bar { background: #4ade80; }
+.ts-share { color: var(--hs-muted); font-weight: 700; font-size: 12px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="hs-shell">
+    <div class="hs-topbar">
+        <h2><i class="bi bi-graph-up"></i> <span id="hsDomainTitle">Traffic stats</span></h2>
+        <div class="hs-live">
+            <span class="hs-dot" id="hsLiveDot"></span>
+            <span id="hsClock">--:--:--</span>
+            <button type="button" class="btn btn-sm btn-light" id="hsPauseBtn">Pause</button>
+        </div>
+    </div>
+    <div class="hs-toolbar">
+        {% csrf_token %}
+        <div class="hs-toolbar-site">
+            <label for="hsSite">Website / Subdomain</label>
+            <select id="hsSite" class="form-control" multiple></select>
+        </div>
+        <div class="hs-toolbar-sid">
+            <label for="hsSidManual">Histats SID</label>
+            <input id="hsSidManual" class="form-control" inputmode="numeric" placeholder="Ketik SID dari Histats">
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" id="hsLoadBtn"><i class="bi bi-arrow-repeat"></i> Muat Live</button>
+        </div>
+    </div>
+    <div class="hs-toolbar-auth">
+        <div>
+            <label for="hsHistatsUser">Email Histats</label>
+            <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats">
+        </div>
+        <div>
+            <label for="hsHistatsPass">Password Histats</label>
+            <input id="hsHistatsPass" class="form-control" type="password" autocomplete="current-password" placeholder="password Histats">
+        </div>
+        <div class="hs-auth-status" id="hsAuthStatus"{% if not histats_logged_in %} style="display:none"{% endif %}>Terhubung ke Histats</div>
+    </div>
+    <p class="hs-note">Halaman ini meniru Traffic stats Histats: kalender Perjam / Harian / Monthly, grafik 3D, COMPARE, dan tabel pengunjung. Data live, tidak disimpan ke database.</p>
+    <div class="hs-error" id="hsError"></div>
+
+    <div class="ts-head">
+        <div class="ts-kpis">
+            <h3 id="tsHeading">Daily stats</h3>
+            <div class="ts-kpi-grid">
+                <div class="ts-kpi"><div class="v" id="tsPv">0</div><div class="k">Total page views</div></div>
+                <div class="ts-kpi"><div class="v" id="tsVis">0</div><div class="k">Total visitors</div></div>
+                <div class="ts-kpi"><div class="v" id="tsFirst">0</div><div class="k">First time visitors</div></div>
+                <div class="ts-kpi"><div class="v blue" id="tsPpv">0</div><div class="k">Tampilan halaman per kunjungan</div></div>
+                <div class="ts-kpi"><div class="v" id="tsNewRatio">0%</div><div class="k">New visitors ratio</div></div>
+            </div>
+        </div>
+        <div class="ts-cal">
+            <div class="ts-cal-head">
+                <button type="button" id="tsPrevMonth" title="Bulan sebelumnya"><i class="bi bi-chevron-left"></i></button>
+                <span id="tsCalTitle">—</span>
+                <span>
+                    <button type="button" id="tsNextMonth" title="Bulan berikutnya"><i class="bi bi-chevron-right"></i></button>
+                    <input type="date" id="tsDatePick" style="position:absolute;opacity:0;width:0;height:0;pointer-events:none">
+                    <button type="button" id="tsDateBtn" title="Pilih tanggal"><i class="bi bi-calendar3"></i></button>
+                </span>
+            </div>
+            <div class="ts-cal-tabs" id="tsRangeTabs">
+                <button type="button" class="ts-cal-tab is-on" data-range="h">Perjam</button>
+                <button type="button" class="ts-cal-tab" data-range="d">Harian</button>
+                <button type="button" class="ts-cal-tab" data-range="m">Monthly</button>
+            </div>
+            <div class="ts-cal-weekdays" id="tsWeekdays"></div>
+            <div id="tsCalWeeks"></div>
+            <div class="ts-cal-modes">
+                <div>
+                    <button type="button" class="ts-mode is-on" data-mode="normal">normal</button>
+                    <button type="button" class="ts-mode" data-mode="range">range</button>
+                    <button type="button" class="ts-mode" data-mode="compare">compare</button>
+                </div>
+                <div class="ts-chart-types" id="tsChartTypes">
+                    <button type="button" class="ts-chart-type is-on" data-kind="bar" title="Bar"><i class="bi bi-bar-chart-fill"></i></button>
+                    <button type="button" class="ts-chart-type" data-kind="area" title="Area"><i class="bi bi-graph-up"></i></button>
+                    <button type="button" class="ts-chart-type" data-kind="shot" title="Screenshot"><i class="bi bi-camera"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ts-legend">
+        <span><i class="hs-swatch" style="background:#e4453a"></i>First time visitors</span>
+        <span><i class="hs-swatch" style="background:#f0b01d"></i>Pengunjung</span>
+        <span><i class="hs-swatch" style="background:#3b8fd6"></i>Page views</span>
+    </div>
+    <div class="hs-chart-wrap"><canvas id="tsChart"></canvas></div>
+    <div class="ts-compare">
+        <span class="ts-compare-title"><i class="bi bi-layers"></i> COMPARE</span>
+        <div class="hs-compare-btns" id="tsCompareBtns">
+            <button type="button" class="hs-compare-btn is-on" data-compare="no"><i class="bi bi-slash-circle"></i> no</button>
+            <button type="button" class="hs-compare-btn" data-metric="bounce"><i class="bi bi-arrow-return-left"></i> bounce</button>
+            <button type="button" class="hs-compare-btn" data-metric="ppv"><i class="bi bi-bar-chart-line"></i> Ppv</button>
+            <button type="button" class="hs-compare-btn" data-metric="nvis"><i class="bi bi-person-plus"></i> Nvis</button>
+            <button type="button" class="hs-compare-btn" data-metric="online"><i class="bi bi-broadcast"></i> Online</button>
+        </div>
+    </div>
+    <div class="ts-table-wrap">
+        <table class="ts-table">
+            <thead>
+                <tr>
+                    <th>Waktu</th>
+                    <th>Visitors Graph</th>
+                    <th>Pengunjung</th>
+                    <th>Halaman (Ppv )</th>
+                    <th>pengunjung baru(%)</th>
+                    <th>%Bounce</th>
+                </tr>
+            </thead>
+            <tbody id="tsTableBody"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function () {
+    var DATA_URL = "{% url 'statistik_traffic_stat_data' %}";
+    var LOGIN_URL = "{% url 'statistik_ringkasan_login' %}";
+    var histatsLoggedIn = {% if histats_logged_in %}true{% else %}false{% endif %};
+    var paused = false;
+    var timer = null;
+    var chart = null;
+    var lastSid = '';
+    var lastData = null;
+    var state = { range: 'h', mode: 'normal', t1: 0, t2: 0, kind: 'bar', anchor: 0 };
+    var compareState = { bounce: false, ppv: false, nvis: false, online: false };
+
+    function $(id) { return document.getElementById(id); }
+    function num(v) { return Number(v || 0); }
+    function fmt(v) { return num(v).toLocaleString('en-US'); }
+    function selectedWebsite() {
+        if (window.jQuery && jQuery.fn.select2) {
+            var val = jQuery('#hsSite').val();
+            if (Array.isArray(val)) return String(val[0] || '').trim();
+            return String(val || '').trim();
+        }
+        return String(($('hsSite').value || '')).trim();
+    }
+    function currentSid() { return String(($('hsSidManual').value || '')).trim(); }
+    function csrfToken() {
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (el && el.value) return el.value;
+        var match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+    function setError(msg) {
+        var el = $('hsError');
+        if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+        el.style.display = 'block';
+        el.textContent = msg;
+    }
+    function setAuthStatus(ok, msg) {
+        var el = $('hsAuthStatus');
+        histatsLoggedIn = !!ok;
+        if (!el) return;
+        if (ok) {
+            el.style.display = 'block';
+            el.textContent = msg || 'Terhubung ke Histats';
+            el.style.color = '#16a34a';
+        } else if (msg) {
+            el.style.display = 'block';
+            el.textContent = msg;
+            el.style.color = '#dc2626';
+        } else {
+            el.style.display = 'none';
+        }
+    }
+    function sidStorageKey(site) { return 'hs_sid:' + String(site || '').trim().toLowerCase(); }
+    function rememberSid(site, sid) {
+        try {
+            if (sid) localStorage.setItem('hs_last_sid', sid);
+            if (site && sid) localStorage.setItem(sidStorageKey(site), sid);
+            if (site) localStorage.setItem('hs_last_site', site);
+        } catch (_e) {}
+    }
+    function restoreSidForSite(site) {
+        if (!site) return;
+        try {
+            var saved = localStorage.getItem(sidStorageKey(site)) || '';
+            if (saved) $('hsSidManual').value = saved;
+        } catch (_e) {}
+    }
+    function initWebsiteFilter() {
+        if (!window.jQuery || !jQuery.fn.select2) return;
+        var $site = jQuery('#hsSite');
+        if (!$site.length) return;
+        if ($site.data('select2')) $site.select2('destroy');
+        function ymd(d) {
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+        var end = new Date();
+        var start = new Date();
+        start.setDate(start.getDate() - 30);
+        $site.select2({
+            placeholder: 'Ketik subdomain, contoh: experience.aksarabrita.com',
+            allowClear: true, width: '100%', theme: 'bootstrap4', tags: true,
+            tokenSeparators: [','], maximumSelectionLength: 1, dropdownParent: jQuery('body'),
+            minimumInputLength: 1,
+            ajax: {
+                url: "{% url 'adx_domain_suggest' %}",
+                dataType: 'json', delay: 250,
+                data: function (params) {
+                    return { q: params.term || '', start_date: ymd(start), end_date: ymd(end), selected_account: '' };
+                },
+                processResults: function (data) { return { results: (data && data.results) ? data.results : [] }; },
+                cache: true
+            },
+            createTag: function (params) {
+                var term = String(params.term || '').trim();
+                return term ? { id: term, text: term, newTag: true } : null;
+            }
+        });
+        $site.on('select2:select', function (e) {
+            var site = String((e.params && e.params.data && e.params.data.id) || selectedWebsite()).trim();
+            restoreSidForSite(site);
+            if (site) $('hsDomainTitle').textContent = site;
+        });
+    }
+    function tickClock() {
+        var now = new Date();
+        $('hsClock').textContent = now.toLocaleTimeString('id-ID', { hour12: false }) + ' , ' +
+            now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+
+    var HS_COLORS = {
+        first: { main: '#e4453a', light: '#ff7468', dark: '#9f2a22', top: '#ffb0a8' },
+        vis: { main: '#f0b01d', light: '#ffd45c', dark: '#b07c0c', top: '#ffe7a0' },
+        pv: { main: '#3b8fd6', light: '#6eb7f0', dark: '#1f5f9a', top: '#b6d9f8' },
+        firstFc: { main: '#e8c5be', light: '#f4ddd8', dark: '#c4a39c', top: '#f8ece9' },
+        visFc: { main: '#e6d4a0', light: '#f3e8c8', dark: '#c4b075', top: '#f8f1dc' },
+        pvFc: { main: '#c5d5e8', light: '#dde8f3', dark: '#93abc4', top: '#eef4fa' }
+    };
+    function mixHex(hex, add, amt) {
+        var n = parseInt(String(hex || '').replace('#', ''), 16);
+        var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+        var ar = parseInt(String(add).replace('#', ''), 16);
+        var t = amt;
+        return 'rgb(' + Math.round(r + (((ar >> 16) & 255) - r) * t) + ',' +
+            Math.round(g + (((ar >> 8) & 255) - g) * t) + ',' +
+            Math.round(b + ((ar & 255) - b) * t) + ')';
+    }
+    function drawPrism(ctx, left, top, width, height, depth, palette, glass) {
+        if (height < 0.2 || width < 0.5) return;
+        var right = left + width, bottom = top + height, dx = depth, dy = depth * 0.62;
+        ctx.save();
+        if (glass) ctx.globalAlpha = 0.48;
+        ctx.beginPath();
+        ctx.moveTo(right, top); ctx.lineTo(right + dx, top - dy); ctx.lineTo(right + dx, bottom - dy); ctx.lineTo(right, bottom);
+        ctx.closePath(); ctx.fillStyle = palette.dark; ctx.fill();
+        var grad = ctx.createLinearGradient(left, top, right, bottom);
+        grad.addColorStop(0, palette.light); grad.addColorStop(0.42, palette.main); grad.addColorStop(1, mixHex(palette.main, '#000000', 0.18));
+        ctx.beginPath(); ctx.rect(left, top, width, height); ctx.fillStyle = grad; ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(left, top); ctx.lineTo(left + dx, top - dy); ctx.lineTo(right + dx, top - dy); ctx.lineTo(right, top);
+        ctx.closePath(); ctx.fillStyle = palette.top; ctx.fill();
+        ctx.restore();
+    }
+    var hs3dPlugin = {
+        id: 'hs3dColumns',
+        beforeDatasetDraw: function (c, args) {
+            var ds = c.data.datasets[args.index] || {};
+            if (ds.type === 'line' || ds.hs3d === false) return;
+            return false;
+        },
+        afterDatasetsDraw: function (c) {
+            var datasets = c.data.datasets || [];
+            var depth = 0;
+            var layerRank = { compare: 0, main: 1, forecast: 2 };
+            (c.data.labels || []).forEach(function (_, idx) {
+                var segs = [];
+                datasets.forEach(function (ds, dsIdx) {
+                    if (ds.type === 'line' || ds.hs3d === false) return;
+                    var meta = c.getDatasetMeta(dsIdx);
+                    if (!meta || meta.hidden || !meta.data || !meta.data[idx]) return;
+                    var el = meta.data[idx];
+                    var top = Math.min(el.y, el.base), bottom = Math.max(el.y, el.base), height = bottom - top;
+                    var raw = Number((ds.data || [])[idx] || 0);
+                    if (height < 2.2 && ds.hsFloor && (raw > 0 || height > 0)) { height = Math.max(height, 2.2); top = bottom - height; }
+                    if (height < 0.25) return;
+                    if (!depth) depth = Math.max(3, Math.min(ds.hsFloor ? 7 : 11, el.width * 0.3));
+                    segs.push({ left: el.x - el.width / 2, top: top, width: el.width, height: height, palette: ds.hsColor || HS_COLORS.pv, glass: !!ds.hsGlass, layer: ds.hsLayer || 'main' });
+                });
+                segs.sort(function (a, b) {
+                    var ra = layerRank[a.layer] != null ? layerRank[a.layer] : 1;
+                    var rb = layerRank[b.layer] != null ? layerRank[b.layer] : 1;
+                    if (ra !== rb) return ra - rb;
+                    return (b.top + b.height) - (a.top + a.height);
+                });
+                segs.forEach(function (seg) { drawPrism(c.ctx, seg.left, seg.top, seg.width, seg.height, depth, seg.palette, seg.glass); });
+            });
+            datasets.forEach(function (ds, dsIdx) {
+                if (ds.type !== 'line' && ds.yAxisID !== 'y1') return;
+                var meta = c.getDatasetMeta(dsIdx);
+                if (meta && meta.controller && meta.controller.draw) meta.controller.draw();
+            });
+        }
+    };
+    if (window.Chart && Chart.register) { try { Chart.register(hs3dPlugin); } catch (_e) {} }
+
+    function stackedConfig(labels, pv, vis, first, extras) {
+        extras = extras || {};
+        var cmp = extras.compare || {};
+        var axis = extras.axis || {};
+        var isArea = extras.kind === 'area';
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        var grid = dark ? 'rgba(148, 163, 184, 0.16)' : 'rgba(148, 163, 184, 0.28)';
+        var tick = dark ? '#94a3b8' : '#64748b';
+        var datasets = [
+            { label: 'First time visitors', data: first, backgroundColor: HS_COLORS.first.main, hsColor: HS_COLORS.first, hsLayer: 'main', hsFloor: !!extras.floor, stack: 't', borderWidth: 0 },
+            { label: 'Pengunjung', data: vis, backgroundColor: HS_COLORS.vis.main, hsColor: HS_COLORS.vis, hsLayer: 'main', hsFloor: !!extras.floor, stack: 't', borderWidth: 0 },
+            { label: 'Page views', data: pv, backgroundColor: HS_COLORS.pv.main, hsColor: HS_COLORS.pv, hsLayer: 'main', hsFloor: !!extras.floor, stack: 't', borderWidth: 0 }
+        ];
+        if (cmp.pageviews || cmp.visitors || cmp.first_time) {
+            datasets.push(
+                { label: 'Compare first time', data: cmp.first_time || [], backgroundColor: HS_COLORS.firstFc.main, hsColor: HS_COLORS.firstFc, hsLayer: 'compare', hsGlass: true, stack: 'c', borderWidth: 0 },
+                { label: 'Compare pengunjung', data: cmp.visitors || [], backgroundColor: HS_COLORS.visFc.main, hsColor: HS_COLORS.visFc, hsLayer: 'compare', hsGlass: true, stack: 'c', borderWidth: 0 },
+                { label: 'Compare page views', data: cmp.pageviews || [], backgroundColor: HS_COLORS.pvFc.main, hsColor: HS_COLORS.pvFc, hsLayer: 'compare', hsGlass: true, stack: 'c', borderWidth: 0 }
+            );
+        }
+        var metricDefs = [
+            { key: 'bounce', label: 'bounce', color: '#22c55e' },
+            { key: 'ppv', label: 'Ppv', color: '#38bdf8' },
+            { key: 'nvis', label: 'Nvis', color: '#f97316' },
+            { key: 'online', label: 'Online', color: '#22c55e' }
+        ];
+        var hasMetric = false;
+        metricDefs.forEach(function (m) {
+            if (!extras[m.key]) return;
+            hasMetric = true;
+            datasets.push({
+                type: 'line', label: m.label, data: extras[m.key] || [], borderColor: m.color, backgroundColor: m.color,
+                yAxisID: 'y1', pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: m.color,
+                pointBorderWidth: 2, borderWidth: 2.4, tension: 0.35, fill: false, spanGaps: true, hs3d: false, order: -2
+            });
+        });
+        if (isArea) {
+            datasets = datasets.map(function (ds) {
+                if (ds.type === 'line' && ds.yAxisID === 'y1') return ds;
+                return Object.assign({}, ds, {
+                    type: 'line', fill: true, tension: 0.15, borderWidth: 1.2, pointRadius: 0, hs3d: false,
+                    borderColor: (ds.hsColor && ds.hsColor.main) || ds.backgroundColor,
+                    backgroundColor: ds.hsColor ? ds.hsColor.main : ds.backgroundColor
+                });
+            });
+        }
+        var sundays = axis.sundays || [];
+        var dayTicks = axis.ticks || [];
+        var hourly = !!extras.hourly;
+        var scales = {
+            x: {
+                stacked: true, grid: { display: false, drawBorder: false },
+                ticks: {
+                    maxRotation: hourly ? 0 : 0,
+                    minRotation: 0,
+                    autoSkip: !hourly,
+                    maxTicksLimit: hourly ? 24 : 12,
+                    color: function (ctx) {
+                        return sundays[ctx.index] ? '#dc2626' : tick;
+                    },
+                    font: { size: hourly ? 10 : 11, weight: '600' },
+                    callback: function (value, index) {
+                        if (dayTicks.length) return dayTicks[index] || '';
+                        return this.getLabelForValue ? this.getLabelForValue(value) : labels[index];
+                    }
+                }
+            },
+            y: { stacked: true, beginAtZero: true, grace: '4%', grid: { color: grid, drawBorder: false }, ticks: { precision: 0, color: tick } }
+        };
+        if (hasMetric) {
+            scales.y1 = { position: 'right', beginAtZero: true, grace: '8%', grid: { drawOnChartArea: false }, ticks: { precision: 0, color: tick } };
+        }
+        return {
+            type: isArea ? 'line' : 'bar',
+            data: { labels: labels, datasets: datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                animation: { duration: 350, easing: 'easeOutQuart' },
+                interaction: { mode: 'index', intersect: false },
+                layout: { padding: { top: 14, right: hasMetric ? 8 : 16, bottom: 4 } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index', intersect: false, backgroundColor: 'rgba(15,23,42,.94)',
+                        callbacks: {
+                            title: function (items) {
+                                if (!items || !items.length) return '';
+                                var idx = items[0].dataIndex;
+                                return (extras.fullLabels && extras.fullLabels[idx]) || items[0].label || '';
+                            },
+                            label: function (ctx) {
+                                var value = Number(ctx.raw || 0);
+                                if (!value && ctx.dataset.yAxisID !== 'y1') return null;
+                                return ' ' + (ctx.dataset.label || '') + '  ' + value.toLocaleString('en-US');
+                            }
+                        }
+                    }
+                },
+                datasets: { bar: { categoryPercentage: 0.72, barPercentage: 0.9, maxBarThickness: 36, grouped: false } },
+                scales: scales
+            }
+        };
+    }
+
+    function renderCalendar(cal) {
+        cal = cal || {};
+        $('tsCalTitle').textContent = cal.title || '—';
+        var wd = $('tsWeekdays');
+        wd.innerHTML = '<span></span>' + (cal.weekdays || ['M','T','W','T','F','S','S']).map(function (d) {
+            return '<span>' + d + '</span>';
+        }).join('');
+        var html = '';
+        (cal.weeks || []).forEach(function (week) {
+            html += '<div class="ts-cal-week"><span class="ts-month-lab">' + (week.month_label || '') + '</span>';
+            (week.days || []).forEach(function (day) {
+                var cls = 'ts-day';
+                if (day.weekend) cls += ' weekend';
+                if (day.muted) cls += ' muted';
+                if (day.selected) cls += ' is-on';
+                if (day.has_data) cls += ' has-data';
+                if (state.anchor && Number(day.ts) === Number(state.anchor)) cls += ' is-anchor';
+                html += '<button type="button" class="' + cls + '" data-ts="' + day.ts + '">' + day.d + '</button>';
+            });
+            html += '</div>';
+        });
+        $('tsCalWeeks').innerHTML = html;
+        Array.prototype.forEach.call(document.querySelectorAll('.ts-cal-tab'), function (btn) {
+            btn.classList.toggle('is-on', btn.getAttribute('data-range') === state.range);
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('.ts-mode'), function (btn) {
+            btn.classList.toggle('is-on', btn.getAttribute('data-mode') === state.mode);
+        });
+    }
+
+    function renderTable(rows) {
+        var body = $('tsTableBody');
+        if (!rows || !rows.length) {
+            body.innerHTML = '<tr><td colspan="6" class="text-center" style="padding:18px;color:#64748b">Tidak ada data</td></tr>';
+            return;
+        }
+        body.innerHTML = rows.map(function (row) {
+            var bar = Math.max(0, Math.min(100, Number(row.bar || 0)));
+            return '<tr>' +
+                '<td>' + row.label + '</td>' +
+                '<td><span class="ts-bar" style="width:' + (bar * 1.6) + 'px"></span><span class="ts-share">(' + Number(row.share || 0).toFixed(1).replace(/\.0$/, '') + ') %</span></td>' +
+                '<td>' + fmt(row.visitors) + '</td>' +
+                '<td>' + fmt(row.pageviews) + ' (' + Number(row.ppv || 0).toFixed(2) + ')</td>' +
+                '<td>' + fmt(row.new_visitors) + ' (' + Math.round(Number(row.new_ratio || 0)) + ' %)</td>' +
+                '<td>' + Number(row.bounce || 0).toFixed(1).replace(/\.0$/, '') + ' %</td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    function renderChart(data) {
+        var series = (data && data.series) || {};
+        var labels = series.ticks && series.ticks.length ? series.ticks : (series.labels || []);
+        var extras = {
+            kind: state.kind,
+            hourly: state.range === 'h',
+            floor: state.range !== 'h',
+            fullLabels: series.labels || [],
+            axis: { ticks: series.ticks || labels, sundays: series.sundays || [] }
+        };
+        if (data && data.compare) extras.compare = data.compare;
+        ['bounce', 'ppv', 'nvis', 'online'].forEach(function (key) {
+            if (compareState[key]) extras[key] = series[key] || [];
+        });
+        if (chart) chart.destroy();
+        chart = new Chart($('tsChart').getContext('2d'), stackedConfig(
+            labels, series.pageviews || [], series.visitors || [], series.first_time || [], extras
+        ));
+        var any = compareState.bounce || compareState.ppv || compareState.nvis || compareState.online;
+        Array.prototype.forEach.call(document.querySelectorAll('#tsCompareBtns .hs-compare-btn'), function (btn) {
+            var on = false;
+            if (btn.getAttribute('data-compare') === 'no') on = !any;
+            else on = !!compareState[btn.getAttribute('data-metric')];
+            btn.classList.toggle('is-on', on);
+        });
+    }
+
+    function paint(payload) {
+        lastData = payload || lastData || {};
+        var d = lastData;
+        var kpis = d.kpis || {};
+        $('hsDomainTitle').textContent = selectedWebsite() || d.domain || d.title || 'Traffic stats';
+        $('tsHeading').textContent = d.heading || 'Daily stats';
+        $('tsPv').textContent = fmt(kpis.pageviews);
+        $('tsVis').textContent = fmt(kpis.visitors);
+        $('tsFirst').textContent = fmt(kpis.first_time);
+        $('tsPpv').textContent = Number(kpis.pages_per_visit || 0).toFixed(2);
+        $('tsNewRatio').textContent = Number(kpis.new_ratio || 0).toFixed(1) + '%';
+        if (d.t1) state.t1 = d.t1;
+        if (d.range) state.range = d.range;
+        renderCalendar(d.calendar || {});
+        renderChart(d);
+        renderTable((d.series && d.series.table) || []);
+    }
+
+    function loadLive() {
+        var sid = currentSid();
+        if (!sid) {
+            setError('Isi Histats SID secara manual, lalu klik Muat Live.');
+            return;
+        }
+        rememberSid(selectedWebsite(), sid);
+        var user = String(($('hsHistatsUser').value || '')).trim();
+        var pass = String(($('hsHistatsPass').value || ''));
+        fetch(DATA_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken()
+            },
+            body: JSON.stringify({
+                sid: sid, user: user, pass: pass,
+                range: state.range, mode: state.mode, t1: state.t1 || 0, t2: state.t2 || 0
+            })
+        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+            .then(function (res) {
+                if (!res.json || !res.json.status) {
+                    if (res.json && res.json.need_login) {
+                        lastSid = '';
+                        setAuthStatus(false, 'SID diproteksi. Isi email dan password Histats, lalu Muat Live lagi.');
+                    }
+                    setError((res.json && res.json.error) || 'Gagal memuat Traffic stats.');
+                    return;
+                }
+                lastSid = sid;
+                setError('');
+                if (res.json.logged_in) {
+                    $('hsHistatsPass').value = '';
+                    setAuthStatus(true);
+                }
+                paint(res.json.data || {});
+            })
+            .catch(function (e) { setError(String(e && e.message || e || 'Gagal memuat Histats')); });
+    }
+
+    $('tsCalWeeks').addEventListener('click', function (e) {
+        var btn = e.target.closest('.ts-day');
+        if (!btn) return;
+        var ts = Number(btn.getAttribute('data-ts') || 0);
+        if (!ts) return;
+        if (state.mode === 'normal') {
+            state.t1 = ts; state.t2 = 0; state.anchor = 0; loadLive();
+            return;
+        }
+        if (!state.anchor) {
+            state.anchor = ts; state.t1 = ts; state.t2 = 0;
+            renderCalendar((lastData && lastData.calendar) || {});
+            return;
+        }
+        state.t1 = state.anchor; state.t2 = ts; state.anchor = 0; loadLive();
+    });
+    $('tsRangeTabs').addEventListener('click', function (e) {
+        var btn = e.target.closest('.ts-cal-tab');
+        if (!btn) return;
+        state.range = btn.getAttribute('data-range') || 'h';
+        state.t2 = 0; state.anchor = 0;
+        loadLive();
+    });
+    document.querySelector('.ts-cal-modes').addEventListener('click', function (e) {
+        var btn = e.target.closest('.ts-mode');
+        if (!btn) return;
+        state.mode = btn.getAttribute('data-mode') || 'normal';
+        state.t2 = 0; state.anchor = 0;
+        Array.prototype.forEach.call(document.querySelectorAll('.ts-mode'), function (el) {
+            el.classList.toggle('is-on', el === btn);
+        });
+    });
+    function shiftMonth(delta) {
+        var base = state.t1 || (lastData && lastData.t1) || Math.floor(Date.now() / 1000);
+        var d = new Date(base * 1000);
+        d.setUTCDate(1);
+        d.setUTCMonth(d.getUTCMonth() + delta);
+        d.setUTCHours(0, 0, 1, 0);
+        state.t1 = Math.floor(d.getTime() / 1000);
+        state.t2 = 0; state.anchor = 0;
+        loadLive();
+    }
+    $('tsPrevMonth').addEventListener('click', function () { shiftMonth(-1); });
+    $('tsNextMonth').addEventListener('click', function () { shiftMonth(1); });
+    $('tsDateBtn').addEventListener('click', function () { $('tsDatePick').showPicker ? $('tsDatePick').showPicker() : $('tsDatePick').click(); });
+    $('tsDatePick').addEventListener('change', function () {
+        if (!this.value) return;
+        var parts = this.value.split('-');
+        var ts = Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 1) / 1000;
+        state.t1 = ts; state.t2 = 0; state.anchor = 0; loadLive();
+    });
+    $('tsChartTypes').addEventListener('click', function (e) {
+        var btn = e.target.closest('.ts-chart-type');
+        if (!btn) return;
+        var kind = btn.getAttribute('data-kind');
+        if (kind === 'shot') {
+            if (!chart) return;
+            var link = document.createElement('a');
+            link.href = chart.toBase64Image('image/png', 1);
+            link.download = 'histats-traffic-stats.png';
+            link.click();
+            return;
+        }
+        state.kind = kind || 'bar';
+        Array.prototype.forEach.call(this.querySelectorAll('.ts-chart-type'), function (el) {
+            el.classList.toggle('is-on', el.getAttribute('data-kind') === state.kind);
+        });
+        renderChart(lastData);
+    });
+    $('tsCompareBtns').addEventListener('click', function (e) {
+        var btn = e.target.closest('.hs-compare-btn');
+        if (!btn) return;
+        if (btn.getAttribute('data-compare') === 'no') {
+            compareState.bounce = compareState.ppv = compareState.nvis = compareState.online = false;
+        } else {
+            var metric = btn.getAttribute('data-metric');
+            compareState[metric] = !compareState[metric];
+        }
+        renderChart(lastData);
+    });
+    $('hsPauseBtn').addEventListener('click', function () {
+        paused = !paused;
+        this.textContent = paused ? 'Play' : 'Pause';
+        $('hsLiveDot').classList.toggle('is-paused', paused);
+    });
+    $('hsLoadBtn').addEventListener('click', function () { loadLive(); });
+    $('hsSidManual').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); loadLive(); } });
+    $('hsHistatsPass').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); loadLive(); } });
+    initWebsiteFilter();
+    try {
+        var savedSite = localStorage.getItem('hs_last_site') || '';
+        var savedSid = localStorage.getItem('hs_last_sid') || '';
+        if (savedSite && window.jQuery && jQuery.fn.select2) {
+            jQuery('#hsSite').append(new Option(savedSite, savedSite, true, true)).trigger('change');
+            $('hsDomainTitle').textContent = savedSite;
+        }
+        if (savedSid) $('hsSidManual').value = savedSid;
+    } catch (_e) {}
+    setInterval(tickClock, 1000);
+    tickClock();
+    timer = setInterval(function () { if (!paused && lastSid) loadLive(); }, 20000);
+    if (currentSid()) loadLive();
+})();
+</script>
+{% endblock %}

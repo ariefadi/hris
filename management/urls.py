@@ -4,6 +4,7 @@ from django.views.generic.base import RedirectView
 from . import views
 from . import views_adsense
 from . import views_chat
+from . import views_histats
 from .oauth_views_package.oauth_views import (
     oauth_management_dashboard,
     oauth_status_api,
@@ -277,6 +278,19 @@ urlpatterns = [
     path('admin/fetch_report', views.fetch_report, name='fetch_report'),
     # Utility: Import OAuth client dari environment ke app_credentials
     path('admin/app_credentials/import_env', views.ImportEnvAppCredentialsView.as_view(), name='app_credentials_import_env'),
+
+    path('admin/statistik_ringkasan', views_histats.StatistikRingkasanView.as_view(), name='statistik_ringkasan'),
+    path('admin/statistik_ringkasan_data', views_histats.StatistikRingkasanDataView.as_view(), name='statistik_ringkasan_data'),
+    path('admin/statistik_ringkasan_login', views_histats.StatistikRingkasanLoginView.as_view(), name='statistik_ringkasan_login'),
+    path('admin/statistik_ringkasan_sites', views_histats.StatistikRingkasanSitesView.as_view(), name='statistik_ringkasan_sites'),
+    path('admin/statistik_user_online', views_histats.StatistikUserOnlineView.as_view(), name='statistik_user_online'),
+    path('admin/statistik_user_online_data', views_histats.StatistikUserOnlineDataView.as_view(), name='statistik_user_online_data'),
+    path('admin/statistik_traffic_stat', views_histats.StatistikTrafficStatView.as_view(), name='statistik_traffic_stat'),
+    path('admin/statistik_traffic_stat_data', views_histats.StatistikTrafficStatDataView.as_view(), name='statistik_traffic_stat_data'),
+    path('admin/visitor_browser', views_histats.VisitorBrowserView.as_view(), name='visitor_browser'),
+    path('admin/visitor_browser_data', views_histats.VisitorBrowserDataView.as_view(), name='visitor_browser_data'),
+    path('admin/vistor_location', views_histats.VisitorLocationView.as_view(), name='vistor_location'),
+    path('admin/vistor_location_data', views_histats.VisitorLocationDataView.as_view(), name='vistor_location_data'),
 
     # SETTINGS
     path('settings/overview', views.SettingsOverview.as_view(), name='settings_overview'),

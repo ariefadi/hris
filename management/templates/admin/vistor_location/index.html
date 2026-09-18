@@ -1,0 +1,489 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Geolocation{% endblock %}
+{% block page_heading %}Geolocation{% endblock %}
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+<li class="breadcrumb-item">Statistik</li>
+<li class="breadcrumb-item active">Geolocation</li>
+{% endblock %}
+{% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+.hs-shell {
+    --hs-navy: #163a66; --hs-navy-2: #1f4f86; --hs-panel: #ffffff; --hs-muted: #64748b;
+    --hs-line: #dbe4ef; --hs-bg: #eef3f8; --ts-day: #334155; --ts-day-muted: #94a3b8;
+    --ts-tab: #f3f6fa; --ts-tab-on: #fff; --ts-tab-text: #334155; --ts-tab-on-text: #1d4ed8;
+    --ts-thead: #f1f5f9; --ts-thead-text: #334155; --ts-mode: #f8fafc; --ts-mode-on: #dbeafe;
+    --ts-cal-border: #b9cbe0; --ts-cal-head: linear-gradient(180deg, #4b8fd4, #2f6db6);
+    --ts-weekend: #dc2626; --ts-head-grad: linear-gradient(90deg, #2f78c9, #4aa3f5);
+    background: var(--hs-bg); border: 1px solid var(--hs-line); border-radius: 14px; overflow: hidden;
+}
+html[data-theme="dark"] .hs-shell {
+    --hs-panel: #151b28; --hs-muted: #94a3b8; --hs-line: rgba(148,163,184,.16); --hs-bg: #0b1220;
+    --ts-day: #e2e8f0; --ts-day-muted: #64748b; --ts-tab: #1a2333; --ts-tab-on: #243044;
+    --ts-tab-text: #94a3b8; --ts-tab-on-text: #93c5fd; --ts-thead: #1e293b; --ts-thead-text: #e2e8f0;
+    --ts-mode: #1e293b; --ts-mode-on: rgba(59,130,246,.22); --ts-cal-border: rgba(148,163,184,.22);
+    --ts-cal-head: linear-gradient(180deg, #1e4976, #163a66); --ts-weekend: #f87171;
+    --ts-head-grad: linear-gradient(90deg, #1e4976, #1d4e89); color: #e2e8f0;
+}
+.hs-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; background:linear-gradient(90deg, var(--hs-navy), var(--hs-navy-2)); color:#fff; }
+.hs-topbar h2 { margin:0; font-size:1.05rem; font-weight:800; }
+.hs-live { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700; }
+.hs-dot { width:8px; height:8px; border-radius:50%; background:#4ade80; box-shadow:0 0 0 4px rgba(74,222,128,.18); }
+.hs-dot.is-paused { background:#fbbf24; box-shadow:none; }
+.hs-toolbar, .hs-toolbar-auth { display:flex; flex-wrap:wrap; gap:10px; align-items:end; padding:14px 16px; background:var(--hs-panel); }
+.hs-toolbar { border-bottom:1px solid var(--hs-line); }
+.hs-toolbar label, .hs-toolbar-auth label { display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--hs-muted); margin-bottom:4px; }
+.hs-toolbar .form-control, .hs-toolbar-auth .form-control { min-width:200px; height:38px; }
+.hs-toolbar-site { flex:1 1 320px; } .hs-toolbar-sid { flex:0 1 180px; }
+.hs-toolbar .select2-container { width:100% !important; }
+.hs-note { font-size:12px; color:var(--hs-muted); padding:0 16px 12px; }
+.hs-auth-status { font-size:12px; font-weight:700; color:#16a34a; padding-bottom:8px; }
+.hs-error { margin:0 16px 12px; padding:10px 12px; border-radius:10px; background:#fef2f2; color:#991b1b; border:1px solid #fecaca; display:none; }
+html[data-theme="dark"] .hs-error { background:rgba(127,29,29,.35); color:#fecaca; border-color:rgba(248,113,113,.35); }
+.vb-head { display:grid; grid-template-columns:1.45fr .85fr; gap:12px; padding:0 16px 12px; }
+@media (max-width:1100px) { .vb-head { grid-template-columns:1fr; } }
+.vb-chart-card, .ts-cal { background:var(--hs-panel); border:1px solid var(--hs-line); border-radius:12px; overflow:hidden; }
+.vb-title { margin:0; padding:8px 14px; font-size:16px; font-weight:800; color:#fff; background:var(--ts-head-grad); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.vb-title-date { font-size:18px; font-weight:800; white-space:nowrap; }
+.vb-pie-wrap { display:grid; grid-template-columns:1.1fr .9fr; min-height:260px; padding:10px; gap:8px; align-items:center; }
+@media (max-width:767px) { .vb-pie-wrap { grid-template-columns:1fr; } }
+.vb-pie-wrap canvas { max-height:240px; }
+.vb-legend { font-size:13px; font-weight:700; max-height:240px; overflow:auto; }
+.vb-legend-row { display:flex; align-items:center; gap:8px; padding:3px 0; }
+.vb-swatch { width:14px; height:12px; border-radius:2px; display:inline-block; }
+.geo-map { display:none; height:280px; background:#1b3b66; }
+.geo-map.is-on { display:block; }
+.vb-pie-wrap.is-off { display:none; }
+.ts-cal { border-color:var(--ts-cal-border); }
+.ts-cal-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; color:#fff; font-size:18px; font-weight:800; background:var(--ts-cal-head); }
+.ts-cal-head button { border:0; background:transparent; color:#fff; width:28px; height:28px; cursor:pointer; }
+.ts-cal-tabs { display:flex; border-bottom:1px solid var(--hs-line); background:var(--ts-tab); }
+.ts-cal-tab { flex:1; border:0; background:transparent; color:var(--ts-tab-text); font-size:12px; font-weight:800; padding:7px 6px; cursor:pointer; }
+.ts-cal-tab.is-on { background:var(--ts-tab-on); color:var(--ts-tab-on-text); box-shadow:inset 0 -2px 0 #2f7ae5; }
+.ts-cal-weekdays, .ts-cal-week { display:grid; grid-template-columns:62px repeat(7, 1fr); align-items:center; }
+.ts-cal-weekdays { padding:6px 6px 0; font-size:11px; font-weight:800; color:var(--hs-muted); text-align:center; }
+.ts-cal-weekdays span:nth-child(n+7) { color:var(--ts-weekend); }
+.ts-month-lab { font-size:10px; font-weight:800; color:var(--hs-muted); padding-left:4px; }
+.ts-day { border:0; background:transparent; height:26px; font-size:12px; font-weight:700; color:var(--ts-day); border-radius:4px; cursor:pointer; }
+.ts-day.weekend { color:var(--ts-weekend); } .ts-day.muted { color:var(--ts-day-muted); }
+.ts-day.is-on { background:#2f7ae5; color:#fff !important; } .ts-day.has-data { text-decoration:underline; text-underline-offset:2px; }
+.ts-cal-modes { display:flex; gap:6px; align-items:center; justify-content:space-between; padding:8px; border-top:1px solid var(--hs-line); }
+.ts-mode { border:1px solid var(--hs-line); background:var(--ts-mode); color:var(--hs-muted); border-radius:4px; padding:3px 8px; font-size:11px; font-weight:800; cursor:pointer; }
+.ts-mode.is-on { background:var(--ts-mode-on); color:var(--ts-tab-on-text); border-color:#93c5fd; }
+.vb-toolbar { display:flex; justify-content:flex-end; padding:0 16px 8px; }
+.vb-newlost { border:0; background:#16a34a; color:#fff; font-size:12px; font-weight:800; border-radius:4px; padding:5px 10px; cursor:pointer; }
+.vb-newlost.is-off { background:var(--ts-mode); color:var(--hs-muted); }
+.vb-tabs { display:flex; gap:0; margin:0 16px; border-bottom:2px solid #20447b; }
+.vb-tab { border:0; background:var(--ts-tab); color:var(--ts-tab-text); font-size:13px; font-weight:800; padding:8px 16px; cursor:pointer; }
+.vb-tab.is-on { background:var(--hs-panel); color:var(--ts-tab-on-text); box-shadow:inset 0 -2px 0 #2f7ae5; }
+.vb-table-wrap { margin:0 16px 16px; overflow:auto; background:var(--hs-panel); border:1px solid var(--hs-line); border-radius:0 0 10px 10px; }
+.vb-table { width:100%; border-collapse:collapse; font-size:13px; color:inherit; }
+.vb-table th { text-align:left; padding:8px 10px; background:var(--ts-thead); color:var(--ts-thead-text); font-size:12px; font-weight:800; border-bottom:1px solid var(--hs-line); white-space:nowrap; cursor:pointer; }
+.vb-table td { padding:8px 10px; border-bottom:1px solid var(--hs-line); vertical-align:middle; }
+.vb-table tr:nth-child(even) td { background:rgba(148,163,184,.08); }
+.vb-rank { font-weight:800; display:inline-flex; align-items:center; gap:4px; }
+.vb-rank.up { color:#16a34a; } .vb-rank.dw { color:#dc2626; } .vb-rank.is-new { color:#f59e0b; }
+.vb-bar { display:inline-block; height:10px; background:#86efac; border-radius:2px; vertical-align:middle; margin-right:6px; }
+html[data-theme="dark"] .vb-bar { background:#4ade80; }
+.vb-share { color:var(--hs-muted); font-size:12px; font-weight:700; }
+.vb-name { font-weight:700; }
+.vb-flag { width:18px; height:13px; object-fit:cover; margin-right:6px; border-radius:1px; vertical-align:middle; box-shadow:0 0 0 1px rgba(15,23,42,.12); }
+.vb-vis { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+.vb-vis-row { display:flex; align-items:center; gap:6px; }
+.geo-pin { position:relative; width:10px; transform:translate(-50%, -100%); }
+.geo-pin-bar { width:8px; border-radius:2px 2px 1px 1px; background:linear-gradient(180deg, #fde047, #eab308 55%, #ca8a04); box-shadow:2px 0 0 rgba(0,0,0,.18), 0 2px 4px rgba(0,0,0,.25); }
+.geo-pin-base { width:10px; height:4px; margin-top:-1px; background:#a16207; border-radius:50%; opacity:.7; }
+.leaflet-container { background:#163a66; font-family:inherit; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="hs-shell">
+    <div class="hs-topbar">
+        <h2><i class="bi bi-geo-alt"></i> <span id="hsDomainTitle">Geolocation</span></h2>
+        <div class="hs-live">
+            <span class="hs-dot" id="hsLiveDot"></span>
+            <span id="hsClock">--:--:--</span>
+            <button type="button" class="btn btn-sm btn-light" id="hsPauseBtn">Pause</button>
+        </div>
+    </div>
+    <div class="hs-toolbar">
+        {% csrf_token %}
+        <div class="hs-toolbar-site">
+            <label for="hsSite">Website / Subdomain</label>
+            <select id="hsSite" class="form-control" multiple></select>
+        </div>
+        <div class="hs-toolbar-sid">
+            <label for="hsSidManual">Histats SID</label>
+            <input id="hsSidManual" class="form-control" inputmode="numeric" placeholder="Ketik SID dari Histats">
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" id="hsLoadBtn"><i class="bi bi-arrow-repeat"></i> Muat Live</button>
+        </div>
+    </div>
+    <div class="hs-toolbar-auth">
+        <div>
+            <label for="hsHistatsUser">Email Histats</label>
+            <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats">
+        </div>
+        <div>
+            <label for="hsHistatsPass">Password Histats</label>
+            <input id="hsHistatsPass" class="form-control" type="password" autocomplete="current-password" placeholder="password Histats">
+        </div>
+        <div class="hs-auth-status" id="hsAuthStatus"{% if not histats_logged_in %} style="display:none"{% endif %}>Terhubung ke Histats</div>
+    </div>
+    <p class="hs-note">Halaman ini meniru Geolocation Histats: donut negara, peta kota, kalender Harian &amp; Monthly, tab country / city, dan tabel peringkat. Data live, tidak disimpan ke database.</p>
+    <div class="hs-error" id="hsError"></div>
+
+    <div class="vb-head">
+        <div class="vb-chart-card">
+            <h3 class="vb-title"><span>Geolocation</span><span class="vb-title-date" id="vbTitleDate"></span></h3>
+            <div class="vb-pie-wrap" id="vbPieWrap">
+                <div class="vb-pie-canvas"><canvas id="vbPie"></canvas></div>
+                <div class="vb-legend" id="vbLegend"></div>
+            </div>
+            <div class="geo-map" id="geoMap"></div>
+        </div>
+        <div class="ts-cal">
+            <div class="ts-cal-head">
+                <button type="button" id="tsPrevMonth"><i class="bi bi-chevron-left"></i></button>
+                <span id="tsCalTitle">—</span>
+                <span>
+                    <button type="button" id="tsNextMonth"><i class="bi bi-chevron-right"></i></button>
+                    <input type="date" id="tsDatePick" style="position:absolute;opacity:0;width:0;height:0;pointer-events:none">
+                    <button type="button" id="tsDateBtn"><i class="bi bi-calendar3"></i></button>
+                </span>
+            </div>
+            <div class="ts-cal-tabs" id="tsRangeTabs">
+                <button type="button" class="ts-cal-tab is-on" data-range="h">Harian</button>
+                <button type="button" class="ts-cal-tab" data-range="d">Monthly</button>
+            </div>
+            <div class="ts-cal-weekdays" id="tsWeekdays"></div>
+            <div id="tsCalWeeks"></div>
+            <div class="ts-cal-modes">
+                <div>
+                    <button type="button" class="ts-mode is-on" data-mode="normal">normal</button>
+                    <button type="button" class="ts-mode" data-mode="range">range</button>
+                    <button type="button" class="ts-mode" data-mode="compare">compare</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="vb-toolbar">
+        <button type="button" class="vb-newlost" id="vbNewLost"><i class="bi bi-square-fill"></i> new &amp; lost</button>
+    </div>
+    <div class="vb-tabs" id="vbTabs">
+        <button type="button" class="vb-tab is-on" data-section="CO">country</button>
+        <button type="button" class="vb-tab" data-section="CY">city</button>
+    </div>
+    <div class="vb-table-wrap">
+        <table class="vb-table">
+            <thead id="vbTableHead"></thead>
+            <tbody id="vbTableBody"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function () {
+    var DATA_URL = "{% url 'vistor_location_data' %}";
+    var histatsLoggedIn = {% if histats_logged_in %}true{% else %}false{% endif %};
+    var paused = false, timer = null, pieChart = null, lastSid = '', lastData = null, geoMap = null, geoLayer = null;
+    var state = { range: 'h', mode: 'normal', t1: 0, t2: 0, section: 'CO', sort: 'V', newLost: true, anchor: 0 };
+    var PIE_COLORS = ['#3b8fd6', '#f0a020', '#f5c07a', '#e8d5b5', '#22c55e', '#15803d', '#e4453a', '#f472b6', '#14b8a6', '#a78bfa'];
+
+    function $(id) { return document.getElementById(id); }
+    function num(v) { return Number(v || 0); }
+    function fmt(v) { return num(v).toLocaleString('en-US'); }
+    function esc(v) { return String(v || '').replace(/[&<>"']/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]; }); }
+    function flagImg(iso) {
+        var cc = String(iso || '').toLowerCase();
+        if (!cc || cc.length !== 2) return '';
+        return '<img class="vb-flag" alt="" src="https://flagcdn.com/w40/' + cc + '.png" width="18" height="13">';
+    }
+    function selectedWebsite() {
+        if (window.jQuery && jQuery.fn.select2) {
+            var val = jQuery('#hsSite').val();
+            if (Array.isArray(val)) return String(val[0] || '').trim();
+            return String(val || '').trim();
+        }
+        return String(($('hsSite').value || '')).trim();
+    }
+    function currentSid() { return String(($('hsSidManual').value || '')).trim(); }
+    function csrfToken() {
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (el && el.value) return el.value;
+        var match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+    function setError(msg) {
+        var el = $('hsError');
+        if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+        el.style.display = 'block'; el.textContent = msg;
+    }
+    function setAuthStatus(ok, msg) {
+        var el = $('hsAuthStatus'); histatsLoggedIn = !!ok; if (!el) return;
+        if (ok) { el.style.display = 'block'; el.textContent = msg || 'Terhubung ke Histats'; el.style.color = '#16a34a'; }
+        else if (msg) { el.style.display = 'block'; el.textContent = msg; el.style.color = '#dc2626'; }
+        else el.style.display = 'none';
+    }
+    function rememberSid(site, sid) {
+        try { if (sid) localStorage.setItem('hs_last_sid', sid); if (site && sid) localStorage.setItem('hs_sid:' + site.toLowerCase(), sid); if (site) localStorage.setItem('hs_last_site', site); } catch (_e) {}
+    }
+    function restoreSidForSite(site) {
+        if (!site) return;
+        try { var saved = localStorage.getItem('hs_sid:' + site.toLowerCase()) || ''; if (saved) $('hsSidManual').value = saved; } catch (_e) {}
+    }
+    function initWebsiteFilter() {
+        if (!window.jQuery || !jQuery.fn.select2) return;
+        var $site = jQuery('#hsSite');
+        if (!$site.length) return;
+        if ($site.data('select2')) $site.select2('destroy');
+        function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+        var end = new Date(), start = new Date(); start.setDate(start.getDate() - 30);
+        $site.select2({
+            placeholder: 'Ketik subdomain, contoh: experience.aksarabrita.com', allowClear: true, width: '100%',
+            theme: 'bootstrap4', tags: true, maximumSelectionLength: 1, dropdownParent: jQuery('body'), minimumInputLength: 1,
+            ajax: {
+                url: "{% url 'adx_domain_suggest' %}", dataType: 'json', delay: 250,
+                data: function (params) { return { q: params.term || '', start_date: ymd(start), end_date: ymd(end), selected_account: '' }; },
+                processResults: function (data) { return { results: (data && data.results) ? data.results : [] }; }, cache: true
+            },
+            createTag: function (params) { var term = String(params.term || '').trim(); return term ? { id: term, text: term, newTag: true } : null; }
+        });
+        $site.on('select2:select', function (e) {
+            var site = String((e.params && e.params.data && e.params.data.id) || selectedWebsite()).trim();
+            restoreSidForSite(site); if (site) $('hsDomainTitle').textContent = site;
+        });
+    }
+    function tickClock() {
+        var now = new Date();
+        $('hsClock').textContent = now.toLocaleTimeString('id-ID', { hour12: false }) + ' , ' + now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+    function renderCalendar(cal) {
+        cal = cal || {};
+        $('tsCalTitle').textContent = cal.title || '—';
+        $('tsWeekdays').innerHTML = '<span></span>' + (cal.weekdays || ['M','T','W','T','F','S','S']).map(function (d) { return '<span>' + d + '</span>'; }).join('');
+        var html = '';
+        (cal.weeks || []).forEach(function (week) {
+            html += '<div class="ts-cal-week"><span class="ts-month-lab">' + (week.month_label || '') + '</span>';
+            (week.days || []).forEach(function (day) {
+                var cls = 'ts-day' + (day.weekend ? ' weekend' : '') + (day.muted ? ' muted' : '') + (day.selected ? ' is-on' : '') + (day.has_data ? ' has-data' : '');
+                html += '<button type="button" class="' + cls + '" data-ts="' + day.ts + '">' + day.d + '</button>';
+            });
+            html += '</div>';
+        });
+        $('tsCalWeeks').innerHTML = html;
+        Array.prototype.forEach.call(document.querySelectorAll('.ts-cal-tab'), function (btn) { btn.classList.toggle('is-on', btn.getAttribute('data-range') === state.range); });
+        Array.prototype.forEach.call(document.querySelectorAll('.ts-mode'), function (btn) { btn.classList.toggle('is-on', btn.getAttribute('data-mode') === state.mode); });
+    }
+    function ensureMap() {
+        if (geoMap || typeof L === 'undefined') return geoMap;
+        geoMap = L.map('geoMap', { zoomControl: true, attributionControl: false, worldCopyJump: true }).setView([20, 15], 2);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 8, minZoom: 1 }).addTo(geoMap);
+        geoLayer = L.layerGroup().addTo(geoMap);
+        return geoMap;
+    }
+    function renderMap(points) {
+        var mapEl = $('geoMap');
+        var pieWrap = $('vbPieWrap');
+        var isCity = state.section === 'CY';
+        mapEl.classList.toggle('is-on', isCity);
+        pieWrap.classList.toggle('is-off', isCity);
+        if (!isCity) return;
+        ensureMap();
+        if (!geoMap || !geoLayer) return;
+        geoLayer.clearLayers();
+        var maxV = 1;
+        (points || []).forEach(function (pt) { maxV = Math.max(maxV, num(pt.visitors)); });
+        (points || []).forEach(function (pt) {
+            var lat = num(pt.lat), lon = num(pt.lon);
+            if (!lat && !lon) return;
+            var h = 10 + Math.round((num(pt.visitors) / maxV) * 42);
+            var icon = L.divIcon({
+                className: '',
+                iconSize: [10, h + 4],
+                iconAnchor: [5, h + 4],
+                html: '<div class="geo-pin" style="height:' + (h + 4) + 'px"><div class="geo-pin-bar" style="height:' + h + 'px"></div><div class="geo-pin-base"></div></div>'
+            });
+            var label = (pt.name && pt.name !== '-' ? pt.name : pt.country) + ': ' + fmt(pt.visitors);
+            L.marker([lat, lon], { icon: icon, title: label }).addTo(geoLayer);
+        });
+        setTimeout(function () { if (geoMap) geoMap.invalidateSize(); }, 80);
+    }
+    function renderPie(data) {
+        var pies = (data && data.pies) || [];
+        var items = (pies[0] && pies[0].items) || [];
+        if (state.section === 'CY' || !items.length) {
+            if (pieChart) { pieChart.destroy(); pieChart = null; }
+            $('vbLegend').innerHTML = items.length ? '' : '<div class="vb-share">Tidak ada ringkasan negara</div>';
+            return;
+        }
+        var labels = items.map(function (it) { return it.name; });
+        var values = items.map(function (it) { return num(it.visitors); });
+        $('vbLegend').innerHTML = items.map(function (it, idx) {
+            return '<div class="vb-legend-row"><span class="vb-swatch" style="background:' + PIE_COLORS[idx % PIE_COLORS.length] + '"></span>' + esc(it.name) + ': ' + fmt(it.visitors) + '</div>';
+        }).join('');
+        if (pieChart) pieChart.destroy();
+        pieChart = new Chart($('vbPie').getContext('2d'), {
+            type: 'doughnut',
+            data: { labels: labels, datasets: [{ data: values, backgroundColor: labels.map(function (_, i) { return PIE_COLORS[i % PIE_COLORS.length]; }), borderWidth: 0 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '58%',
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (ctx) { return ' ' + ctx.label + ': ' + Number(ctx.raw || 0).toLocaleString('en-US'); } } } }
+            }
+        });
+    }
+    function renderHead() {
+        var city = state.section === 'CY';
+        $('vbTableHead').innerHTML = city
+            ? '<tr><th data-sort="V">Peringkat city</th><th></th><th data-sort="V">Visitors <i class="bi bi-caret-down-fill"></i></th></tr>'
+            : '<tr><th data-sort="V">Peringkat</th><th></th><th data-sort="a_NV">Pengunjung baru</th><th data-sort="V">Visitors <i class="bi bi-caret-down-fill"></i></th><th data-sort="PV">Halaman dilihat</th><th data-sort="HV">Ppv</th><th data-sort="TPP">Tpp</th><th data-sort="BB_RATE">bounce</th></tr>';
+    }
+    function renderTable(rows) {
+        var body = $('vbTableBody');
+        var city = state.section === 'CY';
+        renderHead();
+        if (!rows || !rows.length) {
+            body.innerHTML = '<tr><td colspan="' + (city ? 3 : 8) + '" style="text-align:center;padding:18px;color:#64748b">Tidak ada data</td></tr>';
+            return;
+        }
+        body.innerHTML = rows.map(function (row) {
+            var dir = row.rank_dir === 'up' ? 'up' : (row.rank_dir === 'dw' ? 'dw' : '');
+            var arrow = dir === 'up' ? 'bi-caret-up-fill' : (dir === 'dw' ? 'bi-caret-down-fill' : (state.newLost && row.is_new ? 'bi-star-fill' : 'bi-dash'));
+            var rankCls = 'vb-rank ' + dir + (state.newLost && row.is_new ? ' is-new' : '');
+            var name = city ? (row.city || row.name || '-') : (row.name || '-');
+            var barW = Math.max(0, Math.min(city ? 280 : 140, num(row.bar) * (city ? 2.8 : 1.4)));
+            if (city) {
+                return '<tr>' +
+                    '<td><span class="' + rankCls + '"><i class="bi ' + arrow + '"></i>' + row.rank + '</span> ' + flagImg(row.iso) + '<span class="vb-name">' + esc(name) + '</span></td>' +
+                    '<td><div class="vb-vis-row"><span class="vb-bar" style="width:' + barW + 'px"></span><span class="vb-share">(' + (row.share || 0) + '%)</span></div></td>' +
+                    '<td><strong>' + fmt(row.visitors) + '</strong></td>' +
+                    '</tr>';
+            }
+            var bar = '<div class="vb-vis"><div class="vb-vis-row"><span class="vb-bar" style="width:' + barW + 'px"></span>' + fmt(row.visitors) + '</div>' +
+                (row.share ? '<span class="vb-share">(' + row.share + '%)</span>' : '') + '</div>';
+            var newHtml = fmt(row.new_visitors);
+            if (row.new_share && row.rank > 1) newHtml += '<div class="vb-share">(' + row.new_share + '%)</div>';
+            return '<tr>' +
+                '<td><span class="' + rankCls + '"><i class="bi ' + arrow + '"></i>' + row.rank + '</span></td>' +
+                '<td class="vb-name">' + flagImg(row.iso) + esc(name) + '</td>' +
+                '<td>' + newHtml + '</td>' +
+                '<td>' + bar + '</td>' +
+                '<td>' + fmt(row.pageviews) + '</td>' +
+                '<td>' + Number(row.ppv || 0).toFixed(1) + '</td>' +
+                '<td>' + esc(row.tpp_txt || '-') + '</td>' +
+                '<td>' + Number(row.bounce || 0).toFixed(1) + '%</td>' +
+                '</tr>';
+        }).join('');
+    }
+    function paint(payload) {
+        lastData = payload || lastData || {};
+        var d = lastData;
+        $('hsDomainTitle').textContent = selectedWebsite() || d.domain || d.title || 'Geolocation';
+        if (d.t1) state.t1 = d.t1;
+        if (d.range) state.range = d.range === 'm' ? 'd' : d.range;
+        $('vbTitleDate').textContent = (d.calendar && d.calendar.title) || '';
+        renderCalendar(d.calendar || {});
+        renderPie(d);
+        renderMap(d.points || []);
+        renderTable(d.rows || []);
+        Array.prototype.forEach.call(document.querySelectorAll('.vb-tab'), function (btn) {
+            btn.classList.toggle('is-on', btn.getAttribute('data-section') === state.section);
+        });
+    }
+    function loadLive() {
+        var sid = currentSid();
+        if (!sid) { setError('Isi Histats SID secara manual, lalu klik Muat Live.'); return; }
+        rememberSid(selectedWebsite(), sid);
+        var user = String(($('hsHistatsUser').value || '')).trim();
+        var pass = String(($('hsHistatsPass').value || ''));
+        fetch(DATA_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken() },
+            body: JSON.stringify({
+                sid: sid, user: user, pass: pass, section: state.section, range: state.range,
+                mode: state.mode, t1: state.t1 || 0, t2: state.t2 || 0, sort: state.sort
+            })
+        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+            .then(function (res) {
+                if (!res.json || !res.json.status) {
+                    if (res.json && res.json.need_login) { lastSid = ''; setAuthStatus(false, 'SID diproteksi. Isi email dan password Histats, lalu Muat Live lagi.'); }
+                    setError((res.json && res.json.error) || 'Gagal memuat Geolocation.');
+                    return;
+                }
+                lastSid = sid; setError('');
+                if (res.json.logged_in) { $('hsHistatsPass').value = ''; setAuthStatus(true); }
+                paint(res.json.data || {});
+            })
+            .catch(function (e) { setError(String(e && e.message || e || 'Gagal memuat Histats')); });
+    }
+    $('tsCalWeeks').addEventListener('click', function (e) {
+        var btn = e.target.closest('.ts-day'); if (!btn) return;
+        var ts = Number(btn.getAttribute('data-ts') || 0); if (!ts) return;
+        if (state.mode === 'normal') { state.t1 = ts; state.t2 = 0; state.anchor = 0; loadLive(); return; }
+        if (!state.anchor) { state.anchor = ts; state.t1 = ts; state.t2 = 0; renderCalendar((lastData && lastData.calendar) || {}); return; }
+        state.t1 = state.anchor; state.t2 = ts; state.anchor = 0; loadLive();
+    });
+    $('tsRangeTabs').addEventListener('click', function (e) {
+        var btn = e.target.closest('.ts-cal-tab'); if (!btn) return;
+        state.range = btn.getAttribute('data-range') || 'h'; state.t2 = 0; state.anchor = 0; loadLive();
+    });
+    document.querySelector('.ts-cal-modes').addEventListener('click', function (e) {
+        var btn = e.target.closest('.ts-mode'); if (!btn) return;
+        state.mode = btn.getAttribute('data-mode') || 'normal'; state.t2 = 0; state.anchor = 0;
+        Array.prototype.forEach.call(document.querySelectorAll('.ts-mode'), function (el) { el.classList.toggle('is-on', el === btn); });
+    });
+    function shiftMonth(delta) {
+        var base = state.t1 || (lastData && lastData.t1) || Math.floor(Date.now() / 1000);
+        var d = new Date(base * 1000); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + delta); d.setUTCHours(0, 0, 1, 0);
+        state.t1 = Math.floor(d.getTime() / 1000); state.t2 = 0; state.anchor = 0; loadLive();
+    }
+    $('tsPrevMonth').addEventListener('click', function () { shiftMonth(-1); });
+    $('tsNextMonth').addEventListener('click', function () { shiftMonth(1); });
+    $('tsDateBtn').addEventListener('click', function () { $('tsDatePick').showPicker ? $('tsDatePick').showPicker() : $('tsDatePick').click(); });
+    $('tsDatePick').addEventListener('change', function () {
+        if (!this.value) return;
+        var parts = this.value.split('-');
+        state.t1 = Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 1) / 1000;
+        state.t2 = 0; state.anchor = 0; loadLive();
+    });
+    $('vbTabs').addEventListener('click', function (e) {
+        var btn = e.target.closest('.vb-tab'); if (!btn) return;
+        state.section = btn.getAttribute('data-section') || 'CO'; loadLive();
+    });
+    $('vbNewLost').addEventListener('click', function () {
+        state.newLost = !state.newLost; this.classList.toggle('is-off', !state.newLost); renderTable((lastData && lastData.rows) || []);
+    });
+    document.querySelector('.vb-table').addEventListener('click', function (e) {
+        var th = e.target.closest('th[data-sort]'); if (!th) return;
+        state.sort = th.getAttribute('data-sort') || 'V'; loadLive();
+    });
+    $('hsPauseBtn').addEventListener('click', function () {
+        paused = !paused; this.textContent = paused ? 'Play' : 'Pause'; $('hsLiveDot').classList.toggle('is-paused', paused);
+    });
+    $('hsLoadBtn').addEventListener('click', function () { loadLive(); });
+    $('hsSidManual').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); loadLive(); } });
+    $('hsHistatsPass').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); loadLive(); } });
+    initWebsiteFilter();
+    try {
+        var savedSite = localStorage.getItem('hs_last_site') || '';
+        var savedSid = localStorage.getItem('hs_last_sid') || '';
+        if (savedSite && window.jQuery && jQuery.fn.select2) {
+            jQuery('#hsSite').append(new Option(savedSite, savedSite, true, true)).trigger('change');
+            $('hsDomainTitle').textContent = savedSite;
+        }
+        if (savedSid) $('hsSidManual').value = savedSid;
+    } catch (_e) {}
+    setInterval(tickClock, 1000); tickClock();
+    timer = setInterval(function () { if (!paused && lastSid) loadLive(); }, 20000);
+    renderHead();
+    if (currentSid()) loadLive();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,1410 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Statistik Ringkasan{% endblock %}
+{% block page_heading %}Statistik Ringkasan{% endblock %}
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+<li class="breadcrumb-item">Statistik</li>
+<li class="breadcrumb-item active">Ringkasan</li>
+{% endblock %}
+{% block more_stylesheet %}
+<style>
+.hs-shell {
+    --hs-navy: #163a66;
+    --hs-navy-2: #1f4f86;
+    --hs-blue: #2f7ae5;
+    --hs-panel: #ffffff;
+    --hs-muted: #64748b;
+    --hs-line: #dbe4ef;
+    --hs-bg: #eef3f8;
+    background: var(--hs-bg);
+    border: 1px solid var(--hs-line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+html[data-theme="dark"] .hs-shell {
+    --hs-panel: #111827;
+    --hs-muted: #94a3b8;
+    --hs-line: rgba(148, 163, 184, 0.18);
+    --hs-bg: #0b1220;
+    box-shadow: none;
+}
+.hs-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(90deg, var(--hs-navy), var(--hs-navy-2));
+    color: #fff;
+}
+.hs-topbar h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: .01em;
+}
+.hs-topbar .hs-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.hs-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.18);
+}
+.hs-dot.is-paused { background: #fbbf24; box-shadow: none; }
+.hs-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+    padding: 14px 16px;
+    background: var(--hs-panel);
+    border-bottom: 1px solid var(--hs-line);
+}
+.hs-toolbar label {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--hs-muted);
+    margin-bottom: 4px;
+}
+.hs-toolbar .form-control {
+    min-width: 220px;
+    height: 38px;
+}
+.hs-toolbar-site {
+    flex: 1 1 320px;
+    min-width: 260px;
+}
+.hs-toolbar-sid {
+    flex: 0 1 180px;
+}
+.hs-toolbar-auth {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+    padding: 0 16px 14px;
+    background: var(--hs-panel);
+}
+.hs-toolbar-auth .form-control { min-width: 200px; height: 38px; }
+.hs-auth-status {
+    font-size: 12px;
+    font-weight: 700;
+    color: #16a34a;
+    padding-bottom: 8px;
+}
+.hs-toolbar .select2-container { width: 100% !important; }
+.hs-toolbar .select2-container .select2-selection--single,
+.hs-toolbar .select2-container .select2-selection--multiple {
+    min-height: 38px;
+    border-radius: 6px;
+}
+.hs-toolbar .select2-container .select2-selection--single {
+    height: 38px;
+    display: flex;
+    align-items: center;
+}
+.hs-toolbar .select2-container .select2-search--inline .select2-search__field {
+    margin-top: 4px;
+}
+.hs-note {
+    font-size: 12px;
+    color: var(--hs-muted);
+    padding: 0 16px 12px;
+}
+.hs-grid {
+    display: grid;
+    grid-template-columns: 1.6fr .9fr;
+    gap: 12px;
+    padding: 12px 16px 16px;
+}
+@media (max-width: 991px) {
+    .hs-grid { grid-template-columns: 1fr; }
+    .hs-toolbar .form-control { min-width: 100%; }
+}
+.hs-card {
+    background: var(--hs-panel);
+    border: 1px solid var(--hs-line);
+    border-radius: 12px;
+    padding: 14px;
+}
+.hs-card h3 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--hs-navy);
+}
+html[data-theme="dark"] .hs-card h3 { color: #93c5fd; }
+.hs-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+.hs-kpi .k { font-size: 11px; color: var(--hs-muted); font-weight: 700; }
+.hs-kpi .v { font-size: 22px; font-weight: 800; line-height: 1.1; color: #b91c1c; }
+.hs-kpi .v.blue { color: #1d4ed8; }
+.hs-delta {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 800;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    vertical-align: middle;
+    line-height: 1.35;
+}
+.hs-delta.up {
+    color: #166534;
+    background: #dcfce7;
+}
+.hs-delta.down {
+    color: #991b1b;
+    background: #fee2e2;
+}
+.hs-today {
+    background: linear-gradient(90deg, #2a7de1, #4aa3f5);
+    color: #fff;
+    border: 0;
+}
+.hs-today h3 { color: #fff; }
+.hs-today-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+}
+@media (max-width: 1199px) {
+    .hs-kpis, .hs-today-row { grid-template-columns: repeat(2, 1fr); }
+}
+.hs-today .k { color: rgba(255,255,255,.86); }
+.hs-today .v { color: #fff; font-size: 20px; }
+.hs-today .hs-delta.up {
+    color: #14532d;
+    background: #bbf7d0;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.25);
+}
+.hs-today .hs-delta.down {
+    color: #7f1d1d;
+    background: #fecaca;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.25);
+}
+.hs-chart-wrap {
+    position: relative;
+    height: 320px;
+    padding: 4px 4px 0;
+    border-radius: 10px;
+}
+.hs-chart-wrap canvas { width: 100% !important; }
+.hs-chart-wrap-daily { height: 400px; padding-bottom: 18px; }
+.hs-card h3 { display: flex; align-items: center; gap: 8px; }
+.hs-chart-legend-hint {
+    font-size: 11px;
+    color: var(--hs-muted);
+    font-weight: 600;
+    margin: 0 0 8px;
+}
+.hs-forecast-card {
+    margin: 0 16px 12px;
+    padding: 0;
+    overflow: hidden;
+}
+.hs-forecast-card > h3 {
+    margin: 0;
+    padding: 10px 16px;
+    background: linear-gradient(180deg, #f8fafc, #eef3f8);
+    border-bottom: 1px solid var(--hs-line);
+}
+html[data-theme="dark"] .hs-forecast-card > h3 {
+    background: linear-gradient(180deg, #1e293b, #111827);
+}
+.hs-forecast-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1.1fr 1fr;
+    gap: 0;
+}
+@media (max-width: 991px) {
+    .hs-forecast-grid { grid-template-columns: 1fr 1fr; }
+}
+.hs-forecast-cell, .hs-forecast-cmp {
+    padding: 12px 16px 14px;
+    border-right: 1px solid var(--hs-line);
+}
+.hs-forecast-cmp:last-child { border-right: 0; }
+@media (max-width: 991px) {
+    .hs-forecast-cell, .hs-forecast-cmp {
+        border-right: 0;
+        border-bottom: 1px solid var(--hs-line);
+    }
+    .hs-forecast-cmp:last-child { border-bottom: 0; }
+}
+.hs-forecast-label {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1e3a5f;
+}
+html[data-theme="dark"] .hs-forecast-label { color: #93c5fd; }
+.hs-forecast-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: #b91c1c;
+    line-height: 1.1;
+    margin: 2px 0;
+}
+.hs-forecast-unit {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--hs-muted);
+}
+.hs-forecast-cmp {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--hs-muted);
+}
+.hs-fc-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.hs-fc-line b { color: #0f172a; font-weight: 800; }
+html[data-theme="dark"] .hs-fc-line b { color: #e2e8f0; }
+.hs-fc-bullet {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #94a3b8;
+    flex: 0 0 auto;
+}
+.hs-last2 {
+    margin: 0 16px 16px;
+    padding: 0;
+    overflow: hidden;
+}
+.hs-last2-head {
+    margin: 0;
+    padding: 10px 16px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(90deg, #2a7de1, #4aa3f5);
+}
+.hs-last2-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid var(--hs-line);
+}
+@media (max-width: 991px) {
+    .hs-last2-kpis { grid-template-columns: 1fr 1fr; }
+}
+.hs-last2-kpi {
+    padding: 12px 16px 14px;
+    border-right: 1px solid var(--hs-line);
+}
+.hs-last2-kpi:last-child { border-right: 0; }
+.hs-last2-kpi .v {
+    font-size: 26px;
+    font-weight: 800;
+    color: #b91c1c;
+    line-height: 1.1;
+}
+.hs-last2-kpi .v.blue { color: #1d4ed8; }
+.hs-last2-kpi .share {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--hs-muted);
+}
+.hs-last2-kpi .k {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--hs-muted);
+    margin-top: 2px;
+}
+.hs-last2 .hs-compare {
+    margin: 0;
+    border: 0;
+    border-bottom: 1px solid var(--hs-line);
+    border-radius: 0;
+    background: #f8fafc;
+    padding: 8px 12px;
+    justify-content: space-between;
+}
+html[data-theme="dark"] .hs-last2 .hs-compare { background: rgba(15, 23, 42, 0.45); }
+.hs-chart-types {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: auto;
+}
+.hs-chart-type {
+    width: 32px;
+    height: 28px;
+    border: 1px solid var(--hs-line);
+    background: var(--hs-panel);
+    color: var(--hs-muted);
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.hs-chart-type.is-on, .hs-chart-type:hover {
+    color: #1d4ed8;
+    border-color: #93c5fd;
+    background: rgba(37, 99, 235, 0.1);
+}
+.hs-last2-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 8px 16px 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--hs-muted);
+}
+.hs-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: -1px;
+}
+.hs-last2 .hs-chart-wrap { padding: 4px 12px 8px; }
+.hs-compare {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--hs-line);
+    border-radius: 10px;
+    background: rgba(148, 163, 184, 0.08);
+}
+.hs-compare-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--hs-muted);
+    margin-right: 4px;
+}
+.hs-compare-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.hs-compare-btn {
+    border: 1px solid var(--hs-line);
+    background: var(--hs-panel);
+    color: var(--hs-muted);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+}
+.hs-compare-btn i { margin-right: 4px; }
+.hs-compare-btn:hover { color: #1d4ed8; border-color: #93c5fd; }
+.hs-compare-btn.is-on {
+    color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.35);
+}
+.hs-compare-btn[data-compare="no"].is-on {
+    color: #b91c1c;
+    background: rgba(220, 38, 38, 0.12);
+    border-color: rgba(220, 38, 38, 0.28);
+}
+html[data-theme="dark"] .hs-compare-btn.is-on {
+    color: #93c5fd;
+}
+.hs-account p { margin: 0 0 8px; font-size: 13px; }
+.hs-account b { font-weight: 800; }
+.hs-empty {
+    padding: 28px 16px;
+    text-align: center;
+    color: var(--hs-muted);
+}
+.hs-error {
+    margin: 0 16px 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    display: none;
+}
+html[data-theme="dark"] .hs-error {
+    background: rgba(127, 29, 29, 0.35);
+    color: #fecaca;
+    border-color: rgba(248, 113, 113, 0.35);
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="hs-shell">
+    <div class="hs-topbar">
+        <h2><i class="bi bi-bar-chart-line"></i> <span id="hsDomainTitle">Histats Ringkasan</span></h2>
+        <div class="hs-live">
+            <span class="hs-dot" id="hsLiveDot"></span>
+            <span id="hsClock">--:--:--</span>
+            <button type="button" class="btn btn-sm btn-light" id="hsPauseBtn">Pause</button>
+        </div>
+    </div>
+    <div class="hs-toolbar">
+        {% csrf_token %}
+        <div class="hs-toolbar-site">
+            <label for="hsSite">Website / Subdomain</label>
+            <select id="hsSite" class="form-control" multiple></select>
+        </div>
+        <div class="hs-toolbar-sid">
+            <label for="hsSidManual">Histats SID</label>
+            <input id="hsSidManual" class="form-control" inputmode="numeric" placeholder="Ketik SID dari Histats">
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" id="hsLoadBtn"><i class="bi bi-arrow-repeat"></i> Muat Live</button>
+        </div>
+    </div>
+    <div class="hs-toolbar-auth" id="hsAuthBox">
+        <div>
+            <label for="hsHistatsUser">Email Histats</label>
+            <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats">
+        </div>
+        <div>
+            <label for="hsHistatsPass">Password Histats</label>
+            <input id="hsHistatsPass" class="form-control" type="password" autocomplete="current-password" placeholder="password Histats">
+        </div>
+        <div class="hs-auth-status" id="hsAuthStatus"{% if not histats_logged_in %} style="display:none"{% endif %}>Terhubung ke Histats</div>
+    </div>
+    <p class="hs-note">Ketik subdomain, isi SID Histats, lalu Muat Live. Jika statistik diproteksi, isi email/password akun Histats di bawah. Login hanya untuk sesi ini dan statistik tidak disimpan ke database.</p>
+    <div class="hs-error" id="hsError"></div>
+
+    <div class="hs-grid">
+        <div class="hs-card">
+            <h3>Statistik Umum</h3>
+            <div class="hs-kpis">
+                <div class="hs-kpi"><div class="k">Total page views</div><div class="v" id="hsTotalPv">0</div></div>
+                <div class="hs-kpi"><div class="k">Total visitors</div><div class="v" id="hsTotalVis">0</div></div>
+                <div class="hs-kpi"><div class="k">Tampilan halaman / kunjungan</div><div class="v blue" id="hsTotalPpv">0</div></div>
+            </div>
+            <div class="mt-2" style="font-size:12px;color:#64748b;">Last hits time: <b id="hsLastHit">-</b></div>
+        </div>
+        <div class="hs-card hs-account">
+            <h3>Account summary</h3>
+            <p>Tanggal Pembuatan: <b id="hsCreated">-</b></p>
+            <p>Time zone: <b id="hsTimezone">-</b></p>
+            <p>Kategori: <b id="hsCategory">-</b></p>
+            <p>SID: <b id="hsSidLabel">-</b></p>
+        </div>
+    </div>
+
+    <div class="hs-card hs-today" style="margin:0 16px 12px;">
+        <h3>TODAY</h3>
+        <div class="hs-today-row">
+            <div class="hs-kpi"><div class="k">Page views</div><div class="v" id="hsTodayPv">0</div></div>
+            <div class="hs-kpi"><div class="k">Pengunjung</div><div class="v" id="hsTodayVis">0</div></div>
+            <div class="hs-kpi"><div class="k">First time visitors</div><div class="v" id="hsTodayFirst">0</div></div>
+            <div class="hs-kpi"><div class="k">Users online</div><div class="v" id="hsOnline">0</div></div>
+            <div class="hs-kpi"><div class="k">Waktu rata-rata</div><div class="v" id="hsAvgTime">0s</div></div>
+            <div class="hs-kpi"><div class="k">Halaman / kunjungan</div><div class="v" id="hsTodayPpv">0</div></div>
+        </div>
+    </div>
+
+    <div class="hs-card" style="margin:0 16px 12px;">
+        <h3>Traffic hari ini (per jam)</h3>
+        <div class="hs-compare">
+            <span class="hs-compare-title"><i class="bi bi-layers"></i> Compare</span>
+            <div class="hs-compare-btns" id="hsCompareBtns">
+                <button type="button" class="hs-compare-btn is-on" data-compare="no"><i class="bi bi-slash-circle"></i> no</button>
+                <button type="button" class="hs-compare-btn" data-metric="bounce"><i class="bi bi-arrow-return-left"></i> bounce</button>
+                <button type="button" class="hs-compare-btn" data-metric="ppv"><i class="bi bi-bar-chart-line"></i> Ppv</button>
+                <button type="button" class="hs-compare-btn" data-metric="nvis"><i class="bi bi-person-plus"></i> Nvis</button>
+                <button type="button" class="hs-compare-btn" data-metric="online"><i class="bi bi-broadcast"></i> Online</button>
+                <button type="button" class="hs-compare-btn" data-day="1"><i class="bi bi-calendar3"></i> -1</button>
+                <button type="button" class="hs-compare-btn" data-day="7"><i class="bi bi-calendar3"></i> -7</button>
+                <button type="button" class="hs-compare-btn" data-day="14"><i class="bi bi-calendar3"></i> -14</button>
+            </div>
+        </div>
+        <div class="hs-chart-wrap"><canvas id="hsHourlyChart"></canvas></div>
+    </div>
+
+    <div class="hs-card hs-forecast-card">
+        <h3>Forecast</h3>
+        <div class="hs-forecast-grid">
+            <div class="hs-forecast-cell">
+                <div class="hs-forecast-label">Current hour</div>
+                <div class="hs-forecast-value" id="hsForecastHour">0</div>
+                <div class="hs-forecast-unit">Pengunjung</div>
+            </div>
+            <div class="hs-forecast-cmp" id="hsForecastHourCmp">
+                <div class="hs-fc-line"><span class="hs-fc-bullet"></span> dibanding 7 hari yang lalu <b>—</b></div>
+                <div class="hs-fc-line"><span class="hs-fc-bullet"></span> dari 14 hari yang lalu <b>—</b></div>
+            </div>
+            <div class="hs-forecast-cell">
+                <div class="hs-forecast-label">Current day</div>
+                <div class="hs-forecast-value" id="hsForecastDay">0</div>
+                <div class="hs-forecast-unit">Pengunjung</div>
+            </div>
+            <div class="hs-forecast-cmp" id="hsForecastDayCmp">
+                <div class="hs-fc-line"><span class="hs-fc-bullet"></span> dibanding 7 hari yang lalu <b>—</b></div>
+                <div class="hs-fc-line"><span class="hs-fc-bullet"></span> dari 14 hari yang lalu <b>—</b></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hs-card hs-last2">
+        <h3 class="hs-last2-head">Last 2 months</h3>
+        <div class="hs-last2-kpis">
+            <div class="hs-last2-kpi">
+                <div class="v" id="hsL2Pv">0</div>
+                <div class="k">Page views</div>
+            </div>
+            <div class="hs-last2-kpi">
+                <div class="v" id="hsL2Vis">0</div>
+                <div class="k">Pengunjung</div>
+            </div>
+            <div class="hs-last2-kpi">
+                <div class="v" id="hsL2First">0 <span class="share" id="hsL2FirstShare"></span></div>
+                <div class="k">First time visitors</div>
+            </div>
+            <div class="hs-last2-kpi">
+                <div class="v blue" id="hsL2Ppv">0</div>
+                <div class="k">Tampilan halaman per kunjungan</div>
+            </div>
+        </div>
+        <div class="hs-compare">
+            <span class="hs-compare-title"><i class="bi bi-layers"></i> Compare</span>
+            <div class="hs-compare-btns" id="hsDailyCompareBtns">
+                <button type="button" class="hs-compare-btn is-on" data-compare="no"><i class="bi bi-slash-circle"></i> no</button>
+                <button type="button" class="hs-compare-btn" data-metric="bounce"><i class="bi bi-arrow-return-left"></i> bounce</button>
+                <button type="button" class="hs-compare-btn" data-metric="ppv"><i class="bi bi-bar-chart-line"></i> Ppv</button>
+                <button type="button" class="hs-compare-btn" data-metric="nvis"><i class="bi bi-person-plus"></i> Nvis</button>
+                <button type="button" class="hs-compare-btn" data-metric="online"><i class="bi bi-broadcast"></i> Online</button>
+            </div>
+            <div class="hs-chart-types" id="hsDailyChartTypes">
+                <button type="button" class="hs-chart-type is-on" data-kind="bar" title="Bar"><i class="bi bi-bar-chart-fill"></i></button>
+                <button type="button" class="hs-chart-type" data-kind="area" title="Area"><i class="bi bi-graph-up"></i></button>
+                <button type="button" class="hs-chart-type" data-kind="shot" title="Screenshot"><i class="bi bi-camera"></i></button>
+            </div>
+        </div>
+        <div class="hs-last2-legend">
+            <span><i class="hs-swatch" style="background:#e4453a"></i>First time visitors</span>
+            <span><i class="hs-swatch" style="background:#f0b01d"></i>Pengunjung</span>
+            <span><i class="hs-swatch" style="background:#3b8fd6"></i>Page views</span>
+        </div>
+        <div class="hs-chart-wrap hs-chart-wrap-daily"><canvas id="hsDailyChart"></canvas></div>
+    </div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function () {
+    var DATA_URL = "{% url 'statistik_ringkasan_data' %}";
+    var LOGIN_URL = "{% url 'statistik_ringkasan_login' %}";
+    var histatsLoggedIn = {% if histats_logged_in %}true{% else %}false{% endif %};
+    var paused = false;
+    var timer = null;
+    var hourlyChart = null;
+    var dailyChart = null;
+    var lastSid = '';
+    var lastLiveData = null;
+    var compareState = { day: 0, bounce: false, ppv: false, nvis: false, online: false };
+    var dailyCompare = { bounce: false, ppv: false, nvis: false, online: false };
+    var dailyKind = 'bar';
+
+    function $(id) { return document.getElementById(id); }
+    function num(v) { return Number(v || 0); }
+    function fmt(v) { return num(v).toLocaleString('id-ID'); }
+    function deltaHtml(v) {
+        var n = num(v);
+        if (!n) return '';
+        var cls = n > 0 ? 'up' : 'down';
+        var sign = n > 0 ? '+' : '';
+        return ' <span class="hs-delta ' + cls + '">' + sign + Math.abs(n).toLocaleString('id-ID') + '</span>';
+    }
+    function fmtTime(sec) {
+        sec = Math.max(0, num(sec));
+        var m = Math.floor(sec / 60);
+        var s = sec % 60;
+        if (m <= 0) return s + 's';
+        return m + 'm ' + String(s).padStart(2, '0') + 's';
+    }
+    function selectedWebsite() {
+        if (window.jQuery && jQuery.fn.select2) {
+            var val = jQuery('#hsSite').val();
+            if (Array.isArray(val)) return String(val[0] || '').trim();
+            return String(val || '').trim();
+        }
+        return String(($('hsSite').value || '')).trim();
+    }
+    function currentSid() {
+        return String(($('hsSidManual').value || '')).trim();
+    }
+    function csrfToken() {
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (el && el.value) return el.value;
+        var match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+    function setAuthStatus(ok, msg) {
+        var el = $('hsAuthStatus');
+        histatsLoggedIn = !!ok;
+        if (!el) return;
+        if (ok) {
+            el.style.display = 'block';
+            el.textContent = msg || 'Terhubung ke Histats';
+            el.style.color = '#16a34a';
+        } else if (msg) {
+            el.style.display = 'block';
+            el.textContent = msg;
+            el.style.color = '#dc2626';
+        } else {
+            el.style.display = 'none';
+        }
+    }
+    function ensureHistatsLogin() {
+        var user = String(($('hsHistatsUser').value || '')).trim();
+        var pass = String(($('hsHistatsPass').value || ''));
+        if (!user || !pass) return Promise.resolve(histatsLoggedIn);
+        return fetch(LOGIN_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken()
+            },
+            body: JSON.stringify({ user: user, pass: pass })
+        }).then(function (r) {
+            return r.json().then(function (j) { return { ok: r.ok, json: j }; });
+        }).then(function (res) {
+            if (!res.json || !res.json.status) {
+                setAuthStatus(false, (res.json && res.json.error) || 'Login Histats gagal.');
+                throw new Error((res.json && res.json.error) || 'Login Histats gagal.');
+            }
+            $('hsHistatsPass').value = '';
+            setAuthStatus(true);
+            return true;
+        });
+    }
+    function sidStorageKey(site) {
+        return 'hs_sid:' + String(site || '').trim().toLowerCase();
+    }
+    function rememberSid(site, sid) {
+        try {
+            if (sid) localStorage.setItem('hs_last_sid', sid);
+            if (site && sid) localStorage.setItem(sidStorageKey(site), sid);
+            if (site) localStorage.setItem('hs_last_site', site);
+        } catch (_e) {}
+    }
+    function restoreSidForSite(site) {
+        if (!site) return;
+        try {
+            var saved = localStorage.getItem(sidStorageKey(site)) || '';
+            if (saved) $('hsSidManual').value = saved;
+        } catch (_e) {}
+    }
+    function initWebsiteFilter() {
+        if (!window.jQuery || !jQuery.fn.select2) return;
+        var $site = jQuery('#hsSite');
+        if (!$site.length) return;
+        if ($site.data('select2')) $site.select2('destroy');
+        function ymd(d) {
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var day = String(d.getDate()).padStart(2, '0');
+            return d.getFullYear() + '-' + m + '-' + day;
+        }
+        var end = new Date();
+        var start = new Date();
+        start.setDate(start.getDate() - 30);
+        $site.select2({
+            placeholder: 'Ketik subdomain, contoh: experience.aksarabrita.com',
+            allowClear: true,
+            width: '100%',
+            theme: 'bootstrap4',
+            tags: true,
+            tokenSeparators: [','],
+            maximumSelectionLength: 1,
+            dropdownParent: jQuery('body'),
+            minimumInputLength: 1,
+            ajax: {
+                url: "{% url 'adx_domain_suggest' %}",
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        q: params.term || '',
+                        start_date: ymd(start),
+                        end_date: ymd(end),
+                        selected_account: ''
+                    };
+                },
+                processResults: function (data) {
+                    return { results: (data && data.results) ? data.results : [] };
+                },
+                cache: true
+            },
+            createTag: function (params) {
+                var term = String(params.term || '').trim();
+                if (!term) return null;
+                return { id: term, text: term, newTag: true };
+            }
+        });
+        $site.on('select2:select', function (e) {
+            var site = String((e.params && e.params.data && e.params.data.id) || selectedWebsite()).trim();
+            restoreSidForSite(site);
+            if (site) $('hsDomainTitle').textContent = site;
+        });
+        $site.on('select2:clear', function () {
+            $('hsDomainTitle').textContent = 'Histats Ringkasan';
+        });
+    }
+    function setError(msg) {
+        var el = $('hsError');
+        if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+        el.style.display = 'block';
+        el.textContent = msg;
+    }
+    function tickClock() {
+        var now = new Date();
+        $('hsClock').textContent = now.toLocaleTimeString('id-ID', { hour12: false }) + ' , ' +
+            now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+    function groupedTooltip(opts) {
+        opts = opts || {};
+        var isHourly = !!opts.hourly;
+        var fullLabels = opts.fullLabels || [];
+        return {
+            enabled: true,
+            mode: 'index',
+            intersect: false,
+            displayColors: true,
+            backgroundColor: 'rgba(15, 23, 42, 0.94)',
+            titleColor: '#e2e8f0',
+            bodyColor: '#f8fafc',
+            borderColor: 'rgba(148,163,184,0.25)',
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 8,
+            callbacks: {
+                title: function (items) {
+                    if (!items || !items.length) return '';
+                    var idx = items[0].dataIndex;
+                    if (fullLabels[idx]) return fullLabels[idx];
+                    var label = String(items[0].label || '');
+                    if (!isHourly) return label;
+                    var hour = parseInt(label, 10);
+                    if (isNaN(hour)) return label;
+                    var pad = function (n) { return String(n).padStart(2, '0'); };
+                    return pad(hour) + ':00 - ' + pad(hour) + ':59';
+                },
+                label: function (ctx) {
+                    var value = Number(ctx.raw || 0);
+                    if (!value && ctx.dataset.yAxisID !== 'y1') return null;
+                    return ' ' + (ctx.dataset.label || '') + '  ' + value.toLocaleString('id-ID');
+                },
+                labelColor: function (ctx) {
+                    var color = (ctx.dataset.hsColor && ctx.dataset.hsColor.main)
+                        || ctx.dataset.borderColor
+                        || ctx.dataset.backgroundColor
+                        || '#94a3b8';
+                    return { borderColor: 'transparent', backgroundColor: color };
+                }
+            },
+            itemSort: function (a, b) {
+                var rank = function (item) {
+                    var name = String((item.dataset && item.dataset.label) || '');
+                    var base = name.replace(/^~\s*/, '');
+                    var order = { 'Page views': 0, 'Pengunjung': 1, 'First time visitors': 2 };
+                    return (order[base] != null ? order[base] : 9) * 2 + (name.indexOf('~') === 0 ? 0 : 1);
+                };
+                return rank(a) - rank(b);
+            }
+        };
+    }
+    var HS_COLORS = {
+        first: { main: '#e4453a', light: '#ff7468', dark: '#9f2a22', top: '#ffb0a8' },
+        vis: { main: '#f0b01d', light: '#ffd45c', dark: '#b07c0c', top: '#ffe7a0' },
+        pv: { main: '#3b8fd6', light: '#6eb7f0', dark: '#1f5f9a', top: '#b6d9f8' },
+        firstFc: { main: '#e8c5be', light: '#f4ddd8', dark: '#c4a39c', top: '#f8ece9' },
+        visFc: { main: '#e6d4a0', light: '#f3e8c8', dark: '#c4b075', top: '#f8f1dc' },
+        pvFc: { main: '#c5d5e8', light: '#dde8f3', dark: '#93abc4', top: '#eef4fa' }
+    };
+    function mixHex(hex, add, amt) {
+        var n = parseInt(String(hex || '').replace('#', ''), 16);
+        var r = (n >> 16) & 255;
+        var g = (n >> 8) & 255;
+        var b = n & 255;
+        var ar = parseInt(String(add).replace('#', ''), 16);
+        var rr = (ar >> 16) & 255;
+        var gg = (ar >> 8) & 255;
+        var bb = ar & 255;
+        var t = amt;
+        return 'rgb(' + Math.round(r + (rr - r) * t) + ',' + Math.round(g + (gg - g) * t) + ',' + Math.round(b + (bb - b) * t) + ')';
+    }
+    function drawPrism(ctx, left, top, width, height, depth, palette, glass) {
+        if (height < 0.2 || width < 0.5) return;
+        var right = left + width;
+        var bottom = top + height;
+        var dx = depth;
+        var dy = depth * 0.62;
+        ctx.save();
+        if (glass) ctx.globalAlpha = 0.48;
+        ctx.beginPath();
+        ctx.moveTo(right, top);
+        ctx.lineTo(right + dx, top - dy);
+        ctx.lineTo(right + dx, bottom - dy);
+        ctx.lineTo(right, bottom);
+        ctx.closePath();
+        ctx.fillStyle = palette.dark;
+        ctx.fill();
+        var grad = ctx.createLinearGradient(left, top, right, bottom);
+        grad.addColorStop(0, palette.light);
+        grad.addColorStop(0.42, palette.main);
+        grad.addColorStop(1, mixHex(palette.main, '#000000', 0.18));
+        ctx.beginPath();
+        ctx.rect(left, top, width, height);
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(left, top);
+        ctx.lineTo(left + dx, top - dy);
+        ctx.lineTo(right + dx, top - dy);
+        ctx.lineTo(right, top);
+        ctx.closePath();
+        ctx.fillStyle = palette.top;
+        ctx.fill();
+        if (glass) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+    var hs3dPlugin = {
+        id: 'hs3dColumns',
+        beforeDatasetDraw: function (chart, args) {
+            var ds = chart.data.datasets[args.index] || {};
+            if (ds.type === 'line' || ds.hs3d === false) return;
+            return false;
+        },
+        afterDatasetsDraw: function (chart) {
+            var ctx = chart.ctx;
+            var datasets = chart.data.datasets || [];
+            var depth = 0;
+            var layerRank = { compare: 0, main: 1, forecast: 2 };
+            var indexes = (chart.data.labels || []).map(function (_, i) { return i; });
+            indexes.forEach(function (idx) {
+                var segs = [];
+                datasets.forEach(function (ds, dsIdx) {
+                    if (ds.type === 'line' || ds.hs3d === false) return;
+                    var meta = chart.getDatasetMeta(dsIdx);
+                    if (!meta || meta.hidden || !meta.data || !meta.data[idx]) return;
+                    var el = meta.data[idx];
+                    var top = Math.min(el.y, el.base);
+                    var bottom = Math.max(el.y, el.base);
+                    var height = bottom - top;
+                    var raw = Number((ds.data || [])[idx] || 0);
+                    if (height < 2.2 && ds.hsFloor && (raw > 0 || height > 0)) {
+                        height = Math.max(height, 2.2);
+                        top = bottom - height;
+                    }
+                    if (height < 0.25) return;
+                    var width = el.width;
+                    if (!depth) depth = Math.max(3, Math.min(ds.hsFloor ? 7 : 11, width * 0.3));
+                    segs.push({
+                        left: el.x - width / 2,
+                        top: top,
+                        width: width,
+                        height: height,
+                        palette: ds.hsColor || HS_COLORS.pv,
+                        glass: !!ds.hsGlass,
+                        layer: ds.hsLayer || 'main'
+                    });
+                });
+                segs.sort(function (a, b) {
+                    var ra = layerRank[a.layer] != null ? layerRank[a.layer] : 1;
+                    var rb = layerRank[b.layer] != null ? layerRank[b.layer] : 1;
+                    if (ra !== rb) return ra - rb;
+                    return (b.top + b.height) - (a.top + a.height);
+                });
+                segs.forEach(function (seg) {
+                    drawPrism(ctx, seg.left, seg.top, seg.width, seg.height, depth, seg.palette, seg.glass);
+                });
+            });
+            datasets.forEach(function (ds, dsIdx) {
+                if (ds.type !== 'line' && ds.yAxisID !== 'y1') return;
+                var meta = chart.getDatasetMeta(dsIdx);
+                if (!meta || meta.hidden || !meta.controller || !meta.controller.draw) return;
+                meta.controller.draw();
+            });
+        }
+    };
+    if (window.Chart && Chart.register) {
+        try { Chart.register(hs3dPlugin); } catch (_e) {}
+    }
+    var hsWeekAxis = {
+        id: 'hsWeekAxis',
+        afterDraw: function (chart) {
+            var cfg = (chart.options.plugins && chart.options.plugins.hsWeekAxis) || {};
+            var weeks = cfg.weeks || [];
+            if (!weeks.length) return;
+            var xScale = chart.scales.x;
+            var area = chart.chartArea;
+            if (!xScale || !area) return;
+            var ctx = chart.ctx;
+            ctx.save();
+            ctx.fillStyle = cfg.color || '#64748b';
+            ctx.font = '600 10px Inter, system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            weeks.forEach(function (text, i) {
+                if (!text) return;
+                var x = xScale.getPixelForTick(i);
+                ctx.fillText(String(text).toLowerCase(), x, area.bottom + 28);
+            });
+            ctx.restore();
+        }
+    };
+    if (window.Chart && Chart.register) {
+        try { Chart.register(hsWeekAxis); } catch (_e) {}
+    }
+    function stackedConfig(labels, pv, vis, first, xTitle, extras) {
+        extras = extras || {};
+        var fc = extras.forecast || {};
+        var cmp = extras.compare || {};
+        var axis = extras.axis || {};
+        var kind = extras.kind || 'bar';
+        var isArea = kind === 'area';
+        var compact = !!extras.compact;
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        var grid = dark ? 'rgba(148, 163, 184, 0.16)' : 'rgba(148, 163, 184, 0.28)';
+        var tick = dark ? '#94a3b8' : '#64748b';
+        var datasets = [
+            { label: 'First time visitors', data: first, backgroundColor: HS_COLORS.first.main, hsColor: HS_COLORS.first, hsLayer: 'main', hsFloor: !!extras.floor, stack: 't', borderWidth: 0 },
+            { label: 'Pengunjung', data: vis, backgroundColor: HS_COLORS.vis.main, hsColor: HS_COLORS.vis, hsLayer: 'main', hsFloor: !!extras.floor, stack: 't', borderWidth: 0 },
+            { label: 'Page views', data: pv, backgroundColor: HS_COLORS.pv.main, hsColor: HS_COLORS.pv, hsLayer: 'main', hsFloor: !!extras.floor, stack: 't', borderWidth: 0 }
+        ];
+        var hasForecast = (fc.pageviews || []).some(function (v) { return Number(v) > 0; })
+            || (fc.visitors || []).some(function (v) { return Number(v) > 0; })
+            || (fc.first_time || []).some(function (v) { return Number(v) > 0; });
+        if (hasForecast) {
+            datasets.push(
+                { label: '~ First time visitors', data: fc.first_time || [], backgroundColor: HS_COLORS.firstFc.main, hsColor: HS_COLORS.firstFc, hsLayer: 'forecast', hsGlass: true, stack: 't', borderWidth: 0 },
+                { label: '~ Pengunjung', data: fc.visitors || [], backgroundColor: HS_COLORS.visFc.main, hsColor: HS_COLORS.visFc, hsLayer: 'forecast', hsGlass: true, stack: 't', borderWidth: 0 },
+                { label: '~ Page views', data: fc.pageviews || [], backgroundColor: HS_COLORS.pvFc.main, hsColor: HS_COLORS.pvFc, hsLayer: 'forecast', hsGlass: true, stack: 't', borderWidth: 0 }
+            );
+        }
+        if (cmp.pageviews || cmp.visitors || cmp.first_time) {
+            datasets.push(
+                { label: 'Compare first time', data: cmp.first_time || [], backgroundColor: HS_COLORS.firstFc.main, hsColor: HS_COLORS.firstFc, hsLayer: 'compare', hsGlass: true, stack: 'c', borderWidth: 0 },
+                { label: 'Compare pengunjung', data: cmp.visitors || [], backgroundColor: HS_COLORS.visFc.main, hsColor: HS_COLORS.visFc, hsLayer: 'compare', hsGlass: true, stack: 'c', borderWidth: 0 },
+                { label: 'Compare page views', data: cmp.pageviews || [], backgroundColor: HS_COLORS.pvFc.main, hsColor: HS_COLORS.pvFc, hsLayer: 'compare', hsGlass: true, stack: 'c', borderWidth: 0 }
+            );
+        }
+        var metricDefs = [
+            { key: 'bounce', label: 'bounce', color: '#22c55e' },
+            { key: 'ppv', label: 'Ppv', color: '#38bdf8' },
+            { key: 'nvis', label: 'Nvis', color: '#f97316' },
+            { key: 'online', label: 'Online', color: '#22c55e' }
+        ];
+        var hasMetric = false;
+        metricDefs.forEach(function (m) {
+            if (!extras[m.key]) return;
+            hasMetric = true;
+            datasets.push({
+                type: 'line',
+                label: m.label,
+                data: extras[m.key] || [],
+                borderColor: m.color,
+                backgroundColor: m.color,
+                yAxisID: 'y1',
+                pointRadius: compact ? 2 : 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: m.color,
+                pointBorderWidth: 2,
+                borderWidth: 2.4,
+                tension: 0.35,
+                fill: false,
+                spanGaps: true,
+                hs3d: false,
+                order: -2
+            });
+        });
+        if (isArea) {
+            datasets = datasets.map(function (ds) {
+                if (ds.type === 'line' && ds.yAxisID === 'y1') return ds;
+                return Object.assign({}, ds, {
+                    type: 'line',
+                    fill: true,
+                    tension: 0.15,
+                    borderWidth: 1.2,
+                    pointRadius: 0,
+                    pointHoverRadius: 3,
+                    hs3d: false,
+                    borderColor: (ds.hsColor && ds.hsColor.main) || ds.backgroundColor,
+                    backgroundColor: ds.hsColor ? ds.hsColor.main : ds.backgroundColor
+                });
+            });
+        }
+        var dayTicks = axis.ticks || [];
+        var sundays = axis.sundays || [];
+        var hourly = !!extras.hourly;
+        var xTicks = {
+            maxRotation: 0,
+            minRotation: 0,
+            autoSkip: hourly ? false : !compact,
+            maxTicksLimit: hourly ? 24 : (compact ? 80 : 12),
+            color: function (ctx) {
+                if (sundays[ctx.index]) return '#dc2626';
+                return tick;
+            },
+            font: { size: hourly ? 10 : (compact ? 9 : 11), weight: '600' },
+            callback: function (value, index) {
+                if (dayTicks.length) return dayTicks[index] || '';
+                return this.getLabelForValue ? this.getLabelForValue(value) : labels[index];
+            }
+        };
+        var scales = {
+            x: {
+                stacked: true,
+                title: { display: !!xTitle, text: xTitle || '' },
+                grid: { display: false, drawBorder: false },
+                ticks: xTicks
+            },
+            y: {
+                stacked: true,
+                beginAtZero: true,
+                grace: '4%',
+                grid: { color: grid, drawBorder: false, lineWidth: 1 },
+                ticks: { precision: 0, color: tick, font: { size: 11 } }
+            }
+        };
+        if (hasMetric) {
+            scales.y1 = {
+                position: 'right',
+                beginAtZero: true,
+                grace: '8%',
+                grid: { drawOnChartArea: false },
+                ticks: { precision: 0, color: tick, font: { size: 11 } }
+            };
+        }
+        var catPct = compact ? 0.9 : 0.72;
+        var barPct = compact ? 0.96 : 0.9;
+        return {
+            type: isArea ? 'line' : 'bar',
+            data: { labels: labels, datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 350, easing: 'easeOutQuart' },
+                interaction: { mode: 'index', intersect: false },
+                layout: { padding: { top: 14, right: hasMetric ? 8 : 16, bottom: (axis.weeks && axis.weeks.length) ? 36 : 4 } },
+                categoryPercentage: catPct,
+                barPercentage: barPct,
+                plugins: {
+                    legend: {
+                        display: extras.hideLegend !== true,
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'rectRounded',
+                            boxWidth: 12,
+                            boxHeight: 12,
+                            padding: 16,
+                            color: tick,
+                            font: { weight: '700', size: 11 },
+                            filter: function (item) {
+                                var text = String(item.text || '');
+                                return text.indexOf('~') !== 0 && text.indexOf('Compare ') !== 0;
+                            }
+                        }
+                    },
+                    tooltip: groupedTooltip({ hourly: !!fc.enabled, fullLabels: extras.fullLabels || [] }),
+                    hsWeekAxis: { weeks: axis.weeks || [], color: tick }
+                },
+                datasets: {
+                    bar: {
+                        categoryPercentage: catPct,
+                        barPercentage: barPct,
+                        maxBarThickness: compact ? 16 : 36,
+                        grouped: false
+                    },
+                    line: { fill: isArea }
+                },
+                scales: scales
+            }
+        };
+    }
+    function syncCompareButtons(rootId, state) {
+        var root = $(rootId);
+        if (!root) return;
+        var any = !!state.day || state.bounce || state.ppv || state.nvis || state.online;
+        Array.prototype.forEach.call(root.querySelectorAll('.hs-compare-btn'), function (btn) {
+            var on = false;
+            if (btn.getAttribute('data-compare') === 'no') on = !any;
+            else if (btn.getAttribute('data-day')) on = String(state.day || 0) === String(btn.getAttribute('data-day'));
+            else if (btn.getAttribute('data-metric')) on = !!state[btn.getAttribute('data-metric')];
+            btn.classList.toggle('is-on', on);
+        });
+    }
+    function bindCompare(rootId, state, after) {
+        var root = $(rootId);
+        if (!root) return;
+        root.addEventListener('click', function (e) {
+            var btn = e.target.closest('.hs-compare-btn');
+            if (!btn) return;
+            if (btn.getAttribute('data-compare') === 'no') {
+                state.day = 0;
+                state.bounce = false;
+                state.ppv = false;
+                state.nvis = false;
+                state.online = false;
+            } else if (btn.getAttribute('data-day')) {
+                var day = Number(btn.getAttribute('data-day') || 0);
+                state.day = state.day === day ? 0 : day;
+            } else if (btn.getAttribute('data-metric')) {
+                var metric = btn.getAttribute('data-metric');
+                state[metric] = !state[metric];
+            }
+            after();
+        });
+    }
+    function renderCharts(data) {
+        lastLiveData = data || lastLiveData || {};
+        var hours = (lastLiveData && lastLiveData.hourly) || {};
+        var hLabels = [];
+        var hFull = [];
+        for (var i = 0; i < 24; i++) {
+            var hh = String(i).padStart(2, '0');
+            hLabels.push(hh + ':00');
+            hFull.push(hh + ':00 – ' + hh + ':59');
+        }
+        var extras = {
+            hourly: true,
+            fullLabels: hFull,
+            forecast: {
+                enabled: true,
+                pageviews: hours.forecast_pageviews || [],
+                visitors: hours.forecast_visitors || [],
+                first_time: hours.forecast_first_time || []
+            }
+        };
+        if (compareState.day) {
+            extras.compare = ((hours.compare || {})[String(compareState.day)]) || {};
+        }
+        ['bounce', 'ppv', 'nvis', 'online'].forEach(function (key) {
+            if (compareState[key]) extras[key] = hours[key] || [];
+        });
+        var hourCfg = stackedConfig(
+            hLabels,
+            hours.pageviews || [],
+            hours.visitors || [],
+            hours.first_time || [],
+            '',
+            extras
+        );
+        if (hourlyChart) hourlyChart.destroy();
+        hourlyChart = new Chart($('hsHourlyChart').getContext('2d'), hourCfg);
+
+        var daily = (lastLiveData && lastLiveData.daily) || {};
+        var dLabels = Array.isArray(daily.labels) && daily.labels.length
+            ? daily.labels
+            : (daily.pageviews || []).map(function (_, idx) { return String(idx + 1); });
+        var dailyExtras = {
+            forecast: { enabled: false },
+            kind: dailyKind,
+            compact: true,
+            floor: true,
+            hideLegend: true,
+            fullLabels: dLabels,
+            axis: {
+                ticks: daily.ticks || [],
+                weeks: daily.weeks || [],
+                sundays: daily.sundays || []
+            }
+        };
+        ['bounce', 'ppv', 'nvis', 'online'].forEach(function (key) {
+            if (dailyCompare[key]) dailyExtras[key] = daily[key] || [];
+        });
+        if (dailyChart) dailyChart.destroy();
+        dailyChart = new Chart($('hsDailyChart').getContext('2d'), stackedConfig(
+            dLabels,
+            daily.pageviews || [],
+            daily.visitors || [],
+            daily.first_time || [],
+            '',
+            dailyExtras
+        ));
+        syncCompareButtons('hsCompareBtns', compareState);
+        syncCompareButtons('hsDailyCompareBtns', dailyCompare);
+    }
+    function paint(payload) {
+        var d = payload || {};
+        var tot = d.totals || {};
+        var today = d.today || {};
+        var deltas = d.deltas || {};
+        var acc = d.account || {};
+        $('hsDomainTitle').textContent = selectedWebsite() || d.domain || d.title || ('SID ' + (d.sid || ''));
+        $('hsSidLabel').textContent = d.sid || '-';
+        $('hsTotalPv').innerHTML = fmt(tot.pageviews) + deltaHtml(deltas.total_pageviews);
+        $('hsTotalVis').innerHTML = fmt(tot.visitors) + deltaHtml(deltas.total_visitors);
+        $('hsTotalPpv').textContent = Number(tot.pages_per_visit || 0).toFixed(2);
+        $('hsLastHit').textContent = today.last_hit || payload.server_time || '-';
+        $('hsCreated').textContent = acc.created_at || '-';
+        $('hsTimezone').textContent = acc.timezone || '-';
+        $('hsCategory').textContent = acc.category || '-';
+        $('hsTodayPv').innerHTML = fmt(today.pageviews) + deltaHtml(deltas.pageviews);
+        $('hsTodayVis').innerHTML = fmt(today.visitors) + deltaHtml(deltas.visitors);
+        $('hsTodayFirst').innerHTML = fmt(today.first_time) + deltaHtml(deltas.first_time);
+        $('hsOnline').innerHTML = fmt(today.online) + deltaHtml(deltas.online);
+        $('hsAvgTime').textContent = fmtTime(today.avg_time_sec);
+        $('hsTodayPpv').textContent = Number(today.pages_per_visit || 0).toFixed(2);
+        var fc = d.forecast || {};
+        $('hsForecastHour').textContent = fmt(fc.hour_visitors);
+        $('hsForecastDay').textContent = fmt(fc.day_visitors);
+        function pctDelta(v) {
+            if (v === null || v === undefined || v === '') return '—';
+            var n = Number(v);
+            if (!isFinite(n)) return '—';
+            var sign = n > 0 ? '+' : '';
+            return sign + n.toFixed(1).replace('.', ',') + '%';
+        }
+        function cmpHtml(vs7, vs14) {
+            return '<div class="hs-fc-line"><span class="hs-fc-bullet"></span> dibanding 7 hari yang lalu <b>' + pctDelta(vs7) + '</b></div>'
+                + '<div class="hs-fc-line"><span class="hs-fc-bullet"></span> dari 14 hari yang lalu <b>' + pctDelta(vs14) + '</b></div>';
+        }
+        $('hsForecastHourCmp').innerHTML = cmpHtml(fc.hour_vs_7, fc.hour_vs_14);
+        $('hsForecastDayCmp').innerHTML = cmpHtml(fc.day_vs_7, fc.day_vs_14);
+        var l2 = (d.daily && d.daily.totals) || tot;
+        $('hsL2Pv').textContent = fmt(l2.pageviews);
+        $('hsL2Vis').textContent = fmt(l2.visitors);
+        $('hsL2First').innerHTML = fmt(l2.first_time) + (l2.first_share ? ' <span class="share">(' + Number(l2.first_share).toFixed(2) + '%)</span>' : '');
+        $('hsL2Ppv').textContent = Number(l2.pages_per_visit || 0).toFixed(2);
+        renderCharts(d);
+    }
+    function loadLive() {
+        var sid = currentSid();
+        if (!sid) {
+            setError('Isi Histats SID secara manual, lalu klik Muat Live.');
+            return;
+        }
+        rememberSid(selectedWebsite(), sid);
+        var user = String(($('hsHistatsUser').value || '')).trim();
+        var pass = String(($('hsHistatsPass').value || ''));
+        fetch(DATA_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken()
+            },
+            body: JSON.stringify({ sid: sid, user: user, pass: pass })
+        })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+            .then(function (res) {
+                if (!res.json || !res.json.status) {
+                    if (res.json && res.json.need_login) {
+                        lastSid = '';
+                        setAuthStatus(false, 'SID diproteksi. Isi email dan password Histats, lalu Muat Live lagi.');
+                    }
+                    setError((res.json && res.json.error) || 'Gagal memuat data Histats.');
+                    return;
+                }
+                lastSid = sid;
+                setError('');
+                if (res.json.logged_in) {
+                    $('hsHistatsPass').value = '';
+                    setAuthStatus(true);
+                } else {
+                    var src = (res.json.data && res.json.data.source) || '';
+                    if (src === 'histats-counter') {
+                        setAuthStatus(false, '');
+                    }
+                }
+                paint(Object.assign({}, res.json.data || {}, { server_time: res.json.server_time }));
+            })
+            .catch(function (e) {
+                setError(String(e && e.message || e || 'Gagal memuat Histats'));
+            });
+    }
+    function startTimer() {
+        if (timer) clearInterval(timer);
+        timer = setInterval(function () {
+            if (!paused && lastSid) loadLive();
+        }, 15000);
+    }
+    $('hsPauseBtn').addEventListener('click', function () {
+        paused = !paused;
+        this.textContent = paused ? 'Play' : 'Pause';
+        $('hsLiveDot').classList.toggle('is-paused', paused);
+    });
+    $('hsLoadBtn').addEventListener('click', function () { loadLive(); });
+    bindCompare('hsCompareBtns', compareState, function () { renderCharts(lastLiveData); });
+    bindCompare('hsDailyCompareBtns', dailyCompare, function () { renderCharts(lastLiveData); });
+    if ($('hsDailyChartTypes')) {
+        $('hsDailyChartTypes').addEventListener('click', function (e) {
+            var btn = e.target.closest('.hs-chart-type');
+            if (!btn) return;
+            var kind = btn.getAttribute('data-kind');
+            if (kind === 'shot') {
+                if (!dailyChart) return;
+                var link = document.createElement('a');
+                link.href = dailyChart.toBase64Image('image/png', 1);
+                link.download = 'histats-last-2-months.png';
+                link.click();
+                return;
+            }
+            dailyKind = kind || 'bar';
+            Array.prototype.forEach.call(this.querySelectorAll('.hs-chart-type'), function (el) {
+                el.classList.toggle('is-on', el.getAttribute('data-kind') === dailyKind);
+            });
+            renderCharts(lastLiveData);
+        });
+    }
+    $('hsSidManual').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            loadLive();
+        }
+    });
+    $('hsHistatsPass').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            loadLive();
+        }
+    });
+    initWebsiteFilter();
+    try {
+        var savedSite = localStorage.getItem('hs_last_site') || '';
+        var savedSid = localStorage.getItem('hs_last_sid') || '';
+        if (savedSite && window.jQuery && jQuery.fn.select2) {
+            var option = new Option(savedSite, savedSite, true, true);
+            jQuery('#hsSite').append(option).trigger('change');
+            $('hsDomainTitle').textContent = savedSite;
+        }
+        if (savedSid) $('hsSidManual').value = savedSid;
+    } catch (_e) {}
+    setInterval(tickClock, 1000);
+    tickClock();
+    startTimer();
+})();
+</script>
+{% endblock %}
