@@ -16,14 +16,63 @@ def _session_cookies(request):
     return request.session.get('histats_cookies') or {}
 
 
-def _save_cookies(request, cookies, logged_in=None):
+def _histats_credentials(request, payload=None):
+    payload = payload or {}
+    user = str(payload.get('user') or payload.get('email') or '').strip()
+    password = str(payload.get('pass') or payload.get('password') or '')
+    if user and password:
+        return {'user': user, 'pass': password}
+    saved_user = str(request.session.get('histats_user') or '').strip()
+    saved_pass = str(request.session.get('histats_pass') or '')
+    if saved_user and saved_pass:
+        return {'user': saved_user, 'pass': saved_pass}
+    return None
+
+
+def _forget_histats_login(request):
+    for key in ('histats_cookies', 'histats_logged_in', 'histats_user', 'histats_pass'):
+        request.session.pop(key, None)
+    request.session.modified = True
+
+
+def _save_cookies(request, cookies, logged_in=None, credentials=None):
     if cookies:
         request.session['histats_cookies'] = cookies
+    if credentials and credentials.get('user') and credentials.get('pass'):
+        request.session['histats_user'] = str(credentials.get('user') or '').strip()
+        request.session['histats_pass'] = str(credentials.get('pass') or '')
+        logged_in = True
     if logged_in is True:
         request.session['histats_logged_in'] = True
     elif logged_in is False:
         request.session['histats_logged_in'] = False
     request.session.modified = True
+
+
+def _histats_page_ctx(request, **extra):
+    data = {
+        'user': request.session.get('hris_admin') or {},
+        'histats_logged_in': bool(request.session.get('histats_logged_in')),
+        'histats_user': str(request.session.get('histats_user') or ''),
+    }
+    data.update(extra)
+    return data
+
+
+def _finish_histats_fetch(request, cookies, credentials=None):
+    logged_in = bool(credentials) or bool(request.session.get('histats_logged_in'))
+    if credentials:
+        _save_cookies(request, cookies, logged_in=True, credentials=credentials)
+        logged_in = True
+    elif cookies:
+        _save_cookies(request, cookies)
+    return logged_in
+
+
+def _histats_auth_error(request, exc):
+    if getattr(exc, 'need_login', False):
+        _forget_histats_login(request)
+    return _error_response(exc)
 
 
 def _error_response(exc, status=None):
@@ -57,13 +106,12 @@ class StatistikRingkasanView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
-        data = {
-            'title': 'Statistik Ringkasan',
-            'user': request.session.get('hris_admin') or {},
-            'histats_sites': histats_client.configured_sites(),
-            'histats_has_account': histats_client.has_account() or bool(request.session.get('histats_logged_in')),
-            'histats_logged_in': bool(request.session.get('histats_logged_in')),
-        }
+        data = _histats_page_ctx(
+            request,
+            title='Statistik Ringkasan',
+            histats_sites=histats_client.configured_sites(),
+            histats_has_account=histats_client.has_account() or bool(request.session.get('histats_logged_in')),
+        )
         return render(request, 'admin/statistik_ringkasan/index.html', data)
 
 
@@ -90,8 +138,8 @@ class StatistikRingkasanLoginView(View):
                 'error': 'Login Histats gagal. Periksa email dan password.',
                 'need_login': True,
             }, status=403)
-        _save_cookies(request, histats_client.cookies_dump(sess), logged_in=True)
-        return JsonResponse({'status': True, 'logged_in': True})
+        _save_cookies(request, histats_client.cookies_dump(sess), logged_in=True, credentials={'user': user, 'pass': password})
+        return JsonResponse({'status': True, 'logged_in': True, 'histats_user': user})
 
 
 class StatistikRingkasanDataView(View):
@@ -116,27 +164,23 @@ class StatistikRingkasanDataView(View):
             }, status=400)
         user = str(payload.get('user') or payload.get('email') or '').strip()
         password = str(payload.get('pass') or payload.get('password') or '')
-        credentials = {'user': user, 'pass': password} if user and password else None
+        credentials = _histats_credentials(request, payload)
         try:
             summary, cookies = histats_client.fetch_summary(
                 sid,
                 cookies=_session_cookies(request),
                 credentials=credentials,
             )
-            logged_in = bool(credentials) or bool(request.session.get('histats_logged_in'))
-            if credentials:
-                _save_cookies(request, cookies, logged_in=True)
-                logged_in = True
-            elif cookies:
-                _save_cookies(request, cookies)
+            logged_in = _finish_histats_fetch(request, cookies, credentials)
             return JsonResponse({
                 'status': True,
                 'data': summary,
                 'logged_in': logged_in and str((summary or {}).get('source') or '') != 'histats-counter',
+                'histats_user': str(request.session.get('histats_user') or user or ''),
                 'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             })
         except histats_client.HistatsAuthError as exc:
-            return _error_response(exc)
+            return _histats_auth_error(request, exc)
         except Exception as exc:
             return JsonResponse({'status': False, 'error': str(exc)}, status=502)
 
@@ -166,11 +210,7 @@ class StatistikUserOnlineView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
-        data = {
-            'title': 'Users Online',
-            'user': request.session.get('hris_admin') or {},
-            'histats_logged_in': bool(request.session.get('histats_logged_in')),
-        }
+        data = _histats_page_ctx(request, title='Users Online')
         return render(request, 'admin/statistik_user_online/index.html', data)
 
 
@@ -191,6 +231,7 @@ class StatistikUserOnlineDataView(View):
         sid = str(payload.get('sid') or request.GET.get('sid') or '').strip()
         tab = str(payload.get('tab') or request.GET.get('tab') or 'summary').strip().lower()
         page = payload.get('page') or request.GET.get('page') or 0
+        rowspp = payload.get('rowspp') or request.GET.get('rowspp') or 0
         if not sid:
             return JsonResponse({
                 'status': False,
@@ -198,29 +239,26 @@ class StatistikUserOnlineDataView(View):
             }, status=400)
         user = str(payload.get('user') or payload.get('email') or '').strip()
         password = str(payload.get('pass') or payload.get('password') or '')
-        credentials = {'user': user, 'pass': password} if user and password else None
+        credentials = _histats_credentials(request, payload)
         try:
             live, cookies = histats_client.fetch_live(
                 sid,
                 tab=tab,
                 page=page,
+                rowspp=rowspp,
                 cookies=_session_cookies(request),
                 credentials=credentials,
             )
-            logged_in = bool(credentials) or bool(request.session.get('histats_logged_in'))
-            if credentials:
-                _save_cookies(request, cookies, logged_in=True)
-                logged_in = True
-            elif cookies:
-                _save_cookies(request, cookies)
+            logged_in = _finish_histats_fetch(request, cookies, credentials)
             return JsonResponse({
                 'status': True,
                 'data': live,
                 'logged_in': logged_in,
+                'histats_user': str(request.session.get('histats_user') or user or ''),
                 'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             })
         except histats_client.HistatsAuthError as exc:
-            return _error_response(exc)
+            return _histats_auth_error(request, exc)
         except Exception as exc:
             return JsonResponse({'status': False, 'error': str(exc)}, status=502)
 
@@ -232,11 +270,7 @@ class StatistikTrafficStatView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
-        data = {
-            'title': 'Traffic Stats',
-            'user': request.session.get('hris_admin') or {},
-            'histats_logged_in': bool(request.session.get('histats_logged_in')),
-        }
+        data = _histats_page_ctx(request, title='Traffic Stats')
         return render(request, 'admin/statistik_traffic_stat/index.html', data)
 
 
@@ -266,7 +300,7 @@ class StatistikTrafficStatDataView(View):
             }, status=400)
         user = str(payload.get('user') or payload.get('email') or '').strip()
         password = str(payload.get('pass') or payload.get('password') or '')
-        credentials = {'user': user, 'pass': password} if user and password else None
+        credentials = _histats_credentials(request, payload)
         try:
             traffic, cookies = histats_client.fetch_traffic(
                 sid,
@@ -277,20 +311,16 @@ class StatistikTrafficStatDataView(View):
                 cookies=_session_cookies(request),
                 credentials=credentials,
             )
-            logged_in = bool(credentials) or bool(request.session.get('histats_logged_in'))
-            if credentials:
-                _save_cookies(request, cookies, logged_in=True)
-                logged_in = True
-            elif cookies:
-                _save_cookies(request, cookies)
+            logged_in = _finish_histats_fetch(request, cookies, credentials)
             return JsonResponse({
                 'status': True,
                 'data': traffic,
                 'logged_in': logged_in,
+                'histats_user': str(request.session.get('histats_user') or user or ''),
                 'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             })
         except histats_client.HistatsAuthError as exc:
-            return _error_response(exc)
+            return _histats_auth_error(request, exc)
         except Exception as exc:
             return JsonResponse({'status': False, 'error': str(exc)}, status=502)
 
@@ -302,11 +332,7 @@ class VisitorBrowserView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
-        data = {
-            'title': 'Visitors Details',
-            'user': request.session.get('hris_admin') or {},
-            'histats_logged_in': bool(request.session.get('histats_logged_in')),
-        }
+        data = _histats_page_ctx(request, title='Visitors Details')
         return render(request, 'admin/visitor_browser/index.html', data)
 
 
@@ -338,7 +364,7 @@ class VisitorBrowserDataView(View):
             }, status=400)
         user = str(payload.get('user') or payload.get('email') or '').strip()
         password = str(payload.get('pass') or payload.get('password') or '')
-        credentials = {'user': user, 'pass': password} if user and password else None
+        credentials = _histats_credentials(request, payload)
         try:
             visitors, cookies = histats_client.fetch_visitors(
                 sid,
@@ -351,20 +377,16 @@ class VisitorBrowserDataView(View):
                 cookies=_session_cookies(request),
                 credentials=credentials,
             )
-            logged_in = bool(credentials) or bool(request.session.get('histats_logged_in'))
-            if credentials:
-                _save_cookies(request, cookies, logged_in=True)
-                logged_in = True
-            elif cookies:
-                _save_cookies(request, cookies)
+            logged_in = _finish_histats_fetch(request, cookies, credentials)
             return JsonResponse({
                 'status': True,
                 'data': visitors,
                 'logged_in': logged_in,
+                'histats_user': str(request.session.get('histats_user') or user or ''),
                 'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             })
         except histats_client.HistatsAuthError as exc:
-            return _error_response(exc)
+            return _histats_auth_error(request, exc)
         except Exception as exc:
             return JsonResponse({'status': False, 'error': str(exc)}, status=502)
 
@@ -376,11 +398,7 @@ class VisitorLocationView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
-        data = {
-            'title': 'Geolocation',
-            'user': request.session.get('hris_admin') or {},
-            'histats_logged_in': bool(request.session.get('histats_logged_in')),
-        }
+        data = _histats_page_ctx(request, title='Geolocation')
         return render(request, 'admin/vistor_location/index.html', data)
 
 
@@ -412,7 +430,7 @@ class VisitorLocationDataView(View):
             }, status=400)
         user = str(payload.get('user') or payload.get('email') or '').strip()
         password = str(payload.get('pass') or payload.get('password') or '')
-        credentials = {'user': user, 'pass': password} if user and password else None
+        credentials = _histats_credentials(request, payload)
         try:
             geo, cookies = histats_client.fetch_geolocation(
                 sid,
@@ -425,20 +443,16 @@ class VisitorLocationDataView(View):
                 cookies=_session_cookies(request),
                 credentials=credentials,
             )
-            logged_in = bool(credentials) or bool(request.session.get('histats_logged_in'))
-            if credentials:
-                _save_cookies(request, cookies, logged_in=True)
-                logged_in = True
-            elif cookies:
-                _save_cookies(request, cookies)
+            logged_in = _finish_histats_fetch(request, cookies, credentials)
             return JsonResponse({
                 'status': True,
                 'data': geo,
                 'logged_in': logged_in,
+                'histats_user': str(request.session.get('histats_user') or user or ''),
                 'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             })
         except histats_client.HistatsAuthError as exc:
-            return _error_response(exc)
+            return _histats_auth_error(request, exc)
         except Exception as exc:
             return JsonResponse({'status': False, 'error': str(exc)}, status=502)
 

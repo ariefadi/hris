@@ -1208,7 +1208,16 @@ def _normalize_summary(sid: str, payload: Any, meta: Dict[str, Any]) -> Dict[str
                 segs = hourly_cmp.get(ts) or hourly_cmp.get(str(ts))
             if not isinstance(segs, dict):
                 continue
-            compare_days[str(key)] = _pack_hour_metrics(segs)
+            packed = _pack_hour_metrics(segs)
+            packed['ts'] = ts
+            packed['offset'] = key
+            packed['label'] = _id_date_label(ts)
+            packed['totals'] = {
+                'pageviews': sum(_as_int(x) for x in (packed.get('raw_pageviews') or [])),
+                'visitors': sum(_as_int(x) for x in (packed.get('raw_visitors') or [])),
+                'first_time': sum(_as_int(x) for x in (packed.get('raw_first') or [])),
+            }
+            compare_days[str(key)] = packed
         if not compare_days:
             today_key = _move_to_day_begin(_as_int(charts.get('site_time')))
             others = []
@@ -1218,7 +1227,16 @@ def _normalize_summary(sid: str, payload: Any, meta: Dict[str, Any]) -> Dict[str
                 others.append((_as_int(ts), segs))
             others.sort(key=lambda row: row[0], reverse=True)
             for key, row in zip((1, 7, 14), others):
-                compare_days[str(key)] = _pack_hour_metrics(row[1])
+                packed = _pack_hour_metrics(row[1])
+                packed['ts'] = row[0]
+                packed['offset'] = key
+                packed['label'] = _id_date_label(row[0])
+                packed['totals'] = {
+                    'pageviews': sum(_as_int(x) for x in (packed.get('raw_pageviews') or [])),
+                    'visitors': sum(_as_int(x) for x in (packed.get('raw_visitors') or [])),
+                    'first_time': sum(_as_int(x) for x in (packed.get('raw_first') or [])),
+                }
+                compare_days[str(key)] = packed
 
     forecast_vs = {'hour_7': None, 'hour_14': None, 'day_7': None, 'day_14': None}
     if isinstance(hourly_cmp, dict):
@@ -1277,6 +1295,7 @@ def _normalize_summary(sid: str, payload: Any, meta: Dict[str, Any]) -> Dict[str
             'ppv': today_metrics.get('ppv') or [],
             'nvis': today_metrics.get('nvis') or [],
             'online': today_metrics.get('online') or [],
+            'label': _id_date_label(_as_int((charts or {}).get('site_time')) or int(time.time())),
             'compare': compare_days,
         },
         'daily': {
@@ -1416,6 +1435,11 @@ def fetch_summary(
                 need_login=True,
             )
     meta['source'] = source
+    if source == 'histats':
+        try:
+            meta['charts'] = _fill_hourly_compare(sess, sid, (meta or {}).get('charts') or {})
+        except Exception:
+            pass
     return _normalize_summary(sid, payload, meta), cookies_dump(sess)
 
 
@@ -1424,13 +1448,23 @@ _LIVE_INFO = {
     6: 'Windows 98', 7: 'Windows ME', 8: 'Win95', 9: 'Windows NT4', 10: 'Windows',
     11: 'BSD', 12: 'SunOS', 13: 'Unix', 14: 'OS2', 15: 'Windows Vista', 16: 'Windows 7',
     17: 'Windows CE', 18: 'iPod', 19: 'iPhone', 20: 'Macintosh', 21: 'Mac PowerPC',
-    24: 'BlackBerry', 25: 'Samsung Mobile', 26: 'SonyEricsson', 27: 'Symbian OS',
-    30: 'Android', 31: 'iPad', 100: 'Other OS',
+    22: 'PowerPC', 23: 'Java OS', 24: 'BlackBerry', 25: 'Samsung Mobile', 26: 'SonyEricsson',
+    27: 'Symbian OS', 28: 'Playstation', 29: 'Wii', 30: 'Android', 31: 'iPad', 100: 'Other OS',
     101: 'IE', 102: 'IE 5.5', 103: 'IE 5.0', 104: 'IE 6.0', 105: 'IE 7.0', 106: 'Opera',
-    107: 'Safari', 109: 'Firefox', 110: 'Firefox 2', 116: 'Firefox 3', 117: 'Chrome',
+    107: 'Safari', 108: 'Camino', 109: 'Firefox', 110: 'Firefox 2', 111: 'Firefox 1.5',
+    112: 'Firefox 1.0', 113: 'Netscape', 116: 'Firefox 3', 117: 'Chrome', 118: 'AOL',
     120: 'IE 8', 121: 'Firefox 3.5', 129: 'Safari mobile', 130: 'Android', 131: 'Opera Mini',
-    132: 'Firefox 3.6', 133: 'Chrome', 136: 'Firefox', 139: 'IE 9', 140: 'IE 10',
+    132: 'Firefox 3.6', 133: 'Chrome', 134: 'Chrome', 135: 'Safari 5', 136: 'Firefox',
+    137: 'Firefox', 138: 'Firefox', 139: 'IE 9', 140: 'IE 10', 141: 'Chrome', 142: 'Chrome',
+    143: 'Chrome', 144: 'Chrome', 145: 'Chrome', 146: 'Chrome', 147: 'Chrome', 148: 'Chrome',
     195: 'IE', 196: 'Firefox', 197: 'Chrome', 198: 'Safari', 199: 'Mobile', 200: 'Other',
+    201: '1600 x 1200', 202: '1400 x 1050', 203: '1280 x 1024', 204: '1152 x 864',
+    205: '1024 x 768', 206: '800 x 600', 207: '640 x 480', 208: '1440 x 900',
+    209: '1680 x 1050', 210: '1360 x 768', 211: '1366 x 768', 212: '1920 x 1200',
+    213: '1366 x 768', 214: 'width ~ 600', 215: 'width ~ 700', 216: 'width ~ 800',
+    217: 'width ~ 900', 218: 'width ~ 1000', 219: 'width ~ 1300', 220: 'width ~ 1600',
+    221: 'width ~ 1900', 222: 'width ~ 2200', 223: 'width ~ 2600', 224: '1900 x 1200',
+    300: 'Other res',
 }
 
 _LIVE_TABS = {
@@ -1462,16 +1496,17 @@ def _histats_ip(value: Any) -> str:
 
 
 def _ago_txt(seconds: int) -> str:
+    """Histats-style elapsed text, e.g. 6\" / 2'17\" / 1h5'30\"."""
     sec = max(0, _as_int(seconds))
-    if sec < 60:
-        return f'{sec}"'
-    minutes = sec // 60
-    if minutes < 60:
-        return f"{minutes}'"
-    hours = minutes // 60
-    if hours < 48:
-        return f'{hours}h'
-    return f'{hours // 24}d'
+    parts: List[str] = []
+    if sec > 3599:
+        parts.append(f'{sec // 3600}h')
+        sec %= 3600
+    if sec > 59:
+        parts.append(f"{sec // 60}'")
+        sec %= 60
+    parts.append(f'{sec}"')
+    return ''.join(parts)
 
 
 def _live_name(code: Any) -> str:
@@ -1562,7 +1597,34 @@ def _last_path_title(vis_path: Any) -> Tuple[str, str]:
     return _decode_txt(row.get('t')), _decode_txt(row.get('u'))
 
 
-def _normalize_live(sid: str, payload: Any, meta: Dict[str, Any], tab: str) -> Dict[str, Any]:
+def _vis_path_rows(vis_path: Any, cur_time: int) -> List[Dict[str, Any]]:
+    if not isinstance(vis_path, dict) or not vis_path:
+        return []
+    ordered = sorted(vis_path.items(), key=lambda item: _as_int(item[0]))
+    out: List[Dict[str, Any]] = []
+    for _, row in ordered:
+        if not isinstance(row, dict):
+            continue
+        secs = max(0, cur_time - _as_int(row.get('tt'))) if cur_time else 0
+        title = _decode_txt(row.get('t')) or _decode_txt(row.get('u'))
+        url = _decode_txt(row.get('u'))
+        out.append({
+            'ago': _ago_txt(secs),
+            'seconds': secs,
+            'title': title,
+            'url': url,
+        })
+    return out
+
+
+def _normalize_live(
+    sid: str,
+    payload: Any,
+    meta: Dict[str, Any],
+    tab: str,
+    page: int = 0,
+    rowspp: int = 50,
+) -> Dict[str, Any]:
     blob = payload if isinstance(payload, dict) else {}
     live = blob.get('livearray') if isinstance(blob.get('livearray'), dict) else blob
     if not isinstance(live, dict):
@@ -1584,17 +1646,20 @@ def _normalize_live(sid: str, payload: Any, meta: Dict[str, Any], tab: str) -> D
         ref = _decode_txt(info.get('ref'))
         keyword = _decode_txt(info.get('k'))
         kind = 'search' if info.get('idse') else ('bookmark' if ref == 'b' else ('referrer' if ref else ''))
+        secs = max(0, cur_time - _as_int(row.get('tt'))) if cur_time else 0
         recent.append({
-            'ago': _ago_txt(cur_time - _as_int(row.get('tt')) if cur_time else 0),
-            'seconds': max(0, cur_time - _as_int(row.get('tt'))) if cur_time else 0,
+            'ago': _ago_txt(secs),
+            'seconds': secs,
             'title': title,
             'url': _decode_txt(row.get('u')),
             'ip': _histats_ip(row.get('ip')),
             'hits': _as_int(info.get('h')),
             'os': _live_name(info.get('os')),
             'browser': _live_name(info.get('brw')),
+            'resolution': _live_name(info.get('res')),
             'referrer': '' if ref == 'b' else (keyword or ref),
             'referrer_kind': kind,
+            'referrer_label': 'Bookmark / Direct' if ref == 'b' else (keyword or ref),
             **geo,
         })
 
@@ -1620,14 +1685,29 @@ def _normalize_live(sid: str, payload: Any, meta: Dict[str, Any], tab: str) -> D
         if not isinstance(row, dict):
             continue
         geo = _geo_of(geo_index, row.get('ctr'))
+        path = _vis_path_rows(row.get('vis_path'), cur_time)
         title, url = _last_path_title(row.get('vis_path'))
+        if not title and path:
+            title = path[-1].get('title') or ''
+            url = path[-1].get('url') or ''
+        last_ago = path[-1]['ago'] if path else ''
+        history = list(reversed(path[:-1])) if len(path) > 1 else []
+        ref = _decode_txt(row.get('ref'))
+        keyword = _decode_txt(row.get('k'))
+        kind = 'search' if row.get('idse') else ('bookmark' if ref == 'b' else ('referrer' if ref else ''))
         visitors.append({
             'hits': _as_int(row.get('h')),
             'ip': _histats_ip(row.get('ip') or ip_key),
             'os': _live_name(row.get('os')),
             'browser': _live_name(row.get('brw')),
+            'resolution': _live_name(row.get('res')),
             'title': title,
             'url': url,
+            'last_ago': last_ago,
+            'path': history,
+            'referrer': '' if ref == 'b' else (keyword or ref),
+            'referrer_kind': kind,
+            'referrer_label': 'Bookmark / Direct' if ref == 'b' else (keyword or ref),
             **geo,
         })
     visitors.sort(key=lambda item: item['hits'], reverse=True)
@@ -1677,13 +1757,25 @@ def _normalize_live(sid: str, payload: Any, meta: Dict[str, Any], tab: str) -> D
     geo_rows.sort(key=lambda item: item['count'], reverse=True)
     countries = sorted(country_tot.values(), key=lambda item: item['count'], reverse=True)
 
+    page_n = max(_as_int(page), 0)
+    rows_n = max(_as_int(rowspp), 1)
     return {
         'sid': sid,
         'domain': (meta or {}).get('domain') or '',
         'title': (meta or {}).get('title') or '',
         'tab': tab,
+        'page': page_n,
+        'rowspp': rows_n,
         'users_online': _as_int(live.get('count_users_online')),
         'pages_browsing': _as_int(live.get('count_live_pages')),
+        'totals': {
+            'recent': _as_int(live.get('last_hits_rows')) or len(recent),
+            'visitors': _as_int(live.get('top_ip_rows')) or len(visitors),
+            'pages': _as_int(live.get('top_url_rows')) or len(pages),
+            'referrers': _as_int(live.get('top_ref_rows')) or len(referrers),
+            'geo': len(geo_rows),
+            'countries': len(countries),
+        },
         'recent': recent,
         'pages': pages,
         'visitors': visitors,
@@ -1699,6 +1791,7 @@ def fetch_live(
     sid: str,
     tab: str = 'summary',
     page: int = 0,
+    rowspp: int = 0,
     cookies: Optional[Any] = None,
     credentials: Optional[Dict[str, str]] = None,
 ) -> Tuple[Dict[str, Any], Any]:
@@ -1712,8 +1805,12 @@ def fetch_live(
     if tab_key in _LIVE_TABS.values():
         tipo = tab_key
         tab_key = next((name for name, code in _LIVE_TABS.items() if code == tipo), 'summary')
-    rowspp = 10 if tipo == '1' else 50
-    cache_key = f'{sid}:{tipo}:{_as_int(page)}'
+    rows = _as_int(rowspp)
+    if rows <= 0:
+        rows = 10 if tipo == '1' else 50
+    rows = min(max(rows, 1), 200)
+    page_n = max(_as_int(page), 0)
+    cache_key = f'{sid}:{tipo}:{page_n}:{rows}'
     now = time.time()
     cached = _live_cache.get(cache_key)
     if cached and (now - int(cached.get('fetched_at') or 0)) < _LIVE_TTL:
@@ -1749,9 +1846,9 @@ def fetch_live(
         token, meta = '', {}
     extra = {
         'AR_REQ[type]': tipo,
-        'AR_REQ[rowspp]': str(rowspp),
+        'AR_REQ[rowspp]': str(rows),
         'AR_REQ[timestart]': '0',
-        'AR_REQ[page]': str(max(_as_int(page), 0)),
+        'AR_REQ[page]': str(page_n),
     }
     referer = f'{BASE}/viewstats/?sid={sid}&act=18'
     if token:
@@ -1791,7 +1888,14 @@ def fetch_live(
             need_login=err in (11, 12),
         )
     meta['source'] = 'histats'
-    out = _normalize_live(sid, payload if err != 13 else {}, meta, tab_key)
+    out = _normalize_live(
+        sid,
+        payload if err != 13 else {},
+        meta,
+        tab_key,
+        page=page_n,
+        rowspp=rows,
+    )
     _live_cache[cache_key] = out
     return out, cookies_dump(sess)
 
@@ -1946,6 +2050,46 @@ def _get_act3(
         if _is_protected_response(resp):
             continue
     return last_html, last_url
+
+
+def _id_date_label(ts: int) -> str:
+    dt = _utc_dt(_as_int(ts) or int(time.time()))
+    return f'{dt.day} {_MONTHS_ID[dt.month - 1]}'
+
+
+def _fill_hourly_compare(sess: 'requests.Session', sid: str, charts: Dict[str, Any]) -> Dict[str, Any]:
+    charts = dict(charts or {})
+    compare_map = dict(charts.get('compare') or {})
+    hourly_cmp: Dict[Any, Any] = dict(charts.get('hourly_compare') or {})
+    site_time = _as_int(charts.get('site_time')) or int(time.time())
+    today = _unix_day_begin(site_time)
+
+    def _segs_for(ts: int) -> Optional[Dict[str, Any]]:
+        for key in (ts, str(ts), _as_int(ts)):
+            row = hourly_cmp.get(key)
+            if isinstance(row, dict) and (row.get('h') or row.get('v')):
+                return row
+        return None
+
+    for key in (1, 7, 14):
+        ts = _as_int(compare_map.get(key) or compare_map.get(str(key)))
+        if not ts:
+            ts = _unix_day_begin(today - key * 86400)
+            compare_map[key] = ts
+        if _segs_for(ts):
+            continue
+        try:
+            html, _ = _get_act3(sess, sid, ts, 0, 'normal', 'h')
+            page = _parse_traffic_page(html)
+            block = _pick_block(page.get('blocks') or [], 'h', ts)
+            segs = (block or {}).get('segs') if isinstance(block, dict) else None
+            if isinstance(segs, dict) and (segs.get('h') or segs.get('v')):
+                hourly_cmp[ts] = segs
+        except Exception:
+            continue
+    charts['compare'] = compare_map
+    charts['hourly_compare'] = hourly_cmp
+    return charts
 
 
 def _clip_segs(segs: Dict[str, Any], start: int, end: int) -> Dict[str, Any]:

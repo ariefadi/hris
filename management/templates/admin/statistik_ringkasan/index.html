@@ -331,6 +331,24 @@ html[data-theme="dark"] .hs-fc-line b { color: #e2e8f0; }
     color: var(--hs-muted);
     margin-top: 2px;
 }
+.hs-hourly-card .hs-compare {
+    justify-content: space-between;
+}
+.hs-hourly-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 10px;
+}
+.hs-hourly-head h3 { margin: 0; }
+.hs-hourly-range {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--hs-navy);
+    white-space: nowrap;
+}
+html[data-theme="dark"] .hs-hourly-range { color: #93c5fd; }
 .hs-last2 .hs-compare {
     margin: 0;
     border: 0;
@@ -484,13 +502,13 @@ html[data-theme="dark"] .hs-error {
     <div class="hs-toolbar-auth" id="hsAuthBox">
         <div>
             <label for="hsHistatsUser">Email Histats</label>
-            <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats">
+            <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats" value="{{ histats_user|default:'' }}">
         </div>
         <div>
             <label for="hsHistatsPass">Password Histats</label>
-            <input id="hsHistatsPass" class="form-control" type="password" autocomplete="current-password" placeholder="password Histats">
+            <input id="hsHistatsPass" class="form-control" type="password" autocomplete="current-password" placeholder="{% if histats_logged_in %}tersimpan di sesi sampai logout{% else %}password Histats{% endif %}">
         </div>
-        <div class="hs-auth-status" id="hsAuthStatus"{% if not histats_logged_in %} style="display:none"{% endif %}>Terhubung ke Histats</div>
+        <div class="hs-auth-status" id="hsAuthStatus"{% if not histats_logged_in %} style="display:none"{% endif %}>{% if histats_user %}Terhubung ke Histats ({{ histats_user }}){% else %}Terhubung ke Histats{% endif %}</div>
     </div>
     <p class="hs-note">Ketik subdomain, isi SID Histats, lalu Muat Live. Jika statistik diproteksi, isi email/password akun Histats di bawah. Login hanya untuk sesi ini dan statistik tidak disimpan ke database.</p>
     <div class="hs-error" id="hsError"></div>
@@ -526,10 +544,13 @@ html[data-theme="dark"] .hs-error {
         </div>
     </div>
 
-    <div class="hs-card" style="margin:0 16px 12px;">
-        <h3>Traffic hari ini (per jam)</h3>
+    <div class="hs-card hs-hourly-card" style="margin:0 16px 12px;">
+        <div class="hs-hourly-head">
+            <h3>Traffic hari ini (per jam)</h3>
+            <span class="hs-hourly-range" id="hsHourlyRange"></span>
+        </div>
         <div class="hs-compare">
-            <span class="hs-compare-title"><i class="bi bi-layers"></i> Compare</span>
+            <span class="hs-compare-title"><i class="bi bi-layers"></i> COMPARE</span>
             <div class="hs-compare-btns" id="hsCompareBtns">
                 <button type="button" class="hs-compare-btn is-on" data-compare="no"><i class="bi bi-slash-circle"></i> no</button>
                 <button type="button" class="hs-compare-btn" data-metric="bounce"><i class="bi bi-arrow-return-left"></i> bounce</button>
@@ -540,6 +561,16 @@ html[data-theme="dark"] .hs-error {
                 <button type="button" class="hs-compare-btn" data-day="7"><i class="bi bi-calendar3"></i> -7</button>
                 <button type="button" class="hs-compare-btn" data-day="14"><i class="bi bi-calendar3"></i> -14</button>
             </div>
+            <div class="hs-chart-types" id="hsHourlyChartTypes">
+                <button type="button" class="hs-chart-type is-on" data-kind="bar" title="Bar"><i class="bi bi-bar-chart-fill"></i></button>
+                <button type="button" class="hs-chart-type" data-kind="area" title="Area"><i class="bi bi-graph-up"></i></button>
+                <button type="button" class="hs-chart-type" data-kind="shot" title="Simpan chart"><i class="bi bi-camera"></i></button>
+            </div>
+        </div>
+        <div class="hs-last2-legend" style="padding:0 0 8px;">
+            <span><i class="hs-swatch" style="background:#e4453a"></i>First time visitors</span>
+            <span><i class="hs-swatch" style="background:#f0b01d"></i>Pengunjung</span>
+            <span><i class="hs-swatch" style="background:#3b8fd6"></i>Page views</span>
         </div>
         <div class="hs-chart-wrap"><canvas id="hsHourlyChart"></canvas></div>
     </div>
@@ -619,6 +650,7 @@ html[data-theme="dark"] .hs-error {
     var DATA_URL = "{% url 'statistik_ringkasan_data' %}";
     var LOGIN_URL = "{% url 'statistik_ringkasan_login' %}";
     var histatsLoggedIn = {% if histats_logged_in %}true{% else %}false{% endif %};
+    var userHint = "{{ histats_user|default:''|escapejs }}";
     var paused = false;
     var timer = null;
     var hourlyChart = null;
@@ -628,6 +660,7 @@ html[data-theme="dark"] .hs-error {
     var compareState = { day: 0, bounce: false, ppv: false, nvis: false, online: false };
     var dailyCompare = { bounce: false, ppv: false, nvis: false, online: false };
     var dailyKind = 'bar';
+    var hourlyKind = 'bar';
 
     function $(id) { return document.getElementById(id); }
     function num(v) { return Number(v || 0); }
@@ -669,7 +702,7 @@ html[data-theme="dark"] .hs-error {
         if (!el) return;
         if (ok) {
             el.style.display = 'block';
-            el.textContent = msg || 'Terhubung ke Histats';
+            el.textContent = msg || ('Terhubung ke Histats' + (userHint ? ' (' + userHint + ')' : ''));
             el.style.color = '#16a34a';
         } else if (msg) {
             el.style.display = 'block';
@@ -1001,9 +1034,11 @@ html[data-theme="dark"] .hs-error {
             { label: 'Pengunjung', data: vis, backgroundColor: HS_COLORS.vis.main, hsColor: HS_COLORS.vis, hsLayer: 'main', hsFloor: !!extras.floor, stack: 't', borderWidth: 0 },
             { label: 'Page views', data: pv, backgroundColor: HS_COLORS.pv.main, hsColor: HS_COLORS.pv, hsLayer: 'main', hsFloor: !!extras.floor, stack: 't', borderWidth: 0 }
         ];
-        var hasForecast = (fc.pageviews || []).some(function (v) { return Number(v) > 0; })
+        var hasForecast = extras.forecast && extras.forecast.enabled !== false && (
+            (fc.pageviews || []).some(function (v) { return Number(v) > 0; })
             || (fc.visitors || []).some(function (v) { return Number(v) > 0; })
-            || (fc.first_time || []).some(function (v) { return Number(v) > 0; });
+            || (fc.first_time || []).some(function (v) { return Number(v) > 0; })
+        );
         if (hasForecast) {
             datasets.push(
                 { label: '~ First time visitors', data: fc.first_time || [], backgroundColor: HS_COLORS.firstFc.main, hsColor: HS_COLORS.firstFc, hsLayer: 'forecast', hsGlass: true, stack: 't', borderWidth: 0 },
@@ -1011,7 +1046,9 @@ html[data-theme="dark"] .hs-error {
                 { label: '~ Page views', data: fc.pageviews || [], backgroundColor: HS_COLORS.pvFc.main, hsColor: HS_COLORS.pvFc, hsLayer: 'forecast', hsGlass: true, stack: 't', borderWidth: 0 }
             );
         }
-        if (cmp.pageviews || cmp.visitors || cmp.first_time) {
+        if ((cmp.pageviews && cmp.pageviews.some(function (v) { return Number(v) > 0; }))
+            || (cmp.visitors && cmp.visitors.some(function (v) { return Number(v) > 0; }))
+            || (cmp.first_time && cmp.first_time.some(function (v) { return Number(v) > 0; }))) {
             datasets.push(
                 { label: 'Compare first time', data: cmp.first_time || [], backgroundColor: HS_COLORS.firstFc.main, hsColor: HS_COLORS.firstFc, hsLayer: 'compare', hsGlass: true, stack: 'c', borderWidth: 0 },
                 { label: 'Compare pengunjung', data: cmp.visitors || [], backgroundColor: HS_COLORS.visFc.main, hsColor: HS_COLORS.visFc, hsLayer: 'compare', hsGlass: true, stack: 'c', borderWidth: 0 },
@@ -1047,6 +1084,28 @@ html[data-theme="dark"] .hs-error {
                 hs3d: false,
                 order: -2
             });
+            if (cmp && extras.compareOffset && Array.isArray(cmp[m.key]) && cmp[m.key].some(function (v) { return Number(v) > 0; })) {
+                datasets.push({
+                    type: 'line',
+                    label: m.label + ' H-' + extras.compareOffset,
+                    data: cmp[m.key] || [],
+                    borderColor: m.color,
+                    backgroundColor: '#fff',
+                    yAxisID: 'y1',
+                    pointRadius: compact ? 2 : 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: m.color,
+                    pointBorderWidth: 2,
+                    borderWidth: 2,
+                    borderDash: [5, 4],
+                    tension: 0.35,
+                    fill: false,
+                    spanGaps: true,
+                    hs3d: false,
+                    order: -1
+                });
+            }
         });
         if (isArea) {
             datasets = datasets.map(function (ds) {
@@ -1180,6 +1239,12 @@ html[data-theme="dark"] .hs-error {
             } else if (btn.getAttribute('data-day')) {
                 var day = Number(btn.getAttribute('data-day') || 0);
                 state.day = state.day === day ? 0 : day;
+                if (state.day && state.bounce === false && state.ppv === false && state.nvis === false && state.online === false) {
+                    state.bounce = true;
+                    state.ppv = true;
+                    state.nvis = true;
+                    state.online = true;
+                }
             } else if (btn.getAttribute('data-metric')) {
                 var metric = btn.getAttribute('data-metric');
                 state[metric] = !state[metric];
@@ -1199,9 +1264,10 @@ html[data-theme="dark"] .hs-error {
         }
         var extras = {
             hourly: true,
+            kind: hourlyKind,
             fullLabels: hFull,
             forecast: {
-                enabled: true,
+                enabled: !compareState.day || compareState.day === 1,
                 pageviews: hours.forecast_pageviews || [],
                 visitors: hours.forecast_visitors || [],
                 first_time: hours.forecast_first_time || []
@@ -1209,10 +1275,17 @@ html[data-theme="dark"] .hs-error {
         };
         if (compareState.day) {
             extras.compare = ((hours.compare || {})[String(compareState.day)]) || {};
+            extras.compareOffset = compareState.day;
         }
         ['bounce', 'ppv', 'nvis', 'online'].forEach(function (key) {
             if (compareState[key]) extras[key] = hours[key] || [];
         });
+        var rangeEl = $('hsHourlyRange');
+        if (rangeEl) {
+            var todayLabel = hours.label || '';
+            var cmpLabel = extras.compare && extras.compare.label ? extras.compare.label : '';
+            rangeEl.textContent = (compareState.day && todayLabel && cmpLabel) ? (todayLabel + ' - ' + cmpLabel) : todayLabel;
+        }
         var hourCfg = stackedConfig(
             hLabels,
             hours.pageviews || [],
@@ -1332,6 +1405,11 @@ html[data-theme="dark"] .hs-error {
                 setError('');
                 if (res.json.logged_in) {
                     $('hsHistatsPass').value = '';
+                    $('hsHistatsPass').placeholder = 'tersimpan di sesi sampai logout';
+                    if (res.json.histats_user) {
+                        userHint = res.json.histats_user;
+                        if (!$('hsHistatsUser').value) $('hsHistatsUser').value = userHint;
+                    }
                     setAuthStatus(true);
                 } else {
                     var src = (res.json.data && res.json.data.source) || '';
@@ -1359,26 +1437,31 @@ html[data-theme="dark"] .hs-error {
     $('hsLoadBtn').addEventListener('click', function () { loadLive(); });
     bindCompare('hsCompareBtns', compareState, function () { renderCharts(lastLiveData); });
     bindCompare('hsDailyCompareBtns', dailyCompare, function () { renderCharts(lastLiveData); });
-    if ($('hsDailyChartTypes')) {
-        $('hsDailyChartTypes').addEventListener('click', function (e) {
+    function bindChartTypes(rootId, setter, getter, chartGetter, filename) {
+        var root = $(rootId);
+        if (!root) return;
+        root.addEventListener('click', function (e) {
             var btn = e.target.closest('.hs-chart-type');
             if (!btn) return;
             var kind = btn.getAttribute('data-kind');
             if (kind === 'shot') {
-                if (!dailyChart) return;
+                var chart = chartGetter();
+                if (!chart) return;
                 var link = document.createElement('a');
-                link.href = dailyChart.toBase64Image('image/png', 1);
-                link.download = 'histats-last-2-months.png';
+                link.href = chart.toBase64Image('image/png', 1);
+                link.download = filename;
                 link.click();
                 return;
             }
-            dailyKind = kind || 'bar';
+            setter(kind || 'bar');
             Array.prototype.forEach.call(this.querySelectorAll('.hs-chart-type'), function (el) {
-                el.classList.toggle('is-on', el.getAttribute('data-kind') === dailyKind);
+                el.classList.toggle('is-on', el.getAttribute('data-kind') === getter());
             });
             renderCharts(lastLiveData);
         });
     }
+    bindChartTypes('hsHourlyChartTypes', function (k) { hourlyKind = k; }, function () { return hourlyKind; }, function () { return hourlyChart; }, 'histats-traffic-hari-ini.png');
+    bindChartTypes('hsDailyChartTypes', function (k) { dailyKind = k; }, function () { return dailyKind; }, function () { return dailyChart; }, 'histats-last-2-months.png');
     $('hsSidManual').addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -1405,6 +1488,7 @@ html[data-theme="dark"] .hs-error {
     setInterval(tickClock, 1000);
     tickClock();
     startTimer();
+    if (currentSid()) loadLive();
 })();
 </script>
 {% endblock %}

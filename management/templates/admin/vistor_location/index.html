@@ -125,13 +125,13 @@ html[data-theme="dark"] .vb-bar { background:#4ade80; }
     <div class="hs-toolbar-auth">
         <div>
             <label for="hsHistatsUser">Email Histats</label>
-            <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats">
+            <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats" value="{{ histats_user|default:'' }}">
         </div>
         <div>
             <label for="hsHistatsPass">Password Histats</label>
-            <input id="hsHistatsPass" class="form-control" type="password" autocomplete="current-password" placeholder="password Histats">
+            <input id="hsHistatsPass" class="form-control" type="password" autocomplete="current-password" placeholder="{% if histats_logged_in %}tersimpan di sesi sampai logout{% else %}password Histats{% endif %}">
         </div>
-        <div class="hs-auth-status" id="hsAuthStatus"{% if not histats_logged_in %} style="display:none"{% endif %}>Terhubung ke Histats</div>
+        <div class="hs-auth-status" id="hsAuthStatus"{% if not histats_logged_in %} style="display:none"{% endif %}>{% if histats_user %}Terhubung ke Histats ({{ histats_user }}){% else %}Terhubung ke Histats{% endif %}</div>
     </div>
     <p class="hs-note">Halaman ini meniru Geolocation Histats: donut negara, peta kota, kalender Harian &amp; Monthly, tab country / city, dan tabel peringkat. Data live, tidak disimpan ke database.</p>
     <div class="hs-error" id="hsError"></div>

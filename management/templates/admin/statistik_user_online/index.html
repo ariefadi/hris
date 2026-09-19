@@ -10,37 +10,39 @@
 {% block more_stylesheet %}
 <style>
 .hs-shell {
-    --hs-navy: #163a66;
-    --hs-navy-2: #1f4f86;
-    --hs-blue: #2f7ae5;
+    --hs-navy: #1a4a7a;
+    --hs-navy-2: #2563a8;
+    --hs-tab: #d9e2ec;
+    --hs-tab-on: #163a66;
     --hs-panel: #ffffff;
     --hs-muted: #64748b;
-    --hs-line: #dbe4ef;
-    --hs-bg: #eef3f8;
+    --hs-line: #d5dbe3;
+    --hs-bg: #eef2f6;
+    --hs-orange: #c45a12;
+    --hs-blue: #1d5bbf;
+    --hs-green: #2f7a3e;
+    --hs-row: #f3f5f8;
     background: var(--hs-bg);
     border: 1px solid var(--hs-line);
-    border-radius: 14px;
+    border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 html[data-theme="dark"] .hs-shell {
     --hs-panel: #111827;
     --hs-muted: #94a3b8;
     --hs-line: rgba(148, 163, 184, 0.18);
     --hs-bg: #0b1220;
+    --hs-tab: #1e293b;
+    --hs-row: rgba(148, 163, 184, 0.08);
     box-shadow: none;
 }
-.hs-topbar, .uo-livebar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px;
-    background: linear-gradient(90deg, var(--hs-navy), var(--hs-navy-2));
-    color: #fff;
+.hs-topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; background: linear-gradient(90deg, var(--hs-navy), var(--hs-navy-2)); color: #fff;
 }
-.hs-topbar h2, .uo-livebar h2 { margin: 0; font-size: 1.05rem; font-weight: 800; }
-.hs-live, .uo-live-meta { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; }
+.hs-topbar h2 { margin: 0; font-size: 1.05rem; font-weight: 800; }
+.hs-live { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; }
 .hs-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 4px rgba(74,222,128,.18); }
 .hs-dot.is-paused { background: #fbbf24; box-shadow: none; }
 .hs-toolbar, .hs-toolbar-auth {
@@ -58,64 +60,172 @@ html[data-theme="dark"] .hs-shell {
 .hs-toolbar .select2-container { width: 100% !important; }
 .hs-note { font-size: 12px; color: var(--hs-muted); padding: 0 16px 12px; }
 .hs-error {
-    margin: 0 16px 12px; padding: 10px 12px; border-radius: 10px;
+    margin: 0 16px 12px; padding: 10px 12px; border-radius: 8px;
     background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: none;
 }
 .hs-auth-status { font-size: 12px; font-weight: 700; color: #16a34a; padding-bottom: 8px; }
-.uo-livebar { margin: 0; border-radius: 0; }
-.uo-livebar b { font-size: 18px; }
+
+.uo-livebar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 14px; background: linear-gradient(90deg, #1e5a96, #2a6fb5); color: #fff;
+}
+.uo-livebar h2 { margin: 0; font-size: 1.35rem; font-weight: 700; }
+.uo-livebar b { font-weight: 800; }
+.uo-live-meta { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; }
+.uo-pause {
+    width: 28px; height: 28px; border: 0; border-radius: 3px; cursor: pointer;
+    background: #163a66; color: #fff; display: inline-flex; align-items: center; justify-content: center;
+}
 .uo-tabs {
-    display: flex; flex-wrap: wrap; gap: 0;
-    padding: 0 16px; background: var(--hs-panel);
-    border-bottom: 2px solid var(--hs-navy);
+    display: flex; flex-wrap: wrap; gap: 2px;
+    padding: 0; background: #cfd8e3; border-bottom: 3px solid var(--hs-tab-on);
 }
 .uo-tab {
-    border: 0; background: transparent; color: var(--hs-navy);
-    padding: 10px 14px; font-size: 13px; font-weight: 800; cursor: pointer;
+    border: 1px solid #b8c4d1; background: var(--hs-tab); color: #163a66;
+    padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
 }
-html[data-theme="dark"] .uo-tab { color: #93c5fd; }
-.uo-tab.is-on { background: var(--hs-navy); color: #fff; }
-.uo-body { padding: 12px 16px 16px; }
-.uo-panel { background: var(--hs-panel); border: 1px solid var(--hs-line); border-radius: 12px; overflow: hidden; }
-.uo-panel h3 {
-    margin: 0; padding: 8px 12px; font-size: 13px; font-weight: 800;
+html[data-theme="dark"] .uo-tab { color: #93c5fd; border-color: rgba(148,163,184,.25); }
+.uo-tab.is-on { background: var(--hs-tab-on); color: #fff; border-color: var(--hs-tab-on); }
+.uo-body { padding: 0; background: var(--hs-panel); min-height: 320px; }
+
+.uo-ctrl {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 12px; border-bottom: 1px solid var(--hs-line); background: #f7f9fc; font-size: 13px;
+}
+html[data-theme="dark"] .uo-ctrl { background: #0f172a; }
+.uo-ctrl-right { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.uo-pager { display: inline-flex; align-items: center; gap: 6px; }
+.uo-pager button {
+    width: 26px; height: 26px; border: 1px solid var(--hs-line); background: #fff;
+    border-radius: 3px; cursor: pointer; color: var(--hs-blue); font-weight: 800;
+}
+html[data-theme="dark"] .uo-pager button { background: #1e293b; color: #93c5fd; }
+.uo-pager input[type="range"] { width: 120px; vertical-align: middle; }
+.uo-pager .pg-num { width: 36px; text-align: center; font-weight: 700; color: var(--hs-blue); }
+.uo-halaman { color: var(--hs-blue); font-weight: 700; }
+.uo-rows-label { color: var(--hs-muted); font-size: 12px; }
+.uo-rows-label select { height: 28px; margin-left: 4px; border: 1px solid var(--hs-line); border-radius: 3px; }
+
+.uo-panel {
+    background: var(--hs-panel); border: 1px solid var(--hs-line); overflow: hidden;
+}
+.uo-panel-hd {
+    margin: 0; padding: 7px 10px; font-size: 13px; font-weight: 800; color: #1e3a5f;
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    background: #f4f7fb; color: var(--hs-navy); border-bottom: 1px solid var(--hs-line);
+    background: linear-gradient(180deg, #e8eef6, #d7e2ef); border-bottom: 1px solid var(--hs-line);
 }
-html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
-.uo-panel h3 input {
-    height: 28px; min-width: 140px; font-size: 12px; font-weight: 600;
-    border: 1px solid var(--hs-line); border-radius: 6px; padding: 0 8px;
-    background: var(--hs-panel); color: inherit;
+html[data-theme="dark"] .uo-panel-hd { background: #1e293b; color: #93c5fd; }
+.uo-panel-hd .bi-search { color: var(--hs-muted); font-size: 12px; }
+.uo-panel-hd input {
+    height: 26px; min-width: 120px; font-size: 12px; border: 1px solid var(--hs-line);
+    border-radius: 4px; padding: 0 8px; background: var(--hs-panel); color: inherit;
 }
+.uo-list { max-height: 460px; overflow: auto; }
+.uo-list.sm { max-height: 220px; }
+.uo-empty { padding: 28px 16px; text-align: center; color: var(--hs-muted); }
+
 .uo-summary {
-    display: grid; grid-template-columns: 1.15fr .85fr; gap: 12px;
+    display: grid; grid-template-columns: 1.15fr .85fr; gap: 8px; padding: 8px;
 }
-.uo-recent { grid-column: 1 / -1; }
+.uo-recent-wrap { grid-column: 1 / -1; }
+.uo-sum-left, .uo-sum-right { display: flex; flex-direction: column; gap: 8px; }
 @media (max-width: 991px) {
     .uo-summary { grid-template-columns: 1fr; }
-    .uo-recent { grid-column: auto; }
+    .uo-recent-wrap { grid-column: auto; }
 }
-.uo-list { max-height: 420px; overflow: auto; }
-.uo-list.sm { max-height: 220px; }
-.uo-row {
-    display: grid; grid-template-columns: 54px 1fr auto; gap: 8px;
-    align-items: center; padding: 7px 12px;
-    border-bottom: 1px solid var(--hs-line); font-size: 13px;
+
+.uo-flag { width: 18px; height: 12px; object-fit: cover; border-radius: 1px; vertical-align: middle; margin-right: 4px; }
+.uo-ico { font-size: 14px; color: var(--hs-muted); vertical-align: middle; }
+.uo-ico.page { color: var(--hs-blue); }
+.uo-ico.ref { color: var(--hs-green); }
+.uo-ico.user { color: #22a06b; }
+.uo-link { color: var(--hs-blue); text-decoration: none; font-weight: 600; }
+.uo-link:hover { text-decoration: underline; }
+.uo-link.green { color: var(--hs-green); }
+.uo-link.dark { color: inherit; font-weight: 500; }
+.uo-meta { color: var(--hs-muted); font-size: 12px; }
+.uo-ip { font-weight: 800; color: inherit; }
+.uo-count { color: var(--hs-blue); font-weight: 800; font-size: 15px; min-width: 36px; text-align: center; }
+.uo-ago { color: var(--hs-orange); font-weight: 800; font-size: 18px; min-width: 48px; text-align: center; line-height: 1.1; }
+.uo-ago.blue { color: var(--hs-blue); font-size: 13px; font-weight: 700; min-width: 44px; }
+
+/* Summary compact rows */
+.uo-srow {
+    display: grid; grid-template-columns: 48px 1fr auto; gap: 8px; align-items: center;
+    padding: 5px 10px; border-bottom: 1px solid var(--hs-line); font-size: 13px;
 }
-.uo-row:nth-child(even) { background: rgba(148,163,184,.08); }
-.uo-ago { color: #b45309; font-weight: 800; font-size: 15px; }
-.uo-count { color: #1d4ed8; font-weight: 800; min-width: 28px; text-align: center; }
-.uo-title { color: inherit; text-decoration: none; font-weight: 600; }
-.uo-title:hover { text-decoration: underline; }
-.uo-meta { color: var(--hs-muted); font-size: 11px; font-weight: 600; }
-.uo-flag { width: 20px; height: 14px; object-fit: cover; border-radius: 2px; margin-right: 6px; }
-.uo-empty { padding: 28px 16px; text-align: center; color: var(--hs-muted); }
-.uo-ip { font-weight: 800; }
-.uo-chip {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 11px; color: var(--hs-muted);
+.uo-srow:nth-child(even) { background: var(--hs-row); }
+.uo-srow .loc { white-space: nowrap; }
+.uo-svis {
+    display: grid; grid-template-columns: 40px 1fr; gap: 8px;
+    padding: 7px 10px; border-bottom: 1px solid var(--hs-line); font-size: 13px;
 }
+.uo-svis:nth-child(even) { background: var(--hs-row); }
+.uo-svis .sub { font-size: 12px; margin-top: 2px; }
+
+/* Terbaru detail */
+.uo-rrow {
+    display: grid; grid-template-columns: 56px 1fr; gap: 6px;
+    padding: 8px 10px; border-bottom: 1px solid var(--hs-line); font-size: 13px;
+}
+.uo-rrow:nth-child(even) { background: var(--hs-row); }
+.uo-rhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.uo-hits {
+    display: inline-block; padding: 2px 10px; background: #dfe7ef; border-radius: 2px;
+    font-size: 12px; font-weight: 700; color: #334155; min-width: 72px; text-align: center;
+}
+html[data-theme="dark"] .uo-hits { background: #1e293b; color: #cbd5e1; }
+.uo-rpage, .uo-rref { margin-top: 3px; }
+.uo-rref { color: var(--hs-green); font-size: 12px; }
+.uo-rdev { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; }
+
+/* Most active visitors */
+.uo-vcard {
+    display: grid; grid-template-columns: 56px 1fr; gap: 8px;
+    padding: 10px 12px; border-bottom: 1px solid #c9d2dc;
+}
+.uo-vhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 4px; }
+.uo-vlast { color: var(--hs-muted); font-size: 12px; }
+.uo-vlast b { color: var(--hs-blue); font-weight: 700; }
+.uo-vpath { margin-top: 6px; margin-left: 4px; max-height: 200px; overflow: auto; }
+.uo-vpath-row {
+    display: grid; grid-template-columns: 52px 1fr; gap: 6px; align-items: center;
+    padding: 3px 6px; font-size: 12px; border-bottom: 1px solid var(--hs-line);
+}
+.uo-vpath-row:nth-child(even) { background: var(--hs-row); }
+
+/* Popular pages / referrers */
+.uo-crow {
+    display: grid; grid-template-columns: 48px 1fr; gap: 8px; align-items: center;
+    padding: 7px 12px; border-bottom: 1px solid var(--hs-line); font-size: 13px;
+}
+.uo-crow:nth-child(even) { background: var(--hs-row); }
+
+/* Geolocation */
+.uo-geo-layout { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 8px; }
+.uo-geo-map {
+    height: 360px; background: var(--hs-panel); border: 1px solid var(--hs-line);
+    position: relative; overflow: hidden;
+}
+.uo-geo-map .highcharts-container { width: 100% !important; }
+.uo-geo-spin {
+    position: absolute; top: 50%; left: 50%; margin: -21px 0 0 -21px;
+    width: 42px; height: 42px; border: 4px solid #c5d0dc; border-top-color: #64748b;
+    border-radius: 50%; animation: uoSpin .8s linear infinite; z-index: 2;
+}
+@keyframes uoSpin { to { transform: rotate(360deg); } }
+.uo-geo-tables {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+@media (max-width: 767px) {
+    .uo-geo-tables { grid-template-columns: 1fr; }
+}
+.uo-geo-table .uo-panel-hd { font-size: 12px; text-transform: lowercase; }
+.uo-grow {
+    display: grid; grid-template-columns: 40px 1fr; gap: 8px; align-items: center;
+    padding: 5px 10px; border-bottom: 1px solid var(--hs-line); font-size: 13px;
+}
+.uo-grow:nth-child(even) { background: var(--hs-row); }
 </style>
 {% endblock %}
 {% block content %}
@@ -125,7 +235,6 @@ html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
         <div class="hs-live">
             <span class="hs-dot" id="hsLiveDot"></span>
             <span id="hsClock">--:--:--</span>
-            <button type="button" class="btn btn-sm btn-light" id="hsPauseBtn">Pause</button>
         </div>
     </div>
     <div class="hs-toolbar">
@@ -145,19 +254,22 @@ html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
     <div class="hs-toolbar-auth">
         <div>
             <label for="hsHistatsUser">Email Histats</label>
-            <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats">
+            <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats" value="{{ histats_user|default:'' }}">
         </div>
         <div>
             <label for="hsHistatsPass">Password Histats</label>
-            <input id="hsHistatsPass" class="form-control" type="password" autocomplete="current-password" placeholder="password Histats">
+            <input id="hsHistatsPass" class="form-control" type="password" autocomplete="current-password" placeholder="{% if histats_logged_in %}tersimpan di sesi sampai logout{% else %}password Histats{% endif %}">
         </div>
-        <div class="hs-auth-status" id="hsAuthStatus"{% if not histats_logged_in %} style="display:none"{% endif %}>Terhubung ke Histats</div>
+        <div class="hs-auth-status" id="hsAuthStatus"{% if not histats_logged_in %} style="display:none"{% endif %}>{% if histats_user %}Terhubung ke Histats ({{ histats_user }}){% else %}Terhubung ke Histats{% endif %}</div>
     </div>
-    <p class="hs-note">Halaman ini meniru Users online Histats: Summary, Terbaru, Most active visitors, Popular pages, Popular referrer, dan Geolocation. Data live, tidak disimpan ke database.</p>
+    <p class="hs-note">Data live dari Histats Users online (tidak disimpan ke database).</p>
     <div class="hs-error" id="hsError"></div>
     <div class="uo-livebar">
         <h2>Users online: <b id="uoCount">0</b></h2>
-        <div class="uo-live-meta">browsing: <b id="uoPages">0</b> halaman</div>
+        <div class="uo-live-meta">
+            browsing: <b id="uoPages">0</b> halaman
+            <button type="button" class="uo-pause" id="hsPauseBtn" title="Pause/Play"><i class="bi bi-pause-fill" id="hsPauseIcon"></i></button>
+        </div>
     </div>
     <div class="uo-tabs" id="uoTabs">
         <button type="button" class="uo-tab is-on" data-tab="summary">Summary</button>
@@ -171,17 +283,26 @@ html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
 </div>
 {% endblock %}
 {% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
 <script>
 (function () {
     var DATA_URL = "{% url 'statistik_user_online_data' %}";
-    var LOGIN_URL = "{% url 'statistik_ringkasan_login' %}";
     var histatsLoggedIn = {% if histats_logged_in %}true{% else %}false{% endif %};
     var paused = false;
     var timer = null;
     var lastSid = '';
     var currentTab = 'summary';
+    var currentPage = 0;
+    var rowspp = 50;
     var lastData = null;
     var filters = { recent: '', pages: '', visitors: '', referrers: '', geo: '' };
+    var geoMap = null;
+    var worldTopology = null;
+    var worldTopologyLoading = null;
+    var loading = false;
 
     function $(id) { return document.getElementById(id); }
     function num(v) { return Number(v || 0); }
@@ -242,98 +363,329 @@ html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
         }
     }
     function flagHtml(code, label) {
-        if (!code) return '<span class="uo-meta">' + esc(label || '-') + '</span>';
-        return '<img class="uo-flag" alt="" src="https://flagcdn.com/w40/' + encodeURIComponent(String(code).toLowerCase()) + '.png"> <span class="uo-meta">' + esc(label || code.toUpperCase()) + '</span>';
+        var loc = label || (code ? String(code).toUpperCase() : '-');
+        if (!code) return '<span class="uo-meta">' + esc(loc) + '</span>';
+        return '<img class="uo-flag" alt="" src="https://flagcdn.com/w40/' + encodeURIComponent(String(code).toLowerCase()) + '.png">' +
+            '<span>' + esc(loc) + '</span>';
     }
-    function deviceIcon(os) {
-        var o = String(os || '').toLowerCase();
-        if (o.indexOf('android') >= 0) return 'bi-phone';
-        if (o.indexOf('iphone') >= 0 || o.indexOf('ipad') >= 0 || o.indexOf('ipod') >= 0) return 'bi-apple';
-        if (o.indexOf('win') >= 0) return 'bi-windows';
+    function locLabel(row, withCountry) {
+        var city = decodeTxt(row.city || '');
+        var country = decodeTxt(row.country || '');
+        if (city && city !== '-') {
+            return withCountry && country ? (country + ', ' + city) : city;
+        }
+        return country || '-';
+    }
+    function browserIcon(name) {
+        var n = String(name || '').toLowerCase();
+        if (n.indexOf('chrome') >= 0) return 'bi-browser-chrome';
+        if (n.indexOf('firefox') >= 0) return 'bi-browser-firefox';
+        if (n.indexOf('safari') >= 0) return 'bi-browser-safari';
+        if (n.indexOf('edge') >= 0) return 'bi-browser-edge';
         return 'bi-globe2';
     }
+    function osIcon(name) {
+        var o = String(name || '').toLowerCase();
+        if (o.indexOf('android') >= 0) return 'bi-android2';
+        if (o.indexOf('iphone') >= 0 || o.indexOf('ipad') >= 0 || o.indexOf('ipod') >= 0 || o.indexOf('os x') >= 0 || o.indexOf('mac') >= 0) return 'bi-apple';
+        if (o.indexOf('win') >= 0) return 'bi-windows';
+        if (o.indexOf('linux') >= 0) return 'bi-ubuntu';
+        return 'bi-laptop';
+    }
+    function pageIcon() { return '<i class="bi bi-file-earmark-text uo-ico page"></i> '; }
+    function extIcon() { return '<i class="bi bi-box-arrow-up-right uo-ico page"></i> '; }
     function matchFilter(row, q) {
         if (!q) return true;
         q = String(q).toLowerCase();
-        return ['title', 'url', 'ip', 'city', 'country', 'label', 'referrer', 'os', 'browser'].some(function (key) {
+        return ['title', 'url', 'ip', 'city', 'country', 'label', 'referrer', 'os', 'browser', 'name'].some(function (key) {
             return String(row[key] || '').toLowerCase().indexOf(q) >= 0;
         });
     }
-    function panel(title, key, body, compact) {
-        return '<div class="uo-panel ' + (compact || '') + '"><h3>' + esc(title) +
-            ' <input type="search" data-filter="' + key + '" placeholder="cari..." value="' + esc(filters[key] || '') + '"></h3>' +
-            '<div class="uo-list ' + (compact ? 'sm' : '') + '">' + (body || '<div class="uo-empty">Tidak ada data</div>') + '</div></div>';
+    function totalFor(tab) {
+        var t = (lastData && lastData.totals) || {};
+        if (tab === 'recent') return num(t.recent);
+        if (tab === 'visitors') return num(t.visitors);
+        if (tab === 'pages') return num(t.pages);
+        if (tab === 'referrers') return num(t.referrers);
+        return 0;
     }
-    function recentRows(items, compact) {
+    function pageCount(total) {
+        var per = Math.max(rowspp, 1);
+        return Math.max(1, Math.ceil(Math.max(total, 1) / per));
+    }
+    function ctrlBar(totalKey) {
+        if (currentTab === 'summary' || currentTab === 'geo') return '';
+        var total = totalFor(totalKey || currentTab);
+        var pages = pageCount(total);
+        var page1 = currentPage + 1;
+        return '<div class="uo-ctrl">' +
+            '<div>Total rows: <b>' + fmt(total) + '</b></div>' +
+            '<div class="uo-ctrl-right">' +
+            '<div class="uo-pager">' +
+            '<button type="button" data-pg="-1" ' + (currentPage <= 0 ? 'disabled' : '') + '>&lt;</button>' +
+            '<span class="pg-num">' + page1 + '</span>' +
+            '<input type="range" min="1" max="' + pages + '" value="' + page1 + '" data-pg-range>' +
+            '<span class="pg-num">' + pages + '</span>' +
+            '<button type="button" data-pg="1" ' + (page1 >= pages ? 'disabled' : '') + '>&gt;</button>' +
+            '</div>' +
+            '<span class="uo-halaman">halaman ' + page1 + '</span>' +
+            '<label class="uo-rows-label">Rows to show <select id="uoRowspp">' +
+            [10, 25, 50, 100].map(function (n) {
+                return '<option value="' + n + '"' + (n === rowspp ? ' selected' : '') + '>' + n + '</option>';
+            }).join('') +
+            '</select></label>' +
+            '</div></div>';
+    }
+    function panel(title, key, body, listClass) {
+        return '<div class="uo-panel"><div class="uo-panel-hd"><span>' + esc(title) + '</span>' +
+            '<span><i class="bi bi-search"></i> <input type="search" data-filter="' + key + '" placeholder="" value="' + esc(filters[key] || '') + '"></span></div>' +
+            '<div class="uo-list ' + (listClass || '') + '">' + (body || '<div class="uo-empty">Tidak ada data</div>') + '</div></div>';
+    }
+    function hrefOf(url) {
+        var u = decodeTxt(url || '');
+        if (!u || u === '#') return '';
+        return ' href="' + esc(u) + '" target="_blank" rel="noopener"';
+    }
+    function summaryRecent(items) {
+        items = (items || []).filter(function (row) { return matchFilter(row, filters.recent); }).slice(0, 10);
+        if (!items.length) return '';
+        return items.map(function (row) {
+            var loc = locLabel(row);
+            return '<div class="uo-srow">' +
+                '<div class="uo-ago blue">' + esc(row.ago || '') + '</div>' +
+                '<div>' + pageIcon() + '<a class="uo-link"' + hrefOf(row.url) + '>' + esc(decodeTxt(row.title || row.url || '-')) + '</a></div>' +
+                '<div class="loc">' + flagHtml(row.country_code, loc) +
+                ' <i class="bi ' + browserIcon(row.browser) + ' uo-ico" title="' + esc(row.browser || '') + '"></i>' +
+                ' <i class="bi ' + osIcon(row.os) + ' uo-ico" title="' + esc(row.os || '') + '"></i></div></div>';
+        }).join('');
+    }
+    function summaryPages(items) {
+        items = (items || []).filter(function (row) { return matchFilter(row, filters.pages); }).slice(0, 10);
+        if (!items.length) return '';
+        return items.map(function (row) {
+            return '<div class="uo-crow"><div class="uo-count">' + fmt(row.hits) + '</div>' +
+                '<div>' + pageIcon() + '<a class="uo-link"' + hrefOf(row.url) + '>' + esc(decodeTxt(row.title || row.url || '-')) + '</a></div></div>';
+        }).join('');
+    }
+    function summaryRefs(items) {
+        items = (items || []).filter(function (row) { return matchFilter(row, filters.referrers); }).slice(0, 10);
+        if (!items.length) return '';
+        return items.map(function (row) {
+            var label = decodeTxt(row.label || row.url || '-');
+            var link = row.url ? ('<a class="uo-link"' + hrefOf(row.url) + '>' + extIcon() + esc(label) + '</a>') :
+                (extIcon() + esc(label));
+            return '<div class="uo-crow"><div class="uo-count">' + fmt(row.hits) + '</div><div>' + link + '</div></div>';
+        }).join('');
+    }
+    function summaryVisitors(items) {
+        items = (items || []).filter(function (row) { return matchFilter(row, filters.visitors); }).slice(0, 10);
+        if (!items.length) return '';
+        return items.map(function (row) {
+            return '<div class="uo-svis"><div class="uo-count">' + fmt(row.hits) + '</div>' +
+                '<div><div><i class="bi bi-person-fill uo-ico user"></i> <span class="uo-ip">' + esc(row.ip || '-') + '</span> ' +
+                flagHtml(row.country_code, '') +
+                ' <i class="bi ' + browserIcon(row.browser) + ' uo-ico"></i>' +
+                ' <i class="bi ' + osIcon(row.os) + ' uo-ico"></i></div>' +
+                '<div class="sub">' + pageIcon() + '<a class="uo-link"' + hrefOf(row.url) + '>' + esc(decodeTxt(row.title || row.url || '-')) + '</a></div></div></div>';
+        }).join('');
+    }
+    function recentDetail(items) {
         items = (items || []).filter(function (row) { return matchFilter(row, filters.recent); });
         if (!items.length) return '';
         return items.map(function (row) {
-            var loc = [decodeTxt(row.city), decodeTxt(row.country)].filter(Boolean).join(', ');
-            return '<div class="uo-row"><div class="uo-ago">' + esc(row.ago || '') + '</div>' +
-                '<div><a class="uo-title" href="' + esc(decodeTxt(row.url || '#')) + '" target="_blank" rel="noopener">' + esc(decodeTxt(row.title || row.url || '-')) + '</a>' +
-                (row.referrer ? '<div class="uo-meta">ref: ' + esc(decodeTxt(row.referrer)) + '</div>' : '') + '</div>' +
-                '<div>' + flagHtml(row.country_code, loc) +
-                ' <span class="uo-chip"><i class="bi ' + deviceIcon(row.os) + '"></i></span></div></div>';
+            var loc = locLabel(row);
+            var ref = decodeTxt(row.referrer_label || row.referrer || '');
+            var refHtml = '';
+            if (row.referrer_kind === 'bookmark' || ref === 'Bookmark / Direct') {
+                refHtml = '<div class="uo-rref"><i class="bi bi-arrow-return-right uo-ico ref"></i> <b>ref:</b> Bookmark / Direct</div>';
+            } else if (ref) {
+                refHtml = '<div class="uo-rref"><i class="bi bi-arrow-return-right uo-ico ref"></i> <b>ref:</b> ' +
+                    (row.referrer ? ('<a class="uo-link green"' + hrefOf(row.referrer) + '>' + extIcon() + esc(ref) + '</a>') : esc(ref)) + '</div>';
+            }
+            return '<div class="uo-rrow"><div class="uo-ago">' + esc(row.ago || '') + '</div><div>' +
+                '<div class="uo-rhead">' +
+                '<span><i class="bi bi-info-square-fill" style="color:#22a06b"></i> <span class="uo-ip">' + esc(row.ip || '-') + '</span></span>' +
+                '<span class="uo-hits">Hits: <b>' + fmt(row.hits) + '</b></span>' +
+                '<span>' + flagHtml(row.country_code, loc) + '</span>' +
+                '<span class="uo-rdev">' +
+                '<i class="bi ' + browserIcon(row.browser) + ' uo-ico" title="' + esc(row.browser || '') + '"></i>' +
+                '<i class="bi ' + osIcon(row.os) + ' uo-ico" title="' + esc(row.os || '') + '"></i>' +
+                (row.resolution ? ('<span class="uo-meta"><i class="bi bi-arrows-fullscreen"></i> ' + esc(row.resolution) + '</span>') : '') +
+                '</span></div>' +
+                '<div class="uo-rpage">' + pageIcon() + '<a class="uo-link"' + hrefOf(row.url) + '>' + esc(decodeTxt(row.title || row.url || '-')) + '</a></div>' +
+                refHtml + '</div></div>';
         }).join('');
     }
-    function countRows(items, key, labelKey) {
+    function visitorsDetail(items) {
+        items = (items || []).filter(function (row) { return matchFilter(row, filters.visitors); });
+        if (!items.length) return '';
+        return items.map(function (row) {
+            var loc = locLabel(row);
+            var path = (row.path || []).map(function (p) {
+                return '<div class="uo-vpath-row"><div class="uo-ago blue">' + esc(p.ago || '') + '</div>' +
+                    '<div>' + extIcon() + '<a class="uo-link dark"' + hrefOf(p.url) + '>' + esc(decodeTxt(p.title || p.url || '-')) + '</a></div></div>';
+            }).join('');
+            return '<div class="uo-vcard"><div class="uo-ago">' + fmt(row.hits) + '</div><div>' +
+                '<div class="uo-vhead">' +
+                '<span class="uo-ip">' + esc(row.ip || '-') + '</span>' +
+                '<span class="uo-vlast">Kunjungan Terakhir: <b>' + esc(row.last_ago || '-') + '</b></span>' +
+                '<span>' + flagHtml(row.country_code, loc) + '</span>' +
+                '<span class="uo-rdev">' +
+                '<i class="bi ' + browserIcon(row.browser) + ' uo-ico" title="' + esc(row.browser || '') + '"></i>' +
+                '<i class="bi ' + osIcon(row.os) + ' uo-ico" title="' + esc(row.os || '') + '"></i>' +
+                (row.resolution ? ('<span class="uo-meta"><i class="bi bi-arrows-fullscreen"></i> ' + esc(row.resolution) + '</span>') : '') +
+                '</span></div>' +
+                '<div>' + pageIcon() + '<a class="uo-link"' + hrefOf(row.url) + '>' + esc(decodeTxt(row.title || row.url || '-')) + '</a></div>' +
+                (path ? ('<div class="uo-vpath">' + path + '</div>') : '') +
+                '</div></div>';
+        }).join('');
+    }
+    function countList(items, key, labelKey, useExt) {
         items = (items || []).filter(function (row) { return matchFilter(row, filters[key]); });
         if (!items.length) return '';
         return items.map(function (row) {
             var label = decodeTxt(row[labelKey] || row.title || row.label || row.url || '-');
-            var href = row.url ? ' href="' + esc(decodeTxt(row.url)) + '" target="_blank" rel="noopener"' : '';
-            return '<div class="uo-row"><div class="uo-count">' + fmt(row.hits || row.count) + '</div>' +
-                '<div><a class="uo-title"' + href + '>' + esc(label) + '</a></div>' +
-                '<div class="uo-meta">' + (row.share != null ? row.share + '%' : '') + '</div></div>';
+            var icon = useExt ? extIcon() : pageIcon();
+            var link = row.url
+                ? ('<a class="uo-link"' + hrefOf(row.url) + '>' + icon + esc(label) + '</a>')
+                : (icon + esc(label));
+            return '<div class="uo-crow"><div class="uo-count">' + fmt(row.hits || row.count) + '</div><div>' + link + '</div></div>';
         }).join('');
     }
-    function visitorRows(items) {
-        items = (items || []).filter(function (row) { return matchFilter(row, filters.visitors); });
-        if (!items.length) return '';
-        return items.map(function (row) {
-            var loc = [decodeTxt(row.city), decodeTxt(row.country)].filter(Boolean).join(', ');
-            return '<div class="uo-row"><div class="uo-count">' + fmt(row.hits) + '</div>' +
-                '<div><div class="uo-ip">' + esc(row.ip || '-') + '</div>' +
-                '<a class="uo-title" href="' + esc(decodeTxt(row.url || '#')) + '" target="_blank" rel="noopener">' + esc(decodeTxt(row.title || row.url || '-')) + '</a></div>' +
-                '<div>' + flagHtml(row.country_code, loc) +
-                ' <span class="uo-chip"><i class="bi ' + deviceIcon(row.os) + '"></i></span></div></div>';
-        }).join('');
-    }
-    function geoRows(items) {
+    function geoCityRows(items) {
         items = (items || []).filter(function (row) { return matchFilter(row, filters.geo); });
         if (!items.length) return '';
         return items.map(function (row) {
-            var loc = [decodeTxt(row.city), decodeTxt(row.state), decodeTxt(row.country)].filter(Boolean).join(', ');
-            return '<div class="uo-row"><div class="uo-count">' + fmt(row.count) + '</div>' +
-                '<div>' + flagHtml(row.country_code, loc) + '</div><div></div></div>';
+            var label = (decodeTxt(row.country) || '-') + ', ' + (decodeTxt(row.city) || '-');
+            return '<div class="uo-grow"><div class="uo-count">' + fmt(row.count) + '</div>' +
+                '<div>' + flagHtml(row.country_code, label) + '</div></div>';
         }).join('');
     }
-    function render(data) {
-        lastData = data || lastData || {};
-        $('uoCount').textContent = fmt(lastData.users_online);
-        $('uoPages').textContent = fmt(lastData.pages_browsing);
-        $('hsDomainTitle').textContent = selectedWebsite() || lastData.domain || lastData.title || 'Users Online';
-        var html = '';
-        if (currentTab === 'summary') {
-            html = '<div class="uo-summary">' +
-                panel('Terbaru', 'recent', recentRows(lastData.recent), 'uo-recent') +
-                panel('Popular pages', 'pages', countRows(lastData.pages, 'pages', 'title')) +
-                panel('Geolocation', 'geo', geoRows(lastData.geo)) +
-                panel('Popular referrer', 'referrers', countRows(lastData.referrers, 'referrers', 'label')) +
-                panel('Most active visitors', 'visitors', visitorRows(lastData.visitors)) +
-                '</div>';
-        } else if (currentTab === 'recent') {
-            html = panel('Terbaru', 'recent', recentRows(lastData.recent));
-        } else if (currentTab === 'visitors') {
-            html = panel('Most active visitors', 'visitors', visitorRows(lastData.visitors));
-        } else if (currentTab === 'pages') {
-            html = panel('Popular pages', 'pages', countRows(lastData.pages, 'pages', 'title'));
-        } else if (currentTab === 'referrers') {
-            html = panel('Popular referrer', 'referrers', countRows(lastData.referrers, 'referrers', 'label'));
-        } else {
-            html = panel('Geolocation', 'geo', geoRows(lastData.geo));
+    function geoCountryRows(items) {
+        items = (items || []).filter(function (row) {
+            if (!filters.geo) return true;
+            var q = String(filters.geo).toLowerCase();
+            return String(row.name || '').toLowerCase().indexOf(q) >= 0 || String(row.code || '').toLowerCase().indexOf(q) >= 0;
+        });
+        if (!items.length) return '';
+        return items.map(function (row) {
+            return '<div class="uo-grow"><div class="uo-count">' + fmt(row.count) + '</div>' +
+                '<div>' + flagHtml(row.code, decodeTxt(row.name) || '-') + '</div></div>';
+        }).join('');
+    }
+    function destroyGeoMap() {
+        if (geoMap) {
+            try { geoMap.destroy(); } catch (_e) {}
+            geoMap = null;
         }
-        $('uoBody').innerHTML = html;
+    }
+    function loadWorldTopology() {
+        if (worldTopology) return Promise.resolve(worldTopology);
+        if (window.Highcharts && Highcharts.maps && Highcharts.maps['custom/world']) {
+            worldTopology = Highcharts.maps['custom/world'];
+            return Promise.resolve(worldTopology);
+        }
+        if (worldTopologyLoading) return worldTopologyLoading;
+        worldTopologyLoading = fetch('https://code.highcharts.com/mapdata/custom/world.topo.json')
+            .then(function (r) {
+                if (!r.ok) throw new Error('Gagal memuat peta dunia');
+                return r.json();
+            })
+            .then(function (topo) {
+                worldTopology = topo;
+                return topo;
+            })
+            .catch(function (err) {
+                worldTopologyLoading = null;
+                throw err;
+            });
+        return worldTopologyLoading;
+    }
+    function countryMapData(countries) {
+        return (countries || []).map(function (row) {
+            var code = String(row.code || '').toLowerCase();
+            if (!code) return null;
+            return {
+                'hc-key': code,
+                code: code,
+                name: decodeTxt(row.name) || code.toUpperCase(),
+                value: num(row.count)
+            };
+        }).filter(Boolean);
+    }
+    function renderGeoMap(countries) {
+        var el = $('uoGeoMap');
+        if (!el) return;
+        if (!window.Highcharts || !Highcharts.mapChart) {
+            el.innerHTML = '<div class="uo-empty">Highcharts Maps belum termuat</div>';
+            return;
+        }
+        destroyGeoMap();
+        var seriesData = countryMapData(countries);
+        if (!seriesData.length) {
+            el.innerHTML = '<div class="uo-empty">Tidak ada data geolocation</div>';
+            return;
+        }
+        el.innerHTML = '<div class="uo-geo-spin" id="uoGeoSpin"></div>';
+        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        loadWorldTopology().then(function (mapData) {
+            if (!$('uoGeoMap') || currentTab !== 'geo') return;
+            el.innerHTML = '';
+            geoMap = Highcharts.mapChart('uoGeoMap', {
+                chart: {
+                    map: mapData,
+                    backgroundColor: 'transparent',
+                    height: 360,
+                    animation: false,
+                    spacing: [8, 8, 8, 8]
+                },
+                title: { text: null },
+                credits: { enabled: false },
+                exporting: { enabled: false },
+                mapNavigation: {
+                    enabled: true,
+                    enableButtons: true,
+                    buttonOptions: { verticalAlign: 'bottom' }
+                },
+                legend: {
+                    enabled: true,
+                    layout: 'horizontal',
+                    align: 'center',
+                    verticalAlign: 'bottom',
+                    valueDecimals: 0
+                },
+                colorAxis: {
+                    min: 0,
+                    minColor: isDark ? '#1e3a5f' : '#dbeafe',
+                    maxColor: isDark ? '#60a5fa' : '#1d4ed8'
+                },
+                tooltip: {
+                    useHTML: true,
+                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                    borderColor: isDark ? '#334155' : '#d5dbe3',
+                    style: { color: isDark ? '#e2e8f0' : '#0f172a' },
+                    pointFormat: '<b>{point.name}</b><br>Users online: <b>{point.value}</b>'
+                },
+                series: [{
+                    name: 'Users online',
+                    mapData: mapData,
+                    data: seriesData,
+                    joinBy: ['hc-key', 'hc-key'],
+                    nullColor: isDark ? '#1e293b' : '#e8eef6',
+                    borderColor: isDark ? '#334155' : '#ffffff',
+                    borderWidth: 0.6,
+                    states: {
+                        hover: { color: '#f59e0b', borderColor: '#b45309' }
+                    },
+                    dataLabels: { enabled: false }
+                }]
+            });
+        }).catch(function (err) {
+            if (!$('uoGeoMap')) return;
+            el.innerHTML = '<div class="uo-empty">' + esc(String(err && err.message || err || 'Gagal memuat peta')) + '</div>';
+        });
+    }
+    function bindFilters() {
         Array.prototype.forEach.call(document.querySelectorAll('[data-filter]'), function (input) {
             input.addEventListener('input', function () {
                 filters[input.getAttribute('data-filter')] = input.value || '';
@@ -342,6 +694,74 @@ html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
                 if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
             });
         });
+        var rowSel = $('uoRowspp');
+        if (rowSel) {
+            rowSel.addEventListener('change', function () {
+                rowspp = num(rowSel.value) || 50;
+                currentPage = 0;
+                if (lastSid) loadLive();
+            });
+        }
+        Array.prototype.forEach.call(document.querySelectorAll('[data-pg]'), function (btn) {
+            btn.addEventListener('click', function () {
+                var delta = num(btn.getAttribute('data-pg'));
+                var pages = pageCount(totalFor(currentTab));
+                var next = currentPage + delta;
+                if (next < 0 || next >= pages) return;
+                currentPage = next;
+                if (lastSid) loadLive();
+            });
+        });
+        var range = document.querySelector('[data-pg-range]');
+        if (range) {
+            range.addEventListener('change', function () {
+                currentPage = Math.max(0, num(range.value) - 1);
+                if (lastSid) loadLive();
+            });
+        }
+    }
+    function render(data) {
+        lastData = data || lastData || {};
+        $('uoCount').textContent = fmt(lastData.users_online);
+        $('uoPages').textContent = fmt(lastData.pages_browsing);
+        $('hsDomainTitle').textContent = selectedWebsite() || lastData.domain || lastData.title || 'Users Online';
+        if (lastData.page != null) currentPage = num(lastData.page);
+        if (lastData.rowspp) rowspp = num(lastData.rowspp) || rowspp;
+        destroyGeoMap();
+        var html = '';
+        if (currentTab === 'summary') {
+            html = '<div class="uo-summary">' +
+                '<div class="uo-recent-wrap">' + panel('Terbaru', 'recent', summaryRecent(lastData.recent), 'sm') + '</div>' +
+                '<div class="uo-sum-left">' +
+                panel('Popular pages', 'pages', summaryPages(lastData.pages), 'sm') +
+                panel('Popular referrer', 'referrers', summaryRefs(lastData.referrers), 'sm') +
+                '</div><div class="uo-sum-right">' +
+                panel('Geolocation', 'geo', geoCityRows(lastData.geo) || '<div class="uo-empty" style="padding:40px 10px">-</div>', 'sm') +
+                panel('Most active visitors', 'visitors', summaryVisitors(lastData.visitors), 'sm') +
+                '</div></div>';
+        } else if (currentTab === 'recent') {
+            html = ctrlBar('recent') + panel('Terbaru', 'recent', recentDetail(lastData.recent));
+        } else if (currentTab === 'visitors') {
+            html = ctrlBar('visitors') + panel('Most active visitors', 'visitors', visitorsDetail(lastData.visitors));
+        } else if (currentTab === 'pages') {
+            html = ctrlBar('pages') + panel('Popular pages', 'pages', countList(lastData.pages, 'pages', 'title', false));
+        } else if (currentTab === 'referrers') {
+            html = ctrlBar('referrers') + panel('Popular referrer', 'referrers', countList(lastData.referrers, 'referrers', 'label', true));
+        } else {
+            html = '<div class="uo-geo-layout">' +
+                '<div class="uo-geo-map" id="uoGeoMap"><div class="uo-geo-spin"></div></div>' +
+                '<div class="uo-geo-tables">' +
+                '<div class="uo-geo-table">' + panel('city', 'geo', geoCityRows(lastData.geo)) + '</div>' +
+                '<div class="uo-geo-table">' + panel('country', 'geo', geoCountryRows(lastData.countries)) + '</div>' +
+                '</div></div>';
+        }
+        $('uoBody').innerHTML = html;
+        bindFilters();
+        if (currentTab === 'geo') {
+            setTimeout(function () {
+                renderGeoMap(lastData.countries || []);
+            }, 40);
+        }
     }
     function syncTabs() {
         Array.prototype.forEach.call(document.querySelectorAll('.uo-tab'), function (btn) {
@@ -354,6 +774,8 @@ html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
             setError('Isi Histats SID secara manual, lalu klik Muat Live.');
             return;
         }
+        if (loading) return;
+        loading = true;
         var site = selectedWebsite();
         try {
             localStorage.setItem('hs_last_sid', sid);
@@ -364,6 +786,8 @@ html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
         } catch (_e) {}
         var user = String(($('hsHistatsUser').value || '')).trim();
         var pass = String(($('hsHistatsPass').value || ''));
+        var reqPage = (currentTab === 'summary' || currentTab === 'geo') ? 0 : currentPage;
+        var reqRows = currentTab === 'summary' ? 10 : rowspp;
         fetch(DATA_URL, {
             method: 'POST',
             headers: {
@@ -371,10 +795,18 @@ html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': csrfToken()
             },
-            body: JSON.stringify({ sid: sid, tab: currentTab, user: user, pass: pass })
+            body: JSON.stringify({
+                sid: sid,
+                tab: currentTab,
+                page: reqPage,
+                rowspp: reqRows,
+                user: user,
+                pass: pass
+            })
         })
             .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
             .then(function (res) {
+                loading = false;
                 if (!res.json || !res.json.status) {
                     if (res.json && res.json.need_login) {
                         lastSid = '';
@@ -392,6 +824,7 @@ html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
                 render(res.json.data || {});
             })
             .catch(function (e) {
+                loading = false;
                 setError(String(e && e.message || e || 'Gagal memuat Users online'));
             });
     }
@@ -441,23 +874,27 @@ html[data-theme="dark"] .uo-panel h3 { background: #1e293b; color: #93c5fd; }
     }
     $('hsPauseBtn').addEventListener('click', function () {
         paused = !paused;
-        this.textContent = paused ? 'Play' : 'Pause';
+        $('hsPauseIcon').className = paused ? 'bi bi-play-fill' : 'bi bi-pause-fill';
         $('hsLiveDot').classList.toggle('is-paused', paused);
     });
-    $('hsLoadBtn').addEventListener('click', loadLive);
+    $('hsLoadBtn').addEventListener('click', function () {
+        currentPage = 0;
+        loadLive();
+    });
     $('uoTabs').addEventListener('click', function (e) {
         var btn = e.target.closest('.uo-tab');
         if (!btn) return;
         currentTab = btn.getAttribute('data-tab') || 'summary';
+        currentPage = 0;
         syncTabs();
         if (lastSid) loadLive();
         else render(lastData);
     });
     $('hsSidManual').addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') { e.preventDefault(); loadLive(); }
+        if (e.key === 'Enter') { e.preventDefault(); currentPage = 0; loadLive(); }
     });
     $('hsHistatsPass').addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') { e.preventDefault(); loadLive(); }
+        if (e.key === 'Enter') { e.preventDefault(); currentPage = 0; loadLive(); }
     });
     initWebsiteFilter();
     try {

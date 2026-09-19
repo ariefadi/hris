@@ -6752,14 +6752,14 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                             </div>
                             <div class="detail-scoring-toolbar">
                                 <div class="detail-scoring-toolbar__group">
-                                    <span class="text-muted" style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">Filter keputusan</span>
-                                    <div class="dashboard-recap-tabs detail-scoring-filter" id="dashboardRecapAlertTabs" role="tablist" aria-label="Filter keputusan scoring">
-                                        <button type="button" class="btn btn-sm btn-primary" data-alert-filter="all"><i class="bi bi-grid-3x3-gap"></i> Semua</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_up"><i class="bi bi-graph-up-arrow"></i> Scale Up</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="hold"><i class="bi bi-hand-thumbs-up"></i> Hold</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="pause"><i class="bi bi-pause-circle"></i> Pause</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_down"><i class="bi bi-graph-down-arrow"></i> Scale Down</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="stop"><i class="bi bi-stop-circle"></i> Stop</button>
+                                <span class="text-muted" style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">Filter keputusan</span>
+                                <div class="dashboard-recap-tabs detail-scoring-filter" id="dashboardRecapAlertTabs" role="tablist" aria-label="Filter keputusan scoring">
+                                    <button type="button" class="btn btn-sm btn-primary" data-alert-filter="all"><i class="bi bi-grid-3x3-gap"></i> Semua</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_up"><i class="bi bi-graph-up-arrow"></i> Scale Up</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="hold"><i class="bi bi-hand-thumbs-up"></i> Hold</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="pause"><i class="bi bi-pause-circle"></i> Pause</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_down"><i class="bi bi-graph-down-arrow"></i> Scale Down</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="stop"><i class="bi bi-stop-circle"></i> Stop</button>
                                     </div>
                                 </div>
                                 <div class="detail-scoring-toolbar__group detail-scoring-toolbar__group--roi">
@@ -10873,9 +10873,9 @@ function initDashboardRecap() {
             if (target !== 'all') {
                 const levelFromData = rawRow && rawRow[10] && typeof rawRow[10] === 'object'
                     ? String(rawRow[10].decisionKey || 'belum_siap').toLowerCase()
-                    : '';
-                const rowNode = aoRow ? aoRow.nTr : null;
-                const level = String(levelFromData || rowNode?.dataset?.decisionKey || 'belum_siap').toLowerCase();
+                : '';
+            const rowNode = aoRow ? aoRow.nTr : null;
+            const level = String(levelFromData || rowNode?.dataset?.decisionKey || 'belum_siap').toLowerCase();
                 if (level !== target) return false;
             }
             const roiRaw = rawRow ? Number(rawRow[7]) : NaN;
@@ -11153,30 +11153,30 @@ function initDashboardRecap() {
     }
 
     async function fetchDashboardScoringBatch(entities, state, opts) {
-        const res = await fetch('/management/admin/dashboard_scoring_data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({
+            const res = await fetch('/management/admin/dashboard_scoring_data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({
                 date: String(state?.date || '').trim(),
                 dim: String(state?.dim || 'domain').trim(),
                 source: String(state?.source || 'all').trim(),
-                entities,
-                include_source: false,
-                include_timeline: false,
+                    entities,
+                    include_source: false,
+                    include_timeline: false,
                 include_events: false,
                 light: !(opts && opts.include_events)
-            }),
-            credentials: 'same-origin'
-        });
+                }),
+                credentials: 'same-origin'
+            });
         let json = {};
         try { json = await res.json(); } catch (_e) { json = {}; }
         if (res.status === 504) {
             throw new Error('Gateway timeout (504) saat memuat scoring');
         }
-        if (!res.ok || !json || !json.status) {
+            if (!res.ok || !json || !json.status) {
             throw new Error(String(json?.error || `Gagal memuat scoring (HTTP ${res.status})`));
-        }
-        if (json?.scoring_ready === false) {
+            }
+            if (json?.scoring_ready === false) {
             throw new Error(String(json?.reason || 'Tabel scoring belum tersedia'));
         }
         return (json?.data && typeof json.data === 'object') ? json.data : {};
@@ -11214,8 +11214,8 @@ function initDashboardRecap() {
 
     async function fetchDashboardScoring(rows, state) {
         const dim = String(state?.dim || '').toLowerCase();
-        window.dashboardRecapScoringReady = true;
-        window.dashboardRecapScoringReason = '';
+            window.dashboardRecapScoringReady = true;
+            window.dashboardRecapScoringReason = '';
         window.dashboardRecapScoringPartial = false;
         const entities = scoringFetchEntities(rows, dim);
         if (!entities.length || !state?.date) {
@@ -11239,7 +11239,7 @@ function initDashboardRecap() {
                 try {
                     const part = await fetchDashboardScoringBatchWithRetry(batch, state, { include_events: false });
                     Object.assign(merged, part);
-                } catch (e) {
+        } catch (e) {
                     errors.push(String(e?.message || e || 'Gagal memuat scoring'));
                 } finally {
                     doneCount += 1;
@@ -20694,9 +20694,9 @@ function initDashboardRecap() {
             if (!btn) return;
             const cid = String(btn.getAttribute('data-cid') || '');
             const action = String(btn.getAttribute('data-action') || 'HOLD').toUpperCase();
-            if (action === 'STOP' || action === 'PAUSE') {
+                if (action === 'STOP' || action === 'PAUSE') {
                 const statusLabel = (action === 'STOP' || action === 'PAUSE') ? 'Stop' : 'Hold';
-                const status = (action === 'STOP' || action === 'PAUSE') ? 'PAUSED' : 'ACTIVE';
+                    const status = (action === 'STOP' || action === 'PAUSE') ? 'PAUSED' : 'ACTIVE';
                 const campaignName = String(byId(cid)?.campaign_name || byId(cid)?.name || cid || '-');
                 const message = 'Apakah Anda yakin ingin ' + statusLabel + ' campaign "' + campaignName + '"?';
                 const confirmed = await confirmCampaignAction('Konfirmasi ' + statusLabel, message);
@@ -20722,11 +20722,11 @@ function initDashboardRecap() {
                 } finally { btn.disabled = false; }
                 return;
             }
-            const inp = document.getElementById(`sdBud_${cid}`);
-            const raw = String(inp ? inp.value : '').trim();
-            const cleaned = raw.replace('Rp','').replace(/\./g,'').replace(/,/g,'').trim();
-            const n = parseInt(cleaned, 10);
-            if (!cid || !isFinite(n) || n <= 0) { setStatus('daily budget tidak valid'); return; }
+                    const inp = document.getElementById(`sdBud_${cid}`);
+                    const raw = String(inp ? inp.value : '').trim();
+                    const cleaned = raw.replace('Rp','').replace(/\./g,'').replace(/,/g,'').trim();
+                    const n = parseInt(cleaned, 10);
+                    if (!cid || !isFinite(n) || n <= 0) { setStatus('daily budget tidak valid'); return; }
             await confirmBudgetUpdate(cid, n, btn, action);
         });
 
@@ -21710,8 +21710,8 @@ function initDashboardRecap() {
                         scoring: normalizedJson?.scoring || {}
                     };
                     if (!hideEarningFinance) {
-                        mountScoreDetailBackendTables(normalizedJson?.scoring || {}, { row, state });
-                        bindScoreMetric14Tabs(metricDailySeries.slice(-SCORE_METRIC_CHART_DAYS));
+                    mountScoreDetailBackendTables(normalizedJson?.scoring || {}, { row, state });
+                    bindScoreMetric14Tabs(metricDailySeries.slice(-SCORE_METRIC_CHART_DAYS));
                     }
                     bindScoreCountryTabs(async function(tabKey){
                         const endYmd = String(state.date || '').trim();
@@ -22528,7 +22528,7 @@ function initDashboardRecap() {
         window.dashboardRecapStoredScoring = normalizedStore;
         window.dashboardRecapCampaignAccountMap = buildCampaignAccountLookup(window.dashboardRecapSiteAccountMap || {});
 
-        renderSummary(summarize(rows));
+            renderSummary(summarize(rows));
 
         (rows || []).forEach(function(r) {
             const dkey = normalizeTrafficDomainKey(r?.name || r?.domain || r?.site || '');
@@ -23679,18 +23679,18 @@ function initDashboardRecap() {
 
     setActive('dashboardRecapDimTabs', 'data-dim', 'domain');
     if (!hideEarningFinance) {
-        setActive('dashboardPulseTabs', 'data-metric', 'roi');
-        window.dashboardPulseMetric = 'roi';
+    setActive('dashboardPulseTabs', 'data-metric', 'roi');
+    window.dashboardPulseMetric = 'roi';
         const pulseTabs = document.getElementById('dashboardPulseTabs');
         if (pulseTabs) {
             pulseTabs.addEventListener('click', function(e){
-                const b = e.target.closest('button[data-metric]');
-                if (!b) return;
-                const m = b.getAttribute('data-metric') || 'roi';
-                window.dashboardPulseMetric = m;
-                setActive('dashboardPulseTabs', 'data-metric', m);
-                if (window.dashboardPulsePayload) renderPulseChart(m, window.dashboardPulsePayload);
-            });
+        const b = e.target.closest('button[data-metric]');
+        if (!b) return;
+        const m = b.getAttribute('data-metric') || 'roi';
+        window.dashboardPulseMetric = m;
+        setActive('dashboardPulseTabs', 'data-metric', m);
+        if (window.dashboardPulsePayload) renderPulseChart(m, window.dashboardPulsePayload);
+    });
         }
     }
 
@@ -23723,11 +23723,11 @@ function initDashboardRecap() {
     const dimTabs = document.getElementById('dashboardRecapDimTabs');
     if (dimTabs) {
         dimTabs.addEventListener('click', function(e){
-            const b = e.target.closest('button[data-dim]');
-            if (!b) return;
-            setActive('dashboardRecapDimTabs', 'data-dim', b.getAttribute('data-dim'));
-            load();
-        });
+        const b = e.target.closest('button[data-dim]');
+        if (!b) return;
+        setActive('dashboardRecapDimTabs', 'data-dim', b.getAttribute('data-dim'));
+        load();
+    });
     }
 
     load();
