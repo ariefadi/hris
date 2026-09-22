@@ -8,6 +8,7 @@
 <li class="breadcrumb-item active">Geolocation</li>
 {% endblock %}
 {% block more_stylesheet %}
+{% include "admin/histats/_intro_tour_styles.html" %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 .hs-shell {
@@ -106,9 +107,12 @@ html[data-theme="dark"] .vb-bar { background:#4ade80; }
             <span class="hs-dot" id="hsLiveDot"></span>
             <span id="hsClock">--:--:--</span>
             <button type="button" class="btn btn-sm btn-light" id="hsPauseBtn">Pause</button>
+            <button type="button" class="hs-tour-btn" id="btnHistatsVisitorLocationTour" title="Panduan penggunaan">
+                <i class="bi bi-question-circle" aria-hidden="true"></i> User Manual
+            </button>
         </div>
     </div>
-    <div class="hs-toolbar">
+    <div class="hs-toolbar" id="hsToolbar" data-title="Pilih website &amp; SID" data-intro="Pilih website/subdomain lalu isi Histats SID. Klik Muat Live untuk memuat data Geolocation.">
         {% csrf_token %}
         <div class="hs-toolbar-site">
             <label for="hsSite">Website / Subdomain</label>
@@ -119,10 +123,10 @@ html[data-theme="dark"] .vb-bar { background:#4ade80; }
             <input id="hsSidManual" class="form-control" inputmode="numeric" placeholder="Ketik SID dari Histats">
         </div>
         <div>
-            <button type="button" class="btn btn-primary" id="hsLoadBtn"><i class="bi bi-arrow-repeat"></i> Muat Live</button>
+            <button type="button" class="btn btn-primary" id="hsLoadBtn" data-title="Muat Live" data-intro="Mengambil data Geolocation (negara &amp; kota) dari Histats sesuai kalender yang dipilih."><i class="bi bi-arrow-repeat"></i> Muat Live</button>
         </div>
     </div>
-    <div class="hs-toolbar-auth">
+    <div class="hs-toolbar-auth" id="hsAuthBox" data-title="Login Histats" data-intro="Jika SID diproteksi, isi email &amp; password akun Histats. Kredensial tersimpan di sesi sampai logout.">
         <div>
             <label for="hsHistatsUser">Email Histats</label>
             <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats" value="{{ histats_user|default:'' }}">
@@ -136,8 +140,8 @@ html[data-theme="dark"] .vb-bar { background:#4ade80; }
     <p class="hs-note">Halaman ini meniru Geolocation Histats: donut negara, peta kota, kalender Harian &amp; Monthly, tab country / city, dan tabel peringkat. Data live, tidak disimpan ke database.</p>
     <div class="hs-error" id="hsError"></div>
 
-    <div class="vb-head">
-        <div class="vb-chart-card">
+    <div class="vb-head" id="vbHead">
+        <div class="vb-chart-card" id="vbChartCard" data-title="Donut &amp; peta" data-intro="Donut negara (tab country) atau peta kota (tab city). Saat tab city aktif, peta menampilkan pin lokasi pengunjung.">
             <h3 class="vb-title"><span>Geolocation</span><span class="vb-title-date" id="vbTitleDate"></span></h3>
             <div class="vb-pie-wrap" id="vbPieWrap">
                 <div class="vb-pie-canvas"><canvas id="vbPie"></canvas></div>
@@ -145,7 +149,7 @@ html[data-theme="dark"] .vb-bar { background:#4ade80; }
             </div>
             <div class="geo-map" id="geoMap"></div>
         </div>
-        <div class="ts-cal">
+        <div class="ts-cal" id="tsCal" data-title="Kalender" data-intro="Pilih Harian atau Monthly, navigasi bulan, dan mode normal/range/compare untuk memfilter data lokasi.">
             <div class="ts-cal-head">
                 <button type="button" id="tsPrevMonth"><i class="bi bi-chevron-left"></i></button>
                 <span id="tsCalTitle">—</span>
@@ -171,14 +175,14 @@ html[data-theme="dark"] .vb-bar { background:#4ade80; }
         </div>
     </div>
 
-    <div class="vb-toolbar">
+    <div class="vb-toolbar" id="vbToolbar" data-title="New &amp; lost" data-intro="Toggle new &amp; lost untuk menampilkan/menyembunyikan indikator perubahan peringkat di tabel.">
         <button type="button" class="vb-newlost" id="vbNewLost"><i class="bi bi-square-fill"></i> new &amp; lost</button>
     </div>
-    <div class="vb-tabs" id="vbTabs">
+    <div class="vb-tabs" id="vbTabs" data-title="Tab country / city" data-intro="Ganti antara daftar per negara (country) dan per kota (city). Visual donut/peta ikut berubah.">
         <button type="button" class="vb-tab is-on" data-section="CO">country</button>
         <button type="button" class="vb-tab" data-section="CY">city</button>
     </div>
-    <div class="vb-table-wrap">
+    <div class="vb-table-wrap" id="vbTable" data-title="Tabel peringkat" data-intro="Tabel peringkat lokasi berisi visitors, pages, Ppv, Tpp, dan bounce. Klik header untuk mengurutkan.">
         <table class="vb-table">
             <thead id="vbTableHead"></thead>
             <tbody id="vbTableBody"></tbody>
@@ -187,9 +191,23 @@ html[data-theme="dark"] .vb-bar { background:#4ade80; }
 </div>
 {% endblock %}
 {% block more_scripts %}
+{% include "admin/histats/_intro_tour_scripts.html" %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
+HRIS_bindHistatsTourButton('btnHistatsVisitorLocationTour', {
+    intro: 'Ini panduan singkat halaman Geolocation. Klik “Lanjut” untuk melihat cara memuat data, donut/peta, kalender, tab country/city, dan tabel.',
+    selectors: [
+        '#hsToolbar',
+        '#hsLoadBtn',
+        '#hsAuthBox',
+        '#vbChartCard',
+        '#tsCal',
+        '#vbToolbar',
+        '#vbTabs',
+        '#vbTable'
+    ]
+});
 (function () {
     var DATA_URL = "{% url 'vistor_location_data' %}";
     var histatsLoggedIn = {% if histats_logged_in %}true{% else %}false{% endif %};

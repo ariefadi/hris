@@ -8,6 +8,7 @@
 <li class="breadcrumb-item active">Ringkasan</li>
 {% endblock %}
 {% block more_stylesheet %}
+{% include "admin/histats/_intro_tour_styles.html" %}
 <style>
 .hs-shell {
     --hs-navy: #163a66;
@@ -483,9 +484,12 @@ html[data-theme="dark"] .hs-error {
             <span class="hs-dot" id="hsLiveDot"></span>
             <span id="hsClock">--:--:--</span>
             <button type="button" class="btn btn-sm btn-light" id="hsPauseBtn">Pause</button>
+            <button type="button" class="hs-tour-btn" id="btnHistatsRingkasanTour" title="Panduan penggunaan">
+                <i class="bi bi-question-circle" aria-hidden="true"></i> User Manual
+            </button>
         </div>
     </div>
-    <div class="hs-toolbar">
+    <div class="hs-toolbar" id="hsToolbar" data-title="Pilih website &amp; SID" data-intro="Pilih website/subdomain (opsional) lalu isi Histats SID milik situs tersebut. Klik Muat Live untuk mengambil data ringkasan dari Histats.">
         {% csrf_token %}
         <div class="hs-toolbar-site">
             <label for="hsSite">Website / Subdomain</label>
@@ -496,10 +500,10 @@ html[data-theme="dark"] .hs-error {
             <input id="hsSidManual" class="form-control" inputmode="numeric" placeholder="Ketik SID dari Histats">
         </div>
         <div>
-            <button type="button" class="btn btn-primary" id="hsLoadBtn"><i class="bi bi-arrow-repeat"></i> Muat Live</button>
+            <button type="button" class="btn btn-primary" id="hsLoadBtn" data-title="Muat Live" data-intro="Mengambil data ringkasan live dari Histats. Data tidak disimpan ke database HRIS."><i class="bi bi-arrow-repeat"></i> Muat Live</button>
         </div>
     </div>
-    <div class="hs-toolbar-auth" id="hsAuthBox">
+    <div class="hs-toolbar-auth" id="hsAuthBox" data-title="Login Histats" data-intro="Jika SID diproteksi, isi email &amp; password akun Histats pemilik SID. Kredensial tersimpan di sesi sampai logout.">
         <div>
             <label for="hsHistatsUser">Email Histats</label>
             <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats" value="{{ histats_user|default:'' }}">
@@ -513,7 +517,7 @@ html[data-theme="dark"] .hs-error {
     <p class="hs-note">Ketik subdomain, isi SID Histats, lalu Muat Live. Jika statistik diproteksi, isi email/password akun Histats di bawah. Login hanya untuk sesi ini dan statistik tidak disimpan ke database.</p>
     <div class="hs-error" id="hsError"></div>
 
-    <div class="hs-grid">
+    <div class="hs-grid" id="hsSummaryGrid" data-title="Ringkasan akun" data-intro="Statistik Umum menampilkan total page views, visitors, dan pages/visit. Account summary berisi metadata SID (timezone, kategori, tanggal pembuatan).">
         <div class="hs-card">
             <h3>Statistik Umum</h3>
             <div class="hs-kpis">
@@ -532,7 +536,7 @@ html[data-theme="dark"] .hs-error {
         </div>
     </div>
 
-    <div class="hs-card hs-today" style="margin:0 16px 12px;">
+    <div class="hs-card hs-today" id="hsTodayCard" style="margin:0 16px 12px;" data-title="TODAY" data-intro="Metrik hari ini: page views, pengunjung, first-time visitors, users online, waktu rata-rata, dan halaman per kunjungan.">
         <h3>TODAY</h3>
         <div class="hs-today-row">
             <div class="hs-kpi"><div class="k">Page views</div><div class="v" id="hsTodayPv">0</div></div>
@@ -544,7 +548,7 @@ html[data-theme="dark"] .hs-error {
         </div>
     </div>
 
-    <div class="hs-card hs-hourly-card" style="margin:0 16px 12px;">
+    <div class="hs-card hs-hourly-card" id="hsHourlyCard" style="margin:0 16px 12px;" data-title="Traffic per jam" data-intro="Grafik traffic hari ini per jam. Gunakan COMPARE (-1 / -7 / -14, bounce, Ppv, Nvis, Online) dan ganti tipe chart (bar/area). Tombol kamera menyimpan gambar chart.">
         <div class="hs-hourly-head">
             <h3>Traffic hari ini (per jam)</h3>
             <span class="hs-hourly-range" id="hsHourlyRange"></span>
@@ -575,7 +579,7 @@ html[data-theme="dark"] .hs-error {
         <div class="hs-chart-wrap"><canvas id="hsHourlyChart"></canvas></div>
     </div>
 
-    <div class="hs-card hs-forecast-card">
+    <div class="hs-card hs-forecast-card" id="hsForecastCard" data-title="Forecast" data-intro="Perkiraan pengunjung jam ini dan hari ini, dibanding 7 dan 14 hari sebelumnya.">
         <h3>Forecast</h3>
         <div class="hs-forecast-grid">
             <div class="hs-forecast-cell">
@@ -599,7 +603,7 @@ html[data-theme="dark"] .hs-error {
         </div>
     </div>
 
-    <div class="hs-card hs-last2">
+    <div class="hs-card hs-last2" id="hsDailyCard" data-title="Last 2 months" data-intro="Ringkasan &amp; grafik bulanan terakhir. COMPARE dan tipe chart bekerja sama seperti grafik per jam.">
         <h3 class="hs-last2-head">Last 2 months</h3>
         <div class="hs-last2-kpis">
             <div class="hs-last2-kpi">
@@ -644,8 +648,22 @@ html[data-theme="dark"] .hs-error {
 </div>
 {% endblock %}
 {% block more_scripts %}
+{% include "admin/histats/_intro_tour_scripts.html" %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+HRIS_bindHistatsTourButton('btnHistatsRingkasanTour', {
+    intro: 'Ini panduan singkat halaman Ringkasan Histats. Klik “Lanjut” untuk melihat cara memakai filter, login, KPI, dan grafik.',
+    selectors: [
+        '#hsToolbar',
+        '#hsLoadBtn',
+        '#hsAuthBox',
+        '#hsSummaryGrid',
+        '#hsTodayCard',
+        '#hsHourlyCard',
+        '#hsForecastCard',
+        '#hsDailyCard'
+    ]
+});
 (function () {
     var DATA_URL = "{% url 'statistik_ringkasan_data' %}";
     var LOGIN_URL = "{% url 'statistik_ringkasan_login' %}";

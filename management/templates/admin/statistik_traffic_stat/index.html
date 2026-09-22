@@ -8,6 +8,7 @@
 <li class="breadcrumb-item active">Traffic Stats</li>
 {% endblock %}
 {% block more_stylesheet %}
+{% include "admin/histats/_intro_tour_styles.html" %}
 <style>
 .hs-shell {
     --hs-navy: #163a66;
@@ -210,9 +211,12 @@ html[data-theme="dark"] .ts-bar { background: #4ade80; }
             <span class="hs-dot" id="hsLiveDot"></span>
             <span id="hsClock">--:--:--</span>
             <button type="button" class="btn btn-sm btn-light" id="hsPauseBtn">Pause</button>
+            <button type="button" class="hs-tour-btn" id="btnHistatsTrafficTour" title="Panduan penggunaan">
+                <i class="bi bi-question-circle" aria-hidden="true"></i> User Manual
+            </button>
         </div>
     </div>
-    <div class="hs-toolbar">
+    <div class="hs-toolbar" id="hsToolbar" data-title="Pilih website &amp; SID" data-intro="Pilih website/subdomain lalu isi Histats SID. Klik Muat Live untuk memuat Traffic stats.">
         {% csrf_token %}
         <div class="hs-toolbar-site">
             <label for="hsSite">Website / Subdomain</label>
@@ -223,10 +227,10 @@ html[data-theme="dark"] .ts-bar { background: #4ade80; }
             <input id="hsSidManual" class="form-control" inputmode="numeric" placeholder="Ketik SID dari Histats">
         </div>
         <div>
-            <button type="button" class="btn btn-primary" id="hsLoadBtn"><i class="bi bi-arrow-repeat"></i> Muat Live</button>
+            <button type="button" class="btn btn-primary" id="hsLoadBtn" data-title="Muat Live" data-intro="Mengambil data Traffic stats live dari Histats sesuai rentang kalender yang dipilih."><i class="bi bi-arrow-repeat"></i> Muat Live</button>
         </div>
     </div>
-    <div class="hs-toolbar-auth">
+    <div class="hs-toolbar-auth" id="hsAuthBox" data-title="Login Histats" data-intro="Jika SID diproteksi, isi email &amp; password akun Histats. Kredensial tersimpan di sesi sampai logout.">
         <div>
             <label for="hsHistatsUser">Email Histats</label>
             <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats" value="{{ histats_user|default:'' }}">
@@ -240,8 +244,8 @@ html[data-theme="dark"] .ts-bar { background: #4ade80; }
     <p class="hs-note">Halaman ini meniru Traffic stats Histats: kalender Perjam / Harian / Monthly, grafik 3D, COMPARE, dan tabel pengunjung. Data live, tidak disimpan ke database.</p>
     <div class="hs-error" id="hsError"></div>
 
-    <div class="ts-head">
-        <div class="ts-kpis">
+    <div class="ts-head" id="tsHead">
+        <div class="ts-kpis" id="tsKpis" data-title="KPI periode" data-intro="Ringkasan metrik periode aktif: page views, visitors, first-time, pages/visit, dan rasio pengunjung baru.">
             <h3 id="tsHeading">Daily stats</h3>
             <div class="ts-kpi-grid">
                 <div class="ts-kpi"><div class="v" id="tsPv">0</div><div class="k">Total page views</div></div>
@@ -251,7 +255,7 @@ html[data-theme="dark"] .ts-bar { background: #4ade80; }
                 <div class="ts-kpi"><div class="v" id="tsNewRatio">0%</div><div class="k">New visitors ratio</div></div>
             </div>
         </div>
-        <div class="ts-cal">
+        <div class="ts-cal" id="tsCal" data-title="Kalender" data-intro="Pilih rentang Perjam / Harian / Monthly, navigasi bulan, mode normal/range/compare, dan tipe chart (bar/area/screenshot).">
             <div class="ts-cal-head">
                 <button type="button" id="tsPrevMonth" title="Bulan sebelumnya"><i class="bi bi-chevron-left"></i></button>
                 <span id="tsCalTitle">—</span>
@@ -288,8 +292,8 @@ html[data-theme="dark"] .ts-bar { background: #4ade80; }
         <span><i class="hs-swatch" style="background:#f0b01d"></i>Pengunjung</span>
         <span><i class="hs-swatch" style="background:#3b8fd6"></i>Page views</span>
     </div>
-    <div class="hs-chart-wrap"><canvas id="tsChart"></canvas></div>
-    <div class="ts-compare">
+    <div class="hs-chart-wrap" id="tsChartWrap" data-title="Grafik traffic" data-intro="Grafik page views, pengunjung, dan first-time visitors sesuai kalender &amp; mode yang dipilih."><canvas id="tsChart"></canvas></div>
+    <div class="ts-compare" id="tsCompare" data-title="COMPARE" data-intro="Tambahkan overlay metrik: bounce, Ppv, Nvis, atau Online di grafik.">
         <span class="ts-compare-title"><i class="bi bi-layers"></i> COMPARE</span>
         <div class="hs-compare-btns" id="tsCompareBtns">
             <button type="button" class="hs-compare-btn is-on" data-compare="no"><i class="bi bi-slash-circle"></i> no</button>
@@ -299,7 +303,7 @@ html[data-theme="dark"] .ts-bar { background: #4ade80; }
             <button type="button" class="hs-compare-btn" data-metric="online"><i class="bi bi-broadcast"></i> Online</button>
         </div>
     </div>
-    <div class="ts-table-wrap">
+    <div class="ts-table-wrap" id="tsTable" data-title="Tabel detail" data-intro="Tabel per waktu berisi grafik mini, pengunjung, halaman (Ppv), pengunjung baru, dan bounce.">
         <table class="ts-table">
             <thead>
                 <tr>
@@ -317,8 +321,22 @@ html[data-theme="dark"] .ts-bar { background: #4ade80; }
 </div>
 {% endblock %}
 {% block more_scripts %}
+{% include "admin/histats/_intro_tour_scripts.html" %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+HRIS_bindHistatsTourButton('btnHistatsTrafficTour', {
+    intro: 'Ini panduan singkat halaman Traffic Stats. Klik “Lanjut” untuk melihat cara memuat data, memakai kalender, grafik, COMPARE, dan tabel.',
+    selectors: [
+        '#hsToolbar',
+        '#hsLoadBtn',
+        '#hsAuthBox',
+        '#tsKpis',
+        '#tsCal',
+        '#tsChartWrap',
+        '#tsCompare',
+        '#tsTable'
+    ]
+});
 (function () {
     var DATA_URL = "{% url 'statistik_traffic_stat_data' %}";
     var LOGIN_URL = "{% url 'statistik_ringkasan_login' %}";

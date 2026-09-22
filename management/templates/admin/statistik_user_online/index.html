@@ -8,6 +8,7 @@
 <li class="breadcrumb-item active">Users Online</li>
 {% endblock %}
 {% block more_stylesheet %}
+{% include "admin/histats/_intro_tour_styles.html" %}
 <style>
 .hs-shell {
     --hs-navy: #1a4a7a;
@@ -235,9 +236,12 @@ html[data-theme="dark"] .uo-hits { background: #1e293b; color: #cbd5e1; }
         <div class="hs-live">
             <span class="hs-dot" id="hsLiveDot"></span>
             <span id="hsClock">--:--:--</span>
+            <button type="button" class="hs-tour-btn" id="btnHistatsUserOnlineTour" title="Panduan penggunaan">
+                <i class="bi bi-question-circle" aria-hidden="true"></i> User Manual
+            </button>
         </div>
     </div>
-    <div class="hs-toolbar">
+    <div class="hs-toolbar" id="hsToolbar" data-title="Pilih website &amp; SID" data-intro="Pilih website/subdomain lalu isi Histats SID. Klik Muat Live untuk menampilkan pengunjung yang sedang online.">
         {% csrf_token %}
         <div class="hs-toolbar-site">
             <label for="hsSite">Website / Subdomain</label>
@@ -248,10 +252,10 @@ html[data-theme="dark"] .uo-hits { background: #1e293b; color: #cbd5e1; }
             <input id="hsSidManual" class="form-control" inputmode="numeric" placeholder="Ketik SID dari Histats">
         </div>
         <div>
-            <button type="button" class="btn btn-primary" id="hsLoadBtn"><i class="bi bi-arrow-repeat"></i> Muat Live</button>
+            <button type="button" class="btn btn-primary" id="hsLoadBtn" data-title="Muat Live" data-intro="Mengambil data Users online live dari Histats. Auto-refresh sekitar 10 detik (bisa di-pause)."><i class="bi bi-arrow-repeat"></i> Muat Live</button>
         </div>
     </div>
-    <div class="hs-toolbar-auth">
+    <div class="hs-toolbar-auth" id="hsAuthBox" data-title="Login Histats" data-intro="Jika SID diproteksi, isi email &amp; password akun Histats. Kredensial tersimpan di sesi sampai logout.">
         <div>
             <label for="hsHistatsUser">Email Histats</label>
             <input id="hsHistatsUser" class="form-control" type="email" autocomplete="username" placeholder="email akun Histats" value="{{ histats_user|default:'' }}">
@@ -264,14 +268,14 @@ html[data-theme="dark"] .uo-hits { background: #1e293b; color: #cbd5e1; }
     </div>
     <p class="hs-note">Data live dari Histats Users online (tidak disimpan ke database).</p>
     <div class="hs-error" id="hsError"></div>
-    <div class="uo-livebar">
+    <div class="uo-livebar" id="uoLivebar" data-title="Status live" data-intro="Menampilkan jumlah users online dan halaman yang sedang dibuka. Tombol pause menghentikan auto-refresh sementara.">
         <h2>Users online: <b id="uoCount">0</b></h2>
         <div class="uo-live-meta">
             browsing: <b id="uoPages">0</b> halaman
             <button type="button" class="uo-pause" id="hsPauseBtn" title="Pause/Play"><i class="bi bi-pause-fill" id="hsPauseIcon"></i></button>
         </div>
     </div>
-    <div class="uo-tabs" id="uoTabs">
+    <div class="uo-tabs" id="uoTabs" data-title="Tab Users online" data-intro="Ganti tab: Summary (ringkasan), Terbaru, Most active visitors, Popular pages, Popular referrer, dan Geolocation (peta Highcharts + daftar kota/negara).">
         <button type="button" class="uo-tab is-on" data-tab="summary">Summary</button>
         <button type="button" class="uo-tab" data-tab="recent">Terbaru</button>
         <button type="button" class="uo-tab" data-tab="visitors">Most active visitors</button>
@@ -279,15 +283,27 @@ html[data-theme="dark"] .uo-hits { background: #1e293b; color: #cbd5e1; }
         <button type="button" class="uo-tab" data-tab="referrers">Popular referrer</button>
         <button type="button" class="uo-tab" data-tab="geo">Geolocation</button>
     </div>
-    <div class="uo-body" id="uoBody"></div>
+    <div class="uo-body" id="uoBody" data-title="Konten tab" data-intro="Isi tab aktif. Di Terbaru / Most active / Pages / Referrer ada pagination (Total rows, halaman, Rows to show). Di Geolocation ada peta negara Highcharts plus tabel city &amp; country."></div>
 </div>
 {% endblock %}
 {% block more_scripts %}
+{% include "admin/histats/_intro_tour_scripts.html" %}
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
 <script>
+HRIS_bindHistatsTourButton('btnHistatsUserOnlineTour', {
+    intro: 'Ini panduan singkat halaman Users Online. Klik “Lanjut” untuk melihat cara memuat data live dan memakai setiap tab.',
+    selectors: [
+        '#hsToolbar',
+        '#hsLoadBtn',
+        '#hsAuthBox',
+        '#uoLivebar',
+        '#uoTabs',
+        '#uoBody'
+    ]
+});
 (function () {
     var DATA_URL = "{% url 'statistik_user_online_data' %}";
     var histatsLoggedIn = {% if histats_logged_in %}true{% else %}false{% endif %};

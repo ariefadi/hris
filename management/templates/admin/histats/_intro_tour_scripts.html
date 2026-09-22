@@ -1,0 +1,87 @@
+<script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
+<script>
+(function (global) {
+    function decorateTourButtons() {
+        var root = document.querySelector('.introjs-tooltip');
+        if (!root) return;
+        var prev = root.querySelector('.introjs-prevbutton');
+        if (prev && !prev.dataset.iconized) {
+            prev.dataset.iconized = '1';
+            prev.insertAdjacentHTML('afterbegin', '<i class="bi bi-arrow-left" aria-hidden="true"></i> ');
+        }
+        var next = root.querySelector('.introjs-nextbutton');
+        if (next && !next.dataset.iconized) {
+            next.dataset.iconized = '1';
+            next.insertAdjacentHTML('beforeend', ' <i class="bi bi-arrow-right" aria-hidden="true"></i>');
+        }
+        var done = root.querySelector('.introjs-donebutton');
+        if (done && !done.dataset.iconized) {
+            done.dataset.iconized = '1';
+            done.insertAdjacentHTML('afterbegin', '<i class="bi bi-check-circle" aria-hidden="true"></i> ');
+        }
+    }
+    function isVisible(el) {
+        if (!el) return false;
+        if (el.getClientRects().length === 0) return false;
+        var style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+        return true;
+    }
+    /**
+     * @param {object} opts
+     * @param {string} opts.intro opening text
+     * @param {string[]} opts.selectors CSS selectors with data-title / data-intro
+     * @param {string} [opts.done] closing text
+     */
+    function startHistatsTour(opts) {
+        if (typeof introJs !== 'function') return;
+        opts = opts || {};
+        var steps = [{ intro: opts.intro || 'Panduan singkat menu ini. Klik “Lanjut” untuk mengikuti langkah-langkahnya.' }];
+        (opts.selectors || []).forEach(function (sel) {
+            var el = document.querySelector(sel);
+            if (!el || !isVisible(el)) return;
+            steps.push({
+                element: el,
+                title: el.getAttribute('data-title') || undefined,
+                intro: el.getAttribute('data-intro') || ''
+            });
+        });
+        steps.push({
+            intro: opts.done || 'Selesai. Kamu bisa jalankan ulang petunjuk ini kapan saja dari tombol “User Manual”.'
+        });
+        var tour = introJs();
+        tour.setOptions({
+            steps: steps,
+            tooltipClass: 'hris-tour-tooltip',
+            highlightClass: 'hris-tour-highlight',
+            nextLabel: 'Lanjut',
+            prevLabel: 'Kembali',
+            doneLabel: 'Selesai',
+            showSkipButton: false,
+            showProgress: true,
+            showBullets: false,
+            exitOnOverlayClick: true,
+            scrollToElement: true
+        });
+        tour.onstart(decorateTourButtons);
+        tour.onafterchange(decorateTourButtons);
+        tour.onchange(decorateTourButtons);
+        tour.start();
+    }
+    function bindHistatsTourButton(buttonId, opts) {
+        function attach() {
+            var btn = document.getElementById(buttonId);
+            if (!btn || btn.dataset.tourBound === '1') return;
+            btn.dataset.tourBound = '1';
+            btn.addEventListener('click', function () { startHistatsTour(opts); });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', attach);
+        } else {
+            attach();
+        }
+    }
+    global.HRIS_startHistatsTour = startHistatsTour;
+    global.HRIS_bindHistatsTourButton = bindHistatsTourButton;
+})(window);
+</script>
