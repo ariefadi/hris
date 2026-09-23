@@ -2845,6 +2845,13 @@ class data_mysql:
                 'error': f'Failed to check app_credentials existence: {str(e)}'
             }
 
+    def _sync_app_credentials_clickhouse(self, user_mail=None, account_id=None):
+        try:
+            from management.clickhouse_table_sync import sync_app_credentials_to_clickhouse
+            sync_app_credentials_to_clickhouse(user_mail=user_mail, account_id=account_id)
+        except Exception:
+            pass
+
     def insert_app_credentials(self, account_name, user_mail, client_id, client_secret, refresh_token, network_code, developer_token, mdb, mdb_name):
         """
         Insert kredensial aplikasi sesuai skema baru ke tabel app_credentials.
@@ -2888,6 +2895,8 @@ class data_mysql:
 
             if not self.commit():
                 raise pymysql.Error("Failed to commit app_credentials insert")
+
+            self._sync_app_credentials_clickhouse(user_mail=user_mail)
 
             return {
                 'status': True,
@@ -2946,6 +2955,8 @@ class data_mysql:
             if not self.commit():
                 raise pymysql.Error("Failed to commit app_credentials update")
 
+            self._sync_app_credentials_clickhouse(user_mail=user_mail)
+
             return {
                 'status': True,
                 'message': f'Successfully updated app_credentials for {user_mail}'
@@ -2971,6 +2982,8 @@ class data_mysql:
             
             if not self.commit():
                 raise pymysql.Error("Failed to commit refresh token update")
+
+            self._sync_app_credentials_clickhouse(user_mail=user_mail)
             
             return {
                 'status': True,
@@ -3252,6 +3265,7 @@ class data_mysql:
                 }
             
             if self.cur_hris.rowcount > 0:
+                self._sync_app_credentials_clickhouse(user_mail=user_mail)
                 return {
                     'status': True,
                     'message': 'Account name berhasil diupdate'
@@ -3295,6 +3309,12 @@ class data_mysql:
 
             if getattr(self.cur_hris, 'rowcount', 0) <= 0:
                 return {'status': False, 'message': 'Tidak ada data yang dihapus'}
+
+            try:
+                from management.clickhouse_table_sync import delete_app_credentials_from_clickhouse
+                delete_app_credentials_from_clickhouse(account_id)
+            except Exception:
+                pass
 
             return {'status': True, 'message': 'Kredensial berhasil dihapus'}
 
