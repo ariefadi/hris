@@ -202,6 +202,8 @@ class OAuthCallbackView(View):
             auth_code = request.GET.get('code')
             # Baca target email dari parameter opsional (baik sebagai query `user_mail` maupun `state`)
             target_mail = request.GET.get('user_mail')
+            if not target_mail:
+                target_mail = request.session.get('oauth_flow_user_mail')
             # Jika state berformat "user:<email>", ekstrak email untuk ketepatan target
             state = request.GET.get('state')
             # Baca penanda flow dari query langsung (lebih tahan terhadap kehilangan state)

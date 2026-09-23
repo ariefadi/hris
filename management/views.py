@@ -12455,11 +12455,14 @@ class AdxAccountView(View):
             rs_users = rs_users.get('data', [])
         else:
             rs_users = []
-        # Tampilkan pesan sukses jika baru selesai OAuth
-        oauth_success_msg = None
-        if req.session.get('oauth_added_success'):
-            oauth_success_msg = req.session.get('oauth_added_message', 'Kredensial berhasil ditambahkan.')
-            # Hapus pesan setelah ditampilkan sekali
+        oauth_flash_msg = None
+        oauth_flash_success = None
+        if 'oauth_added_success' in req.session:
+            oauth_flash_success = bool(req.session.get('oauth_added_success'))
+            oauth_flash_msg = str(
+                req.session.get('oauth_added_message')
+                or ('Kredensial berhasil ditambahkan.' if oauth_flash_success else 'Gagal menyimpan kredensial OAuth.')
+            ).strip()
             try:
                 del req.session['oauth_added_success']
                 if 'oauth_added_message' in req.session:
@@ -12474,7 +12477,8 @@ class AdxAccountView(View):
             'credentials_data': credentials_data,
             'total_accounts': len(credentials_data),
             'oauth_banner': oauth_banner,
-            'oauth_success_msg': oauth_success_msg,
+            'oauth_flash_msg': oauth_flash_msg,
+            'oauth_flash_success': oauth_flash_success,
         }
         return render(req, 'admin/adx_manager/account/index.html', data)
 
@@ -12770,6 +12774,9 @@ class AdxAccountOAuthStartView(View):
             elif return_to in ('adx_policy_events',):
                 req.session['oauth_return_to'] = 'adx_policy_events'
                 req.session['oauth_require_gmail'] = True
+            else:
+                req.session.pop('oauth_return_to', None)
+                req.session.pop('oauth_require_gmail', None)
             user_id = current_user.get('user_id')
             # Ambil konfigurasi dari .env secara eksklusif
             client_id = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
@@ -12780,7 +12787,13 @@ class AdxAccountOAuthStartView(View):
                 req.session['oauth_added_message'] = 'GOOGLE_OAUTH2_CLIENT_ID/SECRET tidak ditemukan di .env.'
                 return redirect('adx_account')
             # Gunakan endpoint callback yang telah diseragamkan (tanpa query) agar cocok dengan Authorized Redirect URIs
-            redirect_uri = req.build_absolute_uri(reverse('oauth_callback_api'))
+            from management.oauth_utils import (
+                build_adx_oauth_scopes,
+                get_google_oauth_callback_url,
+            )
+            redirect_uri = get_google_oauth_callback_url(req, prefer_session=False)
+            include_gmail = bool(req.session.get('oauth_require_gmail'))
+            req.session['oauth_flow_include_gmail'] = include_gmail
             client_config = {
                 'web': {
                     'client_id': client_id,
@@ -12790,18 +12803,7 @@ class AdxAccountOAuthStartView(View):
                     'redirect_uris': [redirect_uri]
                 }
             }
-            scopes = [
-                # Scope dasar untuk identitas user (gunakan expanded form yang dikembalikan Google)
-                'openid',
-                'https://www.googleapis.com/auth/userinfo.email',
-                'https://www.googleapis.com/auth/userinfo.profile',
-                # Scope untuk Google Ad Manager
-                'https://www.googleapis.com/auth/admanager',
-                # Scope untuk Google AdSense
-                'https://www.googleapis.com/auth/adsense',
-                # Scope untuk sinkronisasi Gmail AdSense policy events
-                'https://www.googleapis.com/auth/gmail.readonly',
-            ]
+            scopes = build_adx_oauth_scopes(include_gmail=include_gmail)
             flow = Flow.from_client_config(client_config, scopes=scopes)
             flow.redirect_uri = redirect_uri
             # Bangun authorization URL secara manual untuk memastikan nilai parameter tepat (lowercase)
@@ -12850,20 +12852,18 @@ class AdxAccountOAuthStartView(View):
                         account_name = mdb_name or target_mail
                         # Masukkan baris dengan client dari .env, refresh_token & network_code kosong
                         db.insert_app_credentials(
-                            account_id=user_id,
-                            account_name=account_name,
-                            user_mail=target_mail,
-                            client_id=client_id,
-                            client_secret=client_secret,
-                            refresh_token=None,
-                            network_code=None,
-                            developer_token=developer_token,
-                            mdb=mdb,
-                            mdb_name=mdb_name
+                            account_name,
+                            target_mail,
+                            client_id,
+                            client_secret,
+                            None,
+                            None,
+                            developer_token,
+                            mdb,
+                            mdb_name,
                         )
-                except Exception:
-                    # Abaikan kegagalan pre-insert; proses akan tetap mencoba menyimpan saat callback
-                    pass
+                except Exception as pre_err:
+                    logger.warning('AdX OAuth pre-insert skipped: %s', pre_err)
 
             return redirect(authorization_url)
         except Exception as e:
@@ -12873,225 +12873,12 @@ class AdxAccountOAuthStartView(View):
 
 
 class AdxAccountOAuthCallbackView(View):
-    """Callback Google OAuth: simpan refresh_token dan network_code ke app_credentials."""
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super().dispatch(request, *args, **kwargs)
+    """Legacy redirect URI; delegate to unified OAuth callback (no login required)."""
 
     def get(self, req):
-        logger.info("=== OAuth Callback Started ===")
-        logger.info(f"OAuth Callback - GET parameters: {dict(req.GET)}")
-        logger.info(f"OAuth Callback - Session keys: {list(req.session.keys())}")
-        logger.info(f"OAuth Callback - User mail from session: {req.session.get('user_mail')}")
-        logger.info(f"OAuth Callback - Client ID from session: {req.session.get('client_id')}")
-        logger.info(f"OAuth Callback - Developer token from session: {req.session.get('developer_token')}")
-        try:
-            state = req.GET.get('state')
-            code = req.GET.get('code')
-            expected_state = req.session.get('oauth_flow_state')
+        from management.oauth_views_package.oauth_views import oauth_callback_api
+        return oauth_callback_api(req)
 
-            # Ambil konfigurasi dari settings terlebih dahulu, fallback ke environment
-            client_id = getattr(settings, 'GOOGLE_OAUTH2_CLIENT_ID', os.getenv('GOOGLE_OAUTH2_CLIENT_ID'))
-            client_secret = getattr(settings, 'GOOGLE_OAUTH2_CLIENT_SECRET', os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET'))
-            if not client_id or not client_secret:
-                req.session['oauth_added_success'] = False
-                req.session['oauth_added_message'] = 'GOOGLE_OAUTH2_CLIENT_ID/SECRET tidak ter-set di environment.'
-                return redirect('adx_account')
-
-            redirect_uri = req.build_absolute_uri(reverse('adx_account_oauth_callback'))
-            client_config = {
-                'web': {
-                    'client_id': client_id,
-                    'client_secret': client_secret,
-                    'auth_uri': 'https://accounts.google.com/o/oauth2/v2/auth',
-                    'token_uri': 'https://oauth2.googleapis.com/token',
-                    'redirect_uris': [redirect_uri]
-                }
-            }
-
-            scopes = [
-                # Scope dasar untuk identitas user (gunakan expanded form yang dikembalikan Google)
-                'openid',
-                'https://www.googleapis.com/auth/userinfo.email',
-                'https://www.googleapis.com/auth/userinfo.profile',
-                # Scope untuk Google Ad Manager
-                'https://www.googleapis.com/auth/admanager',
-                # Scope untuk Google AdSense
-                'https://www.googleapis.com/auth/adsense',
-                # Scope untuk sinkronisasi Gmail AdSense policy events
-                'https://www.googleapis.com/auth/gmail.readonly',
-            ]
-
-            flow = Flow.from_client_config(client_config, scopes=scopes)
-            flow.redirect_uri = redirect_uri
-
-            # Validasi state jika tersedia
-            if expected_state and state != expected_state:
-                req.session['oauth_added_success'] = False
-                req.session['oauth_added_message'] = 'OAuth state tidak valid.'
-                return redirect('adx_account')
-
-            # Tukar code dengan token
-            flow.fetch_token(code=code)
-            credentials = flow.credentials
-            refresh_token = credentials.refresh_token
-
-            if not refresh_token:
-                # Paksa prompt consent agar refresh token didapat pada approval pertama
-                req.session['oauth_added_success'] = False
-                req.session['oauth_added_message'] = 'Refresh token tidak diterima. Ulangi dengan consent.'
-                return redirect('adx_account')
-
-            # Deteksi network_code otomatis
-            network_code = None
-            try:
-                # Pastikan token segar
-                credentials.refresh(Request())
-                # Bangun Ad Manager client tanpa network_code
-                ad_manager_client = ad_manager.AdManagerClient(credentials, 'HRIS AdX Integration')
-                # Coba dapatkan semua networks yang dapat diakses
-                try:
-                    network_service = ad_manager_client.GetService('NetworkService', version=get_ad_manager_api_version())
-                    networks = network_service.getAllNetworks()
-                    if networks:
-                        first = networks[0]
-                        # Support dict atau object
-                        network_code = (
-                            getattr(first, 'networkCode', None)
-                            or getattr(first, 'network_code', None)
-                            or (first.get('networkCode') if isinstance(first, dict) else None)
-                            or (first.get('network_code') if isinstance(first, dict) else None)
-                        )
-                except Exception:
-                    # Fallback ke getCurrentNetwork jika getAllNetworks gagal
-                    try:
-                        network_service = ad_manager_client.GetService('NetworkService', version=get_ad_manager_api_version())
-                        current_network = network_service.getCurrentNetwork()
-                        network_code = (
-                            getattr(current_network, 'networkCode', None)
-                            or getattr(current_network, 'network_code', None)
-                            or (current_network.get('networkCode') if isinstance(current_network, dict) else None)
-                            or (current_network.get('network_code') if isinstance(current_network, dict) else None)
-                        )
-                    except Exception:
-                        network_code = None
-            except Exception:
-                network_code = None
-
-            # Ambil userinfo dari Google untuk mengisi account_id & account_name
-            account_id = None
-            account_name = None
-            userinfo_email = None
-            try:
-                userinfo_resp = requests.get(
-                    'https://openidconnect.googleapis.com/v1/userinfo',
-                    headers={'Authorization': f'Bearer {credentials.token}'},
-                    timeout=10
-                )
-                if userinfo_resp.status_code == 200:
-                    info = userinfo_resp.json()
-                    account_id = info.get('sub')
-                    account_name = info.get('name') or info.get('email')
-                    userinfo_email = info.get('email')
-            except Exception:
-                pass
-
-            # Fallback jika userinfo tidak tersedia
-            if not account_id:
-                account_id = req.session.get('oauth_flow_user_id') or req.session.get('hris_admin', {}).get('user_id')
-            if not account_name:
-                account_name = req.session.get('hris_admin', {}).get('user_alias') or req.session.get('hris_admin', {}).get('user_name') or (req.session.get('oauth_flow_user_mail') or req.session.get('hris_admin', {}).get('user_mail'))
-
-            # Siapkan metadata perekam (mdb/mdb_name) dan developer_token
-            admin_session = req.session.get('hris_admin', {})
-            mdb = admin_session.get('user_id')
-            mdb_name = admin_session.get('user_alias') or admin_session.get('user_name')
-            developer_token = getattr(settings, 'GOOGLE_ADS_DEVELOPER_TOKEN', os.getenv('GOOGLE_ADS_DEVELOPER_TOKEN', ''))
-
-            # Simpan ke app_credentials (insert / update by user_mail) sesuai skema baru
-            db = data_mysql()
-            # Gunakan email aktif di browser jika tersedia dari userinfo
-            user_mail = userinfo_email or req.session.get('oauth_flow_user_mail') or req.session.get('hris_admin', {}).get('user_mail')
-
-            if not user_mail:
-                req.session['oauth_added_success'] = False
-                req.session['oauth_added_message'] = 'User email tidak ditemukan di session.'
-                return redirect('adx_account')
-
-            exists = db.check_app_credentials_exist(user_mail)
-            if isinstance(exists, dict) and not exists.get('status', True):
-                req.session['oauth_added_success'] = False
-                req.session['oauth_added_message'] = 'Gagal mengecek app_credentials di database.'
-                return redirect('adx_account')
-
-            # Debug logging
-            logger.info("=== OAuth Callback - Preparing to save credentials ===")
-            logger.info(f"OAuth Callback - User mail: {user_mail}")
-            logger.info(f"OAuth Callback - Account name: {account_name}")
-            logger.info(f"OAuth Callback - Client ID: {client_id}")
-            logger.info(f"OAuth Callback - Client secret length: {len(client_secret) if client_secret else 0}")
-            logger.info(f"OAuth Callback - Refresh token length: {len(refresh_token) if refresh_token else 0}")
-            logger.info(f"OAuth Callback - Network code: {network_code} (type: {type(network_code)})")
-            logger.info(f"OAuth Callback - Developer token length: {len(developer_token) if developer_token else 0}")
-            logger.info(f"OAuth Callback - MDB: {mdb}, MDB Name: {mdb_name}")
-    
-            logger.info(f"OAuth Callback - Attempting to save credentials for user: {user_mail}")
-            logger.info(f"OAuth Callback - Network code detected: {network_code}")
-            logger.info(f"OAuth Callback - Existing credentials check result: {exists}")
-
-            if exists > 0:
-                logger.info(f"OAuth Callback - Updating existing credentials for {user_mail}")
-                result = db.update_app_credentials(
-                    user_mail,
-                    account_name,
-                    client_id,
-                    client_secret,
-                    refresh_token,
-                    network_code,
-                    developer_token,
-                    mdb,
-                    mdb_name,
-                    '1'
-                )
-            else:
-                logger.info(f"OAuth Callback - Inserting new credentials for {user_mail}")
-                result = db.insert_app_credentials(
-                    account_name,
-                    user_mail,
-                    client_id,
-                    client_secret,
-                    refresh_token,
-                    network_code,
-                    developer_token,
-                    mdb,
-                    mdb_name
-                )
-
-            logger.info(f"OAuth Callback - Database operation result: {result}")
-
-            if isinstance(result, dict) and result.get('status'):
-                req.session['oauth_added_success'] = True
-                if network_code:
-                    req.session['oauth_added_message'] = f'Kredensial disimpan. Network Code: {network_code}'
-                else:
-                    req.session['oauth_added_message'] = 'Kredensial disimpan, namun network_code belum terdeteksi.'
-                logger.info(f"OAuth Callback - Successfully saved credentials for {user_mail}")
-            else:
-                req.session['oauth_added_success'] = False
-                req.session['oauth_added_message'] = result.get('error', 'Gagal menyimpan app_credentials.')
-                logger.error(f"OAuth Callback - Failed to save credentials for {user_mail}: {result}")
-
-            # Bersihkan state
-            for k in ['oauth_flow_state', 'oauth_flow_user_mail', 'oauth_flow_user_id']:
-                if k in req.session:
-                    del req.session[k]
-
-            return redirect('adx_account')
-        except Exception as e:
-            req.session['oauth_added_success'] = False
-            req.session['oauth_added_message'] = f'Error pada callback OAuth: {str(e)}'
-            return redirect('adx_account')
 
 class AdxTrafficPerAccountDataView(View):
     """AJAX endpoint untuk data AdX Traffic Per Account"""

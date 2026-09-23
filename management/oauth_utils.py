@@ -16,7 +16,56 @@ import urllib.parse
 import logging
 import os
 
+# Google often returns scopes in expanded form; strict mismatch breaks fetch_token.
+os.environ.setdefault('OAUTHLIB_RELAX_TOKEN_SCOPE', '1')
+os.environ.setdefault('OAUTHLIB_IGNORE_SCOPE_CHANGE', '1')
+
 logger = logging.getLogger(__name__)
+
+
+def build_adx_oauth_scopes(include_gmail=False):
+    """OAuth scopes for AdX credential flow; Gmail only needed for policy-events sync."""
+    scopes = [
+        'openid',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/admanager',
+        'https://www.googleapis.com/auth/adsense',
+    ]
+    if include_gmail:
+        scopes.append('https://www.googleapis.com/auth/gmail.readonly')
+    return scopes
+
+
+def adx_oauth_requires_gmail(request):
+    return bool(request.session.get('oauth_require_gmail')) or str(
+        request.session.get('oauth_return_to') or ''
+    ).strip() in (
+        'adsense_policy_events',
+        'ads_policy_events',
+        'adx_policy_events',
+    )
+
+
+def get_google_oauth_callback_url(request, prefer_session=True):
+    """
+    Redirect URI for Google OAuth (must match Authorized redirect URIs exactly).
+    At token exchange, prefer the URI stored at oauth start (session).
+    """
+    if prefer_session:
+        try:
+            session_uri = str(request.session.get('oauth_flow_redirect_uri') or '').strip()
+            if session_uri:
+                return session_uri
+        except Exception:
+            pass
+    for candidate in (
+        os.getenv('OAUTH_REDIRECT_URI', '').strip(),
+        str(getattr(settings, 'OAUTH_REDIRECT_URI', '') or '').strip(),
+    ):
+        if candidate and candidate != 'urn:ietf:wg:oauth:2.0:oob':
+            return candidate
+    return request.build_absolute_uri(reverse('oauth_callback_api'))
 
 def get_current_user_from_request(request):
     """
@@ -372,7 +421,7 @@ def handle_oauth_callback(request, auth_code, target_user_mail=None):
         
         # Pastikan redirect_uri yang dipakai saat exchange SAMA dengan yang dipakai saat authorization
         # Gunakan path callback yang diset di start (tanpa query) agar cocok dengan Authorized Redirect URIs
-        callback_url = request.build_absolute_uri(reverse('oauth_callback_api'))
+        callback_url = get_google_oauth_callback_url(request)
         # Scope sensitif untuk Ad Manager
         scopes = ['https://www.googleapis.com/auth/admanager']
         # Exchange code untuk refresh token dengan kredensial user yang sesuai
@@ -425,15 +474,9 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
         user_mail = target_user_mail or None
 
         # Gunakan client dari .env secara eksplisit (tanpa DB mapping)
-        # Scope disesuaikan dengan yang dikembalikan Google (expanded form)
-        scopes = [
-            'openid',
-            'https://www.googleapis.com/auth/userinfo.email',
-            'https://www.googleapis.com/auth/userinfo.profile',
-            'https://www.googleapis.com/auth/admanager',
-            'https://www.googleapis.com/auth/adsense',
-            'https://www.googleapis.com/auth/gmail.readonly',
-        ]
+        require_gmail = adx_oauth_requires_gmail(request)
+        include_gmail = bool(request.session.get('oauth_flow_include_gmail')) or require_gmail
+        scopes = build_adx_oauth_scopes(include_gmail=include_gmail)
         client_id = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
         client_secret = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET')
         if not client_id or not client_secret:
@@ -442,8 +485,7 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
                 'message': 'GOOGLE_OAUTH2_CLIENT_ID/SECRET tidak ditemukan di .env'
             }
 
-        # Redirect URI harus sama dengan yang dipakai saat authorization (tanpa query)
-        callback_url = request.build_absolute_uri(reverse('oauth_callback_api'))
+        callback_url = get_google_oauth_callback_url(request)
 
         # Bangun flow dan tukar code menjadi token
         try:
@@ -467,16 +509,10 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
                 'message': f'Gagal menukar code menjadi token: {str(e)}'
             }
 
-        from management.list_adsense_policy_events import verify_gmail_credentials, _format_gmail_api_error
-
-        gmail_ok, gmail_err = verify_gmail_credentials(credentials)
-        require_gmail = bool(request.session.get('oauth_require_gmail')) or str(request.session.get('oauth_return_to') or '').strip() in (
-            'adsense_policy_events',
-            'ads_policy_events',
-            'adx_policy_events',
-        )
-        scope_text = ' '.join(getattr(credentials, 'scopes', None) or [])
-        if require_gmail or 'gmail.readonly' in scope_text:
+        gmail_ok = False
+        if require_gmail:
+            from management.list_adsense_policy_events import verify_gmail_credentials, _format_gmail_api_error
+            gmail_ok, gmail_err = verify_gmail_credentials(credentials)
             if not gmail_ok:
                 formatted = _format_gmail_api_error(gmail_err)
                 raw = str(gmail_err or '').strip()
@@ -500,7 +536,7 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
             except Exception:
                 existing_refresh = None
 
-            if require_gmail or 'gmail.readonly' in scope_text:
+            if require_gmail:
                 return {
                     'status': False,
                     'message': (

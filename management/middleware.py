@@ -184,6 +184,7 @@ class AuthMiddleware:
             # Allow OAuth URL generation and callback without requiring session login
             reverse('generate_oauth_url_api'),
             reverse('oauth_callback_api'),
+            reverse('adx_account_oauth_callback'),
             # Partner BM: kirim token tanpa session login admin
             reverse('facebook_partner_submit_token'),
             reverse('facebook_account_oauth_callback'),

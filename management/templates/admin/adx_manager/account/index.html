@@ -341,10 +341,10 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
     <a href="{% url 'oauth_management_dashboard' %}" class="btn btn-sm btn-primary ms-3">Authorize Ad Manager</a>
 </div>
 {% endif %}
-{% if oauth_success_msg %}
-<div class="alert alert-success adx-oauth-alert d-flex align-items-center" role="alert">
-    <i class="bi bi-check-circle-fill me-2"></i>
-    <div class="flex-grow-1">{{ oauth_success_msg }}</div>
+{% if oauth_flash_msg %}
+<div class="alert {% if oauth_flash_success %}alert-success{% else %}alert-danger{% endif %} adx-oauth-alert d-flex align-items-center" role="alert">
+    <i class="bi {% if oauth_flash_success %}bi-check-circle-fill{% else %}bi-exclamation-triangle-fill{% endif %} me-2"></i>
+    <div class="flex-grow-1">{{ oauth_flash_msg }}</div>
 </div>
 {% endif %}
 
