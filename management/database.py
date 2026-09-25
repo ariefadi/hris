@@ -3739,9 +3739,69 @@ class data_mysql:
                 for k, v in spend_totals.items()
                 if float(v or 0) > 0
             }
-            return {'status': True, 'data': data, 'spend': spend}
+
+            platform_flags = {}
+
+            def register_platform(raw_domain, src):
+                name = str(raw_domain or '').strip()
+                if not name:
+                    return
+                keys = set(self._dashboard_domain_lookup_keys(name))
+                primary = self._normalize_subdomain_key(name)
+                if primary:
+                    keys.add(primary)
+                match_key = self._normalize_domain_match_key(name)
+                if match_key:
+                    keys.add(match_key)
+                for key in keys:
+                    k = str(key or '').strip().lower()
+                    if not k:
+                        continue
+                    cur = platform_flags.setdefault(k, {'adx': False, 'adsense': False})
+                    if str(src or '').strip().lower() == 'adx':
+                        cur['adx'] = True
+                    else:
+                        cur['adsense'] = True
+
+            for sql, src in (
+                (
+                    """
+                    SELECT DISTINCT data_adsense_domain AS raw_domain
+                    FROM data_adsense_domain
+                    WHERE TRIM(COALESCE(data_adsense_domain, '')) <> ''
+                    """,
+                    'adsense',
+                ),
+                (
+                    """
+                    SELECT DISTINCT data_adx_domain AS raw_domain
+                    FROM data_adx_domain
+                    WHERE TRIM(COALESCE(data_adx_domain, '')) <> ''
+                    """,
+                    'adx',
+                ),
+            ):
+                try:
+                    self.cur_hris.execute(sql)
+                    for row in (self.cur_hris.fetchall() or []):
+                        register_platform(row.get('raw_domain'), src)
+                except Exception:
+                    pass
+
+            platform = {}
+            for k, flags in platform_flags.items():
+                has_adx = bool((flags or {}).get('adx'))
+                has_adsense = bool((flags or {}).get('adsense'))
+                if has_adx and has_adsense:
+                    platform[k] = 'both'
+                elif has_adsense:
+                    platform[k] = 'adsense'
+                elif has_adx:
+                    platform[k] = 'adx'
+
+            return {'status': True, 'data': data, 'spend': spend, 'platform': platform}
         except Exception as e:
-            return {'status': False, 'data': {}, 'spend': {}, 'error': str(e)}
+            return {'status': False, 'data': {}, 'spend': {}, 'platform': {}, 'error': str(e)}
 
     def get_dashboard_domain_campaign_stats(self, ymd, domain_names):
         try:
@@ -9483,7 +9543,7 @@ class data_mysql:
                     "\tROUND(AVG(b.data_ads_frekuensi), 2) AS frequency,",
                     "\tSUM(b.data_ads_lpv) AS lpv,",
                     "\tROUND(AVG(b.data_ads_lpv_rate), 2) AS lpv_rate,",
-                    "\tROUND(AVG(b.data_ads_cpr), 0) AS cpr,",
+                    "\tCASE WHEN SUM(b.data_ads_click) > 0 THEN ROUND((SUM(b.data_ads_spend) / SUM(b.data_ads_click)), 0) ELSE 0 END AS cpr,",
                     "\tCASE WHEN SUM(b.data_ads_click) > 0 THEN ROUND((SUM(b.data_ads_spend) / SUM(b.data_ads_click)), 0) ELSE 0 END AS cpc",
                     "FROM data_ads_campaign b",
                     "LEFT JOIN master_account_ads a ON (",
@@ -9521,7 +9581,7 @@ class data_mysql:
                     "\tROUND(AVG(rs.frequency), 2) AS 'frequency',",
                     "\tSUM(rs.lpv) AS 'lpv',",
                     "\tROUND(AVG(rs.lpv_rate), 2) AS 'lpv_rate',",
-                    "\tROUND(AVG(rs.cpr), 0) AS 'cpr',",
+                    "\tCASE WHEN SUM(rs.clicks) > 0 THEN ROUND((SUM(rs.spend) / SUM(rs.clicks)), 0) ELSE 0 END AS 'cpr',",
                     "\tCASE WHEN SUM(rs.clicks) > 0 THEN ROUND((SUM(rs.spend) / SUM(rs.clicks)), 0) ELSE 0 END AS 'cpc'",
                     "FROM (",
                         "\tSELECT",
@@ -9798,7 +9858,7 @@ class data_mysql:
                     "\tSUM(b.data_ads_country_impresi) AS impressions,",
                     "\tSUM(b.data_ads_country_click) AS clicks,",
                     "\tSUM(b.data_ads_country_reach) AS reach,",
-                    "\tROUND(AVG(b.data_ads_country_cpr), 0) AS cpr,",
+                    "\tCASE WHEN SUM(b.data_ads_country_click) > 0 THEN ROUND((SUM(b.data_ads_country_spend)/SUM(b.data_ads_country_click)), 0) ELSE 0 END AS cpr,",
                     "\tCASE WHEN SUM(b.data_ads_country_click) > 0 THEN ROUND((SUM(b.data_ads_country_spend)/SUM(b.data_ads_country_click)), 0) ELSE 0 END AS cpc",
                     "FROM data_ads_country b",
                     "WHERE",
@@ -9812,8 +9872,8 @@ class data_mysql:
                     "\tSUM(rs.impressions) AS 'impressions',",
                     "\tSUM(rs.clicks) AS 'clicks',",
                     "\tSUM(rs.reach) AS 'reach',",
-                    "\tROUND(AVG(rs.cpr), 0) AS 'cpr',",
-                    "\tROUND((SUM(rs.spend)/SUM(rs.clicks)), 0) AS 'cpc'",
+                    "\tCASE WHEN SUM(rs.clicks) > 0 THEN ROUND((SUM(rs.spend) / SUM(rs.clicks)), 0) ELSE 0 END AS 'cpr',",
+                    "\tCASE WHEN SUM(rs.clicks) > 0 THEN ROUND((SUM(rs.spend) / SUM(rs.clicks)), 0) ELSE 0 END AS 'cpc'",
                     "FROM (",
                         "\tSELECT",
                         "\t\ta.account_id, a.account_name, a.account_email,",
@@ -9837,6 +9897,16 @@ class data_mysql:
             else:
                 base_sql.append("b.data_ads_country_tanggal BETWEEN %s AND %s")
             params.extend([tanggal_dari, tanggal_sampai])
+            if use_clickhouse:
+                base_sql.append(
+                    "\tAND length(trimBoth(toString(b.data_ads_country_cd))) >= 2"
+                )
+                base_sql.append(
+                    "\tAND match(upper(trimBoth(toString(b.data_ads_country_cd))), '^[A-Z]{2,3}$') = 1"
+                )
+            else:
+                base_sql.append("\tAND TRIM(COALESCE(b.data_ads_country_cd, '')) <> ''")
+                base_sql.append("\tAND CHAR_LENGTH(TRIM(b.data_ads_country_cd)) >= 2")
             if selected_account_list:
                 base_sql.append(f"\tAND ({like_conditions_account})")
                 params.extend(like_params_account)
@@ -10250,7 +10320,7 @@ class data_mysql:
                     "\tSUM(b.data_ads_country_spend) AS 'spend',",
                     "\tSUM(b.data_ads_country_click) AS 'clicks_fb',",
                     "\tSUM(b.data_ads_country_impresi) AS 'impressions_fb',",
-                    "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr',",
+                    "\tCASE WHEN SUM(b.data_ads_country_click) > 0 THEN ROUND(SUM(b.data_ads_country_spend) / SUM(b.data_ads_country_click), 0) ELSE 0 END AS 'cpr',",
                     "\tCASE WHEN SUM(b.data_ads_country_click) > 0 THEN ROUND(SUM(b.data_ads_country_spend) / SUM(b.data_ads_country_click), 0) ELSE 0 END AS 'cpc_fb'",
                     "FROM data_ads_country b",
                     "WHERE toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
@@ -10273,8 +10343,8 @@ class data_mysql:
                     "\tSUM(rs.spend) AS 'spend',",
                     "\tSUM(rs.clicks_fb) AS 'clicks_fb',",
                     "\tSUM(rs.impressions_fb) AS 'impressions_fb',",
-                    "\tROUND(AVG(rs.cpr), 0) AS 'cpr',",
-                    "\tROUND((SUM(rs.spend)/SUM(rs.clicks_fb)), 0) AS 'cpc_fb'",
+                    "\tCASE WHEN SUM(rs.clicks_fb) > 0 THEN ROUND(SUM(rs.spend) / SUM(rs.clicks_fb), 0) ELSE 0 END AS 'cpr',",
+                    "\tCASE WHEN SUM(rs.clicks_fb) > 0 THEN ROUND(SUM(rs.spend) / SUM(rs.clicks_fb), 0) ELSE 0 END AS 'cpc_fb'",
                     "FROM (",
                         "\tSELECT",
                         "\t\ta.account_id, a.account_name, a.account_email,",

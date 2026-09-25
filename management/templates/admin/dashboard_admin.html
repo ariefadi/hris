@@ -11101,9 +11101,11 @@ function initDashboardRecap() {
         }
         const key = String(row?.name || row?.domain || row?.site || row?.entity_key || '').trim().toLowerCase();
         const site = normalizeTrafficDomainKey(key) || key.replace(/^www\./i, '');
+        const mergeKey = normalizeDetailScoringDomainKey(key);
         const campaign = String(row?.meta_campaign || row?.campaign || row?.campaign_name || row?.meta_campaign_name || row?.status_campaign || '').trim().toUpperCase();
         const country = String(row?.code || row?.country_cd || row?.country_code || '').trim().toUpperCase();
         const out = [key, site];
+        if (mergeKey) out.push(mergeKey);
         if (site && site !== key) out.push(site);
         if (site && campaign && country) out.push(`${site}|${campaign}|${country}`);
         if (site && country) out.push(`${site}||${country}`);
@@ -11122,7 +11124,8 @@ function initDashboardRecap() {
         return uniqKeepOrder((rows || []).flatMap(function(r){
             const raw = String(r?.name || r?.domain || r?.site || '').trim().toLowerCase().replace(/^www\./i, '');
             const norm = normalizeTrafficDomainKey(raw);
-            return [raw, norm].filter(Boolean);
+            const mergeKey = normalizeDetailScoringDomainKey(raw);
+            return [raw, norm, mergeKey].filter(Boolean);
         }));
     }
 
@@ -11769,8 +11772,9 @@ function initDashboardRecap() {
             value = value.split(/\s+/)[0].trim();
         }
         value = value.split('_')[0].trim();
-        if (value.endsWith('.adx')) value = value.slice(0, -4);
-        if (value.endsWith('.ads')) value = value.slice(0, -4);
+        for (const suffix of ['.disp', '.display', '.adx', '.ads']) {
+            if (value.endsWith(suffix)) value = value.slice(0, -suffix.length);
+        }
         const tlds = ['.co.id', '.web.id', '.my.id', '.or.id', '.ac.id', '.go.id', '.com', '.net', '.org', '.id', '.top', '.io'];
         for (const tld of tlds.sort(function(a, b){ return b.length - a.length; })) {
             if (value.endsWith(tld)) {
@@ -11779,6 +11783,152 @@ function initDashboardRecap() {
             }
         }
         return value.replace(/^\.+|\.+$/g, '');
+    }
+
+    /** Kunci gabungan subdomain (setara normalize_roi_domain_merge_key di backend). */
+    function normalizeDetailScoringDomainKey(domain) {
+        const base = normalizeTrafficDomainKey(domain);
+        if (!base) return '';
+        const parts = base.split('.').filter(Boolean);
+        if (parts.length >= 2) return parts[0] + '.' + parts[1];
+        return parts[0] || base;
+    }
+
+    function unifyDetailScoringMergeKey(rawKey, allKeys) {
+        const key = String(rawKey || '').trim().toLowerCase();
+        if (!key) return '';
+        if (key.indexOf('.') >= 0) return key;
+        const keys = Array.isArray(allKeys) ? allKeys : [];
+        const candidates = keys.filter(function(k) {
+            const kk = String(k || '').trim().toLowerCase();
+            return kk.indexOf('.') >= 0 && kk.split('.')[0] === key;
+        });
+        if (!candidates.length) return key;
+        candidates.sort(function(a, b) { return String(b).length - String(a).length; });
+        return candidates[0];
+    }
+
+    function pickDetailScoringDisplayName(unifiedKey, aliasNames) {
+        const uk = String(unifiedKey || '').trim().toLowerCase();
+        const list = uniqKeepOrder((aliasNames || []).map(function(n) { return String(n || '').trim(); }).filter(Boolean));
+        if (!list.length) return unifiedKey || '-';
+        const exact = list.find(function(n) {
+            return normalizeDetailScoringDomainKey(n) === uk && n.indexOf('.') >= 0;
+        });
+        if (exact) return exact;
+        const dotted = list.filter(function(n) { return n.indexOf('.') >= 0; })
+            .sort(function(a, b) { return String(b).length - String(a).length; });
+        if (dotted.length) return dotted[0];
+        return list[0];
+    }
+
+    function consolidateRecapDomainRows(rows, dim) {
+        if (String(dim || '').toLowerCase() === 'country') return rows || [];
+        const input = Array.isArray(rows) ? rows : [];
+        const rawKeys = uniqKeepOrder(input.map(function(r) {
+            return normalizeDetailScoringDomainKey(r?.name || r?.domain || r?.site || '');
+        }).filter(Boolean));
+        const buckets = new Map();
+
+        function absorb(cur, r) {
+            const spend = Number(r?.spend) || 0;
+            const revenue = Number(r?.revenue) || 0;
+            const src = String(r?.source || '').toLowerCase();
+            cur._aliases.add(String(r?.name || r?.domain || '-'));
+
+            if (src === 'adx') {
+                cur.spend = Math.max(Number(cur.spend) || 0, spend);
+            } else if (src === 'adsense' && !cur.sources.adx) {
+                cur.spend = Math.max(Number(cur.spend) || 0, spend);
+            } else if (src) {
+                cur.spend = Math.max(Number(cur.spend) || 0, spend);
+            } else {
+                cur.spend = Math.max(Number(cur.spend) || 0, spend);
+            }
+            cur.revenue = (Number(cur.revenue) || 0) + revenue;
+            cur.active_days = Math.max(Number(cur.active_days) || 0, Number(r?.active_days ?? r?.days_running ?? 0) || 0);
+
+            if (src === 'adx') {
+                cur.sources.adx = true;
+                if (r?.last_update) cur.last_updates.adx = r.last_update;
+                if (r?.account_ads) cur.account_ads = String(r.account_ads || '');
+                if (r?.ml) cur.ml = r.ml;
+                if (r?.metrics?.adx) cur.metrics.adx = r.metrics.adx;
+            }
+            if (src === 'adsense') {
+                cur.sources.adsense = true;
+                if (r?.last_update) cur.last_updates.adsense = r.last_update;
+                if (r?.account_ads && !cur.account_ads) cur.account_ads = String(r.account_ads || '');
+                if (r?.metrics?.adsense) cur.metrics.adsense = r.metrics.adsense;
+            }
+            if (r?.prev_spend != null) cur.prev_spend = Math.max(Number(cur.prev_spend) || 0, Number(r.prev_spend) || 0);
+            if (r?.prev_revenue != null) cur.prev_revenue = Number(r.prev_revenue) || 0;
+            if (r?.prev_net != null) cur.prev_net = Number(r.prev_net) || 0;
+            if (r?.prev_roi != null) cur.prev_roi = Number(r.prev_roi) || 0;
+            if (r?.delta_spend != null) cur.delta_spend = Number(r.delta_spend) || 0;
+            if (r?.delta_revenue != null) cur.delta_revenue = Number(r.delta_revenue) || 0;
+            if (r?.delta_net != null) cur.delta_net = Number(r.delta_net) || 0;
+            if (r?.delta_roi != null) cur.delta_roi = Number(r.delta_roi) || 0;
+        }
+
+        input.forEach(function(r) {
+            const mk = normalizeDetailScoringDomainKey(r?.name || r?.domain || r?.site || '');
+            if (!mk) return;
+            const unified = unifyDetailScoringMergeKey(mk, rawKeys);
+            let cur = buckets.get(unified);
+            if (!cur) {
+                cur = {
+                    code: String(r?.code || ''),
+                    account_ads: String(r?.account_ads || ''),
+                    spend: 0,
+                    revenue: 0,
+                    active_days: 0,
+                    sources: { adx: false, adsense: false },
+                    last_updates: { adx: '', adsense: '' },
+                    ml: null,
+                    metrics: { adx: null, adsense: null },
+                    _aliases: new Set(),
+                };
+                buckets.set(unified, cur);
+            }
+            absorb(cur, r);
+        });
+
+        const out = [];
+        buckets.forEach(function(cur, unifiedKey) {
+            const spend = Number(cur.spend) || 0;
+            const revenue = Number(cur.revenue) || 0;
+            const name = pickDetailScoringDisplayName(unifiedKey, Array.from(cur._aliases || []));
+            out.push({
+                name: name,
+                code: cur.code,
+                account_ads: cur.account_ads,
+                spend: spend,
+                revenue: revenue,
+                net: revenue - spend,
+                roi: spend > 0 ? ((revenue - spend) / spend * 100) : 0,
+                active_days: Number(cur.active_days) || 0,
+                sources: cur.sources,
+                last_updates: cur.last_updates,
+                ml: cur.ml,
+                metrics: cur.metrics,
+                prev_spend: cur.prev_spend,
+                prev_revenue: cur.prev_revenue,
+                prev_net: cur.prev_net,
+                prev_roi: cur.prev_roi,
+                delta_spend: cur.delta_spend,
+                delta_revenue: cur.delta_revenue,
+                delta_net: cur.delta_net,
+                delta_roi: cur.delta_roi,
+            });
+        });
+        out.sort(function(a, b) {
+            const ar = Number(a?.roi) || 0;
+            const br = Number(b?.roi) || 0;
+            if (br !== ar) return br - ar;
+            return (Number(b?.revenue) || 0) - (Number(a?.revenue) || 0);
+        });
+        return out;
     }
 
     async function fetchDashboardDomainCampaignStats(state, rows) {
@@ -11811,7 +11961,9 @@ function initDashboardRecap() {
         if (!raw || !statsByDomain || typeof statsByDomain !== 'object') {
             return { activeCount: 0, totalBudget: 0 };
         }
+        const mergeKey = normalizeDetailScoringDomainKey(raw);
         const hit = statsByDomain[raw]
+            || (mergeKey ? statsByDomain[mergeKey] : null)
             || (function(){
                 const parts = raw.split('.').filter(Boolean);
                 if (parts.length >= 2) return statsByDomain[parts.slice(0, 2).join('.')];
@@ -13982,6 +14134,9 @@ function initDashboardRecap() {
     function resolveScoreDetailMonitoringSource(row, state) {
         const srcState = String(state?.source || 'all').trim().toLowerCase();
         if (srcState === 'adx' || srcState === 'adsense') return srcState;
+        const platform = lookupRecapDomainPlatform(row?.name || row?.domain || row?.site || '');
+        if (platform === 'adsense') return 'adsense';
+        if (platform === 'adx') return 'adx';
         const hasSources = row && row.sources && (row.sources.adx || row.sources.adsense);
         if (hasSources) {
             if (row.sources.adx && !row.sources.adsense) return 'adx';
@@ -13989,7 +14144,9 @@ function initDashboardRecap() {
         }
         const rowSrc = String(row?.source || '').trim().toLowerCase();
         if (rowSrc === 'adx' || rowSrc === 'adsense') return rowSrc;
-        return 'adx';
+        if (row?.metrics?.adsense) return 'adsense';
+        if (row?.metrics?.adx) return 'adx';
+        return 'adsense';
     }
 
     function endpointScoreDetailMonitoringCountry(source, startYmd, endYmd, domain, countryCode) {
@@ -21841,9 +21998,13 @@ function initDashboardRecap() {
             if (json && json.spend && typeof json.spend === 'object') {
                 window.dashboardRecapDomainSpendMap = json.spend;
             }
+            if (json && json.platform && typeof json.platform === 'object') {
+                window.dashboardRecapDomainPlatformMap = json.platform;
+            }
         } catch (_e) {
             window.dashboardRecapDomainAccountMap = {};
             window.dashboardRecapDomainSpendMap = {};
+            window.dashboardRecapDomainPlatformMap = {};
         }
     }
 
@@ -22509,10 +22670,15 @@ function initDashboardRecap() {
         const scoringPromise = (prefetchedScoring && typeof prefetchedScoring.then === 'function')
             ? prefetchedScoring
             : fetchDashboardScoring(rows, state);
+        const prefetchedCampaignStats = window.dashboardRecapCampaignStatsByDomain;
         const [trafficByDomain, backendScores, campaignStatsByDomain] = await Promise.all([
             fetchDashboardTrafficMetrics(state, rows),
             scoringPromise,
-            recapDim === 'country' ? Promise.resolve({}) : fetchDashboardDomainCampaignStats(state, rows)
+            recapDim === 'country'
+                ? Promise.resolve({})
+                : (prefetchedCampaignStats && typeof prefetchedCampaignStats === 'object'
+                    ? Promise.resolve(prefetchedCampaignStats)
+                    : fetchDashboardDomainCampaignStats(state, rows))
         ]);
         const rawStore = (backendScores && typeof backendScores === 'object') ? backendScores : {};
         const normalizedStore = Object.assign({}, rawStore);
@@ -22620,7 +22786,7 @@ function initDashboardRecap() {
 
         const hiddenCount = Math.max(0, Number(window.dashboardRecapDetailRowTotal || 0) - Number(window.dashboardRecapDetailRowShown || rows.length));
         const hiddenNote = hiddenCount > 0
-            ? ` · ${hiddenCount} subdomain tanpa account/spend FB disembunyikan`
+            ? ` · ${hiddenCount} subdomain disembunyikan (filter scoring)`
             : '';
         setDetailScoringMeta(`${rows.length} baris${hiddenNote}`);
 
@@ -23319,17 +23485,136 @@ function initDashboardRecap() {
         });
     }
 
-    function prepareRecapRows(rows, extraMap) {
-        return enrichRecapRowSpend(enrichRecapRowAccounts(rows, extraMap));
+    function appendSpendOnlyRecapRows(rows) {
+        const spendMap = window.dashboardRecapDomainSpendMap || {};
+        const accountMap = window.dashboardRecapDomainAccountMap || {};
+        const existing = new Set();
+        (rows || []).forEach(function(r) {
+            recapRowLookupKeys(r).forEach(function(k) {
+                if (!k) return;
+                existing.add(String(k).trim().toLowerCase());
+                const mk = normalizeDetailScoringDomainKey(k);
+                if (mk) existing.add(mk);
+            });
+        });
+        const extras = [];
+        Object.keys(spendMap || {}).forEach(function(key) {
+            const spend = Number(spendMap[key] || 0);
+            if (spend <= 0) return;
+            const normKey = String(key || '').trim().toLowerCase();
+            if (!normKey) return;
+            const mergeKey = normalizeDetailScoringDomainKey(normKey);
+            const keys = uniqKeepOrder(recapRowLookupKeys({ name: normKey }).concat([mergeKey, normKey]));
+            if (keys.some(function(k) {
+                const mk = normalizeDetailScoringDomainKey(k) || String(k || '').trim().toLowerCase();
+                return existing.has(mk) || existing.has(String(k || '').trim().toLowerCase());
+            })) return;
+            const account = String(
+                accountMap[normKey]
+                || accountMap[normalizeTrafficDomainKey(normKey)]
+                || ''
+            ).trim();
+            const revenue = 0;
+            extras.push({
+                name: normKey,
+                code: '',
+                account_ads: account,
+                spend: spend,
+                revenue: revenue,
+                net: revenue - spend,
+                roi: spend > 0 ? ((revenue - spend) / spend * 100) : 0,
+                source: '',
+                spend_source: 'facebook_country',
+            });
+            keys.forEach(function(k) {
+                if (!k) return;
+                existing.add(String(k).trim().toLowerCase());
+                const mk = normalizeDetailScoringDomainKey(k);
+                if (mk) existing.add(mk);
+            });
+        });
+        return (rows || []).concat(extras);
     }
 
-    function filterDetailScoringRows(rows, dim) {
+    function recapRowHasSpendOrRevenue(r) {
+        const spend = Number(r?.spend) || 0;
+        const revenue = Number(r?.revenue) || 0;
+        return spend > 0 || revenue > 0;
+    }
+
+    function lookupRecapDomainPlatform(name) {
+        const map = window.dashboardRecapDomainPlatformMap || {};
+        if (!map || typeof map !== 'object') return '';
+        const keys = uniqKeepOrder([
+            String(name || '').trim().toLowerCase(),
+            normalizeDetailScoringDomainKey(name),
+            normalizeTrafficDomainKey(name),
+        ].filter(Boolean));
+        for (let i = 0; i < keys.length; i += 1) {
+            const hit = String(map[keys[i]] || '').trim().toLowerCase();
+            if (hit === 'adx' || hit === 'adsense' || hit === 'both') return hit;
+        }
+        return '';
+    }
+
+    function sourcesFromPlatformCode(code) {
+        const p = String(code || '').trim().toLowerCase();
+        if (p === 'both') return { adx: true, adsense: true };
+        if (p === 'adsense') return { adx: false, adsense: true };
+        if (p === 'adx') return { adx: true, adsense: false };
+        return null;
+    }
+
+    function applyRecapDomainPlatformSources(rows) {
+        return (rows || []).map(function(r) {
+            const platform = lookupRecapDomainPlatform(r?.name || r?.domain || r?.site || '');
+            const fromDb = sourcesFromPlatformCode(platform);
+            if (!fromDb) return r;
+            const next = Object.assign({}, r, { sources: fromDb });
+            if (platform === 'adsense') next.source = 'adsense';
+            else if (platform === 'adx') next.source = 'adx';
+            else if (platform === 'both') next.source = '';
+            return next;
+        });
+    }
+
+    function prepareRecapRows(rows, extraMap, dim) {
+        const merged = appendSpendOnlyRecapRows(rows || []);
+        const enriched = enrichRecapRowSpend(enrichRecapRowAccounts(merged, extraMap));
+        const withMetrics = enriched.filter(function(r) { return recapRowHasSpendOrRevenue(r); });
+        const consolidated = consolidateRecapDomainRows(withMetrics, dim);
+        return applyRecapDomainPlatformSources(consolidated);
+    }
+
+    function domainHasActiveCampaignOrBudget(campaignStatsByDomain, row) {
+        const stats = lookupDashboardCampaignStats(
+            campaignStatsByDomain,
+            row?.name || row?.domain || row?.site || ''
+        );
+        const activeCount = Number(stats?.activeCount || 0) || 0;
+        const totalBudget = Number(stats?.totalBudget || 0) || 0;
+        return activeCount > 0 || totalBudget > 0;
+    }
+
+    function filterDetailScoringRows(rows, dim, campaignStatsByDomain) {
+        const isCountry = String(dim || '').toLowerCase() === 'country';
+        const campaignMap = (campaignStatsByDomain && typeof campaignStatsByDomain === 'object')
+            ? campaignStatsByDomain
+            : null;
         return (rows || []).filter(function(r) {
+            const spend = Number(r?.spend) || 0;
+            const revenue = Number(r?.revenue) || 0;
+            if (spend <= 0 && revenue <= 0) return false;
+            if (spend <= 0) return false;
             const account = String(r?.account_ads || '').trim();
-            if (!account) return false;
-            const lower = account.toLowerCase();
-            if (lower === 'tanpa account' || lower === 'backend tanpa subdomain') return false;
-            return (Number(r?.spend) || 0) > 0;
+            if (account) {
+                const lower = account.toLowerCase();
+                if (lower === 'tanpa account' || lower === 'backend tanpa subdomain') return false;
+            }
+            if (!isCountry && campaignMap) {
+                if (!domainHasActiveCampaignOrBudget(campaignMap, r)) return false;
+            }
+            return true;
         });
     }
 
@@ -23337,10 +23622,14 @@ function initDashboardRecap() {
         const m = new Map();
 
         function put(r) {
-            const key = `${String(r?.name||'-')}|${String(r?.code||'')}`;
+            const code = String(r?.code || '');
+            const domainKey = code
+                ? String(r?.name || '-')
+                : (normalizeDetailScoringDomainKey(r?.name || r?.domain || r?.site || '') || String(r?.name || '-'));
+            const key = `${domainKey}|${code}`;
             const cur = m.get(key) || {
                 name: String(r?.name||'-'),
-                code: String(r?.code||''),
+                code: code,
                 account_ads: String(r?.account_ads||''),
                 spend: 0,
                 revenue: 0,
@@ -23378,6 +23667,10 @@ function initDashboardRecap() {
                 if (r && r.metrics && r.metrics.adsense) cur.metrics.adsense = r.metrics.adsense;
             }
 
+            if (r && r.name) {
+                cur._aliasNames = cur._aliasNames || [];
+                if (cur._aliasNames.indexOf(String(r.name)) < 0) cur._aliasNames.push(String(r.name));
+            }
             m.set(key, cur);
         }
 
@@ -23388,8 +23681,14 @@ function initDashboardRecap() {
         for (const v of m.values()) {
             const spend = Number(v.spend) || 0;
             const revenue = Number(v.revenue) || 0;
+            const displayName = (!v.code && v._aliasNames && v._aliasNames.length)
+                ? pickDetailScoringDisplayName(
+                    normalizeDetailScoringDomainKey(v.name),
+                    v._aliasNames.concat([v.name])
+                )
+                : v.name;
             out.push({
-                name: v.name,
+                name: displayName,
                 code: v.code,
                 account_ads: v.account_ads,
                 spend,
@@ -23595,8 +23894,13 @@ function initDashboardRecap() {
                 loadSiteAccountMap(st),
                 loadAccountKeyMap()
             ]);
-            rows = prepareRecapRows(rows, window.dashboardRecapSiteAccountMap || {});
-            const detailRows = filterDetailScoringRows(rows, st.dim);
+            rows = prepareRecapRows(rows, window.dashboardRecapSiteAccountMap || {}, st.dim);
+            const preDetailRows = filterDetailScoringRows(rows, st.dim);
+            const campaignStatsByDomain = String(st.dim || '').toLowerCase() === 'country'
+                ? {}
+                : await fetchDashboardDomainCampaignStats(st, preDetailRows);
+            window.dashboardRecapCampaignStatsByDomain = campaignStatsByDomain;
+            const detailRows = filterDetailScoringRows(preDetailRows, st.dim, campaignStatsByDomain);
             window.dashboardRecapDetailRowTotal = rows.length;
             window.dashboardRecapDetailRowShown = detailRows.length;
             const scoringPromise = fetchDashboardScoring(detailRows, st);

@@ -267,7 +267,7 @@ class Command(BaseCommand):
                             'data_ads_country_impresi': impressions,
                             'data_ads_country_click': int(clicks_val),
                             'data_ads_country_reach': reach,
-                            'data_ads_country_cpr': round(cpr_val, 2),
+                            'data_ads_country_cpr': round(spend / clicks_val, 2) if clicks_val else 0.0,
                             'data_ads_country_cpc': cpc,
                             'data_ads_country_frekuensi': round(frequency, 2),
                             'data_ads_country_lpv': round(lpv_val, 2),

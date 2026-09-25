@@ -1186,6 +1186,99 @@ def fetch_data_insights_account_range_all(rs_account, start_date, end_date):
 
     return result
 
+
+def _fb_result_clicks_from_actions(actions):
+    """Ambil jumlah hasil/klik dari actions Insights (prioritas link_click, lalu tipe umum lain)."""
+    actions = actions or []
+    preferred_types = (
+        'link_click',
+        'landing_page_view',
+        'omni_landing_page_view',
+        'outbound_click',
+    )
+    for action_type in preferred_types:
+        for action in actions:
+            if action.get('action_type') == action_type:
+                try:
+                    return float(action.get('value') or 0)
+                except (TypeError, ValueError):
+                    continue
+    for action in actions:
+        action_type = str(action.get('action_type') or '')
+        if not action_type:
+            continue
+        if action_type.startswith('offsite_conversion') or action_type.endswith('_click'):
+            try:
+                val = float(action.get('value') or 0)
+                if val > 0:
+                    return val
+            except (TypeError, ValueError):
+                continue
+    return 0.0
+
+
+def _fb_cost_per_result_from_row(row, spend=None, clicks=None):
+    """
+    CPR dari cost_per_result API; fallback spend/clicks bila indikator tidak cocok.
+    """
+    preferred_indicators = (
+        'actions:link_click',
+        'actions:landing_page_view',
+        'actions:omni_landing_page_view',
+        'actions:outbound_click',
+    )
+    cpr_list = row.get('cost_per_result') or []
+    if not isinstance(cpr_list, list):
+        cpr_list = []
+
+    for indicator in preferred_indicators:
+        for cpr_item in cpr_list:
+            if cpr_item.get('indicator') != indicator:
+                continue
+            values = cpr_item.get('values') or []
+            if not values:
+                continue
+            try:
+                val = float(values[0].get('value') or 0)
+            except (TypeError, ValueError, IndexError):
+                val = 0.0
+            if val > 0:
+                return val
+
+    for cpr_item in cpr_list:
+        values = cpr_item.get('values') or []
+        if not values:
+            continue
+        try:
+            val = float(values[0].get('value') or 0)
+        except (TypeError, ValueError, IndexError):
+            val = 0.0
+        if val > 0:
+            return val
+
+    try:
+        s = float(spend if spend is not None else row.get('spend') or 0)
+        c = float(clicks if clicks is not None else 0)
+        if c > 0 and s >= 0:
+            return s / c
+    except (TypeError, ValueError):
+        pass
+    return 0.0
+
+
+def _fb_finalize_campaign_cpr(agg):
+    """Pastikan CPR terisi dari spend/clicks agregat jika API mengembalikan 0."""
+    try:
+        spend = float(agg.get('spend') or 0)
+        clicks = float(agg.get('clicks') or 0)
+        cpr = float(agg.get('cpr') or 0)
+        if cpr <= 0 and clicks > 0 and spend >= 0:
+            agg['cpr'] = round(spend / clicks, 2)
+    except (TypeError, ValueError):
+        pass
+    return agg
+
+
 def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_domain, account_name=None, tanggal_sampai=None):
     FacebookAdsApi.init(access_token=access_token)
     account = AdAccount(account_id)
@@ -1288,23 +1381,10 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
             agg['frequency'] = float(agg['impressions'] / agg['reach'])
         else:
             agg['frequency'] = 0.0
-        cost_per_result = None
-        for cpr_item in row.get('cost_per_result', []):
-            if cpr_item.get('indicator') == 'actions:link_click':
-                values = cpr_item.get('values', [])
-                if values:
-                    cost_per_result = values[0].get('value')
-                break
-        agg['cpr'] = float(cost_per_result or 0)
-        result_action_type = 'link_click'
-        result_count = 0
-        for action in row.get('actions', []):
-            if action.get('action_type') == result_action_type:
-                value = action.get('value')
-                result_count = float(value or 0)
-                break
+        result_count = _fb_result_clicks_from_actions(row.get('actions'))
         if result_count not in [None, ""]:
             agg['clicks'] = result_count
+        agg['cpr'] = _fb_cost_per_result_from_row(row, spend=agg['spend'], clicks=agg['clicks'])
         if config:
             if config.get('status'):
                 agg['status'] = config.get('status')
@@ -1315,8 +1395,9 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
             if config.get('stop_time'):
                 agg['stop_time'] = config.get('stop_time')
     data = []
-    total_budget = total_spend = total_clicks = total_impressions = total_reach = total_cpr = total_frequency = 0
+    total_budget = total_spend = total_clicks = total_impressions = total_reach = total_frequency = 0
     for campaign_id, agg in campaign_aggregates.items():
+        _fb_finalize_campaign_cpr(agg)
         data.append({
             'campaign_id': campaign_id,
             'campaign_name': agg['campaign_name'],
@@ -1338,12 +1419,12 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
         total_reach += agg['reach']
         total_clicks += agg['clicks']
         total_frequency = float(total_impressions / total_reach) if total_reach > 0 else 0.0
-        total_cpr += agg['cpr']
     sorted_data = sorted(
         data,
         key=lambda x: datetime.strptime(x['start_time'], '%Y-%m-%dT%H:%M:%S%z') if x['start_time'] else datetime.min,
         reverse=True
     )
+    total_cpr_weighted = round(total_spend / total_clicks, 2) if total_clicks > 0 else 0.0
     total = [{
         'total_budget': total_budget,
         'total_spend': total_spend,
@@ -1351,7 +1432,7 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
         'total_reach': total_reach,
         'total_click': total_clicks,
         'total_frequency' : total_frequency,
-        'total_cpr': total_cpr
+        'total_cpr': total_cpr_weighted
     }]
     return {
         'data': sorted_data,
@@ -2252,7 +2333,7 @@ def fetch_ad_manager_inventory():
 
 def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_domain, tanggal_sampai=None):
     all_data = []
-    total_budget = total_spend = total_clicks = total_impressions = total_reach = total_cpr = 0.0
+    total_budget = total_spend = total_clicks = total_impressions = total_reach = 0.0
     
     for account_data in rs_account:
         try:
@@ -2361,26 +2442,10 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
                     agg['frequency'] = format(agg['impressions'] / agg['reach'], '.1f')
                 else:
                     agg['frequency'] = '0.0'
-                # Ambil cost per result
-                cost_per_result = None
-                for cpr_item in row.get('cost_per_result', []):
-                    if cpr_item.get('indicator') == 'actions:link_click':
-                        values = cpr_item.get('values', [])
-                        if values:
-                            cost_per_result = values[0].get('value')
-                        break    
-                agg['cpr'] = float(cost_per_result or 0)
-                # Ambil clicks
-                result_action_type = 'link_click'
-                result_count = 0
-                for action in row.get('actions', []):
-                    if action.get('action_type') == result_action_type:
-                        value = action.get('value')
-                        result_count = float(value or 0)
-                        break
-                        
+                result_count = _fb_result_clicks_from_actions(row.get('actions'))
                 if result_count not in [None, ""]:
                     agg['clicks'] = result_count
+                agg['cpr'] = _fb_cost_per_result_from_row(row, spend=agg['spend'], clicks=agg['clicks'])
                 
                 # Set config data
                 if not agg['status']:
@@ -2391,6 +2456,7 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
             
             # Tambahkan data dari akun ini ke all_data
             for campaign_id, agg in campaign_aggregates.items():
+                _fb_finalize_campaign_cpr(agg)
                 campaign_data = {
                     'campaign_id': campaign_id,
                     'campaign_name': agg['campaign_name'],
@@ -2414,7 +2480,6 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
                 total_impressions += agg['impressions']
                 total_reach += agg['reach']
                 total_clicks += agg['clicks']
-                total_cpr += agg['cpr']
                 
         except Exception as e:
             print(f"Error processing account {account_data.get('account_name', 'Unknown')}: {str(e)}")
@@ -2433,6 +2498,7 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
         reverse=True
     )
     
+    total_cpr_weighted = round(total_spend / total_clicks, 2) if total_clicks > 0 else 0.0
     total = [{
         'total_budget': total_budget,
         'total_spend': total_spend,
@@ -2440,7 +2506,7 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
         'total_reach': total_reach,
         'total_click': total_clicks,
         'total_frequency': total_frequency,
-        'total_cpr': total_cpr
+        'total_cpr': total_cpr_weighted
     }]
     
     return {

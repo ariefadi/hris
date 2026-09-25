@@ -5961,6 +5961,7 @@ class DashboardDomainAccountMapView(View):
                 'date': date,
                 'data': result.get('data') or {},
                 'spend': result.get('spend') or {},
+                'platform': result.get('platform') or {},
             })
         except ValueError:
             return JsonResponse({'status': False, 'error': 'Format date harus YYYY-MM-DD'}, status=400)
@@ -10877,6 +10878,10 @@ class page_per_campaign_facebook(View):
             clicks = int(row.get('clicks', 0) or 0)
             cpr = float(row.get('cpr', 0) or 0)
             cpc = float(row.get('cpc', 0) or 0)
+            if cpr <= 0 and clicks > 0 and spend > 0:
+                cpr = round(spend / clicks, 0)
+            if cpc <= 0 and clicks > 0 and spend > 0:
+                cpc = round(spend / clicks, 0)
 
             frequency_val = row.get('frequency', None)
             if frequency_val in [None, '']:
@@ -10919,8 +10924,8 @@ class page_per_campaign_facebook(View):
             total_frequency = 0
         else:
             total_frequency = format(total_impressions / total_reach, '.1f')
-        rata_cpr = round(sum([row['cpr'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
-        rata_cpc = round(sum([row['cpc'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
+        rata_cpr = round(total_spend / total_clicks, 0) if total_clicks > 0 else 0.0
+        rata_cpc = round(total_spend / total_clicks, 0) if total_clicks > 0 else 0.0
 
         metrics_by_domain = _fetch_kiwipixel_metrics_by_domain(
             tanggal_dari,
@@ -11233,6 +11238,16 @@ def _resolve_fb_account_filters(selected_account_list):
     except Exception:
         pass
     return list(resolved)
+
+
+def _is_valid_fb_country_traffic_row(country_name, country_code):
+    """Baris traffic per negara harus punya kode negara ISO yang valid."""
+    code = str(country_code or '').strip().upper()
+    if len(code) < 2 or not code.isalpha():
+        return False
+    if code in {'NA', 'UNKNOWN', 'NONE', 'NULL', 'UNDEFINED', 'XX', 'N'}:
+        return False
+    return True
 
 
 def _normalize_kiwipixel_date(value):
@@ -11616,7 +11631,14 @@ class page_per_country_facebook(View):
         for r in (data_rows or []):
             country_name = (r.get('country_name') or '').strip()
             country_code = (r.get('country_code') or '').strip().upper()
-            country_label = f"{country_name} ({country_code})" if country_code else country_name
+            if not _is_valid_fb_country_traffic_row(country_name, country_code):
+                continue
+            if country_name and country_code:
+                country_label = f"{country_name} ({country_code})"
+            elif country_code:
+                country_label = country_code
+            else:
+                country_label = country_name
             spend = float(r.get('spend') or 0)
             impressions = int(r.get('impressions') or 0)
             reach = int(r.get('reach') or 0)
@@ -11625,6 +11647,12 @@ class page_per_country_facebook(View):
                 frequency = format(impressions / reach, '.1f')
             else:
                 frequency = 0
+            cpr = round(float(r.get('cpr') or 0), 0)
+            cpc = round(float(r.get('cpc') or 0), 0)
+            if cpr <= 0 and clicks > 0 and spend > 0:
+                cpr = round(spend / clicks, 0)
+            if cpc <= 0 and clicks > 0 and spend > 0:
+                cpc = round(spend / clicks, 0)
             normalized.append({
                 'country': country_label,
                 'country_name': country_name,
@@ -11634,8 +11662,8 @@ class page_per_country_facebook(View):
                 'reach': reach,
                 'clicks': clicks,
                 'frequency': frequency,
-                'cpr': round(float(r.get('cpr') or 0), 0),
-                'cpc': round(float(r.get('cpc') or 0), 0),
+                'cpr': cpr,
+                'cpc': cpc,
             })
             total_spend += spend
             total_impressions += impressions
@@ -11643,8 +11671,8 @@ class page_per_country_facebook(View):
             total_clicks += clicks
 
         frequency_total = format(total_impressions / total_reach, '.1f') if total_reach else 0
-        rata_cpr_ratio = format(sum((row.get('cpr') or 0) for row in normalized) / len(normalized), '.0f') if normalized else '0.0'
-        rata_cpc_ratio = format(sum((row.get('cpc') or 0) for row in normalized) / len(normalized), '.0f') if normalized else '0.0'
+        total_cpr_weighted = round(total_spend / total_clicks, 0) if total_clicks > 0 else 0
+        total_cpc_weighted = round(total_spend / total_clicks, 0) if total_clicks > 0 else 0
         data = {
             'data': normalized,
             'total': {
@@ -11653,8 +11681,8 @@ class page_per_country_facebook(View):
                 'clicks': total_clicks,
                 'reach': total_reach,
                 'frequency': frequency_total,
-                'cpr': round(float(rata_cpr_ratio or 0), 0),
-                'cpc': round(float(rata_cpc_ratio or 0), 0),
+                'cpr': total_cpr_weighted,
+                'cpc': total_cpc_weighted,
             }
         }
         # Normalize total structure jika berasal dari utils.py (berbentuk list)
@@ -11687,12 +11715,16 @@ class page_per_country_facebook(View):
                 total_reach = sum(int(item.get('reach', 0)) for item in filtered_data)
                 # Hitung frequency dan CPR yang benar berdasarkan total agregat
                 frequency = round(total_impressions / total_reach, 2) if total_reach > 0 else 0
+                weighted_cpr = round(total_spend / total_clicks, 0) if total_clicks > 0 else 0
+                weighted_cpc = round(total_spend / total_clicks, 0) if total_clicks > 0 else 0
                 data['total'] = {
                     'impressions': total_impressions,
                     'spend': total_spend,
                     'clicks': total_clicks,
                     'reach': total_reach,
                     'frequency': frequency,
+                    'cpr': weighted_cpr,
+                    'cpc': weighted_cpc,
                 }
             else:
                 # Jika tidak ada data setelah filter, set total ke 0
@@ -11701,7 +11733,9 @@ class page_per_country_facebook(View):
                     'spend': 0,
                     'clicks': 0,
                     'reach': 0,
-                    'frequency': 0
+                    'frequency': 0,
+                    'cpr': 0,
+                    'cpc': 0,
                 }
         else:
             print("DEBUG - No country filter applied, using original total")
@@ -14883,6 +14917,10 @@ class RoiTrafficPerDomainDataView(View):
                     clicks_adx = float(adx_item.get('clicks_adx') or 0)
                     cpr = float(fb_data.get('cpr') or 0) if fb_data else 0
                     cpc = float(fb_data.get('cpc_fb') or 0) if fb_data else 0
+                    if fb_data and cpr <= 0 and clicks_fb > 0 and spend > 0:
+                        cpr = round(spend / clicks_fb, 2)
+                    if fb_data and cpc <= 0 and clicks_fb > 0 and spend > 0:
+                        cpc = round(spend / clicks_fb, 2)
                     revenue = float(adx_item.get('revenue', 0))
                     ctr_fb = ((clicks_fb / impressions_fb) * 100) if impressions_fb > 0 else 0
                     cpc_fb = cpc
@@ -14935,13 +14973,10 @@ class RoiTrafficPerDomainDataView(View):
                     entry['clicks_adx'] += clicks_adx
                     entry['revenue'] += revenue
 
-                    # CPR avg per (date|domain)
-                    entry['cpr_sum'] += cpr
-                    entry['cpr_cnt'] += 1
-                    entry['cpr'] = (entry['cpr_sum'] / entry['cpr_cnt']) if entry['cpr_cnt'] > 0 else 0
+                    entry['cpr'] = (entry['spend'] / entry['clicks_fb']) if entry['clicks_fb'] > 0 else 0
 
                     entry['ctr_fb'] = ((entry['clicks_fb'] / entry['impressions_fb']) * 100) if entry['impressions_fb'] > 0 else 0
-                    entry['cpc_fb'] = (entry['revenue'] / entry['clicks_fb']) if entry['clicks_fb'] > 0 else 0
+                    entry['cpc_fb'] = (entry['spend'] / entry['clicks_fb']) if entry['clicks_fb'] > 0 else 0
                     entry['ctr_adx'] = ((entry['clicks_adx'] / entry['impressions_adx']) * 100) if entry['impressions_adx'] > 0 else 0
                     entry['cpc_adx'] = (entry['revenue'] / entry['clicks_adx']) if entry['clicks_adx'] > 0 else 0
 
@@ -14980,13 +15015,10 @@ class RoiTrafficPerDomainDataView(View):
                         f_entry['clicks_adx'] += clicks_adx
                         f_entry['revenue'] += revenue
 
-                        # CPR avg per (date|domain)
-                        f_entry['cpr_sum'] += cpr
-                        f_entry['cpr_cnt'] += 1
-                        f_entry['cpr'] = (f_entry['cpr_sum'] / f_entry['cpr_cnt']) if f_entry['cpr_cnt'] > 0 else 0
+                        f_entry['cpr'] = (f_entry['spend'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
 
                         f_entry['ctr_fb'] = ((f_entry['clicks_fb'] / f_entry['impressions_fb']) * 100) if f_entry['impressions_fb'] > 0 else 0
-                        f_entry['cpc_fb'] = (f_entry['revenue'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
+                        f_entry['cpc_fb'] = (f_entry['spend'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
                         f_entry['ctr_adx'] = ((f_entry['clicks_adx'] / f_entry['impressions_adx']) * 100) if f_entry['impressions_adx'] > 0 else 0
                         f_entry['cpc_adx'] = (f_entry['revenue'] / f_entry['clicks_adx']) if f_entry['clicks_adx'] > 0 else 0
 
@@ -15055,11 +15087,9 @@ class RoiTrafficPerDomainDataView(View):
                     entry['impressions_fb'] += impressions_fb
                     entry['clicks_fb'] += clicks_fb
                     entry['revenue'] += 0.0
-                    entry['cpr_sum'] += cpr
-                    entry['cpr_cnt'] += 1
-                    entry['cpr'] = (entry['cpr_sum'] / entry['cpr_cnt']) if entry['cpr_cnt'] > 0 else 0
+                    entry['cpr'] = (entry['spend'] / entry['clicks_fb']) if entry['clicks_fb'] > 0 else 0
                     entry['ctr_fb'] = ((entry['clicks_fb'] / entry['impressions_fb']) * 100) if entry['impressions_fb'] > 0 else 0
-                    entry['cpc_fb'] = (entry['revenue'] / entry['clicks_fb']) if entry['clicks_fb'] > 0 else 0
+                    entry['cpc_fb'] = (entry['spend'] / entry['clicks_fb']) if entry['clicks_fb'] > 0 else 0
                     grouped_all[key] = entry
 
                     if spend > 0:
@@ -15087,11 +15117,9 @@ class RoiTrafficPerDomainDataView(View):
                         f_entry['impressions_fb'] += impressions_fb
                         f_entry['clicks_fb'] += clicks_fb
                         f_entry['revenue'] += 0.0
-                        f_entry['cpr_sum'] += cpr
-                        f_entry['cpr_cnt'] += 1
-                        f_entry['cpr'] = (f_entry['cpr_sum'] / f_entry['cpr_cnt']) if f_entry['cpr_cnt'] > 0 else 0
+                        f_entry['cpr'] = (f_entry['spend'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
                         f_entry['ctr_fb'] = ((f_entry['clicks_fb'] / f_entry['impressions_fb']) * 100) if f_entry['impressions_fb'] > 0 else 0
-                        f_entry['cpc_fb'] = (f_entry['revenue'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
+                        f_entry['cpc_fb'] = (f_entry['spend'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
                         grouped_filtered[key] = f_entry
 
                 combined_data_all = []
@@ -15229,8 +15257,16 @@ def accumulate_facebook_monitoring_map(facebook_map, fb_item, date_key, subdomai
     cc = str(country_code or '').strip().upper()
     key = f"{date_key}_{base_subdomain}_{cc}"
     spend = float((fb_item or {}).get('spend', 0) or 0)
-    impressions = float((fb_item or {}).get('impressions', 0) or 0)
-    clicks = float((fb_item or {}).get('clicks', 0) or 0)
+    impressions_fb = float(
+        (fb_item or {}).get('impressions_fb')
+        or (fb_item or {}).get('impressions')
+        or 0
+    )
+    clicks_fb = float(
+        (fb_item or {}).get('clicks_fb')
+        or (fb_item or {}).get('clicks')
+        or 0
+    )
     cur = facebook_map.get(key)
     if not cur:
         facebook_map[key] = {
@@ -15240,15 +15276,24 @@ def accumulate_facebook_monitoring_map(facebook_map, fb_item, date_key, subdomai
             'account_name': str((fb_item or {}).get('account_name', '') or ''),
             'account_id': (fb_item or {}).get('account_id'),
             'spend': spend,
-            'impressions': impressions,
-            'clicks': clicks,
+            'impressions_fb': impressions_fb,
+            'clicks_fb': clicks_fb,
+            'impressions': impressions_fb,
+            'clicks': clicks_fb,
         }
     else:
         cur['spend'] = float(cur.get('spend', 0) or 0) + spend
-        cur['impressions'] = float(cur.get('impressions', 0) or 0) + impressions
-        cur['clicks'] = float(cur.get('clicks', 0) or 0) + clicks
+        cur['impressions_fb'] = float(cur.get('impressions_fb', 0) or 0) + impressions_fb
+        cur['clicks_fb'] = float(cur.get('clicks_fb', 0) or 0) + clicks_fb
+        cur['impressions'] = cur['impressions_fb']
+        cur['clicks'] = cur['clicks_fb']
         if not str(cur.get('account_name') or '').strip():
             cur['account_name'] = str((fb_item or {}).get('account_name', '') or '')
+    cur = facebook_map[key]
+    total_spend = float(cur.get('spend') or 0)
+    total_clicks = float(cur.get('clicks_fb') or 0)
+    cur['cpr'] = round(total_spend / total_clicks, 2) if total_clicks > 0 else 0.0
+    cur['cpc_fb'] = cur['cpr']
     return key
 
 
@@ -17033,14 +17078,15 @@ class RoiMonitoringDomainDataView(View):
                             main_domain = ".".join(parts[:2])
                     unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
-            # Ambil spend FB dari DB: per-domain jika sudah diketahui, atau semua domain
-            # saat AdX belum tersedia (mis. cron AdX belum jalan di pagi hari).
-            if unique_name_site or not selected_domain_list:
-                facebook_data = data_mysql().get_all_ads_roi_monitoring_campaign_by_params(
-                    start_date_formatted,
-                    end_date_formatted,
-                    unique_name_site or None,
-                )
+            # Spend FB: tanpa filter domain UI, ambil semua subdomain (termasuk yang belum punya pendapatan AdX).
+            fb_domain_filter = None
+            if selected_domain_list:
+                fb_domain_filter = unique_name_site if unique_name_site else selected_domain_list
+            facebook_data = data_mysql().get_all_ads_roi_monitoring_campaign_by_params(
+                start_date_formatted,
+                end_date_formatted,
+                fb_domain_filter,
+            )
             # --- 5. Gabungkan data AdX dan Facebook
             # Siapkan struktur data
             raw_rows_map = {}
@@ -17196,7 +17242,7 @@ class RoiMonitoringDomainDataView(View):
                         cur_row = {
                             'site_name': site_key,
                             'date': date_key,
-                            'country_code': country_code,
+                            'country_code': fb_country_code,
                             'spend': 0.0,
                             'revenue': 0.0,
                             'impressions_fb': 0.0,
@@ -17206,8 +17252,12 @@ class RoiMonitoringDomainDataView(View):
                         }
                         raw_rows_map[row_key] = cur_row
                     cur_row['spend'] = float(cur_row.get('spend', 0) or 0) + spend
-                    cur_row['impressions_fb'] = float(cur_row.get('impressions_fb', 0) or 0) + float(fb_item.get('impressions') or 0)
-                    cur_row['clicks_fb'] = float(cur_row.get('clicks_fb', 0) or 0) + float(fb_item.get('clicks') or 0)
+                    cur_row['impressions_fb'] = float(cur_row.get('impressions_fb', 0) or 0) + float(
+                        fb_item.get('impressions_fb') or fb_item.get('impressions') or 0
+                    )
+                    cur_row['clicks_fb'] = float(cur_row.get('clicks_fb', 0) or 0) + float(
+                        fb_item.get('clicks_fb') or fb_item.get('clicks') or 0
+                    )
 
                     if site_key not in grouped_all:
                         grouped_all[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}

@@ -285,7 +285,13 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.clicks).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.cpr).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                const spendRow = Number(value?.spend) || 0;
+                const clicksRow = Number(value?.clicks) || 0;
+                let cprRow = Number(value?.cpr) || 0;
+                if ((!cprRow || !isFinite(cprRow)) && clicksRow > 0 && spendRow > 0) {
+                    cprRow = spendRow / clicksRow;
+                }
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Math.round(cprRow)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.cpc).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_visits || value.total_visitors || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.unique_visitor || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
@@ -320,12 +326,17 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             $('#total_reach').text(totalReach);
             $('#total_clicks').text(totalClicks);
             $('#total_frequency').text(totalFrequency);
-            // CPR
-            const cpr = Number(totalData?.cpr) || 0;
-            const totalCpr = cpr.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-            // CPC
-            const cpc = Number(totalData?.cpc) || 0;
-            const totalCpc = cpc.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            // CPR / CPC total
+            let cpr = Number(totalData?.cpr) || 0;
+            if ((!cpr || !isFinite(cpr)) && clicks > 0 && spend > 0) {
+                cpr = spend / clicks;
+            }
+            const totalCpr = Math.round(cpr).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            let cpc = Number(totalData?.cpc) || 0;
+            if ((!cpc || !isFinite(cpc)) && clicks > 0 && spend > 0) {
+                cpc = spend / clicks;
+            }
+            const totalCpc = Math.round(cpc).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
             $('#total_cpr').text(totalCpr);
             $('#total_cpc').text(totalCpc);
             const totalVisitors = Number(totalData?.total_visits || totalData?.total_visitors) || 0;

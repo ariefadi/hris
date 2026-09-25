@@ -168,7 +168,7 @@ class Command(BaseCommand):
                         'data_ads_impresi': int(agg['impressions']),
                         'data_ads_click': int(clicks),
                         'data_ads_reach': int(agg['reach']),
-                        'data_ads_cpr': round(agg['cpr'], 2),
+                        'data_ads_cpr': round(spend / clicks, 2) if clicks else 0.0,
                         'data_ads_cpc': cpc,
                         'data_ads_frekuensi': round(float(agg.get('frequency') or 0), 2),
                         'data_ads_lpv': round(lpv, 2),

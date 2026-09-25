@@ -656,9 +656,13 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
             window.__facebookCampaignRows = (data_campaign && data_campaign.data_campaign) ? data_campaign.data_campaign : [];
 
             $.each(window.__facebookCampaignRows, function (index, value) {
-                let data_cpr = value.cpr;
-                let cpr_number = parseFloat(data_cpr)
-                let cpr = cpr_number.toFixed(0).replace(',', '.');
+                const spendRow = Number(value?.spend) || 0;
+                const clicksRow = Number(value?.clicks) || 0;
+                let cpr_number = parseFloat(value.cpr);
+                if ((!cpr_number || !isFinite(cpr_number)) && clicksRow > 0 && spendRow > 0) {
+                    cpr_number = spendRow / clicksRow;
+                }
+                let cpr = (isFinite(cpr_number) ? cpr_number : 0).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
                 const frequency = Number(value?.frequency) || 0;
                 const formattedFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                 var formattedDate = value.date || '-';
@@ -711,12 +715,17 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 // Frequency
                 const frequency = Number(value?.total_frequency) || 0;
                 const totalFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                // CPR
+                // CPR / CPC total = total spend / total clicks
                 let data_cpr = Number(value.total_cpr) || 0;
-                data_cpr = data_cpr.toFixed(0).replace(',', '.');
-                // CPC
+                if ((!data_cpr || !isFinite(data_cpr)) && clicks > 0 && spend > 0) {
+                    data_cpr = spend / clicks;
+                }
+                data_cpr = (isFinite(data_cpr) ? data_cpr : 0).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
                 let data_cpc = Number(value.total_cpc) || 0;
-                data_cpc = data_cpc.toFixed(0).replace(',', '.');   
+                if ((!data_cpc || !isFinite(data_cpc)) && clicks > 0 && spend > 0) {
+                    data_cpc = spend / clicks;
+                }
+                data_cpc = (isFinite(data_cpc) ? data_cpc : 0).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');   
                 $('#total_spend').text(totalSpend);
                 $('#total_impressions').text(totalImpressions);
                 $('#total_reach').text(totalReach);

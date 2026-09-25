@@ -774,10 +774,12 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                 // Clicks
                 const clicks = Number(value?.clicks) || 0;
                 const formattedClicks = clicks.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                // CPR
-                let data_cpr = value.cpr;
-                let cpr_number = parseFloat(data_cpr)
-                let cpr = cpr_number.toFixed(0).replace(',', '.');
+                // CPR (fallback spend / clicks jika API mengembalikan 0)
+                let cpr_number = parseFloat(value.cpr);
+                if ((!cpr_number || !isFinite(cpr_number)) && clicks > 0 && spend > 0) {
+                    cpr_number = spend / clicks;
+                }
+                let cpr = (isFinite(cpr_number) ? cpr_number : 0).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
                 // Logika remark overspend
                 const isOverBudget = spend > budget;
                 const remarkBadge = isOverBudget
@@ -995,16 +997,12 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                 // Frequency
                 const frequency = Number(value?.total_frequency) || 0;
                 const totalFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                // CPR
-                let data_cpr = value.total_cpr;
-                let cpr_number = parseFloat(data_cpr);
-
-                // Hitung rata-rata berdasarkan jumlah data yang ada
-                if (data_per_account.data_per_account && data_per_account.data_per_account.length > 0) {
-                    cpr_number = cpr_number / data_per_account.data_per_account.length;
+                // CPR total = total spend / total clicks
+                let cpr_number = parseFloat(value.total_cpr);
+                if ((!cpr_number || !isFinite(cpr_number)) && clicks > 0 && spend > 0) {
+                    cpr_number = spend / clicks;
                 }
-
-                let totalCpr = cpr_number.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                let totalCpr = (isFinite(cpr_number) ? cpr_number : 0).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 $('#total_budget').text(totalBudget);
                 $('#total_spend').text(totalSpend);
                 $('#total_impressions').text(totalImpressions);
