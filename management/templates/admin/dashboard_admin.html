@@ -6708,29 +6708,16 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                 <div style="font-weight:900;"><i class="bi bi-diagram-3 me-2"></i> Ringkasan Scoring per Account</div>
                                 <div class="text-muted" style="font-size:12px" id="dashboardAccountRelationMeta">Belum ada data</div>
                             </div>
-                            <div class="card-body p-0">
+                            <div class="px-3 pt-2 pb-0">
+                                <div class="dashboard-recap-tabs" id="dashboardAccountRelationTabs" role="tablist" aria-label="Filter account scoring">
+                                    <button type="button" class="btn btn-sm btn-primary" data-acc-tab="active">Aktif</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-acc-tab="inactive">Tidak Aktif</button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0 pt-2">
                                 <div class="table-responsive">
                                     <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardAccountRelationTable">
-                                        <thead>
-                                            <tr>
-                                                <th class="text-center">No</th>
-                                                <th>Account Ads</th>
-                                                <th class="text-center">Subdomain</th>
-                                                <th class="text-center">Campaign Relasi</th>
-                                                <th class="text-center">Avg Score</th>
-                                                <th class="text-center">Avg Health</th>
-                                                <th class="text-center">Avg Risk</th>
-                                                {% if not hide_earning_finance %}
-                                                <th class="text-end">Spend</th>
-                                                <th class="text-end">Pendapatan</th>
-                                                {% endif %}
-                                                <th class="text-center">Alert Dominan</th>
-                                                <th class="text-center">Kondisi</th>
-                                                {% if not hide_earning_finance %}
-                                                <th class="text-center">Detail</th>
-                                                {% endif %}
-                                            </tr>
-                                        </thead>
+                                        <thead id="dashboardAccountRelationThead"></thead>
                                         <tbody id="dashboardAccountRelationTbody"></tbody>
                                     </table>
                                 </div>
@@ -21958,6 +21945,223 @@ function initDashboardRecap() {
         }
     }
 
+    async function loadAccountsSyncMeta(_state) {
+        window.dashboardRecapAccountsSyncMeta = [];
+        try {
+            const res = await fetch(
+                '/management/admin/dashboard_accounts_sync_meta?scope=all',
+                { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+            );
+            const json = await res.json();
+            if (json && json.status && Array.isArray(json.data)) {
+                window.dashboardRecapAccountsSyncMeta = json.data;
+            }
+        } catch (_e) {
+            window.dashboardRecapAccountsSyncMeta = [];
+        }
+    }
+
+    const DASHBOARD_BULAN_ID = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    function parseDashboardDateInput(raw) {
+        const s = String(raw || '').trim();
+        if (!s || s === '-') return null;
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2})?)?/);
+        if (m) {
+            return {
+                y: parseInt(m[1], 10),
+                mo: parseInt(m[2], 10),
+                d: parseInt(m[3], 10),
+                hh: m[4] != null ? m[4] : null,
+                mm: m[5] != null ? m[5] : null
+            };
+        }
+        const dt = new Date(s);
+        if (Number.isNaN(dt.getTime())) return null;
+        const hh = String(dt.getHours()).padStart(2, '0');
+        const mm = String(dt.getMinutes()).padStart(2, '0');
+        const hasTime = /[ T]\d{2}:\d{2}/.test(s);
+        return {
+            y: dt.getFullYear(),
+            mo: dt.getMonth() + 1,
+            d: dt.getDate(),
+            hh: hasTime ? hh : null,
+            mm: hasTime ? mm : null
+        };
+    }
+
+    function fmtDashboardDateText(raw) {
+        const p = parseDashboardDateInput(raw);
+        if (!p) {
+            const s = String(raw || '').trim();
+            return s || '-';
+        }
+        const bulan = DASHBOARD_BULAN_ID[p.mo - 1] || String(p.mo);
+        return p.d + ' ' + bulan + ' ' + p.y;
+    }
+
+    function fmtDashboardDateTimeText(raw) {
+        const p = parseDashboardDateInput(raw);
+        if (!p) {
+            const s = String(raw || '').trim();
+            return s || '-';
+        }
+        const datePart = fmtDashboardDateText(raw);
+        if (p.hh != null && p.mm != null) {
+            return datePart + ' Jam ' + p.hh + ':' + p.mm;
+        }
+        return datePart;
+    }
+
+    function paintAccountRelationThead(tab) {
+        const thead = document.getElementById('dashboardAccountRelationThead');
+        if (!thead) return;
+        if (tab === 'inactive') {
+            thead.innerHTML = '<tr>'
+                + '<th class="text-center">No</th>'
+                + '<th>Account Ads</th>'
+                + '<th class="text-center">Terakhir ada spend</th>'
+                + '<th class="text-end">Spend terakhir</th>'
+                + (hideEarningFinance ? '' : '<th class="text-end">Pendapatan terakhir</th>')
+                + '<th class="text-center">Terakhir tarik data</th>'
+                + '<th class="text-center">Tanggal tarik terakhir</th>'
+                + '</tr>';
+            return;
+        }
+        thead.innerHTML = '<tr>'
+            + '<th class="text-center">No</th>'
+            + '<th>Account Ads</th>'
+            + '<th class="text-center">Subdomain</th>'
+            + '<th class="text-center">Campaign Relasi</th>'
+            + '<th class="text-center">Avg Score</th>'
+            + '<th class="text-center">Avg Health</th>'
+            + '<th class="text-center">Avg Risk</th>'
+            + (hideEarningFinance ? '' : '<th class="text-end">Spend</th><th class="text-end">Pendapatan</th>')
+            + '<th class="text-center">Alert Dominan</th>'
+            + '<th class="text-center">Kondisi</th>'
+            + (hideEarningFinance ? '' : '<th class="text-center">Detail</th>')
+            + '</tr>';
+    }
+
+    function buildInactiveAccountRows(activeNames) {
+        const activeSet = new Set((activeNames || []).map(function(n) {
+            return String(n || '').trim().toLowerCase();
+        }).filter(Boolean));
+        const metaList = Array.isArray(window.dashboardRecapAccountsSyncMeta)
+            ? window.dashboardRecapAccountsSyncMeta
+            : [];
+        const seen = new Set();
+        const out = [];
+        metaList.forEach(function(meta) {
+            const name = String(meta?.account_name || '').trim();
+            const key = name.toLowerCase();
+            if (!name || seen.has(key)) return;
+            seen.add(key);
+            if (activeSet.has(key)) return;
+            out.push({
+                acc: name,
+                last_spend_date: fmtDashboardDateText(meta?.last_spend_date),
+                last_spend_date_raw: String(meta?.last_spend_date || ''),
+                last_spend_amount: Number(meta?.last_spend_amount || 0),
+                last_revenue: Number(meta?.last_revenue || 0),
+                last_pull_mdd: fmtDashboardDateTimeText(meta?.last_pull_mdd),
+                last_pull_date: fmtDashboardDateText(meta?.last_pull_date)
+            });
+        });
+        out.sort(function(a, b) {
+            const da = String(a.last_spend_date_raw || '');
+            const db = String(b.last_spend_date_raw || '');
+            if (da !== db) return db.localeCompare(da);
+            return String(a.acc || '').localeCompare(String(b.acc || ''), 'id');
+        });
+        return out;
+    }
+
+    function paintAccountRelationTab(tab) {
+        const tbody = document.getElementById('dashboardAccountRelationTbody');
+        const metaEl = document.getElementById('dashboardAccountRelationMeta');
+        const bundle = window.dashboardRecapAccountRelationBundle || {};
+        const state = bundle.state || window.dashboardRecapLastState || {};
+        const isCountryDim = !!bundle.isCountryDim;
+        const activeRows = Array.isArray(bundle.activeRows) ? bundle.activeRows : [];
+        tab = tab === 'inactive' ? 'inactive' : 'active';
+        paintAccountRelationThead(tab);
+
+        if (!tbody) return;
+
+        if (tab === 'inactive') {
+            const inactiveColspan = hideEarningFinance ? 6 : 7;
+            const inactiveRows = buildInactiveAccountRows(activeRows.map(function(x) { return x.acc; }));
+            tbody.innerHTML = inactiveRows.length
+                ? inactiveRows.map(function(x, i) {
+                    return '<tr>'
+                        + '<td class="text-center">' + (i + 1) + '</td>'
+                        + '<td>' + esc(x.acc) + '</td>'
+                        + '<td class="text-center">' + esc(x.last_spend_date) + '</td>'
+                        + '<td class="text-end">' + esc(fmtIdr(x.last_spend_amount)) + '</td>'
+                        + (hideEarningFinance ? '' : '<td class="text-end">' + esc(fmtIdr(x.last_revenue)) + '</td>')
+                        + '<td class="text-center">' + esc(x.last_pull_mdd) + '</td>'
+                        + '<td class="text-center">' + esc(x.last_pull_date) + '</td>'
+                        + '</tr>';
+                }).join('')
+                : '<tr><td colspan="' + inactiveColspan + '" class="text-center text-muted py-4">'
+                    + ((window.dashboardRecapAccountsSyncMeta || []).length
+                        ? 'Semua account Meta Ads tampil di tab Aktif untuk tanggal filter saat ini.'
+                        : 'Gagal memuat daftar account. Muat ulang dashboard atau cek koneksi server.')
+                    + '</td></tr>';
+            if (metaEl) {
+                const totalMaster = (window.dashboardRecapAccountsSyncMeta || []).length;
+                metaEl.textContent = inactiveRows.length
+                    ? (inactiveRows.length + ' account tidak aktif · total master ' + totalMaster)
+                    : (totalMaster
+                        ? ('Semua account master tampil di tab Aktif (' + totalMaster + ' akun)')
+                        : 'Meta account belum termuat');
+            }
+            return;
+        }
+
+        tbody.innerHTML = activeRows.length
+            ? activeRows.map(function(x, i) {
+                const kondisiBadge = x.kondisi === 'Bagus'
+                    ? 'badge-success'
+                    : (x.kondisi === 'Perlu Pantau' ? 'badge-warning' : 'badge-danger');
+                const detailUrl = buildReportAccountDetailUrl(x.acc, state);
+                const detailCell = detailUrl
+                    ? '<a href="' + esc(detailUrl) + '" class="btn btn-sm btn-outline-primary" title="Lihat detail subdomain account"><i class="fas fa-eye"></i> Detail</a>'
+                    : '<span class="text-muted">-</span>';
+                return '<tr>'
+                    + '<td class="text-center">' + (i + 1) + '</td>'
+                    + '<td>' + esc(x.acc) + '</td>'
+                    + '<td class="text-center">' + x.subs + '</td>'
+                    + '<td class="text-center">' + x.camps + '</td>'
+                    + '<td class="text-center">' + (x.score == null ? '-' : x.score.toFixed(1)) + '</td>'
+                    + '<td class="text-center">' + (x.health == null ? '-' : x.health.toFixed(1)) + '</td>'
+                    + '<td class="text-center">' + (x.risk == null ? '-' : x.risk.toFixed(1)) + '</td>'
+                    + (hideEarningFinance ? '' : ('<td class="text-end">' + fmtIdr(x.spend) + '</td><td class="text-end">' + fmtIdr(x.revenue) + '</td>'))
+                    + '<td class="text-center">' + esc(x.dominant) + '</td>'
+                    + '<td class="text-center">'
+                    + '<span class="dashboard-kondisi-wrap">'
+                    + '<span class="badge ' + kondisiBadge + ' dashboard-kondisi-chip" tabindex="0" aria-label="' + esc(x.kondisiReason) + '">' + esc(x.kondisi) + '</span>'
+                    + '<span class="dashboard-kondisi-tooltip" role="tooltip">' + esc(x.kondisiReason) + '</span>'
+                    + '</span></td>'
+                    + (hideEarningFinance ? '' : ('<td class="text-center">' + detailCell + '</td>'))
+                    + '</tr>';
+            }).join('')
+            : '<tr><td colspan="' + (hideEarningFinance ? 9 : 12) + '" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>';
+
+        if (metaEl) {
+            const orphanNote = activeRows.some(function(x) { return x.acc === 'Backend tanpa subdomain'; })
+                ? ' · baris tanpa subdomain = campaign scoring backend yang belum terhubung subdomain Meta'
+                : '';
+            metaEl.textContent = isCountryDim
+                ? (activeRows.length + ' account terelasi (dipetakan dari subdomain per negara)' + orphanNote)
+                : (activeRows.length + ' account terelasi');
+        }
+    }
+
     function resolveAccountKey(accountName) {
         const map = window.dashboardRecapAccountKeyMap || {};
         const name = String(accountName || '').trim().toLowerCase();
@@ -22511,45 +22715,12 @@ function initDashboardRecap() {
             return (Number(a.score ?? 999) - Number(b.score ?? 999));
         });
 
-        tbody.innerHTML = rows.length
-            ? rows.map(function(x, i){
-                const kondisiBadge = x.kondisi === 'Bagus'
-                    ? 'badge-success'
-                    : (x.kondisi === 'Perlu Pantau' ? 'badge-warning' : 'badge-danger');
-                const detailUrl = buildReportAccountDetailUrl(x.acc, state);
-                const detailCell = detailUrl
-                    ? `<a href="${esc(detailUrl)}" class="btn btn-sm btn-outline-primary" title="Lihat detail subdomain account"><i class="fas fa-eye"></i> Detail</a>`
-                    : '<span class="text-muted">-</span>';
-                return `<tr>
-                    <td class="text-center">${i + 1}</td>
-                    <td>${esc(x.acc)}</td>
-                    <td class="text-center">${x.subs}</td>
-                    <td class="text-center">${x.camps}</td>
-                    <td class="text-center">${x.score == null ? '-' : x.score.toFixed(1)}</td>
-                    <td class="text-center">${x.health == null ? '-' : x.health.toFixed(1)}</td>
-                    <td class="text-center">${x.risk == null ? '-' : x.risk.toFixed(1)}</td>
-                    ${hideEarningFinance ? '' : `<td class="text-end">${fmtIdr(x.spend)}</td>`}
-                    ${hideEarningFinance ? '' : `<td class="text-end">${fmtIdr(x.revenue)}</td>`}
-                    <td class="text-center">${esc(x.dominant)}</td>
-                    <td class="text-center">
-                        <span class="dashboard-kondisi-wrap">
-                            <span class="badge ${kondisiBadge} dashboard-kondisi-chip" tabindex="0" aria-label="${esc(x.kondisiReason)}">${esc(x.kondisi)}</span>
-                            <span class="dashboard-kondisi-tooltip" role="tooltip">${esc(x.kondisiReason)}</span>
-                        </span>
-                    </td>
-                    ${hideEarningFinance ? '' : `<td class="text-center">${detailCell}</td>`}
-                </tr>`;
-            }).join('')
-            : `<tr><td colspan="${hideEarningFinance ? 9 : 12}" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>`;
-
-        if (metaEl) {
-            const orphanNote = rows.some(function(x){ return x.acc === 'Backend tanpa subdomain'; })
-                ? ' · baris tanpa subdomain = campaign scoring backend yang belum terhubung subdomain Meta'
-                : '';
-            metaEl.textContent = isCountryDim
-                ? `${rows.length} account terelasi (dipetakan dari subdomain per negara)${orphanNote}`
-                : `${rows.length} account terelasi`;
-        }
+        window.dashboardRecapAccountRelationBundle = {
+            activeRows: rows,
+            state: state,
+            isCountryDim: isCountryDim
+        };
+        paintAccountRelationTab(window.dashboardRecapAccountRelationTab || 'active');
     }
 
     function renderWinningCampaignTables(scoredRows, stateNow) {
@@ -23892,7 +24063,8 @@ function initDashboardRecap() {
                 loadScoringBaselineHourly(st, rows),
                 loadDomainAccountMap(st),
                 loadSiteAccountMap(st),
-                loadAccountKeyMap()
+                loadAccountKeyMap(),
+                loadAccountsSyncMeta(st)
             ]);
             rows = prepareRecapRows(rows, window.dashboardRecapSiteAccountMap || {}, st.dim);
             const preDetailRows = filterDetailScoringRows(rows, st.dim);
@@ -23982,6 +24154,23 @@ function initDashboardRecap() {
     initRecapSourceSelect2();
 
     setActive('dashboardRecapDimTabs', 'data-dim', 'domain');
+    window.dashboardRecapAccountRelationTab = 'active';
+    const accountRelationTabs = document.getElementById('dashboardAccountRelationTabs');
+    if (accountRelationTabs) {
+        setActive('dashboardAccountRelationTabs', 'data-acc-tab', 'active');
+        accountRelationTabs.addEventListener('click', async function(e) {
+            const b = e.target.closest('button[data-acc-tab]');
+            if (!b) return;
+            window.dashboardRecapAccountRelationTab = b.getAttribute('data-acc-tab') || 'active';
+            setActive('dashboardAccountRelationTabs', 'data-acc-tab', window.dashboardRecapAccountRelationTab);
+            if (window.dashboardRecapAccountRelationTab === 'inactive'
+                && !(window.dashboardRecapAccountsSyncMeta || []).length
+                && typeof window.dashboardRecapGetState === 'function') {
+                await loadAccountsSyncMeta(window.dashboardRecapGetState());
+            }
+            paintAccountRelationTab(window.dashboardRecapAccountRelationTab);
+        });
+    }
     if (!hideEarningFinance) {
     setActive('dashboardPulseTabs', 'data-metric', 'roi');
     window.dashboardPulseMetric = 'roi';

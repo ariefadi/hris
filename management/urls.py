@@ -49,6 +49,7 @@ urlpatterns = [
     path('admin/dashboard_sync', views.DashboardSyncView.as_view()),
     path('admin/dashboard_data_health', views.DashboardDataHealthView.as_view(), name='dashboard_data_health'),
     path('admin/dashboard_domain_account_map', views.DashboardDomainAccountMapView.as_view(), name='dashboard_domain_account_map'),
+    path('admin/dashboard_accounts_sync_meta', views.DashboardAccountsSyncMetaView.as_view(), name='dashboard_accounts_sync_meta'),
     path('admin/dashboard/account_detail', views.DashboardAccountDetailPageView.as_view(), name='dashboard_account_detail'),
     path('admin/page_dashboard_account_detail', views.DashboardAccountDetailDataView.as_view(), name='dashboard_account_detail_data'),
     path('admin/dashboard_account_domain_suggest', views.DashboardAccountDomainSuggestView.as_view(), name='dashboard_account_domain_suggest'),

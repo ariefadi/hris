@@ -5971,6 +5971,45 @@ class DashboardDomainAccountMapView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
+class DashboardAccountsSyncMetaView(View):
+    """Meta tarikan Facebook Ads per akun untuk tab Ringkasan Scoring (aktif / tidak aktif)."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            scope = str(req.GET.get('scope') or 'filter').strip().lower()
+            date = str(req.GET.get('date') or req.GET.get('tanggal') or '').strip()
+            if scope in ('global', 'all', 'inactive'):
+                result = data_mysql().get_dashboard_accounts_sync_meta(scope=scope)
+            else:
+                if not date:
+                    date = datetime.now().strftime('%Y-%m-%d')
+                datetime.strptime(date, '%Y-%m-%d')
+                result = data_mysql().get_dashboard_accounts_sync_meta(date, scope='filter')
+            if not result.get('status'):
+                return JsonResponse({
+                    'status': False,
+                    'error': result.get('error') or 'Gagal memuat meta akun',
+                    'data': [],
+                }, status=500)
+            return JsonResponse({
+                'status': True,
+                'date': result.get('date') or date or None,
+                'scope': result.get('scope') or scope,
+                'data': result.get('data') or [],
+            })
+        except ValueError:
+            return JsonResponse({'status': False, 'error': 'Format date harus YYYY-MM-DD'}, status=400)
+        except Exception as e:
+            logger.exception('DashboardAccountsSyncMetaView failed')
+            return JsonResponse({'status': False, 'error': str(e), 'data': []}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
 class DashboardDataHealthView(View):
     """Cek kesehatan data dashboard: account yang berisiko tidak tampil / revenue Rp 0."""
 
@@ -8561,7 +8600,19 @@ class GetCampaignMetaDetailView(View):
                 inc_countries = [str(x).strip().upper() for x in (geo.get('countries') if isinstance(geo.get('countries'), list) else []) if str(x).strip()]
                 if (inc_regions or inc_cities) and len(inc_countries) <= 1:
                     inc_countries = []
-                country_names = {'ID': 'Indonesia', 'SG': 'Singapore', 'MY': 'Malaysia', 'US': 'United States', 'AU': 'Australia', 'GB': 'United Kingdom'}
+                def _meta_country_label(code):
+                    cc = str(code or '').strip().upper()
+                    if not cc:
+                        return ''
+                    if pycountry:
+                        try:
+                            row = pycountry.countries.get(alpha_2=cc)
+                            if row and getattr(row, 'name', None):
+                                return str(row.name)
+                        except Exception:
+                            pass
+                    return cc
+
                 display_cc = (list(region_countries)[0] if region_countries else (inc_countries[0] if inc_countries else 'ID'))
                 adset_data = {
                     'adset_id': str(row.get('id') or ''), 'adset_name': str(row.get('name') or ''),
@@ -8576,9 +8627,9 @@ class GetCampaignMetaDetailView(View):
                     'location_exclude_countries': ','.join([str(x).strip().upper() for x in (exg.get('countries') if isinstance(exg.get('countries'), list) else []) if str(x).strip()]),
                     'location_include_regions': ','.join(inc_regions), 'location_include_cities': ','.join(inc_cities),
                     'location_exclude_regions': ','.join(keys(exg.get('regions'), 'region')), 'location_exclude_cities': ','.join(keys(exg.get('cities'), 'city')),
-                    'location_display_country': country_names.get(display_cc, display_cc),
+                    'location_display_country': _meta_country_label(display_cc),
                     'location_labels': dict(gl, **{
-                        ('country:' + str(c).strip().upper()): country_names.get(str(c).strip().upper(), str(c).strip().upper())
+                        ('country:' + str(c).strip().upper()): _meta_country_label(c)
                         for c in inc_countries
                         if str(c).strip()
                     }),

@@ -816,7 +816,9 @@
     top: 0;
     z-index: 12;
     overflow: visible;
-    grid-column: 1
+    grid-column: 1;
+    min-width: 0;
+    max-width: 100%
   }
 
   .meta-center,
@@ -894,8 +896,10 @@
     border-radius: 0;
     padding: 0;
     position: relative;
-    overflow: visible;
-    box-shadow: none
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-shadow: none;
+    max-width: 100%
   }
 
   .tm-tree-search {
@@ -928,7 +932,8 @@
   }
 
   .tm-tree-list {
-    padding: 8px 0
+    padding: 8px 0;
+    min-width: 0
   }
 
   .tm-left-item {
@@ -937,6 +942,8 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     padding: 9px 8px 9px 12px;
     border: 1px solid transparent;
     border-radius: 0;
@@ -944,7 +951,8 @@
     color: #0f172a;
     text-align: left;
     margin-bottom: 0;
-    cursor: pointer
+    cursor: pointer;
+    gap: 4px
   }
 
   .tm-left-item .lbl {
@@ -952,12 +960,22 @@
     align-items: flex-start;
     gap: 8px;
     font-weight: 600;
-    line-height: 1.35
+    line-height: 1.35;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden
   }
 
-  .tm-left-item .lbl span:last-child {
+  .tm-left-item .lbl span:last-child,
+  .tm-left-item .lbl small {
     flex: 1 1 auto;
-    word-break: break-word
+    min-width: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    word-break: break-word;
+    overflow-wrap: anywhere
   }
 
   .tm-left-item.sub {
@@ -4841,13 +4859,14 @@
     border: 1px solid #dbe5f4;
     border-radius: 12px;
     box-shadow: 0 16px 32px rgba(15, 23, 42, .16);
-    z-index: 40
+    z-index: 20150
   }
 
   .tm-aud-picked-menu button {
     width: 100%;
     border: 0;
     background: #fff;
+    color: #0f172a;
     padding: 12px 14px;
     text-align: left;
     font-weight: 700
@@ -6574,41 +6593,55 @@
 
   #modalPlacementManagerUi {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
     gap: 16px;
     align-items: start
   }
 
   #modalPlacementManagerUi .mp-list-col {
-    max-height: 520px;
-    overflow-y: auto;
-    padding-right: 4px
+    max-height: none;
+    overflow: visible;
+    padding-right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0
   }
 
   #modalPlacementManagerUi .grp {
     border: 1px solid #e4e6eb;
-    border-radius: 8px;
+    border-radius: 12px;
     background: #fff;
     overflow: hidden;
-    margin-bottom: 8px
+    margin-bottom: 0
   }
 
   #modalPlacementManagerUi .gh {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
-    padding: 12px 14px;
+    gap: 12px;
+    padding: 14px 16px;
     background: #f5f6f7;
     font-weight: 700;
     color: #1c1e21;
-    font-size: 14px;
+    font-size: 15px;
+    line-height: 1.35;
     cursor: pointer
+  }
+
+  #modalPlacementManagerUi .gh > span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0
   }
 
   #modalPlacementManagerUi .gh i {
     color: #606770;
-    font-size: 12px
+    font-size: 12px;
+    flex: 0 0 auto
   }
 
   #modalPlacementManagerUi .grp.collapsed .gh i {
@@ -6620,58 +6653,173 @@
   }
 
   #modalPlacementManagerUi .gd {
-    padding: 0 14px 10px;
+    padding: 2px 16px 14px;
     color: #606770;
     font-size: 13px;
-    line-height: 1.45;
+    line-height: 1.55;
     background: #f5f6f7
+  }
+
+  #modalPlacementManagerUi .go-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    background: #fff;
+    border-top: 1px solid #e4e6eb
   }
 
   #modalPlacementManagerUi .go {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-top: 1px solid #f0f2f5;
-    font-size: 14px;
+    gap: 16px;
+    padding: 12px 16px;
+    min-height: 48px;
+    border: 0;
+    border-bottom: 1px solid #e4e6eb;
+    border-radius: 0;
+    font-size: 15px;
+    line-height: 1.4;
     color: #1c1e21;
     cursor: pointer;
-    margin: 0
+    margin: 0;
+    background: #fff
+  }
+
+  #modalPlacementManagerUi .go:last-child {
+    border-bottom: 0
+  }
+
+  #modalPlacementManagerUi .go .mp-go-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-right: 8px
+  }
+
+  #modalPlacementManagerUi .mp-go-check {
+    position: relative;
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px
+  }
+
+  #modalPlacementManagerUi .mp-go-check input {
+    position: absolute;
+    inset: 0;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2
+  }
+
+  #modalPlacementManagerUi .mp-go-check .tm-mp-plat-box {
+    width: 24px;
+    height: 24px;
+    pointer-events: none
+  }
+
+  #modalPlacementManagerUi .mp-go-check input:checked + .tm-mp-plat-box {
+    background: #1877f2;
+    border-color: #1877f2
+  }
+
+  #modalPlacementManagerUi .mp-go-check input:checked + .tm-mp-plat-box:after {
+    transform: rotate(45deg) scale(1)
+  }
+
+  #modalPlacementManagerUi .mp-go-check input:indeterminate + .tm-mp-plat-box {
+    background: #1877f2;
+    border-color: #1877f2
+  }
+
+  #modalPlacementManagerUi .mp-go-check input:indeterminate + .tm-mp-plat-box:after {
+    width: 10px;
+    height: 0;
+    margin: 0;
+    border: 0;
+    border-top: 2.5px solid #fff;
+    transform: none
+  }
+
+  #modalPlacementManagerUi .mp-go-check input:disabled + .tm-mp-plat-box {
+    background: #f5f6f7;
+    border-color: #ccd0d5
+  }
+
+  #modalPlacementManagerUi .mp-go-check input:disabled + .tm-mp-plat-box:after {
+    transform: rotate(45deg) scale(0)
+  }
+
+  #modalPlacementManagerUi .mp-go-check input:disabled:checked + .tm-mp-plat-box {
+    background: #94a3b8;
+    border-color: #94a3b8
+  }
+
+  #modalPlacementManagerUi .mp-go-check input:disabled:checked + .tm-mp-plat-box:after {
+    transform: rotate(45deg) scale(1)
   }
 
   #modalPlacementManagerUi .go:hover,
   #modalPlacementManagerUi .go.is-preview-active {
-    background: #eef2f7
+    background: #f0f2f5
   }
 
   #modalPlacementManagerUi .go.off {
-    opacity: .45;
-    pointer-events: none
+    pointer-events: none;
+    background: #fff
   }
 
-  #modalPlacementManagerUi .go input,
-  #modalPlacementManagerUi .gg {
-    width: 18px;
-    height: 18px;
-    flex: 0 0 18px;
-    cursor: pointer
+  #modalPlacementManagerUi .go.off .mp-go-label {
+    color: #8a8d91
+  }
+
+  #modalPlacementManagerUi .gh .mp-go-check input:disabled + .tm-mp-plat-box {
+    background: #fff;
+    border-color: #ccd0d5
   }
 
   .mp-preview {
     border: 1px solid #e4e6eb;
-    border-radius: 10px;
-    padding: 16px;
+    border-radius: 12px;
+    padding: 14px 14px 16px;
     background: #fff;
     position: sticky;
-    top: 0
+    top: 0;
+    width: 100%;
+    min-width: 0;
+    align-self: stretch;
+    box-sizing: border-box
+  }
+
+  #modalPlacementManagerUi .mp-preview-frame {
+    width: 100%;
+    margin: 0 0 4px
+  }
+
+  #modalPlacementManagerUi .mpf {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    min-height: 300px;
+    border-width: 5px;
+    box-sizing: border-box
+  }
+
+  #modalPlacementManagerUi .mpf.v,
+  #modalPlacementManagerUi .mpf.f,
+  #modalPlacementManagerUi .mpf.s {
+    width: 100%;
+    max-width: 100%
   }
 
   .mp-preview-title {
     font-weight: 700;
     color: #1c1e21;
     font-size: 15px;
-    margin: 12px 0 6px
+    margin: 10px 0 6px
   }
 
   .mp-preview-hint {
@@ -6734,6 +6882,15 @@
   .mpf.s {
     aspect-ratio: 4/5;
     max-width: 200px
+  }
+
+  #modalPlacementManagerUi .mpf.v {
+    aspect-ratio: 9/16
+  }
+
+  #modalPlacementManagerUi .mpf.f,
+  #modalPlacementManagerUi .mpf.s {
+    aspect-ratio: 4/5
   }
 
   .mpf-inner {
@@ -16263,6 +16420,664 @@
     color: #94a3b8;
   }
 
+  /* Dark mode: tab adset — set aturan nilai & lokasi audiens */
+  html[data-theme="dark"] .tm-aud-loc-top {
+    border-bottom-color: #334155;
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-item {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-name {
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-name .fa-caret-down {
+    color: #94a3b8;
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-sub {
+    color: #94a3b8 !important;
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-ico {
+    background: rgba(37, 99, 235, .18);
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-more {
+    color: #cbd5e1;
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-more:hover {
+    background: #334155;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-remove {
+    color: #94a3b8;
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-menu {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, .45);
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-menu button {
+    background: #1f2937 !important;
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-menu button:hover {
+    background: #334155 !important;
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="dark"] .tm-aud-picked-state {
+    background: rgba(245, 158, 11, .18);
+    color: #fcd34d;
+  }
+
+  html[data-theme="dark"] .tm-loc-mode-field .tm-vr-select,
+  html[data-theme="dark"] .tm-vr-select,
+  html[data-theme="dark"] #tmValueSetSelect,
+  html[data-theme="dark"] #tmPlacementValueSetSelect {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] .tm-vr-dropdown,
+  html[data-theme="dark"] .tm-vr-set-dropdown,
+  html[data-theme="dark"] #tmValueRuleFields .tm-vr-set-dropdown,
+  html[data-theme="dark"] .tm-placement-vr-set-wrap .tm-vr-set-dropdown {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .45);
+  }
+
+  html[data-theme="dark"] .tm-vr-option,
+  html[data-theme="dark"] .tm-vr-set-option {
+    background: transparent !important;
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] .tm-vr-option:hover,
+  html[data-theme="dark"] .tm-vr-option.active,
+  html[data-theme="dark"] .tm-vr-set-option:hover,
+  html[data-theme="dark"] .tm-vr-set-option.active {
+    background: #334155 !important;
+  }
+
+  html[data-theme="dark"] .tm-vr-set-search,
+  html[data-theme="dark"] .tm-vr-set-search-wrap i {
+    background: #0f172a;
+    border-color: #334155;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] .tm-vr-set-empty,
+  html[data-theme="dark"] .tm-vr-set-option small,
+  html[data-theme="dark"] #tmValueRuleSummary,
+  html[data-theme="dark"] #tmPlacementValueRuleSummary {
+    color: #94a3b8 !important;
+  }
+
+  html[data-theme="dark"] .tm-vr-radio {
+    border-color: #475569;
+    background: #0f172a;
+  }
+
+  html[data-theme="dark"] .meta-loc-results,
+  html[data-theme="dark"] .meta-loc-results-floating {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  html[data-theme="dark"] .meta-loc-item {
+    background: transparent;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] .meta-loc-item .name,
+  html[data-theme="dark"] .meta-loc-item .kind {
+    color: #cbd5e1;
+  }
+
+  html[data-theme="dark"] .meta-loc-item:hover {
+    background: #334155;
+  }
+
+  html[data-theme="dark"] .meta-loc-item.active,
+  html[data-theme="dark"] .meta-loc-item.active:hover {
+    background: rgba(37, 99, 235, .28) !important;
+  }
+
+  html[data-theme="dark"] .meta-loc-item.active .name,
+  html[data-theme="dark"] .meta-loc-item.active .kind,
+  html[data-theme="dark"] .meta-loc-item.active .name strong {
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] .tm-loc-browse-row,
+  html[data-theme="dark"] .tm-loc-browse-subitem,
+  html[data-theme="dark"] .tm-loc-browse-create {
+    background: #1f2937;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] .tm-loc-browse-row:hover,
+  html[data-theme="dark"] .tm-loc-browse-subitem:hover,
+  html[data-theme="dark"] .tm-loc-browse-subitem.active {
+    background: #334155;
+  }
+
+  html[data-theme="dark"] .tm-aud-map-shell {
+    background: #0f172a;
+    border-color: #334155;
+  }
+
+  html[data-theme="dark"] .tm-aud-map-canvas.leaflet-container {
+    background: #0f172a;
+  }
+
+  html[data-theme="dark"] .tm-aud-map-canvas.leaflet-container .leaflet-tile-pane {
+    filter: none;
+  }
+
+  html[data-theme="dark"] .tm-aud-map-canvas.leaflet-container .leaflet-control-attribution {
+    background: rgba(15, 23, 42, .88) !important;
+    color: #94a3b8 !important;
+  }
+
+  html[data-theme="dark"] .tm-aud-map-canvas.leaflet-container .leaflet-control-attribution a {
+    color: #7dd3fc !important;
+  }
+
+  /* Dark mode: Pemirsa Advantage+ hingga penempatan manual (adset) */
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-audience-panel,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-suggestions-body,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-picker,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-create-menu,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-note,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-account,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-account-head,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-account-body,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-vr-card,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-vr-card-head,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-account-inner,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-adv-summary,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-adv-editor,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-ab-panel,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-ab-panel-head,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-device-menu,
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .grp,
+  html[data-theme="dark"] #modalCreateMetaCampaign .mp-preview,
+  html[data-theme="dark"] #modalCreateMetaCampaign .border.rounded.p-3 {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-audience-panel h6,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-audience-panel p,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-label,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-summary,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-demographics-row,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-lead h6,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-lead p,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-note h5,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-note p,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-account-title,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-account-summary,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-adv-title,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-adv-desc,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-mode-choice-title,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-platform-title,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-plat,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-device-title,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-device-select,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-device-row strong,
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .gh,
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .go,
+  html[data-theme="dark"] #modalCreateMetaCampaign .mp-preview-title {
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-audience-panel p,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-mode-choice-desc,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-device-row span,
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .gd,
+  html[data-theme="dark"] #modalCreateMetaCampaign .mp-preview-hint,
+  html[data-theme="dark"] #modalCreateMetaCampaign .mp-preview-desc,
+  html[data-theme="dark"] #modalCreateMetaCampaign .border.rounded.p-3 .text-muted,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-empty,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-empty span {
+    color: #94a3b8 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-audience-panel a,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-demographics-row .btn-link,
+  html[data-theme="dark"] #modalCreateMetaCampaign .border.rounded.p-3 .btn-link {
+    color: #7dd3fc !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-search {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-search input {
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-tabs {
+    border-bottom-color: #334155;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-tab {
+    color: #94a3b8;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-tab.active {
+    color: #e5e7eb;
+    border-bottom-color: #60a5fa;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-item {
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-item:hover,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-item.active {
+    background: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-custom-aud-chip {
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-create-item {
+    background: transparent;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-create-item:hover {
+    background: #334155;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-create-item small {
+    color: #94a3b8;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-suggest-btn {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-suggest-btn:hover {
+    border-color: #60a5fa !important;
+    background: #1e293b !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-suggest-plus {
+    background: rgba(37, 99, 235, .22);
+    color: #93c5fd;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-gender-option span {
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-gender-option span:before {
+    border-color: #475569;
+    background: #0f172a;
+    box-shadow: inset 0 0 0 4px #0f172a;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-picked-block,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-selection-shell .tm-dt-search-input {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-picked-block-name,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-crumb,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-picked-item-crumb {
+    color: #cbd5e1 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-account.open .tm-placement-account-head,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-vr-card.open .tm-placement-vr-card-head,
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .gh,
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .gd {
+    background: #111827 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-vr-info {
+    background: rgba(37, 99, 235, .14) !important;
+    border-color: rgba(96, 165, 250, .35) !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-vr-info h5,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-vr-info p {
+    color: #dbeafe !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-upsell {
+    background: rgba(37, 99, 235, .12) !important;
+    border-color: rgba(96, 165, 250, .3) !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-upsell-title,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-upsell p,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-abtest {
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-device-opt {
+    background: rgba(37, 99, 235, .12);
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-plat-box,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-device-box {
+    border-color: #475569;
+    background: #0f172a;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .go-wrap {
+    background: #1f2937 !important;
+    border-top-color: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .go:hover,
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .go.is-preview-active {
+    background: #334155 !important;
+    border-bottom-color: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mpf {
+    background: #0f172a !important;
+    border-color: #64748b !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .4);
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mpf-inner.feed,
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mpf-inner {
+    background: linear-gradient(180deg, #1e293b 0%, #111827 100%) !important;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mpf-inner.search {
+    background: #1e293b !important;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mpf-inner.search:before {
+    border-bottom-color: #475569;
+    color: #94a3b8;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mpf-brand {
+    color: #cbd5e1 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mpf-media {
+    background: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mpf-cta {
+    background: #334155 !important;
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .mp-preview-format button {
+    background: #0f172a !important;
+    border-color: #475569 !important;
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .mp-preview-format button.active {
+    background: rgba(37, 99, 235, .22) !important;
+    border-color: #60a5fa !important;
+    color: #93c5fd !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .mp-preview-hint strong {
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mp-go-check .tm-mp-plat-box {
+    background: #0f172a;
+    border-color: #64748b
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mp-go-check input:checked + .tm-mp-plat-box,
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mp-go-check input:indeterminate + .tm-mp-plat-box {
+    background: #2563eb;
+    border-color: #60a5fa
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .mp-go-check input:disabled + .tm-mp-plat-box {
+    background: #1e293b;
+    border-color: #475569
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .go.off .mp-go-check input:disabled + .tm-mp-plat-box {
+    background: #111827;
+    border-color: #64748b
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .go {
+    background: #1f2937 !important;
+    border-bottom-color: #334155 !important;
+    color: #e5e7eb !important
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #modalPlacementManagerUi .go.off .mp-go-label {
+    color: #64748b !important
+  }
+
+  /* Dark mode: penempatan — opsi lanjutan (Perangkat, keamanan merek, dll.) */
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-more-toggle,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .btn-link {
+    color: #7dd3fc !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .border-top,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-extra-block {
+    border-color: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .tm-placement-extra-title,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .tm-placement-brand-card p,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .tm-placement-brand-card p strong,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .tm-placement-brand-item strong,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .tm-placement-brand-radio-title,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .tm-placement-inline-editor label,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .font-weight-bold {
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .tm-placement-extra-summary,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .tm-placement-extra-summary li,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .tm-placement-brand-radio-desc,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .text-muted,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .small.text-muted,
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .tm-placement-extra-title.text-muted {
+    color: #94a3b8 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-inline-editor,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-brand-editor,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-brand-note {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .custom-control-label {
+    color: #cbd5e1 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #tmPlacementAdvancedOptions .form-control {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-brand-radio-dot {
+    border-color: #64748b;
+    background: #0f172a;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-brand-radio input:checked + .tm-placement-brand-radio-dot {
+    border-color: #60a5fa;
+    background: #2563eb;
+    box-shadow: inset 0 0 0 4px #0f172a;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-placement-brand-note a {
+    color: #7dd3fc;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign #btnAdvantageCreateAudience.btn-light {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-aud-more-btn {
+    background: #1f2937;
+    border-color: #334155;
+    color: #cbd5e1;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-demographics-summary,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-demographics-row,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-demographics-edit {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+    color: #e5e7eb;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-adv-demographics-row + .tm-adv-demographics-row {
+    border-top-color: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-transparency-card,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-transparency-card.success {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-transparency-card h5,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-transparency-card p,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-transparency-meta {
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-transparency-lead p {
+    color: #cbd5e1 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-ab-panel-body,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-ab-label,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-ab-value,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-ab-toggle-row,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-abtest {
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-ab-version-badge {
+    background: #0f172a !important;
+    border-color: #475569 !important;
+    color: #cbd5e1 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-device-select {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-mp-device-select i {
+    color: #94a3b8 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-results,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-result-item {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-results-head {
+    background: #111827 !important;
+    border-bottom-color: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-results-sort {
+    color: #94a3b8 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-results-sort.active {
+    background: rgba(37, 99, 235, .22) !important;
+    color: #93c5fd !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-result-name {
+    color: #e5e7eb !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-result-size,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-result-kind {
+    color: #94a3b8 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-result-item {
+    border-bottom-color: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-result-item:hover,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-result-item.active {
+    background: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-browse-menu,
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-browse-menu-floating {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-browse-row {
+    background: #1f2937 !important;
+    color: #e5e7eb !important;
+    border-bottom-color: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-browse-row:hover {
+    background: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-browse-node[data-depth="0"] {
+    border-bottom-color: #334155 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-browse-children {
+    border-left-color: #475569 !important;
+  }
+
+  html[data-theme="dark"] #modalCreateMetaCampaign .tm-dt-browse-children .tm-dt-browse-row {
+    border-bottom-color: #334155 !important;
+  }
+
   html[data-theme="dark"] .nt-meta-menu,
   html[data-theme="dark"] .nt-meta-submenu,
   html[data-theme="dark"] .nt-sep-menu {
@@ -22282,7 +23097,7 @@
       $m.toggleClass('tm-step2-on', wizardStep === 2);
       $m.toggleClass('tm-step3-on', wizardStep === 3);
     }
-    function syncTrafficManualShell() { const $m = $('#modalCreateMetaCampaign'), stepOne = wizardStep === 1, stepTwo = wizardStep === 2, manual = String($('#modal_objective').val() || '') === 'OUTCOME_TRAFFIC' && String($m.data('traffic_format') || '') === 'manual', view = String($m.data('tmView') || 'edit'), active = String($('#modal_status').val() || 'PAUSED') === 'ACTIVE', pct = parseInt(String($('#metaStepProgressLabel').text() || '0'), 10) || 0, mode = String($('#modal_campaign_mode').val() || 'create'), objective = String($('#modal_objective').val() || 'OUTCOME_TRAFFIC'), c = String($('#modal_campaign_name').val() || 'Kampanye Traffic Baru'), a = String($('#modal_adset_name').val() || '1 Set Iklan'), d = String($('#modal_ad_name').val() || '1 Iklan'), conv = String($('#modal_conversion_location').val() || 'WEBSITE'), attr = String($('#modal_attribution_window').val() || '7d_click_1d_view'); let goal = String($('#modal_optimization_goal').val() || 'LANDING_PAGE_VIEWS'); applyWizardStepShell(); $m.toggleClass('tm-manual-on', manual); $('#metaStepGuide').toggle(!(stepOne || stepTwo)); $('.tm-goal-item').removeClass('active').filter('[data-objective="' + objective + '"]').addClass('active'); $('#tmCampaignCrumb,#tmLeftCampaignName').text(c); $('#tmAdsetCrumb,#tmLeftAdsetName').text(a); $('#tmAdCrumb,#tmLeftAdName').text(d); $('#tmLeftCampaign').toggleClass('active', wizardStep === 1); $('#tmLeftAdset').toggleClass('active', wizardStep === 2); $('#tmLeftAd').toggleClass('active', wizardStep === 3); $('#tmCampaignCrumbBtn').toggleClass('active', wizardStep === 1); $('#tmAdsetCrumbBtn').toggleClass('active', wizardStep === 2); $('#tmAdCrumbBtn').toggleClass('active', wizardStep === 3); $('#tmLeftCampaignId').text(String($('#metaSummaryCampaignId').text() || '-')); $('#tmStatusText').text(active ? 'Aktif' : 'Dalam Draf'); $('#tmStatusToggle').prop('checked', active); $('#tmScoreValue').text(String(Math.max(60, pct || 0))); if (stepTwo) { $('#tmScoreTitle').html('Skor kampanye <i class="fas fa-info-circle text-muted"></i>'); $('#tmScoreHint').text(view === 'review' ? 'Mode tinjau set iklan aktif.' : (pct >= 80 ? 'Anda menggunakan penyiapan yang direkomendasikan.' : 'Lengkapi pengaturan set iklan untuk meningkatkan skor.')); } else { $('#tmScoreTitle').text('Skor kampanye'); $('#tmScoreHint').text(view === 'review' ? 'Mode tinjau campaign aktif.' : (manual ? 'Mode traffic manual aktif.' : 'Mode campaign aktif.')); } $('#tmSummaryTitle').text(stepTwo ? 'Ringkasan set iklan' : 'Ringkasan'); $('#tmSummaryPrimaryLabel').text(stepTwo ? 'Campaign induk' : 'Campaign ID'); $('#tmSummaryPrimaryValue').text(stepTwo ? c : String($('#metaSummaryCampaignId').text() || '-')); $('#tmSummarySecondaryLabel').text(stepTwo ? 'Lokasi konversi' : 'Mode Builder'); $('#tmSummarySecondaryValue').text(stepTwo ? ($('#modal_conversion_location option:selected').text() || '-') : (manual ? 'Traffic Manual' : 'Standar')); $('#tmReviewName').text(String($('#modal_campaign_name').val() || '-')); $('#tmReviewBuying').text($('#modal_campaign_buying_type option:selected').text() || '-'); $('#tmReviewObjective').text($('#modal_objective option:selected').text() || '-'); $('#tmReviewBudget').text($('#modal_campaign_budget_type option:selected').text() || 'Tanpa CBO'); $('#tmReviewCategory').text($('#modal_campaign_special_category option:selected').text() || '-'); $('.tm-conv-list > .tm-conv-choice[data-value]').removeClass('active').filter('[data-value="' + conv + '"]').addClass('active'); $('#tmWebsiteConversionFields,#tmWebsiteBidFields,#tmWebsiteAttrFields').toggle(conv === 'WEBSITE'); $('.tm-web-conv-fields').toggle(conv === 'WEBSITE'); $('#tmConversionModePending').toggle(conv !== 'WEBSITE'); $('#tmWebsiteConversionFields,#tmWebsiteBidFields,#tmWebsiteAttrFields,.tm-web-conv-fields').toggle(conv === 'WEBSITE'); $('#tmAppConversionFields,#tmAppStoreCard,#tmAppNameField,#tmAppBidField,.tm-app-conv-fields').toggle(conv === 'APP'); $('#tmMsgConversionFields,#tmMsgPageCard,#tmMsgDestinations,#tmMsgBidField,.tm-msg-conv-fields').toggle(conv === 'MESSAGING'); $('#tmDynamicCreativeSection').toggle(conv === 'WEBSITE'); $('#tmProfileConversionFields,#tmProfileIdentityCard,#tmProfileDestinationCard,#tmProfileBidField,.tm-profile-conv-fields').toggle(conv === 'PROFILE'); $('#tmWebCallConversionFields,#tmWebCallBidField,.tm-webcall-conv-fields').toggle(conv === 'WEBSITE_CALL'); $('#tmConversionModePending').toggle(['WEBSITE', 'APP', 'MESSAGING', 'PROFILE', 'WEBSITE_CALL'].indexOf(conv) < 0); if (conv === 'APP' && ['LINK_CLICKS', 'REACH'].indexOf(goal) < 0) { goal = 'LINK_CLICKS'; $('#modal_optimization_goal').val(goal); } if (conv === 'MESSAGING' && ['REACH', 'CONVERSATIONS', 'IMPRESSIONS'].indexOf(goal) < 0) { goal = 'CONVERSATIONS'; $('#modal_optimization_goal').val(goal); } if (conv === 'PROFILE' && goal !== 'PROFILE_VISITS') { $('#modal_optimization_goal').val('PROFILE_VISITS'); goal = 'PROFILE_VISITS'; } if (conv === 'WEBSITE_CALL' && goal !== 'LANDING_PAGE_VIEWS') { $('#modal_optimization_goal').val('LANDING_PAGE_VIEWS'); goal = 'LANDING_PAGE_VIEWS'; } const rawPageLabel = String($('#modal_page_id').attr('data-label') || '').trim(), rawPageId = String($('#modal_page_id').val() || '').trim(), rawIdentityName = String($('#identityPrimaryName').text() || '').trim(), msgPageLabel = rawPageLabel || ((rawIdentityName && rawIdentityName !== 'Belum dipilih') ? rawIdentityName : '') || rawPageId, msgIgLabel = String($('#modal_instagram_actor_id').attr('data-label') || '').trim() || String($('#identityPrimaryMeta').text() || '').trim(), msgMode = String($('#modal_message_destination_mode').val() || 'auto'), msgHasIg = !!(msgIgLabel && msgIgLabel !== 'Tambahkan profil Instagram'), profileDests = String($('#modal_profile_destinations').val() || 'instagram,page').split(','); $('#tmProfilePageTitle').text(msgPageLabel || 'Halaman Facebook'); $('#tmProfilePageMeta').text(msgPageLabel ? 'Halaman Facebook terhubung siap dipakai untuk traffic profil.' : 'Pilih Halaman Facebook pada bagian Identitas.'); $('#tmProfileIgRow').text(msgHasIg ? 'Profil Instagram: ' + msgIgLabel : '').toggle(msgHasIg); $('#tmProfileDestInstagramLabel').text(msgHasIg ? ('Profil Instagram · ' + msgIgLabel) : 'Profil Instagram'); $('#tmProfileDestPageLabel').text(msgPageLabel ? ('Halaman Facebook · ' + msgPageLabel) : 'Halaman Facebook'); $('#tmProfileDestInstagramRow').toggle(msgHasIg); $('#tmProfileDestPageRow').toggle(!!msgPageLabel); $('.tm-profile-dest-check[data-dest="instagram"]').prop('checked', profileDests.indexOf('instagram') >= 0); $('.tm-profile-dest-check[data-dest="page"]').prop('checked', profileDests.indexOf('page') >= 0); $('#tmBidAmountProfileHint').text((String($('#modal_bid_amount_profile').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmMsgPageTitle').text(msgPageLabel ? msgPageLabel : 'Halaman Facebook'); $('#tmMsgPageMeta').text(msgPageLabel ? (msgHasIg ? msgIgLabel : 'Halaman Facebook terhubung siap dipakai untuk percakapan.') : 'Pilih Halaman Facebook pada bagian Identitas.'); $('#tmMsgAutoMessengerPill').text(msgPageLabel || 'Messenger'); $('#tmMsgAutoInstagramPill').text(msgHasIg ? msgIgLabel : 'Instagram').toggle(msgHasIg); $('#tmMsgManualMessengerLabel').text('Messenger · ' + (msgPageLabel || 'Halaman Facebook')); $('#tmMsgManualInstagramLabel').text(msgHasIg ? ('Instagram · ' + msgIgLabel) : 'Instagram'); $('#tmMsgManualInstagramRow').toggle(msgHasIg); $('.tm-msg-choice').removeClass('active').filter('[data-msg-mode="' + msgMode + '"]').addClass('active'); $('#tmMsgManualPanel').toggle(msgMode === 'manual'); if ($('#tmOptimizationGoalProxy').length) { $('#tmOptimizationGoalProxy').val(goal).trigger('change.select2'); } if ($('#tmAppOptimizationGoalProxy').length) { $('#tmAppOptimizationGoalProxy').val(['LINK_CLICKS', 'REACH'].indexOf(goal) >= 0 ? goal : 'LINK_CLICKS').trigger('change.select2'); } if ($('#tmMsgOptimizationGoalProxy').length) { $('#tmMsgOptimizationGoalProxy').val(['REACH', 'CONVERSATIONS', 'IMPRESSIONS'].indexOf(goal) >= 0 ? goal : 'CONVERSATIONS').trigger('change.select2'); } if ($('#tmAttributionModelProxy').length) { $('#tmAttributionModelProxy').val('standard').trigger('change.select2'); } if ($('#tmAppStoreProxy').length) { $('#tmAppStoreProxy').val(String($('#modal_mobile_app_store').val() || 'ALL_STORES')).trigger('change.select2'); } if ($('#tmBillingEventProxy').length) { $('#tmBillingEventProxy').val(String($('#modal_billing_event').val() || 'IMPRESSIONS')).trigger('change.select2'); } $('#tmAppStoreSummary').text($('#modal_mobile_app_store option:selected').text() || 'Semua toko aplikasi untuk Android dan iOS'); $('#tmAttrWindowHint').text('Jendela atribusi aktif: ' + ($('#modal_attribution_window option:selected').text() || '7d Click / 1d View')); $('#tmBidAmountWebsiteHint').text((String($('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmBidAmountAppHint').text((String($('#modal_bid_amount_app').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmBidAmountMsgHint').text((String($('#modal_bid_amount_msg').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); syncDynamicCreativeUi(); syncAdsetBudgetUi(); syncAudienceSummary(); $('#tmReviewAdsetName').text(String($('#modal_adset_name').val() || '-')); $('#tmReviewConversion').text($('#modal_conversion_location option:selected').text() || '-'); $('#tmReviewOptimization').text($('#modal_optimization_goal option:selected').text() || '-'); $('#tmReviewAdsetBudget').text((String($('#modal_budget_type option:selected').text() || '') || 'Budget') + ' · Rp ' + (String($('#modal_daily_budget').val() || $('#modal_lifetime_budget').val() || '0'))); $('#tmReviewPlacement').text(String($('#modal_placement_mode').val() || 'auto') === 'manual' ? 'Penempatan manual' : 'Advantage+ placements'); $('#tmReviewPanel').toggle(stepOne && view === 'review'); $('#tmEditPanel').toggle(!(stepOne && view === 'review')); $('#tmReviewPanelAdset').toggle(stepTwo && view === 'review'); $('#tmEditPanelAdset').toggle(!(stepTwo && view === 'review')); $('#btnTrafficBuilderEdit').toggleClass('active', view !== 'review'); $('#btnTrafficBuilderReview').toggleClass('active', view === 'review'); if (stepTwo) { $('#btnWizardPrev').text('Kembali ke Kampanye'); $('#btnWizardSaveAdset').text(mode === 'edit' ? 'Simpan Perubahan' : 'Simpan Draft Set Iklan'); $('#btnWizardGoStep3').text('Lanjut ke Iklan'); } else if (manual) { $('#btnWizardPrev').text('Tutup'); $('#btnWizardCreateCampaign').text(mode === 'edit' ? 'Simpan & Lanjut' : 'Berikutnya').removeClass('btn-success').addClass('btn-primary'); } else { $('#btnWizardPrev').text('Kembali'); if (mode === 'edit') { $('#btnWizardCreateCampaign').text('Simpan Perubahan').removeClass('btn-success').addClass('btn-warning'); } else { $('#btnWizardCreateCampaign').text('Buat Kampanye').removeClass('btn-warning btn-primary').addClass('btn-success'); } } }
+    function syncTrafficManualShell() { const $m = $('#modalCreateMetaCampaign'), stepOne = wizardStep === 1, stepTwo = wizardStep === 2, manual = String($('#modal_objective').val() || '') === 'OUTCOME_TRAFFIC' && String($m.data('traffic_format') || '') === 'manual', view = String($m.data('tmView') || 'edit'), active = String($('#modal_status').val() || 'PAUSED') === 'ACTIVE', pct = parseInt(String($('#metaStepProgressLabel').text() || '0'), 10) || 0, mode = String($('#modal_campaign_mode').val() || 'create'), objective = String($('#modal_objective').val() || 'OUTCOME_TRAFFIC'), c = String($('#modal_campaign_name').val() || 'Kampanye Traffic Baru'), a = String($('#modal_adset_name').val() || '1 Set Iklan'), d = String($('#modal_ad_name').val() || '1 Iklan'), conv = String($('#modal_conversion_location').val() || 'WEBSITE'), attr = String($('#modal_attribution_window').val() || '7d_click_1d_view'); let goal = String($('#modal_optimization_goal').val() || 'LANDING_PAGE_VIEWS'); applyWizardStepShell(); $m.toggleClass('tm-manual-on', manual); $('#metaStepGuide').toggle(!(stepOne || stepTwo)); $('.tm-goal-item').removeClass('active').filter('[data-objective="' + objective + '"]').addClass('active'); $('#tmCampaignCrumb,#tmLeftCampaignName').text(c); $('#tmLeftCampaignName').attr('title', c); $('#tmAdsetCrumb,#tmLeftAdsetName').text(a); $('#tmLeftAdsetName').attr('title', a); $('#tmAdCrumb,#tmLeftAdName').text(d); $('#tmLeftAdName').attr('title', d); $('#tmLeftCampaign').toggleClass('active', wizardStep === 1); $('#tmLeftAdset').toggleClass('active', wizardStep === 2); $('#tmLeftAd').toggleClass('active', wizardStep === 3); $('#tmCampaignCrumbBtn').toggleClass('active', wizardStep === 1); $('#tmAdsetCrumbBtn').toggleClass('active', wizardStep === 2); $('#tmAdCrumbBtn').toggleClass('active', wizardStep === 3); $('#tmLeftCampaignId').text(String($('#metaSummaryCampaignId').text() || '-')); $('#tmStatusText').text(active ? 'Aktif' : 'Dalam Draf'); $('#tmStatusToggle').prop('checked', active); $('#tmScoreValue').text(String(Math.max(60, pct || 0))); if (stepTwo) { $('#tmScoreTitle').html('Skor kampanye <i class="fas fa-info-circle text-muted"></i>'); $('#tmScoreHint').text(view === 'review' ? 'Mode tinjau set iklan aktif.' : (pct >= 80 ? 'Anda menggunakan penyiapan yang direkomendasikan.' : 'Lengkapi pengaturan set iklan untuk meningkatkan skor.')); } else { $('#tmScoreTitle').text('Skor kampanye'); $('#tmScoreHint').text(view === 'review' ? 'Mode tinjau campaign aktif.' : (manual ? 'Mode traffic manual aktif.' : 'Mode campaign aktif.')); } $('#tmSummaryTitle').text(stepTwo ? 'Ringkasan set iklan' : 'Ringkasan'); $('#tmSummaryPrimaryLabel').text(stepTwo ? 'Campaign induk' : 'Campaign ID'); $('#tmSummaryPrimaryValue').text(stepTwo ? c : String($('#metaSummaryCampaignId').text() || '-')); $('#tmSummarySecondaryLabel').text(stepTwo ? 'Lokasi konversi' : 'Mode Builder'); $('#tmSummarySecondaryValue').text(stepTwo ? ($('#modal_conversion_location option:selected').text() || '-') : (manual ? 'Traffic Manual' : 'Standar')); $('#tmReviewName').text(String($('#modal_campaign_name').val() || '-')); $('#tmReviewBuying').text($('#modal_campaign_buying_type option:selected').text() || '-'); $('#tmReviewObjective').text($('#modal_objective option:selected').text() || '-'); $('#tmReviewBudget').text($('#modal_campaign_budget_type option:selected').text() || 'Tanpa CBO'); $('#tmReviewCategory').text($('#modal_campaign_special_category option:selected').text() || '-'); $('.tm-conv-list > .tm-conv-choice[data-value]').removeClass('active').filter('[data-value="' + conv + '"]').addClass('active'); $('#tmWebsiteConversionFields,#tmWebsiteBidFields,#tmWebsiteAttrFields').toggle(conv === 'WEBSITE'); $('.tm-web-conv-fields').toggle(conv === 'WEBSITE'); $('#tmConversionModePending').toggle(conv !== 'WEBSITE'); $('#tmWebsiteConversionFields,#tmWebsiteBidFields,#tmWebsiteAttrFields,.tm-web-conv-fields').toggle(conv === 'WEBSITE'); $('#tmAppConversionFields,#tmAppStoreCard,#tmAppNameField,#tmAppBidField,.tm-app-conv-fields').toggle(conv === 'APP'); $('#tmMsgConversionFields,#tmMsgPageCard,#tmMsgDestinations,#tmMsgBidField,.tm-msg-conv-fields').toggle(conv === 'MESSAGING'); $('#tmDynamicCreativeSection').toggle(conv === 'WEBSITE'); $('#tmProfileConversionFields,#tmProfileIdentityCard,#tmProfileDestinationCard,#tmProfileBidField,.tm-profile-conv-fields').toggle(conv === 'PROFILE'); $('#tmWebCallConversionFields,#tmWebCallBidField,.tm-webcall-conv-fields').toggle(conv === 'WEBSITE_CALL'); $('#tmConversionModePending').toggle(['WEBSITE', 'APP', 'MESSAGING', 'PROFILE', 'WEBSITE_CALL'].indexOf(conv) < 0); if (conv === 'APP' && ['LINK_CLICKS', 'REACH'].indexOf(goal) < 0) { goal = 'LINK_CLICKS'; $('#modal_optimization_goal').val(goal); } if (conv === 'MESSAGING' && ['REACH', 'CONVERSATIONS', 'IMPRESSIONS'].indexOf(goal) < 0) { goal = 'CONVERSATIONS'; $('#modal_optimization_goal').val(goal); } if (conv === 'PROFILE' && goal !== 'PROFILE_VISITS') { $('#modal_optimization_goal').val('PROFILE_VISITS'); goal = 'PROFILE_VISITS'; } if (conv === 'WEBSITE_CALL' && goal !== 'LANDING_PAGE_VIEWS') { $('#modal_optimization_goal').val('LANDING_PAGE_VIEWS'); goal = 'LANDING_PAGE_VIEWS'; } const rawPageLabel = String($('#modal_page_id').attr('data-label') || '').trim(), rawPageId = String($('#modal_page_id').val() || '').trim(), rawIdentityName = String($('#identityPrimaryName').text() || '').trim(), msgPageLabel = rawPageLabel || ((rawIdentityName && rawIdentityName !== 'Belum dipilih') ? rawIdentityName : '') || rawPageId, msgIgLabel = String($('#modal_instagram_actor_id').attr('data-label') || '').trim() || String($('#identityPrimaryMeta').text() || '').trim(), msgMode = String($('#modal_message_destination_mode').val() || 'auto'), msgHasIg = !!(msgIgLabel && msgIgLabel !== 'Tambahkan profil Instagram'), profileDests = String($('#modal_profile_destinations').val() || 'instagram,page').split(','); $('#tmProfilePageTitle').text(msgPageLabel || 'Halaman Facebook'); $('#tmProfilePageMeta').text(msgPageLabel ? 'Halaman Facebook terhubung siap dipakai untuk traffic profil.' : 'Pilih Halaman Facebook pada bagian Identitas.'); $('#tmProfileIgRow').text(msgHasIg ? 'Profil Instagram: ' + msgIgLabel : '').toggle(msgHasIg); $('#tmProfileDestInstagramLabel').text(msgHasIg ? ('Profil Instagram · ' + msgIgLabel) : 'Profil Instagram'); $('#tmProfileDestPageLabel').text(msgPageLabel ? ('Halaman Facebook · ' + msgPageLabel) : 'Halaman Facebook'); $('#tmProfileDestInstagramRow').toggle(msgHasIg); $('#tmProfileDestPageRow').toggle(!!msgPageLabel); $('.tm-profile-dest-check[data-dest="instagram"]').prop('checked', profileDests.indexOf('instagram') >= 0); $('.tm-profile-dest-check[data-dest="page"]').prop('checked', profileDests.indexOf('page') >= 0); $('#tmBidAmountProfileHint').text((String($('#modal_bid_amount_profile').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmMsgPageTitle').text(msgPageLabel ? msgPageLabel : 'Halaman Facebook'); $('#tmMsgPageMeta').text(msgPageLabel ? (msgHasIg ? msgIgLabel : 'Halaman Facebook terhubung siap dipakai untuk percakapan.') : 'Pilih Halaman Facebook pada bagian Identitas.'); $('#tmMsgAutoMessengerPill').text(msgPageLabel || 'Messenger'); $('#tmMsgAutoInstagramPill').text(msgHasIg ? msgIgLabel : 'Instagram').toggle(msgHasIg); $('#tmMsgManualMessengerLabel').text('Messenger · ' + (msgPageLabel || 'Halaman Facebook')); $('#tmMsgManualInstagramLabel').text(msgHasIg ? ('Instagram · ' + msgIgLabel) : 'Instagram'); $('#tmMsgManualInstagramRow').toggle(msgHasIg); $('.tm-msg-choice').removeClass('active').filter('[data-msg-mode="' + msgMode + '"]').addClass('active'); $('#tmMsgManualPanel').toggle(msgMode === 'manual'); if ($('#tmOptimizationGoalProxy').length) { $('#tmOptimizationGoalProxy').val(goal).trigger('change.select2'); } if ($('#tmAppOptimizationGoalProxy').length) { $('#tmAppOptimizationGoalProxy').val(['LINK_CLICKS', 'REACH'].indexOf(goal) >= 0 ? goal : 'LINK_CLICKS').trigger('change.select2'); } if ($('#tmMsgOptimizationGoalProxy').length) { $('#tmMsgOptimizationGoalProxy').val(['REACH', 'CONVERSATIONS', 'IMPRESSIONS'].indexOf(goal) >= 0 ? goal : 'CONVERSATIONS').trigger('change.select2'); } if ($('#tmAttributionModelProxy').length) { $('#tmAttributionModelProxy').val('standard').trigger('change.select2'); } if ($('#tmAppStoreProxy').length) { $('#tmAppStoreProxy').val(String($('#modal_mobile_app_store').val() || 'ALL_STORES')).trigger('change.select2'); } if ($('#tmBillingEventProxy').length) { $('#tmBillingEventProxy').val(String($('#modal_billing_event').val() || 'IMPRESSIONS')).trigger('change.select2'); } $('#tmAppStoreSummary').text($('#modal_mobile_app_store option:selected').text() || 'Semua toko aplikasi untuk Android dan iOS'); $('#tmAttrWindowHint').text('Jendela atribusi aktif: ' + ($('#modal_attribution_window option:selected').text() || '7d Click / 1d View')); $('#tmBidAmountWebsiteHint').text((String($('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmBidAmountAppHint').text((String($('#modal_bid_amount_app').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmBidAmountMsgHint').text((String($('#modal_bid_amount_msg').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); syncDynamicCreativeUi(); syncAdsetBudgetUi(); syncAudienceSummary(); $('#tmReviewAdsetName').text(String($('#modal_adset_name').val() || '-')); $('#tmReviewConversion').text($('#modal_conversion_location option:selected').text() || '-'); $('#tmReviewOptimization').text($('#modal_optimization_goal option:selected').text() || '-'); $('#tmReviewAdsetBudget').text((String($('#modal_budget_type option:selected').text() || '') || 'Budget') + ' · Rp ' + (String($('#modal_daily_budget').val() || $('#modal_lifetime_budget').val() || '0'))); $('#tmReviewPlacement').text(String($('#modal_placement_mode').val() || 'auto') === 'manual' ? 'Penempatan manual' : 'Advantage+ placements'); $('#tmReviewPanel').toggle(stepOne && view === 'review'); $('#tmEditPanel').toggle(!(stepOne && view === 'review')); $('#tmReviewPanelAdset').toggle(stepTwo && view === 'review'); $('#tmEditPanelAdset').toggle(!(stepTwo && view === 'review')); $('#btnTrafficBuilderEdit').toggleClass('active', view !== 'review'); $('#btnTrafficBuilderReview').toggleClass('active', view === 'review'); if (stepTwo) { $('#btnWizardPrev').text('Kembali ke Kampanye'); $('#btnWizardSaveAdset').text(mode === 'edit' ? 'Simpan Perubahan' : 'Simpan Draft Set Iklan'); $('#btnWizardGoStep3').text('Lanjut ke Iklan'); } else if (manual) { $('#btnWizardPrev').text('Tutup'); $('#btnWizardCreateCampaign').text(mode === 'edit' ? 'Simpan & Lanjut' : 'Berikutnya').removeClass('btn-success').addClass('btn-primary'); } else { $('#btnWizardPrev').text('Kembali'); if (mode === 'edit') { $('#btnWizardCreateCampaign').text('Simpan Perubahan').removeClass('btn-success').addClass('btn-warning'); } else { $('#btnWizardCreateCampaign').text('Buat Kampanye').removeClass('btn-warning btn-primary').addClass('btn-success'); } } }
     function syncDynamicCreativeUi() { const on = String($('#modal_dynamic_creative').val() || '0') === '1'; $('#tmDynamicCreativeToggle').prop('checked', on); $('#tmDynamicCreativeStateText').text(on ? 'Aktif' : 'Nonaktif'); $('#tmDynamicCreativeNote').toggleClass('active', on); $('#tmDynamicCreativeCheck').toggle(!!on); }
     function openCreativeSetupStep() { setWizardStep(3); setTimeout(function () { const $body = $('#modalCreateMetaCampaign .modal-body'), $target = $('.tm-creative-card').first(); if (!$body.length || !$target.length) return; const top = Math.max(0, $target.offset().top - $body.offset().top + $body.scrollTop() - 24); $body.stop(true).animate({ scrollTop: top }, 220); if ($target.find('#btnCreativeSetupMenu').length) $target.find('#btnCreativeSetupMenu').trigger('focus'); }, 80); }
     function tmPad2(n) { return String(n).padStart(2, '0'); }
@@ -22552,7 +23367,7 @@
       clearTimeout(audienceEstimateTimer);
       audienceEstimateTimer = setTimeout(fetchAudienceSizeFromMeta, 450);
     }
-    function syncAudienceSummary() { const csv = function (v) { return String(v || '').split(',').map(function (x) { return String(x || '').trim(); }).filter(Boolean); }, locLabels = window.__ccLocLabels || {}, incParts = [].concat(csv($('#modal_location_include_countries').val()).map(function (c) { return locLabels['country:' + c] || c; }), csv($('#modal_location_include_regions').val()).map(function (r) { return locLabels['region:' + r] || r; }), csv($('#modal_location_include_cities').val()).map(function (c) { return locLabels['city:' + c] || c; })).filter(Boolean), inc = incParts.join(', ') || 'Indonesia', exc = csv($('#modal_location_exclude_countries').val()).join(', '), lang = ($('#modal_languages').val() || []).length, ageMin = $('#modal_age_min').val() || '18', ageMax = $('#modal_age_max').val() || '65', g = genderSummaryLabel(), dtA = $('#modal_detailed_targeting_include').find('option:selected').length, dtB = $('#modal_detailed_targeting_narrow').find('option:selected').length; $('#tmAudienceLocationSummary').html('Lokasi yang disertakan: ' + inc + (exc ? '<br>Lokasi yang dikecualikan: ' + exc : '')); $('#tmAudienceLanguageSummary').text(lang ? lang + ' bahasa dipilih' : 'Semua bahasa'); $('#tmAudienceDemoSummary').text('Usia ' + ageMin + ' - ' + ageMax + ' • ' + g); $('#tmAudienceDetailSummary').text((dtA || dtB) ? ('Sertakan ' + dtA + ' item • Harus cocok ' + dtB + ' item') : 'Belum ada penargetan terperinci'); if (typeof syncAdvantageDemographicsSummary === 'function') syncAdvantageDemographicsSummary(); syncAudienceSizeEstimate(); }
+    function syncAudienceSummary() { const csv = function (v) { return String(v || '').split(',').map(function (x) { return String(x || '').trim(); }).filter(Boolean); }, locLabels = window.__ccLocLabels || {}, incParts = [].concat(csv($('#modal_location_include_countries').val()).map(function (c) { return (typeof window.resolveCampaignCountryName === 'function' ? window.resolveCampaignCountryName(c, locLabels['country:' + c]) : (locLabels['country:' + c] || c)); }), csv($('#modal_location_include_regions').val()).map(function (r) { return locLabels['region:' + r] || r; }), csv($('#modal_location_include_cities').val()).map(function (c) { return locLabels['city:' + c] || c; })).filter(Boolean), inc = incParts.join(', ') || 'Indonesia', exc = csv($('#modal_location_exclude_countries').val()).join(', '), lang = ($('#modal_languages').val() || []).length, ageMin = $('#modal_age_min').val() || '18', ageMax = $('#modal_age_max').val() || '65', g = genderSummaryLabel(), dtA = $('#modal_detailed_targeting_include').find('option:selected').length, dtB = $('#modal_detailed_targeting_narrow').find('option:selected').length; $('#tmAudienceLocationSummary').html('Lokasi yang disertakan: ' + inc + (exc ? '<br>Lokasi yang dikecualikan: ' + exc : '')); $('#tmAudienceLanguageSummary').text(lang ? lang + ' bahasa dipilih' : 'Semua bahasa'); $('#tmAudienceDemoSummary').text('Usia ' + ageMin + ' - ' + ageMax + ' • ' + g); $('#tmAudienceDetailSummary').text((dtA || dtB) ? ('Sertakan ' + dtA + ' item • Harus cocok ' + dtB + ' item') : 'Belum ada penargetan terperinci'); if (typeof syncAdvantageDemographicsSummary === 'function') syncAdvantageDemographicsSummary(); syncAudienceSizeEstimate(); }
     window.syncAudienceSummary = syncAudienceSummary;
     function cleanLanguageLabel(text, id) {
       return String(text || '').replace(/\s*\(key:\s*[^)]+\)$/i, '').trim() || getLanguageFallbackName(id) || String(id || '');
@@ -26370,6 +27185,9 @@
       }
       const dtSync = function () { refreshDetailedTargetingUi(); };
       $('#modal_detailed_targeting_include,#modal_detailed_targeting_narrow').off('.dt').on('change.dt', function () { dtSync(); }); dtSync();
+      if ($('#modalPlacementManagerUi').length && (!$('#modalPlacementManagerUi .mp-go-check').length || $('#modalPlacementManagerUi .mp-pos-check').length)) {
+        $('#modalPlacementManagerUi').remove();
+      }
       if (!$('#modalPlacementManagerUi').length) {
         const mpGroups = [
           { t: 'Beranda', d: 'Dapatkan visibilitas yang tinggi untuk bisnis Anda dengan iklan di beranda.', items: [
@@ -26406,13 +27224,13 @@
         ];
         let h = '<div id="modalPlacementManagerUi"><div class="mp-list-col">';
         mpGroups.forEach(function (g) {
-          h += '<div class="grp"><div class="gh"><span><i class="fas fa-chevron-down mr-2"></i>' + g.t + '</span><input type="checkbox" class="gg"></div><div class="gd">' + g.d + '</div><div class="go-wrap">';
+          h += '<div class="grp"><div class="gh"><span><i class="fas fa-chevron-down mr-2"></i>' + g.t + '</span><span class="mp-go-check"><input type="checkbox" class="gg"><span class="tm-mp-plat-box"></span></span></div><div class="gd">' + g.d + '</div><div class="go-wrap">';
           g.items.forEach(function (x) {
-            h += '<label class="go" data-s="' + x.s + '" data-l="' + x.l + '" data-hint="' + String(x.hint || '').replace(/"/g, '&quot;') + '" data-desc="' + String(x.desc || '').replace(/"/g, '&quot;') + '" data-fmt="' + (x.fmt ? '1' : '0') + '"><span>' + x.l + '</span><input type="checkbox" class="ui-pos" data-p="' + x.p + '" data-v="' + x.v + '"></label>';
+            h += '<label class="go" data-s="' + x.s + '" data-l="' + x.l + '" data-hint="' + String(x.hint || '').replace(/"/g, '&quot;') + '" data-desc="' + String(x.desc || '').replace(/"/g, '&quot;') + '" data-fmt="' + (x.fmt ? '1' : '0') + '"><span class="mp-go-label">' + x.l + '</span><span class="mp-go-check"><input type="checkbox" class="ui-pos" data-p="' + x.p + '" data-v="' + x.v + '"><span class="tm-mp-plat-box"></span></span></label>';
           });
           h += '</div></div>';
         });
-        h += '</div><div class="mp-preview"><div id="mppf" class="mpf f"><div class="mpf-inner feed"><div class="mpf-brand">Jasper\'s Market · Sponsored</div><div class="mpf-media"><img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=480&h=600&q=80" alt="Preview Beranda Facebook"></div><div class="mpf-cta">LEARN MORE</div></div></div><div id="mpPreviewTitle" class="mp-preview-title">Beranda Facebook</div><div id="mpPreviewHint" class="mp-preview-hint">Kami menyarankan gambar dan video <strong>vertikal (4:5)</strong>.</div><div id="mpPreviewDesc" class="mp-preview-desc"></div><div id="mpPreviewFormat" class="mp-preview-format" style="display:none;"><button type="button" class="active" data-fmt="video">Video</button><button type="button" data-fmt="image">Gambar</button></div></div></div>';
+        h += '</div><div class="mp-preview"><div class="mp-preview-frame"><div id="mppf" class="mpf f"><div class="mpf-inner feed"><div class="mpf-brand">Jasper\'s Market · Sponsored</div><div class="mpf-media"><img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=480&h=600&q=80" alt="Preview Beranda Facebook"></div><div class="mpf-cta">LEARN MORE</div></div></div></div><div id="mpPreviewTitle" class="mp-preview-title">Beranda Facebook</div><div id="mpPreviewHint" class="mp-preview-hint">Kami menyarankan gambar dan video <strong>vertikal (4:5)</strong>.</div><div id="mpPreviewDesc" class="mp-preview-desc"></div><div id="mpPreviewFormat" class="mp-preview-format" style="display:none;"><button type="button" class="active" data-fmt="video">Video</button><button type="button" data-fmt="image">Gambar</button></div></div></div>';
         ($('#tmPlacementManagerMount').length ? $('#tmPlacementManagerMount') : $('#modal_manual_placement_wrap')).append(h);
       }
       function syncMpDeviceUi() {
@@ -26457,7 +27275,16 @@
       function updateMpGroupHeaders() {
         $('#modalPlacementManagerUi .grp').each(function () {
           const $c = $(this).find('.ui-pos:not(:disabled)');
-          if ($c.length) $(this).find('.gg').prop('checked', $c.filter(':checked').length === $c.length);
+          const $gg = $(this).find('.gg');
+          if (!$c.length) {
+            $gg.prop({ checked: false, indeterminate: false });
+            return;
+          }
+          const checkedCount = $c.filter(':checked').length;
+          const allOn = checkedCount === $c.length;
+          const partial = checkedCount > 0 && checkedCount < $c.length;
+          $gg.prop('indeterminate', partial);
+          $gg.prop('checked', allOn);
         });
       }
       function syncMpShellUi() {
@@ -26571,12 +27398,16 @@
         if ($(e.target).is('input')) return;
         $(this).closest('.grp').toggleClass('collapsed');
       });
+      $('#modalPlacementManagerUi').off('click.mpui', 'input.gg,input.ui-pos').on('click.mpui', 'input.gg,input.ui-pos', function (e) {
+        e.stopPropagation();
+      });
       $('#modalPlacementManagerUi').off('mouseenter.mpui focusin.mpui', '.go').on('mouseenter.mpui focusin.mpui', '.go', function () {
         preview($(this));
       });
       $('#modalPlacementManagerUi').off('change.mpui', '.ui-pos,.gg').on('change.mpui', '.ui-pos,.gg', function () {
         if ($(this).hasClass('gg')) {
           const on = $(this).is(':checked');
+          $(this).prop('indeterminate', false);
           $(this).closest('.grp').find('.ui-pos:not(:disabled)').prop('checked', on);
         }
         syncLegacy();
