@@ -4389,6 +4389,9 @@ class DashboardScoringDataView(View):
                     for name, weight, _ in usable
                 }
                 return blended
+            # Nilai run_time/run_hour hanya ratusan yang unik, tapi _hour_key dipanggil
+            # ratusan ribu kali; tanpa cache setiap baris kena pd.to_datetime skalar.
+            hour_key_cache = {}
             for entity_key, part in df.groupby('entity_key', sort=False):
                 # Ensure signal_total is available in part for weighted averages
                 for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
@@ -4499,16 +4502,21 @@ class DashboardScoringDataView(View):
                     s = str(v or '').strip()
                     if not s or s.lower() == 'nan':
                         return None
+                    if s in hour_key_cache:
+                        return hour_key_cache[s]
+                    key = None
                     try:
                         h = int(float(s))
                         if 0 <= h <= 23:
-                            return f"{h:02d}"
+                            key = f"{h:02d}"
                     except Exception:
                         pass
-                    dt = pd.to_datetime(s, errors='coerce')
-                    if pd.notna(dt):
-                        return f"{int(dt.hour):02d}"
-                    return None
+                    if key is None:
+                        dt = pd.to_datetime(s, errors='coerce')
+                        if pd.notna(dt):
+                            key = f"{int(dt.hour):02d}"
+                    hour_key_cache[s] = key
+                    return key
                 def _fmt_run_hour_label(v):
                     k = _hour_key(v)
                     return f"{k}:00" if k else ''
@@ -4573,7 +4581,9 @@ class DashboardScoringDataView(View):
                         days_hist_h = int(pd.to_datetime(days_series_h, errors='coerce').dropna().dt.date.nunique())
                         days_flag_h = int(pd.to_numeric(snap_h.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in snap_h.columns else 0
                         active_days_effective_h = max(days_hist_h, days_flag_h)
-                        maturity_profile_h = campaign_maturity_profile(part_eval if light else part)
+                        # Argumennya sama dengan maturity_profile di atas dan frame-nya
+                        # tidak berubah di loop jam, jadi cukup pakai hasil yang sudah ada.
+                        maturity_profile_h = maturity_profile
                         mature_campaign_ratio_h = float(maturity_profile_h.get('mature_campaign_ratio', 0.0))
                         mature_spend_share_h = float(maturity_profile_h.get('mature_spend_share', 0.0))
                         mature_campaign_count_h = int(maturity_profile_h.get('mature_campaign_count', 0))

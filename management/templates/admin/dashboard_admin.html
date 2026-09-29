@@ -22212,11 +22212,16 @@ function initDashboardRecap() {
         }
     }
 
-    async function loadSiteAccountMap(state) {
+    async function loadSiteAccountMap(state, preloadedDomainRows) {
         window.dashboardRecapSiteAccountMap = {};
         if (!state?.date) return;
         const dim = String(state?.dim || '').toLowerCase();
         const src = String(state?.source || 'all').toLowerCase();
+        // Saat dim=domain, baris domain sudah diambil load(); hindari fetch ganda endpoint monitoring.
+        if (dim === 'domain' && Array.isArray(preloadedDomainRows) && preloadedDomainRows.length) {
+            window.dashboardRecapSiteAccountMap = buildSiteAccountLookup(preloadedDomainRows);
+            return;
+        }
         try {
             let domainRows = [];
             if (src === 'all') {
@@ -24059,12 +24064,14 @@ function initDashboardRecap() {
                 });
             } catch (e) {}
 
+            // Sync meta hanya dipakai tab "Tidak Aktif", jadi tidak perlu memblokir render.
+            // Tab itu sudah fetch sendiri kalau datanya belum ada saat diklik.
+            loadAccountsSyncMeta(st).catch(function(){});
             await Promise.all([
                 loadScoringBaselineHourly(st, rows),
                 loadDomainAccountMap(st),
-                loadSiteAccountMap(st),
-                loadAccountKeyMap(),
-                loadAccountsSyncMeta(st)
+                loadSiteAccountMap(st, rows),
+                loadAccountKeyMap()
             ]);
             rows = prepareRecapRows(rows, window.dashboardRecapSiteAccountMap || {}, st.dim);
             const preDetailRows = filterDetailScoringRows(rows, st.dim);

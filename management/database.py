@@ -3849,7 +3849,32 @@ class data_mysql:
             })
         return out
 
-    def _enrich_dashboard_accounts_last_revenue(self, accounts):
+    @staticmethod
+    def _dashboard_ymd(val):
+        if val is None:
+            return ''
+        if hasattr(val, 'strftime'):
+            return val.strftime('%Y-%m-%d')
+        return str(val).strip()[:10]
+
+    def _dashboard_last_spend_pairs(self):
+        """(account_id, tanggal spend terakhir) per akun. Pakai idx_acc_tgl_spend."""
+        self.cur_hris = self.mysql_cur
+        self.cur_hris.execute(
+            "SELECT account_ads_id, MAX(data_ads_country_tanggal) AS last_spend_date "
+            "FROM data_ads_country "
+            "WHERE data_ads_country_spend > 0 "
+            "GROUP BY account_ads_id"
+        )
+        pairs = []
+        for row in (self.cur_hris.fetchall() or []):
+            aid = str((row or {}).get('account_ads_id') or '').strip()
+            ymd = self._dashboard_ymd((row or {}).get('last_spend_date'))
+            if aid and ymd:
+                pairs.append((aid, ymd))
+        return pairs
+
+    def _enrich_dashboard_accounts_last_revenue(self, accounts, last_spend_pairs=None):
         """Pendapatan (AdX + AdSense) pada tanggal spend terakhir tiap akun."""
         if not accounts:
             return accounts
@@ -3857,23 +3882,23 @@ class data_mysql:
             acc['last_revenue'] = int(acc.get('last_revenue') or 0)
         try:
             self.cur_hris = self.mysql_cur
-            sql_domains = """
-                SELECT DISTINCT
-                    b.account_ads_id,
-                    DATE(b.data_ads_country_tanggal) AS spend_date,
-                    LOWER(SUBSTRING_INDEX(b.data_ads_domain, '.', 2)) AS site_key
-                FROM data_ads_country b
-                INNER JOIN (
-                    SELECT account_ads_id, MAX(data_ads_country_tanggal) AS max_spend_date
-                    FROM data_ads_country
-                    WHERE COALESCE(data_ads_country_spend, 0) > 0
-                    GROUP BY account_ads_id
-                ) x ON x.account_ads_id = b.account_ads_id
-                   AND x.max_spend_date = b.data_ads_country_tanggal
-                WHERE TRIM(COALESCE(b.data_ads_domain, '')) <> ''
-                  AND LOWER(SUBSTRING_INDEX(b.data_ads_domain, '.', 2)) <> ''
-            """
-            self.cur_hris.execute(sql_domains)
+            pairs = last_spend_pairs if last_spend_pairs is not None else self._dashboard_last_spend_pairs()
+            if not pairs:
+                return accounts
+
+            # Filter (account, tanggal) eksplisit supaya index composite dipakai langsung.
+            pair_clause = ','.join(['(%s,%s)'] * len(pairs))
+            pair_params = [v for pair in pairs for v in pair]
+            self.cur_hris.execute(
+                "SELECT DISTINCT"
+                "   account_ads_id,"
+                "   data_ads_country_tanggal AS spend_date,"
+                "   LOWER(SUBSTRING_INDEX(data_ads_domain, '.', 2)) AS site_key"
+                " FROM data_ads_country"
+                " WHERE (account_ads_id, data_ads_country_tanggal) IN (" + pair_clause + ")"
+                "   AND TRIM(COALESCE(data_ads_domain, '')) <> ''",
+                tuple(pair_params),
+            )
             domain_rows = self.cur_hris.fetchall() or []
 
             by_account = {}
@@ -3881,11 +3906,7 @@ class data_mysql:
             need_keys = set()
             for row in domain_rows:
                 aid = str((row or {}).get('account_ads_id') or '').strip()
-                d = row.get('spend_date')
-                if hasattr(d, 'strftime'):
-                    d = d.strftime('%Y-%m-%d')
-                else:
-                    d = str(d or '').strip()[:10]
+                d = self._dashboard_ymd((row or {}).get('spend_date'))
                 sk = str((row or {}).get('site_key') or '').strip().lower()
                 if not aid or not d or not sk:
                     continue
@@ -3914,20 +3935,16 @@ class data_mysql:
                 )
                 for table, date_col, domain_col, rev_col in rev_sources:
                     sql = f"""
-                        SELECT DATE({date_col}) AS d,
+                        SELECT {date_col} AS d,
                                LOWER(SUBSTRING_INDEX({domain_col}, '.', 2)) AS site_key,
                                SUM(CAST({rev_col} AS DECIMAL(18,2))) AS revenue
                         FROM {table}
-                        WHERE DATE({date_col}) IN ({placeholders})
-                        GROUP BY DATE({date_col}), LOWER(SUBSTRING_INDEX({domain_col}, '.', 2))
+                        WHERE {date_col} IN ({placeholders})
+                        GROUP BY {date_col}, LOWER(SUBSTRING_INDEX({domain_col}, '.', 2))
                     """
                     self.cur_hris.execute(sql, tuple(date_list))
                     for r in (self.cur_hris.fetchall() or []):
-                        d = r.get('d')
-                        if hasattr(d, 'strftime'):
-                            d = d.strftime('%Y-%m-%d')
-                        else:
-                            d = str(d or '').strip()[:10]
+                        d = self._dashboard_ymd((r or {}).get('d'))
                         sk = str((r or {}).get('site_key') or '').strip().lower()
                         pair = (d, sk)
                         if pair not in need_keys:
@@ -3954,118 +3971,94 @@ class data_mysql:
             self.cur_hris = self.mysql_cur
             scope_key = str(scope or 'filter').strip().lower()
             ymd = str(target_date or '').strip()
-            if scope_key in ('global', 'all', 'inactive'):
-                sql = """
-                    SELECT
-                        a.account_name,
-                        a.account_id,
-                        0 AS row_count,
-                        0 AS day_spend,
-                        NULL AS last_mdd_on_date,
-                        ls.last_spend_date,
-                        ls.last_spend_mdd,
-                        ls.last_spend_amount,
-                        lg.last_pull_mdd,
-                        lg.last_pull_date
-                    FROM master_account_ads a
-                    LEFT JOIN (
-                        SELECT
-                            b.account_ads_id,
-                            b.data_ads_country_tanggal AS last_spend_date,
-                            MAX(b.mdd) AS last_spend_mdd,
-                            SUM(COALESCE(b.data_ads_country_spend, 0)) AS last_spend_amount
-                        FROM data_ads_country b
-                        INNER JOIN (
-                            SELECT
-                                account_ads_id,
-                                MAX(data_ads_country_tanggal) AS max_spend_date
-                            FROM data_ads_country
-                            WHERE COALESCE(data_ads_country_spend, 0) > 0
-                            GROUP BY account_ads_id
-                        ) x ON x.account_ads_id = b.account_ads_id
-                           AND x.max_spend_date = b.data_ads_country_tanggal
-                        GROUP BY b.account_ads_id, b.data_ads_country_tanggal
-                    ) ls ON ls.account_ads_id = a.account_id
-                    LEFT JOIN (
-                        SELECT
-                            account_ads_id,
-                            MAX(mdd) AS last_pull_mdd,
-                            MAX(data_ads_country_tanggal) AS last_pull_date
-                        FROM data_ads_country
-                        GROUP BY account_ads_id
-                    ) lg ON lg.account_ads_id = a.account_id
-                    WHERE TRIM(COALESCE(a.account_name, '')) <> ''
-                    ORDER BY a.account_name ASC
-                """
-                params = ()
-            else:
-                if not ymd:
-                    return {'status': False, 'data': [], 'error': 'Tanggal kosong'}
-                sql = """
-                    SELECT
-                        a.account_name,
-                        a.account_id,
-                        COALESCE(d.row_count, 0) AS row_count,
-                        COALESCE(d.day_spend, 0) AS day_spend,
-                        d.last_mdd_on_date,
-                        ls.last_spend_date,
-                        ls.last_spend_mdd,
-                        ls.last_spend_amount,
-                        lg.last_pull_mdd,
-                        lg.last_pull_date
-                    FROM master_account_ads a
-                    LEFT JOIN (
-                        SELECT
-                            account_ads_id,
-                            COUNT(*) AS row_count,
-                            SUM(COALESCE(data_ads_country_spend, 0)) AS day_spend,
-                            MAX(mdd) AS last_mdd_on_date
-                        FROM data_ads_country
-                        WHERE data_ads_country_tanggal = %s
-                        GROUP BY account_ads_id
-                    ) d ON d.account_ads_id = a.account_id
-                    LEFT JOIN (
-                        SELECT
-                            b.account_ads_id,
-                            b.data_ads_country_tanggal AS last_spend_date,
-                            MAX(b.mdd) AS last_spend_mdd,
-                            SUM(COALESCE(b.data_ads_country_spend, 0)) AS last_spend_amount
-                        FROM data_ads_country b
-                        INNER JOIN (
-                            SELECT
-                                account_ads_id,
-                                MAX(data_ads_country_tanggal) AS max_spend_date
-                            FROM data_ads_country
-                            WHERE COALESCE(data_ads_country_spend, 0) > 0
-                            GROUP BY account_ads_id
-                        ) x ON x.account_ads_id = b.account_ads_id
-                           AND x.max_spend_date = b.data_ads_country_tanggal
-                        GROUP BY b.account_ads_id, b.data_ads_country_tanggal
-                    ) ls ON ls.account_ads_id = a.account_id
-                    LEFT JOIN (
-                        SELECT
-                            account_ads_id,
-                            MAX(mdd) AS last_pull_mdd,
-                            MAX(data_ads_country_tanggal) AS last_pull_date
-                        FROM data_ads_country
-                        GROUP BY account_ads_id
-                    ) lg ON lg.account_ads_id = a.account_id
-                    WHERE TRIM(COALESCE(a.account_name, '')) <> ''
-                    ORDER BY a.account_name ASC
-                """
-                params = (ymd,)
+            is_global = scope_key in ('global', 'all', 'inactive')
+            if not is_global and not ymd:
+                return {'status': False, 'data': [], 'error': 'Tanggal kosong'}
 
-            # Wajib MySQL: execute_query mengarahkan data_ads_country ke ClickHouse/report.
-            self.cur_hris = self.mysql_cur
-            self.cur_hris.execute(sql, params)
-            rows = self.cur_hris.fetchall() or []
+            # Dipecah jadi beberapa query kecil: menjoin subquery agregat ke master
+            # memaksa MariaDB scan penuh data_ads_country. Filter (account, tanggal)
+            # eksplisit membuat index composite terpakai.
+            self.cur_hris.execute(
+                "SELECT account_name, account_id FROM master_account_ads "
+                "WHERE TRIM(COALESCE(account_name, '')) <> '' "
+                "ORDER BY account_name ASC"
+            )
+            master_rows = self.cur_hris.fetchall() or []
+
+            pairs = self._dashboard_last_spend_pairs()
+            last_spend_map = {}
+            if pairs:
+                pair_clause = ','.join(['(%s,%s)'] * len(pairs))
+                pair_params = [v for pair in pairs for v in pair]
+                self.cur_hris.execute(
+                    "SELECT"
+                    "   account_ads_id,"
+                    "   data_ads_country_tanggal AS last_spend_date,"
+                    "   MAX(mdd) AS last_spend_mdd,"
+                    "   SUM(COALESCE(data_ads_country_spend, 0)) AS last_spend_amount"
+                    " FROM data_ads_country"
+                    " WHERE (account_ads_id, data_ads_country_tanggal) IN (" + pair_clause + ")"
+                    " GROUP BY account_ads_id, data_ads_country_tanggal",
+                    tuple(pair_params),
+                )
+                for row in (self.cur_hris.fetchall() or []):
+                    aid = str((row or {}).get('account_ads_id') or '').strip()
+                    if aid:
+                        last_spend_map[aid] = row
+
+            self.cur_hris.execute(
+                "SELECT account_ads_id, MAX(mdd) AS last_pull_mdd, "
+                "MAX(data_ads_country_tanggal) AS last_pull_date "
+                "FROM data_ads_country GROUP BY account_ads_id"
+            )
+            last_pull_map = {}
+            for row in (self.cur_hris.fetchall() or []):
+                aid = str((row or {}).get('account_ads_id') or '').strip()
+                if aid:
+                    last_pull_map[aid] = row
+
+            day_map = {}
+            if not is_global:
+                self.cur_hris.execute(
+                    "SELECT account_ads_id, COUNT(*) AS row_count, "
+                    "SUM(COALESCE(data_ads_country_spend, 0)) AS day_spend, "
+                    "MAX(mdd) AS last_mdd_on_date "
+                    "FROM data_ads_country "
+                    "WHERE data_ads_country_tanggal = %s "
+                    "GROUP BY account_ads_id",
+                    (ymd,),
+                )
+                for row in (self.cur_hris.fetchall() or []):
+                    aid = str((row or {}).get('account_ads_id') or '').strip()
+                    if aid:
+                        day_map[aid] = row
+
+            rows = []
+            for master in master_rows:
+                aid = str((master or {}).get('account_id') or '').strip()
+                ls = last_spend_map.get(aid) or {}
+                lg = last_pull_map.get(aid) or {}
+                day = day_map.get(aid) or {}
+                rows.append({
+                    'account_name': (master or {}).get('account_name'),
+                    'account_id': aid,
+                    'row_count': day.get('row_count') or 0,
+                    'day_spend': day.get('day_spend') or 0,
+                    'last_mdd_on_date': day.get('last_mdd_on_date'),
+                    'last_spend_date': ls.get('last_spend_date'),
+                    'last_spend_mdd': ls.get('last_spend_mdd'),
+                    'last_spend_amount': ls.get('last_spend_amount') or 0,
+                    'last_pull_mdd': lg.get('last_pull_mdd'),
+                    'last_pull_date': lg.get('last_pull_date'),
+                })
+
             out = self._format_dashboard_account_sync_rows(rows)
-            out = self._enrich_dashboard_accounts_last_revenue(out)
+            out = self._enrich_dashboard_accounts_last_revenue(out, pairs)
             return {
                 'status': True,
                 'data': out,
                 'date': ymd or None,
-                'scope': scope_key if scope_key in ('global', 'all', 'inactive') else 'filter',
+                'scope': scope_key if is_global else 'filter',
             }
         except Exception as e:
             return {'status': False, 'data': [], 'error': str(e)}
