@@ -1,0 +1,122 @@
+<style>
+/*
+ * Perbaikan kontras tooltip intro.js, dipakai semua halaman tour.
+ *
+ * intro.js v8 mewarnai teks lewat var(--introjs-color, #212121) dan variabel itu
+ * didefinisikan oleh kelas .introjs-light / .introjs-dark. Sejak v8.6.0 kelas itu
+ * dipasang pada elemen root milik tour sendiri (lihat initTheme(): root diisi
+ * this._root, bukan document.documentElement), dan root itu berada di dalam
+ * <body> sebagai nenek-moyang tooltip. Akibatnya mendefinisikan --introjs-color
+ * di :root TIDAK berpengaruh: variabel diwarisi dari nenek-moyang terdekat yang
+ * mendefinisikannya, dan div root tour selalu lebih dekat daripada <html>.
+ * Tema default intro.js juga "light", bukan "auto", jadi di mode gelap aplikasi
+ * teks tetap jatuh ke #212121 di atas panel gelap.
+ *
+ * Karena itu warna teks di sini dipatok dari variabel milik kita sendiri
+ * (--hris-tour-*) yang tidak pernah didefinisikan ulang oleh intro.js, dan
+ * variabel intro.js dipetakan ulang pada elemen intro.js-nya langsung supaya
+ * posisinya lebih dekat daripada kelas tema di atasnya.
+ */
+:root {
+    --hris-tour-fg: #0f172a;
+    --hris-tour-muted: #475569;
+    --hris-tour-panel: #ffffff;
+    --hris-tour-link: #1d4ed8;
+    --hris-tour-divider: rgba(15, 23, 42, 0.12);
+    --hris-tour-track: rgba(15, 23, 42, 0.12);
+    --hris-tour-bar: #2563eb;
+    --hris-tour-dot: rgba(15, 23, 42, 0.26);
+    --hris-tour-dot-on: #2563eb;
+    --hris-tour-btn-bg: #f1f5f9;
+    --hris-tour-btn-fg: #0f172a;
+    --hris-tour-btn-border: rgba(15, 23, 42, 0.18);
+    --hris-tour-btn-hover-bg: #e2e8f0;
+    --hris-tour-btn-active-bg: #cbd5e1;
+}
+html[data-theme="dark"] {
+    --hris-tour-fg: #e5e7eb;
+    --hris-tour-muted: #cbd5e1;
+    --hris-tour-panel: #1e293b;
+    --hris-tour-link: #93c5fd;
+    --hris-tour-divider: rgba(255, 255, 255, 0.14);
+    --hris-tour-track: rgba(255, 255, 255, 0.16);
+    --hris-tour-bar: #38bdf8;
+    --hris-tour-dot: rgba(255, 255, 255, 0.3);
+    --hris-tour-dot-on: #60a5fa;
+    --hris-tour-btn-bg: rgba(15, 23, 42, 0.55);
+    --hris-tour-btn-fg: #f8fafc;
+    --hris-tour-btn-border: rgba(255, 255, 255, 0.2);
+    --hris-tour-btn-hover-bg: rgba(51, 65, 85, 0.9);
+    --hris-tour-btn-active-bg: rgba(71, 85, 105, 0.95);
+}
+
+/*
+ * Pemetaan variabel intro.js dipasang pada elemen intro.js itu sendiri, bukan di
+ * :root, supaya menang terhadap .introjs-light/.introjs-dark yang menempel di
+ * nenek-moyangnya. Ini menutup aturan bawaan yang tidak ditimpa eksplisit
+ * di bawah (misalnya warna panah dan latar tombol).
+ */
+.introjs-tooltip,
+.introjs-tooltipReferenceLayer,
+.introjs-overlay,
+.introjs-helperLayer,
+.introjs-hint {
+    --introjs-color: var(--hris-tour-fg);
+    --introjs-bg: var(--hris-tour-panel);
+    --introjs-arrow-color: var(--hris-tour-panel);
+    --introjs-btn-bg: var(--hris-tour-btn-bg);
+    --introjs-btn-color: var(--hris-tour-btn-fg);
+    --introjs-btn-border: var(--hris-tour-btn-border);
+    --introjs-btn-hover-bg: var(--hris-tour-btn-hover-bg);
+    --introjs-btn-hover-color: var(--hris-tour-btn-fg);
+    --introjs-btn-focus-bg: var(--hris-tour-btn-hover-bg);
+    --introjs-btn-focus-color: var(--hris-tour-btn-fg);
+    --introjs-btn-active-bg: var(--hris-tour-btn-active-bg);
+    --introjs-btn-active-color: var(--hris-tour-btn-fg);
+    --introjs-btn-active-border: var(--hris-tour-btn-border);
+    --introjs-btn-textShadow: transparent;
+}
+
+/*
+ * Warna teks dipatok langsung dari variabel kita, bukan dari --introjs-color,
+ * supaya tetap benar walau intro.js mengubah lagi cara kelas temanya dipasang.
+ * !important diperlukan karena CSS intro.js dari CDN kadang dimuat setelah blok ini.
+ */
+.introjs-tooltiptext,
+.introjs-tooltip-header,
+.introjs-tooltip-title,
+.introjs-helperNumberLayer,
+.introjs-dontShowAgain label {
+    color: var(--hris-tour-fg) !important;
+}
+.introjs-tooltiptext a {
+    color: var(--hris-tour-link) !important;
+    text-decoration: underline;
+}
+.introjs-dontShowAgain label {
+    background-color: transparent !important;
+}
+
+/* Warna yang di-hardcode intro.js tanpa lewat variabel. */
+.introjs-tooltipbuttons {
+    border-top-color: var(--hris-tour-divider) !important;
+}
+.introjs-progress {
+    background-color: var(--hris-tour-track) !important;
+}
+.introjs-progressbar {
+    background-color: var(--hris-tour-bar) !important;
+}
+.introjs-bullets ul li a {
+    background: var(--hris-tour-dot) !important;
+}
+.introjs-bullets ul li a.active,
+.introjs-bullets ul li a:focus,
+.introjs-bullets ul li a:hover {
+    background: var(--hris-tour-dot-on) !important;
+}
+/* text-shadow terang bawaan intro.js membuat label tombol kabur di tema gelap. */
+.introjs-button {
+    text-shadow: none !important;
+}
+</style>

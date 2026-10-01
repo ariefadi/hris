@@ -919,6 +919,85 @@
         html[data-theme="dark"] .hris-session-duration-menu .da-drop-value { color: #a5b4fc; }
         html[data-theme="dark"] .hris-session-duration-menu .da-drop-label,
         html[data-theme="dark"] .hris-session-duration-menu .da-drop-meta { color: #94a3b8; }
+        .hris-net-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .hris-net-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            line-height: 1;
+        }
+        .hris-net-pill .hris-net-val {
+            display: inline-flex;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .02em;
+            font-variant-numeric: tabular-nums;
+            min-width: 46px;
+        }
+        .hris-net-pill .hris-net-val i { font-size: 14px; }
+        .hris-net-pill .hris-net-val:first-child { color: #16a34a; }
+        .hris-net-pill .hris-net-val:last-child { color: #2563eb; }
+        #hrisNetSpeed.hris-net-idle .hris-net-pill .hris-net-val { color: #94a3b8; }
+        .hris-net-menu {
+            min-width: 290px;
+            padding: 12px 0 8px;
+        }
+        .hris-net-menu .net-drop-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: #64748b;
+            padding: 0 16px 6px;
+        }
+        .hris-net-menu .net-drop-grid {
+            display: flex;
+            gap: 10px;
+            padding: 0 16px 8px;
+        }
+        .hris-net-menu .net-drop-col { flex: 1 1 0; }
+        .hris-net-menu .net-drop-cap {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+        }
+        .hris-net-menu .net-drop-value {
+            display: block;
+            font-size: 18px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            color: #4f46e5;
+        }
+        .hris-net-menu .net-drop-col:first-child .net-drop-value { color: #16a34a; }
+        .hris-net-menu .net-drop-col:last-child .net-drop-value { color: #2563eb; }
+        .hris-net-menu .net-drop-meta {
+            font-size: 12px;
+            color: #64748b;
+            padding: 0 16px 4px;
+        }
+        .hris-net-menu .net-drop-note {
+            font-size: 11px;
+            color: #94a3b8;
+            padding: 6px 16px 0;
+            line-height: 1.45;
+        }
+        html[data-theme="dark"] .hris-net-menu .net-drop-label,
+        html[data-theme="dark"] .hris-net-menu .net-drop-cap,
+        html[data-theme="dark"] .hris-net-menu .net-drop-meta { color: #94a3b8; }
+        html[data-theme="dark"] .hris-net-menu .net-drop-col:first-child .net-drop-value { color: #4ade80; }
+        html[data-theme="dark"] .hris-net-menu .net-drop-col:last-child .net-drop-value { color: #93c5fd; }
+        html[data-theme="dark"] .hris-net-pill .hris-net-val:first-child { color: #4ade80; }
+        html[data-theme="dark"] .hris-net-pill .hris-net-val:last-child { color: #93c5fd; }
+        @media (max-width: 575.98px) {
+            .hris-net-pill { display: none; }
+        }
         .hris-pwa-install-menu {
             min-width: 300px;
             padding: 12px 0 8px;
@@ -964,6 +1043,7 @@
         html[data-theme="dark"] .hris-pwa-install-menu .pwa-drop-label,
         html[data-theme="dark"] .hris-pwa-install-menu .pwa-drop-meta { color: #94a3b8; }
         </style>
+        {% include "admin/_introjs_theme.html" %}
     </head>
     <body class="{% block body_class %}hold-transition sidebar-mini{% endblock %}">
         <div id="hrisGlobalLoader" class="hris-global-loader" style="display:none" role="status" aria-live="polite" aria-hidden="true" aria-label="Memuat data">
@@ -987,6 +1067,33 @@
             <!--end::Start Navbar Links-->
             <!--begin::End Navbar Links-->
             <ul class="navbar-nav ms-auto">
+                <li class="nav-item dropdown" id="hrisNetSpeed">
+                    <a class="nav-link hris-net-link" data-toggle="dropdown" href="#" role="button" aria-expanded="false" aria-label="Kecepatan jaringan" title="Kecepatan jaringan terpakai (Mbps)">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="hris-net-pill">
+                            <span class="hris-net-val"><i class="bi bi-arrow-down-short"></i><span id="hrisNetDown">0</span></span>
+                            <span class="hris-net-val"><i class="bi bi-arrow-up-short"></i><span id="hrisNetUp">0</span></span>
+                        </span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right hris-net-menu">
+                        <span class="net-drop-label">Kecepatan jaringan terpakai</span>
+                        <div class="net-drop-grid">
+                            <div class="net-drop-col">
+                                <span class="net-drop-cap"><i class="bi bi-arrow-down-short"></i> Download</span>
+                                <span class="net-drop-value" id="hrisNetDownFull">0 Mbps</span>
+                            </div>
+                            <div class="net-drop-col">
+                                <span class="net-drop-cap"><i class="bi bi-arrow-up-short"></i> Upload</span>
+                                <span class="net-drop-value" id="hrisNetUpFull">0 Mbps</span>
+                            </div>
+                        </div>
+                        <div class="net-drop-meta">Puncak: <span id="hrisNetPeak">-</span></div>
+                        <div class="net-drop-meta">Total halaman ini: <span id="hrisNetTotal">-</span></div>
+                        <div class="net-drop-meta" id="hrisNetConn">-</div>
+                        <div class="dropdown-divider"></div>
+                        <div class="net-drop-note" id="hrisNetNote"></div>
+                    </div>
+                </li>
                 {% block navbar_extra_items %}{% endblock %}
                 <li class="nav-item dropdown" id="hrisPwaInstall">
                     <a class="nav-link" data-toggle="dropdown" href="#" role="button" aria-expanded="false" aria-label="Install aplikasi">
@@ -1510,6 +1617,7 @@
         </script>
         <script src="{% static 'ajax/admin/shared/hris_idle_logout.js' %}?v=1"></script>
         <script src="{% static 'ajax/admin/shared/hris_login_location.js' %}?v=1"></script>
+        <script src="{% static 'ajax/admin/shared/hris_network_speed.js' %}?v=1"></script>
         <script>
         (function () {
             var loginAt = window.HRIS_SESSION_LOGIN_AT || '';
