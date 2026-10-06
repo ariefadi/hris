@@ -1371,6 +1371,16 @@ def _recent_direct_conversations_fallback(db, user_id):
     return out
 
 
+def _last_seen_sort_ts(value):
+    raw = str(value or '').strip()
+    if not raw:
+        return 0.0
+    try:
+        return datetime.strptime(raw[:19], '%Y-%m-%d %H:%M:%S').timestamp()
+    except ValueError:
+        return 0.0
+
+
 def snapshot(db, current_user_id):
     uid = str(current_user_id or '').strip()
     online = list_online_users(db, uid)
@@ -1398,10 +1408,11 @@ def snapshot(db, current_user_id):
             'last_seen': user.get('last_seen'),
         })
 
+    # Online selalu di atas. Di dalam tiap kelompok, yang paling baru
+    # last_seen-nya di atas; yang tidak punya jejak online di paling bawah.
     conversations.sort(key=lambda c: (
         0 if c.get('online') else 1,
-        -int(c.get('unread') or 0),
-        0 if c.get('last_at') else 1,
+        -_last_seen_sort_ts(c.get('last_seen')),
         str(c.get('user_alias') or '').lower(),
     ))
 

@@ -7977,6 +7977,158 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
+    def get_all_adsense_historical_by_params(self, start_date, end_date, account_list=None,
+                                             selected_domain_list=None, hour_list=None,
+                                             force_clickhouse: bool = False):
+        """Riwayat penarikan AdSense dari log_adsense_country, diagregasi per tanggal + jam tarik + domain.
+
+        log_adsense_country adalah snapshot yang ditulis cron tiap jam, jadi nilainya
+        kumulatif dalam satu tanggal laporan. Negara tidak ikut di-group supaya
+        jumlah baris tetap wajar; penggabungan ke base subdomain dilakukan di view.
+        """
+        try:
+            if isinstance(account_list, str):
+                account_list = [account_list.strip()]
+            elif account_list is None:
+                account_list = []
+            elif isinstance(account_list, (set, tuple)):
+                account_list = list(account_list)
+            data_account_list = [str(a).strip() for a in account_list if str(a).strip()]
+
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+
+            if isinstance(hour_list, str):
+                hour_list = [h.strip() for h in hour_list.split(',')]
+            elif hour_list is None:
+                hour_list = []
+            elif isinstance(hour_list, (set, tuple)):
+                hour_list = list(hour_list)
+            data_hour_list = []
+            for h in hour_list:
+                try:
+                    hv = int(str(h).strip())
+                except (TypeError, ValueError):
+                    continue
+                if 0 <= hv <= 23:
+                    data_hour_list.append(hv)
+            data_hour_list = sorted(set(data_hour_list))
+
+            # account_id di log_adsense_country bertipe angka, jadi dicocokkan persis
+            # (bukan LIKE) supaya akun 12 tidak ikut tertarik oleh akun 123.
+            account_ids = []
+            for a in data_account_list:
+                v = str(a or '').strip()
+                if v.lower().startswith('act_'):
+                    v = v[4:]
+                if v:
+                    account_ids.append(v)
+            account_ids = list(dict.fromkeys(account_ids))
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = bool(force_clickhouse) or engine in ('clickhouse', 'ch')
+
+            params = [start_date, end_date]
+            if use_clickhouse:
+                base_sql = [
+                    "SELECT",
+                    "\ttoDate(b.log_adsense_country_tanggal) AS date,",
+                    "\ttoHour(b.mdd) AS pull_hour,",
+                    "\tb.log_adsense_country_domain AS site_name,",
+                    "\tSUM(b.log_adsense_country_impresi) AS impressions_adsense,",
+                    "\tSUM(b.log_adsense_country_click) AS clicks_adsense,",
+                    "\tSUM(b.log_adsense_country_page_views) AS page_views,",
+                    "\tSUM(b.log_adsense_country_ad_requests) AS ad_requests,",
+                    "\tSUM(COALESCE(b.log_adsense_country_ad_requests_coverage, 0) * COALESCE(b.log_adsense_country_ad_requests, 0)) AS ad_requests_coverage_weighted_sum,",
+                    "\tSUM(COALESCE(b.log_adsense_country_active_view_viewability, 0) * COALESCE(b.log_adsense_country_impresi, 0)) AS active_view_viewability_weighted_sum,",
+                    "\tSUM(COALESCE(b.log_adsense_country_active_view_measurability, 0) * COALESCE(b.log_adsense_country_impresi, 0)) AS active_view_measurability_weighted_sum,",
+                    "\tSUM(COALESCE(b.log_adsense_country_active_view_time, 0) * COALESCE(b.log_adsense_country_impresi, 0)) AS active_view_time_weighted_sum,",
+                    "\tSUM(b.log_adsense_country_revenue) AS revenue,",
+                    "\tMAX(b.mdd) AS pull_at",
+                    "FROM log_adsense_country b",
+                    "WHERE",
+                    "\ttoDate(b.log_adsense_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                ]
+                if account_ids:
+                    placeholders = ",".join(["%s"] * len(account_ids))
+                    base_sql.append(f"\tAND toString(b.account_id) IN ({placeholders})")
+                    params.extend(account_ids)
+                if data_domain_list:
+                    like_conditions_domain = " OR ".join(
+                        ["lowerUTF8(b.log_adsense_country_domain) LIKE lowerUTF8(%s)"] * len(data_domain_list)
+                    )
+                    base_sql.append(f"\tAND ({like_conditions_domain})")
+                    params.extend([f"%{domain}%" for domain in data_domain_list])
+                if data_hour_list:
+                    placeholders = ",".join(["%s"] * len(data_hour_list))
+                    base_sql.append(f"\tAND toHour(b.mdd) IN ({placeholders})")
+                    params.extend(data_hour_list)
+                base_sql.append("GROUP BY date, pull_hour, site_name")
+                base_sql.append("ORDER BY date ASC, pull_hour ASC, site_name ASC")
+
+                sql = "\n".join(base_sql)
+                self._ensure_report_connection()
+                self.cur_hris = self.report_cur
+                self.cur_hris.execute(sql, tuple(params))
+                data = self.fetch_all()
+            else:
+                base_sql = [
+                    "SELECT",
+                    "\tDATE(b.log_adsense_country_tanggal) AS 'date',",
+                    "\tHOUR(b.mdd) AS 'pull_hour',",
+                    "\tb.log_adsense_country_domain AS 'site_name',",
+                    "\tSUM(b.log_adsense_country_impresi) AS 'impressions_adsense',",
+                    "\tSUM(b.log_adsense_country_click) AS 'clicks_adsense',",
+                    "\tSUM(b.log_adsense_country_page_views) AS 'page_views',",
+                    "\tSUM(b.log_adsense_country_ad_requests) AS 'ad_requests',",
+                    "\tSUM(COALESCE(b.log_adsense_country_ad_requests_coverage, 0) * COALESCE(b.log_adsense_country_ad_requests, 0)) AS 'ad_requests_coverage_weighted_sum',",
+                    "\tSUM(COALESCE(b.log_adsense_country_active_view_viewability, 0) * COALESCE(b.log_adsense_country_impresi, 0)) AS 'active_view_viewability_weighted_sum',",
+                    "\tSUM(COALESCE(b.log_adsense_country_active_view_measurability, 0) * COALESCE(b.log_adsense_country_impresi, 0)) AS 'active_view_measurability_weighted_sum',",
+                    "\tSUM(COALESCE(b.log_adsense_country_active_view_time, 0) * COALESCE(b.log_adsense_country_impresi, 0)) AS 'active_view_time_weighted_sum',",
+                    "\tSUM(b.log_adsense_country_revenue) AS 'revenue',",
+                    "\tMAX(b.mdd) AS 'pull_at'",
+                    "FROM log_adsense_country b",
+                    "WHERE",
+                    "\tDATE(b.log_adsense_country_tanggal) BETWEEN %s AND %s",
+                ]
+                if account_ids:
+                    placeholders = ",".join(["%s"] * len(account_ids))
+                    base_sql.append(f"\tAND CAST(b.account_id AS CHAR) IN ({placeholders})")
+                    params.extend(account_ids)
+                if data_domain_list:
+                    like_conditions_domain = " OR ".join(
+                        ["b.log_adsense_country_domain LIKE %s"] * len(data_domain_list)
+                    )
+                    base_sql.append(f"\tAND ({like_conditions_domain})")
+                    params.extend([f"%{domain}%" for domain in data_domain_list])
+                if data_hour_list:
+                    placeholders = ",".join(["%s"] * len(data_hour_list))
+                    base_sql.append(f"\tAND HOUR(b.mdd) IN ({placeholders})")
+                    params.extend(data_hour_list)
+                base_sql.append("GROUP BY DATE(b.log_adsense_country_tanggal), HOUR(b.mdd), b.log_adsense_country_domain")
+                base_sql.append("ORDER BY 1 ASC, 2 ASC, 3 ASC")
+
+                sql = "\n".join(base_sql)
+                self.cur_hris.execute(sql, tuple(params))
+                data = self.fetch_all()
+
+            hasil = {
+                "status": True,
+                "message": "Data historical adsense berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
     def get_all_adsense_traffic_account_by_params(self, start_date, end_date, account_list = None, selected_domain_list = None, force_clickhouse: bool = False):
         try:
             if isinstance(account_list, str):
@@ -8498,6 +8650,157 @@ class data_mysql:
             hasil = {
                 "status": True,
                 "message": "Data adx traffic account berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def get_all_adx_historical_by_params(self, start_date, end_date, account_list=None,
+                                         selected_domain_list=None, hour_list=None,
+                                         force_clickhouse: bool = False):
+        """Riwayat penarikan AdX dari log_adx_country, diagregasi per tanggal + jam tarik + domain.
+
+        log_adx_country adalah snapshot yang ditulis cron tiap jam, jadi nilainya
+        kumulatif dalam satu tanggal laporan. Negara tidak ikut di-group supaya
+        jumlah baris tetap wajar; penggabungan ke base subdomain dilakukan di view.
+        """
+        try:
+            if isinstance(account_list, str):
+                account_list = [account_list.strip()]
+            elif account_list is None:
+                account_list = []
+            elif isinstance(account_list, (set, tuple)):
+                account_list = list(account_list)
+            data_account_list = [str(a).strip() for a in account_list if str(a).strip()]
+
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+
+            if isinstance(hour_list, (str, int)):
+                hour_list = [hour_list]
+            elif hour_list is None:
+                hour_list = []
+            elif isinstance(hour_list, (set, tuple)):
+                hour_list = list(hour_list)
+            data_hour_list = []
+            for h in hour_list:
+                try:
+                    hv = int(str(h).strip())
+                except (TypeError, ValueError):
+                    continue
+                if 0 <= hv <= 23:
+                    data_hour_list.append(hv)
+            data_hour_list = sorted(set(data_hour_list))
+
+            # account_id di log_adx_country bertipe angka, jadi dicocokkan persis
+            # (bukan LIKE) supaya akun 12 tidak ikut tertarik oleh akun 123.
+            account_ids = []
+            for a in data_account_list:
+                v = str(a or '').strip()
+                if v.lower().startswith('act_'):
+                    v = v[4:]
+                if v:
+                    account_ids.append(v)
+            account_ids = list(dict.fromkeys(account_ids))
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = bool(force_clickhouse) or engine in ('clickhouse', 'ch')
+
+            if use_clickhouse:
+                params = [start_date, end_date]
+                base_sql = [
+                    "SELECT",
+                    "\ttoDate(b.log_adx_country_tanggal) AS date,",
+                    "\ttoHour(b.mdd) AS pull_hour,",
+                    "\tb.log_adx_country_domain AS site_name,",
+                    "\tSUM(b.log_adx_country_impresi) AS impressions_adx,",
+                    "\tSUM(b.log_adx_country_click) AS clicks_adx,",
+                    "\tSUM(b.log_adx_country_total_requests) AS total_requests,",
+                    "\tSUM(b.log_adx_country_responses_served) AS responses_served,",
+                    "\tCASE WHEN SUM(b.log_adx_country_impresi) > 0 THEN ROUND(SUM(b.log_adx_country_active_view_pct_viewable * b.log_adx_country_impresi) / SUM(b.log_adx_country_impresi), 2) ELSE 0 END AS active_view_pct_viewable,",
+                    "\tCASE WHEN SUM(b.log_adx_country_impresi) > 0 THEN ROUND(SUM(b.log_adx_country_active_view_avg_time_sec * b.log_adx_country_impresi) / SUM(b.log_adx_country_impresi), 2) ELSE 0 END AS active_view_avg_time_sec,",
+                    "\tSUM(b.log_adx_country_revenue) AS revenue,",
+                    "\tMAX(b.mdd) AS pull_at",
+                    "FROM log_adx_country b",
+                    "WHERE",
+                    "\ttoDate(b.log_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                ]
+                if account_ids:
+                    placeholders = ",".join(["%s"] * len(account_ids))
+                    base_sql.append(f"\tAND toString(b.account_id) IN ({placeholders})")
+                    params.extend(account_ids)
+                if data_domain_list:
+                    like_conditions_domain = " OR ".join(
+                        ["lowerUTF8(b.log_adx_country_domain) LIKE lowerUTF8(%s)"] * len(data_domain_list)
+                    )
+                    base_sql.append(f"\tAND ({like_conditions_domain})")
+                    params.extend([f"%{domain}%" for domain in data_domain_list])
+                if data_hour_list:
+                    placeholders = ",".join(["%s"] * len(data_hour_list))
+                    base_sql.append(f"\tAND toHour(b.mdd) IN ({placeholders})")
+                    params.extend(data_hour_list)
+                base_sql.append("GROUP BY date, pull_hour, site_name")
+                base_sql.append("ORDER BY date ASC, pull_hour ASC, site_name ASC")
+
+                sql = "\n".join(base_sql)
+                self._ensure_report_connection()
+                self.cur_hris = self.report_cur
+                self.cur_hris.execute(sql, tuple(params))
+                data = self.fetch_all()
+            else:
+                params = [start_date, end_date]
+                base_sql = [
+                    "SELECT",
+                    "\tb.log_adx_country_tanggal AS 'date',",
+                    "\tHOUR(b.mdd) AS 'pull_hour',",
+                    "\tb.log_adx_country_domain AS 'site_name',",
+                    "\tSUM(b.log_adx_country_impresi) AS 'impressions_adx',",
+                    "\tSUM(b.log_adx_country_click) AS 'clicks_adx',",
+                    "\tSUM(b.log_adx_country_total_requests) AS 'total_requests',",
+                    "\tSUM(b.log_adx_country_responses_served) AS 'responses_served',",
+                    "\tCASE WHEN SUM(b.log_adx_country_impresi) > 0 THEN ROUND(SUM(b.log_adx_country_active_view_pct_viewable * b.log_adx_country_impresi) / SUM(b.log_adx_country_impresi), 2) ELSE 0 END AS 'active_view_pct_viewable',",
+                    "\tCASE WHEN SUM(b.log_adx_country_impresi) > 0 THEN ROUND(SUM(b.log_adx_country_active_view_avg_time_sec * b.log_adx_country_impresi) / SUM(b.log_adx_country_impresi), 2) ELSE 0 END AS 'active_view_avg_time_sec',",
+                    "\tSUM(b.log_adx_country_revenue) AS 'revenue',",
+                    "\tMAX(b.mdd) AS 'pull_at'",
+                    "FROM log_adx_country b",
+                    "WHERE",
+                    "\tb.log_adx_country_tanggal BETWEEN %s AND %s",
+                ]
+                if account_ids:
+                    placeholders = ",".join(["%s"] * len(account_ids))
+                    base_sql.append(f"\tAND CAST(b.account_id AS CHAR) IN ({placeholders})")
+                    params.extend(account_ids)
+                if data_domain_list:
+                    like_conditions_domain = " OR ".join(
+                        ["b.log_adx_country_domain LIKE %s"] * len(data_domain_list)
+                    )
+                    base_sql.append(f"\tAND ({like_conditions_domain})")
+                    params.extend([f"%{domain}%" for domain in data_domain_list])
+                if data_hour_list:
+                    placeholders = ",".join(["%s"] * len(data_hour_list))
+                    base_sql.append(f"\tAND HOUR(b.mdd) IN ({placeholders})")
+                    params.extend(data_hour_list)
+                base_sql.append("GROUP BY b.log_adx_country_tanggal, HOUR(b.mdd), b.log_adx_country_domain")
+                base_sql.append("ORDER BY b.log_adx_country_tanggal ASC, HOUR(b.mdd) ASC")
+
+                sql = "\n".join(base_sql)
+                if not self.execute_query(sql, tuple(params)):
+                    raise pymysql.Error(f"Failed to get all adx historical by params: {self.last_error}")
+                data = self.fetch_all()
+                if not self.commit():
+                    raise pymysql.Error("Failed to commit get all adx historical by params")
+            hasil = {
+                "status": True,
+                "message": "Data historical adx berhasil diambil",
                 "data": data
             }
         except pymysql.Error as e:
@@ -9757,6 +10060,152 @@ class data_mysql:
                 parts.append(f"REPLACE(LOWER({b_col}), 'act_', '') LIKE %s")
                 params.append(p)
         return f" AND ({' OR '.join(parts)})", params
+
+    def get_all_ads_historical_by_params(self, start_date, end_date, account_list=None,
+                                         selected_domain_list=None, hour_list=None,
+                                         force_clickhouse: bool = False):
+        """Riwayat penarikan Facebook Ads dari log_ads_country, diagregasi per tanggal + jam tarik + domain.
+
+        log_ads_country adalah snapshot yang ditulis cron tiap jam, jadi nilainya
+        kumulatif dalam satu tanggal laporan. Negara dan campaign tidak ikut di-group
+        supaya jumlah baris tetap wajar; penggabungan ke base subdomain dilakukan di view.
+        """
+        try:
+            if isinstance(account_list, str):
+                account_list = [account_list.strip()]
+            elif account_list is None:
+                account_list = []
+            elif isinstance(account_list, (set, tuple)):
+                account_list = list(account_list)
+            data_account_list = [str(a).strip() for a in account_list if str(a).strip() and str(a).strip() != '%']
+
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip() and str(d).strip() != '%']
+
+            if isinstance(hour_list, (str, int)):
+                hour_list = [hour_list]
+            elif hour_list is None:
+                hour_list = []
+            elif isinstance(hour_list, (set, tuple)):
+                hour_list = list(hour_list)
+            data_hour_list = []
+            for h in hour_list:
+                try:
+                    hv = int(str(h).strip())
+                except (TypeError, ValueError):
+                    continue
+                if 0 <= hv <= 23:
+                    data_hour_list.append(hv)
+            data_hour_list = sorted(set(data_hour_list))
+
+            # account_ads_id di log tersimpan sebagai act_<id>. Dicocokkan persis
+            # setelah awalan act_ dibuang, supaya akun 12 tidak tertarik oleh 123.
+            account_ids = []
+            for a in data_account_list:
+                v = self._normalize_fb_account_key(a)
+                if v:
+                    account_ids.append(v)
+            account_ids = list(dict.fromkeys(account_ids))
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = bool(force_clickhouse) or engine in ('clickhouse', 'ch')
+
+            params = [start_date, end_date]
+            if use_clickhouse:
+                base_sql = [
+                    "SELECT",
+                    "\ttoDate(b.log_ads_country_tanggal) AS date,",
+                    "\ttoHour(b.mdd) AS pull_hour,",
+                    "\tb.log_ads_domain AS site_name,",
+                    "\tSUM(b.log_ads_country_spend) AS spend,",
+                    "\tSUM(b.log_ads_country_impresi) AS impressions,",
+                    "\tSUM(b.log_ads_country_click) AS clicks,",
+                    "\tSUM(b.log_ads_country_reach) AS reach,",
+                    "\tSUM(b.log_ads_country_lpv) AS lpv,",
+                    "\tMAX(b.mdd) AS pull_at",
+                    "FROM log_ads_country b",
+                    "WHERE",
+                    "\ttoDate(b.log_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                ]
+                if account_ids:
+                    placeholders = ",".join(["%s"] * len(account_ids))
+                    base_sql.append(
+                        "\tAND replaceRegexpAll(lowerUTF8(toString(b.account_ads_id)), '^act_', '') IN (" + placeholders + ")"
+                    )
+                    params.extend(account_ids)
+                if data_domain_list:
+                    like_conditions_domain = " OR ".join(
+                        ["lowerUTF8(b.log_ads_domain) LIKE lowerUTF8(%s)"] * len(data_domain_list)
+                    )
+                    base_sql.append(f"\tAND ({like_conditions_domain})")
+                    params.extend([f"%{domain}%" for domain in data_domain_list])
+                if data_hour_list:
+                    placeholders = ",".join(["%s"] * len(data_hour_list))
+                    base_sql.append(f"\tAND toHour(b.mdd) IN ({placeholders})")
+                    params.extend(data_hour_list)
+                base_sql.append("GROUP BY date, pull_hour, site_name")
+                base_sql.append("ORDER BY date ASC, pull_hour ASC, site_name ASC")
+
+                sql = "\n".join(base_sql)
+                self._ensure_report_connection()
+                self.cur_hris = self.report_cur
+                self.cur_hris.execute(sql, tuple(params))
+                data = self.fetch_all()
+            else:
+                base_sql = [
+                    "SELECT",
+                    "\tDATE(b.log_ads_country_tanggal) AS 'date',",
+                    "\tHOUR(b.mdd) AS 'pull_hour',",
+                    "\tb.log_ads_domain AS 'site_name',",
+                    "\tSUM(b.log_ads_country_spend) AS 'spend',",
+                    "\tSUM(b.log_ads_country_impresi) AS 'impressions',",
+                    "\tSUM(b.log_ads_country_click) AS 'clicks',",
+                    "\tSUM(b.log_ads_country_reach) AS 'reach',",
+                    "\tSUM(b.log_ads_country_lpv) AS 'lpv',",
+                    "\tMAX(b.mdd) AS 'pull_at'",
+                    "FROM log_ads_country b",
+                    "WHERE",
+                    "\tDATE(b.log_ads_country_tanggal) BETWEEN %s AND %s",
+                ]
+                if account_ids:
+                    placeholders = ",".join(["%s"] * len(account_ids))
+                    base_sql.append(
+                        "\tAND REPLACE(LOWER(b.account_ads_id), 'act_', '') IN (" + placeholders + ")"
+                    )
+                    params.extend(account_ids)
+                if data_domain_list:
+                    like_conditions_domain = " OR ".join(
+                        ["b.log_ads_domain LIKE %s"] * len(data_domain_list)
+                    )
+                    base_sql.append(f"\tAND ({like_conditions_domain})")
+                    params.extend([f"%{domain}%" for domain in data_domain_list])
+                if data_hour_list:
+                    placeholders = ",".join(["%s"] * len(data_hour_list))
+                    base_sql.append(f"\tAND HOUR(b.mdd) IN ({placeholders})")
+                    params.extend(data_hour_list)
+                base_sql.append("GROUP BY DATE(b.log_ads_country_tanggal), HOUR(b.mdd), b.log_ads_domain")
+                base_sql.append("ORDER BY 1 ASC, 2 ASC, 3 ASC")
+
+                sql = "\n".join(base_sql)
+                self.cur_hris.execute(sql, tuple(params))
+                data = self.fetch_all()
+
+            hasil = {
+                "status": True,
+                "message": "Data historical ads berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
 
     def get_all_ads_traffic_campaign_by_params(self, tanggal_dari, tanggal_sampai, selected_account_list = None, selected_domain_list = None):   
         try:

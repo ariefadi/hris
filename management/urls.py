@@ -80,6 +80,8 @@ urlpatterns = [
     path('admin/ads_policy_events_sync', views.AdsPolicyEventsSyncView.as_view(), name='ads_policy_events_sync'),
     path('admin/ads_policy_events_credentials_list', views.AdsPolicyEventsCredentialsListView.as_view(), name='ads_policy_events_credentials_list'),
     # Menu Per Account Facebook Ads
+    path('admin/ads_historical', views.AdsHistoricalView.as_view(), name='ads_historical'),
+    path('admin/page_ads_historical', views.AdsHistoricalDataView.as_view()),
     path('admin/per_account_facebook', views.PerAccountFacebookAds.as_view(), name='per_account_facebook'),
     path('admin/create_campaign', views.CreateCampaignFacebookAds.as_view(), name='create_campaign_facebook'),
     path('admin/page_create_campaign_meta', views.CreateCampaignMetaListView.as_view(), name='page_create_campaign_meta'),
@@ -155,6 +157,9 @@ urlpatterns = [
     path('admin/adx_traffic_account', views.AdxTrafficPerAccountView.as_view(), name='adx_traffic_account'),
     path('adx-traffic-account/', views.AdxTrafficPerAccountView.as_view(), name='adx_traffic_account_alias'),
     path('admin/page_adx_traffic_account', views.AdxTrafficPerAccountDataView.as_view()),
+    # AdX Historical (riwayat penarikan dari log_adx_country)
+    path('admin/adx_historical', views.AdxHistoricalView.as_view(), name='adx_historical'),
+    path('admin/page_adx_historical', views.AdxHistoricalDataView.as_view()),
     path('admin/adx_sites_list', views.AdxSitesListView.as_view(), name='adx_sites_list'),
     path('admin/adx_accounts_list', views.AdxAccountListView.as_view(), name='adx_accounts_list'),
     # Menu AdX Traffic Per Campaign
@@ -181,6 +186,9 @@ urlpatterns = [
     # Menu Adsense Traffic Account
     path('admin/adsense_traffic_account', views_adsense.AdsenseTrafficAccountView.as_view(), name='adsense_traffic_account'),
     path('admin/adsense_traffic_account_data', views_adsense.AdsenseTrafficAccountDataView.as_view(), name='adsense_traffic_account_data'),
+    # AdSense Historical (riwayat penarikan dari log_adsense_country)
+    path('admin/adsense_historical', views_adsense.AdsenseHistoricalView.as_view(), name='adsense_historical'),
+    path('admin/page_adsense_historical', views_adsense.AdsenseHistoricalDataView.as_view()),
     path('admin/adsense_sites_list', views_adsense.AdsenseSitesListView.as_view(), name='adsense_sites_list'),
     path('admin/adsense_accounts_list', views_adsense.AdsenseAccountListView.as_view(), name='adsense_accounts_list'),
     # # Menu Adsense Traffic Country

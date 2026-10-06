@@ -191,6 +191,259 @@ def get_adsense_data(request):
     accounts = service.accounts().list().execute()
     return render(request, 'adsense_manager/traffic_per_account/index.html', {'accounts': accounts})
 
+class AdsenseHistoricalView(View):
+    """Halaman riwayat penarikan AdSense (Historical Hit Adsense)"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('/management/admin/login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        admin = req.session.get('hris_admin', {})
+        if admin.get('super_st') == '0':
+            data_account_adsense = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+            data_domain_adsense = data_mysql().get_all_adsense_domain_data_user(admin.get('user_id'))
+        else:
+            data_account_adsense = data_mysql().get_all_adsense_account_data()
+            data_domain_adsense = data_mysql().get_all_adsense_domain_data()
+        data = {
+            'title': 'Historical Hit Adsense',
+            'user': req.session['hris_admin'],
+            'data_account_adsense': (data_account_adsense or {}).get('data') or [],
+            'data_domain_adsense': (data_domain_adsense or {}).get('data') or [],
+            'jam_penarikan': list(range(24)),
+            'last_update': resolve_adsense_last_update(),
+        }
+        return render(req, 'admin/adsense_manager/historical/index.html', data)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdsenseHistoricalDataView(View):
+    """API riwayat penarikan AdSense per jam dari log_adsense_country"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        start_date = req.GET.get('start_date')
+        end_date = req.GET.get('end_date')
+        admin = req.session.get('hris_admin', {})
+
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        if not selected_account:
+            if admin.get('super_st') == '0':
+                rs_account = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+            else:
+                rs_account = data_mysql().get_all_adsense_account_data()
+            rows = (rs_account or {}).get('data') or []
+            selected_account = ','.join([
+                str((r or {}).get('account_id') or '').strip()
+                for r in rows if str((r or {}).get('account_id') or '').strip()
+            ])
+        selected_account_list = [s.strip() for s in selected_account.split(',') if s.strip()]
+
+        selected_domains = str(req.GET.get('selected_domains') or '').strip()
+        selected_domain_list = [d.strip() for d in selected_domains.split(',') if d.strip()]
+
+        selected_hours = str(req.GET.get('selected_hours') or '').strip()
+        selected_hour_list = []
+        for h in selected_hours.split(','):
+            h = h.strip()
+            if not h:
+                continue
+            try:
+                hv = int(h)
+            except ValueError:
+                continue
+            if 0 <= hv <= 23:
+                selected_hour_list.append(hv)
+        selected_hour_list = sorted(set(selected_hour_list))
+
+        if not start_date or not end_date:
+            return JsonResponse({'status': False, 'error': 'Start date and end date are required'})
+
+        try:
+            start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+            end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+
+            rs_result = data_mysql().get_all_adsense_historical_by_params(
+                start_date_formatted,
+                end_date_formatted,
+                selected_account_list,
+                selected_domain_list,
+                selected_hour_list,
+                force_clickhouse=True,
+            )
+            hasil = (rs_result or {}).get('hasil') or {}
+            if not hasil.get('status'):
+                return JsonResponse({'status': False, 'error': hasil.get('data') or 'Gagal mengambil data'})
+
+            # Gabungkan domain mentah ke base subdomain, tetap terpisah per jam penarikan.
+            rows_map = {}
+            for rs in (hasil.get('data') or []):
+                date_key = str(rs.get('date', '') or '')[:10]
+                try:
+                    pull_hour = int(rs.get('pull_hour') or 0)
+                except (TypeError, ValueError):
+                    pull_hour = 0
+                raw_site = str(rs.get('site_name', '') or '')
+                base_subdomain = extract_base_subdomain(raw_site) if raw_site else ''
+                if not base_subdomain:
+                    base_subdomain = raw_site
+
+                impressions = int(rs.get('impressions_adsense', 0) or 0)
+                clicks = int(rs.get('clicks_adsense', 0) or 0)
+                page_views = int(rs.get('page_views', 0) or 0)
+                ad_requests = int(rs.get('ad_requests', 0) or 0)
+                revenue = float(rs.get('revenue', 0.0) or 0.0)
+                pull_at = str(rs.get('pull_at', '') or '')
+
+                key = f"{date_key}|{pull_hour:02d}|{base_subdomain}"
+                entry = rows_map.get(key)
+                if entry is None:
+                    entry = {
+                        'date': date_key,
+                        'pull_hour': pull_hour,
+                        'site_name': base_subdomain,
+                        'site_name_raw': raw_site,
+                        'impressions_adsense': 0,
+                        'clicks_adsense': 0,
+                        'page_views': 0,
+                        'ad_requests': 0,
+                        'ad_requests_coverage_weighted_sum': 0.0,
+                        'active_view_viewability_weighted_sum': 0.0,
+                        'active_view_measurability_weighted_sum': 0.0,
+                        'active_view_time_weighted_sum': 0.0,
+                        'revenue': 0.0,
+                        'pull_at': pull_at,
+                    }
+                    rows_map[key] = entry
+
+                entry['impressions_adsense'] += impressions
+                entry['clicks_adsense'] += clicks
+                entry['page_views'] += page_views
+                entry['ad_requests'] += ad_requests
+                entry['ad_requests_coverage_weighted_sum'] += float(rs.get('ad_requests_coverage_weighted_sum', 0.0) or 0.0)
+                entry['active_view_viewability_weighted_sum'] += float(rs.get('active_view_viewability_weighted_sum', 0.0) or 0.0)
+                entry['active_view_measurability_weighted_sum'] += float(rs.get('active_view_measurability_weighted_sum', 0.0) or 0.0)
+                entry['active_view_time_weighted_sum'] += float(rs.get('active_view_time_weighted_sum', 0.0) or 0.0)
+                entry['revenue'] += revenue
+                if pull_at > (entry.get('pull_at') or ''):
+                    entry['pull_at'] = pull_at
+                if raw_site and raw_site != entry.get('site_name_raw'):
+                    entry['site_name_raw'] = base_subdomain
+
+            result_rows = []
+            total_impressions = 0
+            total_clicks = 0
+            total_revenue = 0.0
+            hourly_map = {}
+            for item in rows_map.values():
+                imp = int(item.get('impressions_adsense') or 0)
+                clk = int(item.get('clicks_adsense') or 0)
+                pv = int(item.get('page_views') or 0)
+                ar = int(item.get('ad_requests') or 0)
+                rev = float(item.get('revenue') or 0.0)
+
+                cpc_adsense = (rev / clk) if clk > 0 else 0.0
+                ctr = ((clk / imp) * 100) if imp > 0 else 0.0
+                ecpm = ((rev / imp) * 1000) if imp > 0 else 0.0
+                page_views_rpm = ((rev / pv) * 1000) if pv > 0 else 0.0
+                ad_requests_coverage = (float(item.get('ad_requests_coverage_weighted_sum') or 0.0) / ar) if ar > 0 else 0.0
+                active_view_viewability = (float(item.get('active_view_viewability_weighted_sum') or 0.0) / imp) if imp > 0 else 0.0
+                active_view_measurability = (float(item.get('active_view_measurability_weighted_sum') or 0.0) / imp) if imp > 0 else 0.0
+                active_view_time = (float(item.get('active_view_time_weighted_sum') or 0.0) / imp) if imp > 0 else 0.0
+
+                pull_hour = int(item.get('pull_hour') or 0)
+                bucket = hourly_map.get(pull_hour)
+                if bucket is None:
+                    bucket = {'pull_hour': pull_hour, 'impressions': 0, 'clicks': 0, 'revenue': 0.0}
+                    hourly_map[pull_hour] = bucket
+                bucket['impressions'] += imp
+                bucket['clicks'] += clk
+                bucket['revenue'] += rev
+
+                result_rows.append({
+                    'date': item.get('date') or '',
+                    'pull_hour': pull_hour,
+                    'pull_hour_label': f"{pull_hour:02d}:00",
+                    'pull_at': item.get('pull_at') or '',
+                    'site_name': item.get('site_name') or '',
+                    'site_name_raw': item.get('site_name_raw') or '',
+                    'impressions_adsense': imp,
+                    'clicks_adsense': clk,
+                    'cpc_adsense': round(cpc_adsense, 2),
+                    'ecpm': round(ecpm, 2),
+                    'ctr': round(ctr, 2),
+                    'revenue': round(rev, 2),
+                    'page_views': pv,
+                    'page_views_rpm': round(page_views_rpm, 2),
+                    'ad_requests': ar,
+                    'ad_requests_coverage': round(ad_requests_coverage, 2),
+                    'active_view_viewability': round(active_view_viewability, 2),
+                    'active_view_measurability': round(active_view_measurability, 2),
+                    'active_view_time': round(active_view_time, 2),
+                })
+
+            result_rows.sort(key=lambda x: (x['date'] or '', x['pull_hour'], x['site_name'] or ''))
+            hourly = []
+            for hour in sorted(hourly_map.keys()):
+                bucket = hourly_map[hour]
+                hourly.append({
+                    'pull_hour': hour,
+                    'pull_hour_label': f"{hour:02d}:00",
+                    'impressions': bucket['impressions'],
+                    'clicks': bucket['clicks'],
+                    'revenue': round(bucket['revenue'], 2),
+                })
+
+            latest_hour_by_date = {}
+            for row in result_rows:
+                date_key = row['date']
+                hour = int(row['pull_hour'])
+                if date_key not in latest_hour_by_date or hour > latest_hour_by_date[date_key]:
+                    latest_hour_by_date[date_key] = hour
+            summary_rows = [
+                row for row in result_rows
+                if int(row['pull_hour']) == latest_hour_by_date.get(row['date'])
+            ]
+            total_impressions = sum(int(row['impressions_adsense']) for row in summary_rows)
+            total_clicks = sum(int(row['clicks_adsense']) for row in summary_rows)
+            total_revenue = sum(float(row['revenue']) for row in summary_rows)
+            latest_hours = sorted(set(latest_hour_by_date.values()))
+            summary_hour_label = f"{latest_hours[0]:02d}:00" if len(latest_hours) == 1 else 'beragam'
+
+            summary = {
+                'total_impressions': total_impressions,
+                'total_clicks': total_clicks,
+                'total_revenue': round(total_revenue, 2),
+                'avg_cpc': round((total_revenue / total_clicks), 2) if total_clicks > 0 else 0.0,
+                'avg_ecpm': round(((total_revenue / total_impressions) * 1000), 2) if total_impressions > 0 else 0.0,
+                'avg_ctr': round(((total_clicks / total_impressions) * 100), 2) if total_impressions > 0 else 0.0,
+                'total_pull_hours': latest_hours[-1] if latest_hours else 0,
+                'summary_hour_label': summary_hour_label,
+            }
+
+            response = JsonResponse({
+                'status': True,
+                'message': 'Data historical adsense berhasil diambil',
+                'summary': summary,
+                'hourly': hourly,
+                'data': result_rows,
+                'last_update': serialize_last_update(resolve_adsense_last_update(
+                    start_date_formatted,
+                    end_date_formatted,
+                    selected_account_list,
+                    selected_domain_list,
+                )),
+            }, safe=False)
+            response['Cache-Control'] = 'no-store'
+            return response
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+
 class AdsenseTrafficAccountView(View):
     """View untuk menampilkan halaman AdSense Traffic Account"""
     def dispatch(self, request, *args, **kwargs):

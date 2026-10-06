@@ -1,0 +1,310 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Historical Hit Adsense{% endblock %}
+
+{% block page_heading %}Historical Hit Adsense{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'adsense_traffic_account' %}">Adsense Manager</a></li>
+    <li class="breadcrumb-item active">Historical Hit Adsense</li>
+{% endblock %}
+{% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
+{% include "admin/adsense_manager/_adsense_shared_styles.html" %}
+<style>
+.adsense-traffic-table-wrap .hour-badge {
+    display: inline-block; min-width: 62px; text-align: center;
+    padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    background: rgba(13, 148, 136, 0.12); color: #0f766e;
+    border: 1px solid rgba(13, 148, 136, 0.22);
+}
+html[data-theme="dark"] .adsense-traffic-table-wrap .hour-badge { color: #5eead4; }
+.adsense-traffic-page .metric-card.hours { background: linear-gradient(135deg, #0f766e 0%, #2dd4bf 100%); }
+#adsenseHistoricalChartRow.chart-collapsed .adsense-chart-wrap { display: none; }
+.adsense-hist-hint { font-size: 0.78rem; color: var(--adsense-muted); margin-top: 4px; display: block; }
+</style>
+{% endblock %}
+{% block content %}
+{% csrf_token %}
+<div class="adsense-traffic-page">
+
+<div class="card mb-3">
+    <div class="card-header">
+        <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+            <div>
+                <h3 class="card-title mb-0">Historical Hit Adsense</h3>
+                <br><small class="text-muted">Riwayat penarikan data AdSense per jam, dari tabel log penarikan</small>
+            </div>
+            <button type="button" class="btn btn-sm adsense-traffic-tour-btn" id="btnAdsenseHistoricalTour">
+                <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="adsenseHistoricalFilters" data-title="Filter" data-intro="Pilih rentang tanggal laporan, jam penarikan, lalu filter Account/Subdomain bila perlu.">
+            <div class="form-row adsense-filter-row">
+                <div class="col-md-2 mb-2 adsense-filter-field">
+                    <label class="font-weight-bold small text-muted">Range Dari</label>
+                    <input class="form-control datepicker-input" type="text" id="tanggal_dari" placeholder="YYYY-MM-DD"/>
+                </div>
+                <div class="col-md-2 mb-2 adsense-filter-field">
+                    <label class="font-weight-bold small text-muted">Range Sampai</label>
+                    <input class="form-control datepicker-input" type="text" id="tanggal_sampai" placeholder="YYYY-MM-DD"/>
+                </div>
+                <div class="col-md-2 mb-2 adsense-filter-field">
+                    <label class="font-weight-bold small text-muted">Jam Penarikan</label>
+                    <select class="form-control" id="hour_filter" multiple>
+                        {% for jam in jam_penarikan %}
+                        <option value="{{ jam }}">{{ jam|stringformat:"02d" }}:00</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2 adsense-filter-field">
+                    <label class="font-weight-bold small text-muted">Filter Account</label>
+                    <select class="form-control select2-multiple" id="account_filter" multiple>
+                        {% for account in data_account_adsense %}
+                        <option value="{{ account.account_id }}">{{ account.account_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2 adsense-filter-field">
+                    <label class="font-weight-bold small text-muted">Filter Subdomain</label>
+                    <select class="form-control" id="domain_filter" multiple>
+                        {% for domain in data_domain_adsense %}
+                        <option value="{{ domain.data_adsense_domain|default:'' }}">{{ domain.data_adsense_domain|default:'' }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-row adsense-filter-row">
+                <div class="col-md-2 adsense-filter-field">
+                    <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil riwayat penarikan sesuai filter.">
+                        <i class="fas fa-sync-alt mr-1"></i> Muat Data
+                    </button>
+                </div>
+            </div>
+        </div>
+        <p class="adsense-filter-note mb-0">
+            <small class="text-muted"><i class="bi bi-info-circle mr-1"></i>Jam Penarikan kosong berarti semua jam. Nilai tiap jam bersifat kumulatif untuk tanggal laporan tersebut, jadi angkanya menanjak sepanjang hari.</small>
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+            <h3 class="card-title mb-0"><i class="bi bi-clock-history mr-1"></i> Riwayat Penarikan AdSense</h3>
+            <span class="adsense-last-update">
+                <i class="bi bi-clock-history"></i>
+                Update terakhir <b id="hrisLastUpdateValue">{% if last_update %}{{ last_update|date:"d M Y H:i" }}{% else %}-{% endif %}</b>
+            </span>
+        </div>
+    </div>
+    <div class="card-body position-relative">
+        <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Memuat riwayat penarikan AdSense..." aria-hidden="true"></div>
+
+        <div id="adsenseHistoricalEmptyState" class="adsense-traffic-empty">
+            <div class="adsense-traffic-empty-icon"><i class="bi bi-funnel" aria-hidden="true"></i></div>
+            <div class="adsense-traffic-empty-title">Belum ada data ditampilkan</div>
+            <div>Pilih rentang tanggal, jam penarikan (opsional), lalu klik <strong>Muat Data</strong>.</div>
+        </div>
+
+        <div id="adsenseHistoricalResults" style="display:none;">
+            <div class="adsense-traffic-section" id="adsenseHistoricalSummary" data-title="Ringkasan" data-intro="Ringkasan memakai snapshot jam penarikan terakhir pada tiap tanggal, bukan penjumlahan semua jam.">
+                <div class="adsense-traffic-section-title">
+                    <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i><span>Ringkasan Performa</span>
+                </div>
+                <div class="adsense-traffic-metrics">
+                    <div class="metric-card impressions">
+                        <div class="metric-card-inner">
+                            <div><div class="metric-label">Total Impresi</div><div class="metric-value" id="total_impressions">0</div></div>
+                            <div class="metric-card-icon"><i class="bi bi-eye-fill"></i></div>
+                        </div>
+                    </div>
+                    <div class="metric-card clicks">
+                        <div class="metric-card-inner">
+                            <div><div class="metric-label">Total Klik</div><div class="metric-value" id="total_clicks">0</div></div>
+                            <div class="metric-card-icon"><i class="bi bi-cursor-fill"></i></div>
+                        </div>
+                    </div>
+                    <div class="metric-card ctr">
+                        <div class="metric-card-inner">
+                            <div><div class="metric-label">Rata-rata CTR</div><div class="metric-value" id="avg_ctr">0%</div></div>
+                            <div class="metric-card-icon"><i class="bi bi-graph-up-arrow"></i></div>
+                        </div>
+                    </div>
+                    <div class="metric-card revenue">
+                        <div class="metric-card-inner">
+                            <div><div class="metric-label">Total Pendapatan</div><div class="metric-value" id="total_revenue">Rp 0</div></div>
+                            <div class="metric-card-icon"><i class="bi bi-currency-dollar"></i></div>
+                        </div>
+                    </div>
+                    <div class="metric-card hours">
+                        <div class="metric-card-inner">
+                            <div><div class="metric-label">Jam Penarikan</div><div class="metric-value" id="total_pull_hours">0</div></div>
+                            <div class="metric-card-icon"><i class="bi bi-clock-fill"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <span class="adsense-hist-hint"><i class="bi bi-info-circle mr-1"></i>Angka di kartu ini adalah snapshot jam penarikan terakhir tiap tanggal. Kalau rentangnya lebih dari satu hari, tiap tanggal diambil jam terakhirnya lalu dijumlahkan. Tabel dan grafik tetap menampilkan semua jam.</span>
+            </div>
+
+            <div class="adsense-traffic-section" id="adsenseHistoricalChartRow" style="display:none;" data-title="Grafik" data-intro="Monitoring pendapatan per jam penarikan. Satu garis mewakili satu tanggal laporan.">
+                <div class="adsense-traffic-section-title">
+                    <div class="adsense-traffic-section-title-left">
+                        <i class="bi bi-graph-up" aria-hidden="true"></i><span>Monitoring Pendapatan per Jam Penarikan</span>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnToggleHistoricalChart" style="display:none;" aria-expanded="true" aria-controls="adsenseHistoricalChartBody">
+                        <i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Grafik
+                    </button>
+                </div>
+                <div id="adsenseHistoricalChartBody">
+                    <div class="adsense-chart-wrap"><div id="historical_chart" style="height:380px;"></div></div>
+                    <span class="adsense-hist-hint"><i class="bi bi-info-circle mr-1"></i>Garis menanjak adalah hal normal: tiap jam penarikan merekam akumulasi harian sampai jam tersebut.</span>
+                </div>
+            </div>
+
+            <div class="adsense-traffic-section adsense-traffic-table-wrap" id="adsenseHistoricalTable" data-title="Tabel" data-intro="Detail per tanggal laporan, jam penarikan, dan site.">
+                <div class="adsense-traffic-section-title">
+                    <i class="bi bi-table"></i><span>Detail Penarikan Per Site</span>
+                </div>
+                <div class="table-responsive">
+                    <table id="table_adsense_historical" class="table table-bordered adsense-traffic-table" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th class="text-center">Tanggal</th>
+                                <th class="text-center">Jam Penarikan</th>
+                                <th class="text-center">Site Name</th>
+                                <th class="text-center">Klik</th>
+                                <th class="text-center">CPC (Rp)</th>
+                                <th class="text-center">CPM (Rp)</th>
+                                <th class="text-center">CTR (%)</th>
+                                <th class="text-center">Pendapatan (Rp)</th>
+                                <th class="text-center no-export">Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="adsenseHistoricalDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content adsense-detail-modal">
+                    <div class="adsense-detail-hero">
+                        <div class="adsense-detail-hero-inner">
+                            <div class="adsense-detail-hero-icon"><i class="bi bi-clock-history"></i></div>
+                            <div class="flex-grow-1">
+                                <h5 class="adsense-detail-title">Detail Penarikan</h5>
+                                <p class="adsense-detail-subtitle">Snapshot per tanggal, jam penarikan &amp; site</p>
+                            </div>
+                            <button type="button" class="close adsense-detail-close" data-dismiss="modal" aria-label="Tutup"><span>&times;</span></button>
+                        </div>
+                    </div>
+                    <div class="modal-body adsense-detail-body">
+                        <div class="adsense-detail-context">
+                            <div class="adsense-detail-context-item">
+                                <span class="label"><i class="bi bi-calendar3"></i>Tanggal Laporan</span>
+                                <span class="value" id="adsenseHistDetailDate">-</span>
+                            </div>
+                            <div class="adsense-detail-context-item">
+                                <span class="label"><i class="bi bi-clock"></i>Waktu Penarikan</span>
+                                <span class="value" id="adsenseHistDetailPullAt">-</span>
+                            </div>
+                            <div class="adsense-detail-context-item">
+                                <span class="label"><i class="bi bi-globe2"></i>Site</span>
+                                <span class="value" id="adsenseHistDetailSite">-</span>
+                            </div>
+                        </div>
+                        <div class="adsense-detail-section-title">Metrik Utama</div>
+                        <div class="adsense-detail-metrics">
+                            <div class="adsense-detail-metric">
+                                <div class="adsense-detail-metric-label">Impresi</div>
+                                <div class="adsense-detail-metric-value" id="adsenseHistDetailImpressions">0</div>
+                            </div>
+                            <div class="adsense-detail-metric">
+                                <div class="adsense-detail-metric-label">Klik</div>
+                                <div class="adsense-detail-metric-value" id="adsenseHistDetailClicks">0</div>
+                            </div>
+                            <div class="adsense-detail-metric">
+                                <div class="adsense-detail-metric-label">CTR</div>
+                                <div class="adsense-detail-metric-value" id="adsenseHistDetailCtr">0%</div>
+                            </div>
+                            <div class="adsense-detail-metric">
+                                <div class="adsense-detail-metric-label">CPC</div>
+                                <div class="adsense-detail-metric-value" id="adsenseHistDetailCpc">Rp 0</div>
+                            </div>
+                            <div class="adsense-detail-metric">
+                                <div class="adsense-detail-metric-label">CPM</div>
+                                <div class="adsense-detail-metric-value" id="adsenseHistDetailCpm">Rp 0</div>
+                            </div>
+                            <div class="adsense-detail-metric highlight">
+                                <div class="adsense-detail-metric-label">Pendapatan</div>
+                                <div class="adsense-detail-metric-value" id="adsenseHistDetailRevenue">Rp 0</div>
+                            </div>
+                        </div>
+                        <div class="adsense-detail-section-title">Metrik Lanjutan</div>
+                        <div class="adsense-detail-extra">
+                            <div class="adsense-detail-extra-row"><span class="label">Site Raw</span><span class="value" id="adsenseHistDetailSiteRaw">-</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Page Views</span><span class="value" id="adsenseHistDetailPageViews">0</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Page Views RPM</span><span class="value" id="adsenseHistDetailPageViewsRpm">Rp 0</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Ad Requests</span><span class="value" id="adsenseHistDetailAdRequests">0</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Ad Requests Coverage</span><span class="value" id="adsenseHistDetailAdRequestsCoverage">0%</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Active View Viewability</span><span class="value" id="adsenseHistDetailActiveViewViewability">0%</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Active View Measurability</span><span class="value" id="adsenseHistDetailActiveViewMeasurability">0%</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Active View Time (sec)</span><span class="value" id="adsenseHistDetailActiveViewTime">0</span></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer adsense-detail-footer">
+                        <button type="button" class="btn adsense-detail-btn-close" data-dismiss="modal"><i class="bi bi-x-lg mr-1"></i> Tutup</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+<script>
+function loadAdsenseHistoricalScript() {
+    if (typeof Highcharts !== 'undefined') {
+        var s = document.createElement('script');
+        s.src = "{% static 'ajax/admin/adsense_manager/historical.js' %}?v={% now 'u' %}";
+        document.head.appendChild(s);
+    } else { setTimeout(loadAdsenseHistoricalScript, 100); }
+}
+loadAdsenseHistoricalScript();
+</script>
+<script>
+(function() {
+    function startAdsenseHistoricalTour() {
+        if (typeof introJs !== 'function') return;
+        var steps = [{ intro: 'Panduan singkat Historical Hit Adsense: riwayat penarikan data per jam.' }];
+        ['#adsenseHistoricalFilters', '#btn_load_data', '#adsenseHistoricalSummary', '#adsenseHistoricalChartRow', '#adsenseHistoricalTable'].forEach(function(sel) {
+            var el = document.querySelector(sel);
+            if (!el || (el.offsetWidth === 0 && el.offsetHeight === 0 && sel !== '#adsenseHistoricalFilters')) return;
+            steps.push({ element: el, title: el.getAttribute('data-title') || '', intro: el.getAttribute('data-intro') || '' });
+        });
+        steps.push({ intro: 'Selesai.' });
+        introJs().setOptions({
+            steps: steps, tooltipClass: 'hris-tour-tooltip', highlightClass: 'hris-tour-highlight',
+            nextLabel: 'Lanjut', prevLabel: 'Kembali', doneLabel: 'Selesai',
+            showProgress: true, showBullets: false
+        }).start();
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var btn = document.getElementById('btnAdsenseHistoricalTour');
+        if (btn) btn.addEventListener('click', startAdsenseHistoricalTour);
+    });
+})();
+</script>
+{% endblock %}
