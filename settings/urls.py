@@ -59,6 +59,8 @@ urlpatterns = [
     path('users/access_activity', users.AccessActivityView.as_view(), name='users_access_activity'),
     path('users/access_activity/data', users.AccessActivityDataView.as_view(), name='users_access_activity_data'),
     # Menu Master Plan
+    path('users/database_management', users.DatabaseManagementView.as_view(), name='users_database_management'),
+    path('users/database_management/data', users.DatabaseManagementDataView.as_view(), name='users_database_management_data'),
     path('users/master_plan', users.MasterPlan.as_view(), name='master_plan'),
     path('users/page_master_plan', users.page_master_plan.as_view()),
     path('users/page_detail_master_plan/<str:master_plan_id>', users.page_detail_master_plan.as_view(), name='page_detail_master_plan'),

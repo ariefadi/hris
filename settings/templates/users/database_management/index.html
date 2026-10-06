@@ -1,0 +1,263 @@
+{% extends "admin_base.html" %}
+{% load static %}
+
+{% block page_title %}Database Management{% endblock %}
+{% block page_heading %}Database Management{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'overview' %}">Settings</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'users_data' %}">Users</a></li>
+    <li class="breadcrumb-item active">Database Management</li>
+{% endblock %}
+
+{% block more_stylesheet %}
+<style>
+  .dbm-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .dbm-note { font-size:.8rem; color:#64748b; margin:6px 0 0; }
+  html[data-theme="dark"] .dbm-note { color:#94a3b8; }
+  .dbm-refresh {
+    border:0; border-radius:10px; font-weight:700; color:#fff;
+    background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);
+    padding:8px 14px; box-shadow:0 6px 16px rgba(79,70,229,.28);
+  }
+  .dbm-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:16px 0; }
+  @media (max-width:575px) { .dbm-summary { grid-template-columns:1fr; } }
+  .dbm-stat {
+    border-radius:16px; padding:14px 16px; border:1px solid rgba(148,163,184,.18);
+    background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(248,250,252,.92));
+  }
+  .dbm-stat .k { font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:800; color:#64748b; }
+  .dbm-stat .v { font-size:22px; font-weight:800; color:#0f172a; margin-top:4px; }
+  .dbm-stat .s { font-size:12px; color:#64748b; margin-top:4px; }
+  html[data-theme="dark"] .dbm-stat { background:#0f172a; border-color:#334155; }
+  html[data-theme="dark"] .dbm-stat .v { color:#f8fafc; }
+  .dbm-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+  @media (max-width:1199px) { .dbm-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:575px) { .dbm-grid { grid-template-columns:1fr; } }
+  .dbm-card {
+    border-radius:16px; padding:12px 12px 8px; border:1px solid rgba(148,163,184,.18);
+    background:#fff; box-shadow:0 10px 28px rgba(15,23,42,.05);
+  }
+  html[data-theme="dark"] .dbm-card { background:#111827; border-color:#334155; }
+  .dbm-card h4 { font-size:.92rem; font-weight:800; margin:0 4px 2px; color:#0f172a; }
+  html[data-theme="dark"] .dbm-card h4 { color:#f8fafc; }
+  .dbm-gauge { height:230px; }
+  .dbm-accounts { text-align:center; font-size:13px; font-weight:700; color:#4f46e5; margin:-8px 0 8px; }
+  html[data-theme="dark"] .dbm-accounts { color:#a5b4fc; }
+  .dbm-share { text-align:center; font-size:12px; color:#64748b; margin:-6px 0 8px; }
+  .dbm-empty { color:#94a3b8; text-align:center; padding:28px 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="dbm-head">
+            <div>
+                <h3 class="card-title mb-0"><i class="bi bi-pie-chart"></i> Mapping Memori ClickHouse</h3>
+            </div>
+            <button type="button" class="dbm-refresh" id="dbmRefresh"><i class="bi bi-arrow-clockwise"></i> Muat Ulang</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="dbm-summary">
+            <div class="dbm-stat">
+                <div class="k">Total database ClickHouse</div>
+                <div class="v" id="dbmDatabaseTotal">-</div>
+                <div class="s">Seluruh tabel di database laporan</div>
+            </div>
+            <div class="dbm-stat">
+                <div class="k">Total delapan kelompok</div>
+                <div class="v" id="dbmMappedTotal">-</div>
+                <div class="s" id="dbmMappedShare">Bagian dari total database</div>
+            </div>
+        </div>
+        <div class="dbm-grid" id="dbmGrid">
+            <div class="dbm-empty">Memuat pemakaian memori...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts-more.js"></script>
+<script>
+(function () {
+    var dataUrl = "{% url 'users_database_management_data' %}";
+    var charts = [];
+
+    function isDark() {
+        return document.documentElement.getAttribute('data-theme') === 'dark';
+    }
+
+    function destroyCharts() {
+        charts.forEach(function (chart) {
+            try { chart.destroy(); } catch (e) {}
+        });
+        charts = [];
+    }
+
+    function shortBytes(num) {
+        var value = Number(num) || 0;
+        var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        var idx = 0;
+        while (value >= 1024 && idx < units.length - 1) {
+            value /= 1024;
+            idx += 1;
+        }
+        if (idx === 0) return Math.round(value) + ' B';
+        var digits = value >= 10 ? 0 : 1;
+        return value.toFixed(digits) + ' ' + units[idx];
+    }
+
+    function render(payload) {
+        destroyCharts();
+        var dbBytes = Number(payload.database_bytes || 0);
+        var mapped = Number(payload.mapped_bytes || 0);
+        document.getElementById('dbmDatabaseTotal').textContent = payload.database_bytes_label || '-';
+        document.getElementById('dbmMappedTotal').textContent = payload.mapped_bytes_label || '-';
+        var shareEl = document.getElementById('dbmMappedShare');
+        shareEl.textContent = dbBytes > 0
+            ? ((mapped / dbBytes) * 100).toFixed(1) + '% dari total database'
+            : 'Bagian dari total database';
+
+        var grid = document.getElementById('dbmGrid');
+        grid.innerHTML = '';
+        var groups = payload.groups || [];
+        var maxBytes = mapped > 0 ? mapped : 1;
+        var dark = isDark();
+        var textColor = dark ? '#f8fafc' : '#0f172a';
+        var muted = dark ? '#94a3b8' : '#64748b';
+        var needle = dark ? '#ffffff' : '#0f172a';
+        var lowBand = dark ? '#3f3f46' : '#cbd5e1';
+
+        groups.forEach(function (group) {
+            var card = document.createElement('div');
+            card.className = 'dbm-card';
+            var gaugeId = 'dbm-gauge-' + group.key;
+            var accounts = group.show_accounts
+                ? '<div class="dbm-accounts">' + Number(group.accounts || 0).toLocaleString('id-ID') + ' account</div>'
+                : '';
+            var pct = maxBytes > 0 ? ((Number(group.bytes || 0) / maxBytes) * 100) : 0;
+            var share = group.show_accounts
+                ? ''
+                : '<div class="dbm-share">' + pct.toFixed(1) + '% dari kelompok</div>';
+            card.innerHTML =
+                '<h4>' + group.title + '</h4>' +
+                '<div class="dbm-gauge" id="' + gaugeId + '"></div>' +
+                accounts +
+                share;
+            grid.appendChild(card);
+
+            var chart = Highcharts.chart(gaugeId, {
+                chart: {
+                    type: 'gauge',
+                    backgroundColor: 'transparent',
+                    height: 230,
+                    spacing: [6, 4, 0, 4]
+                },
+                title: null,
+                credits: { enabled: false },
+                exporting: { enabled: false },
+                tooltip: {
+                    backgroundColor: dark ? '#1e293b' : '#ffffff',
+                    borderWidth: 0,
+                    shadow: false,
+                    style: { color: textColor, fontSize: '12px' },
+                    pointFormat: '<span style="color:#94a3b8">\u25CF</span> {series.name}: <b>' + group.bytes_label + '</b>'
+                },
+                pane: {
+                    startAngle: -90,
+                    endAngle: 89.9,
+                    background: null,
+                    center: ['50%', '72%'],
+                    size: '108%'
+                },
+                yAxis: {
+                    min: 0,
+                    max: maxBytes,
+                    lineWidth: 0,
+                    tickAmount: 5,
+                    tickPosition: 'inside',
+                    tickColor: muted,
+                    tickLength: 8,
+                    tickWidth: 1,
+                    minorTickInterval: null,
+                    labels: {
+                        distance: 16,
+                        style: { fontSize: '10px', color: muted, textOutline: 'none' },
+                        formatter: function () { return shortBytes(this.value); }
+                    },
+                    plotBands: [{
+                        from: 0,
+                        to: maxBytes * 0.55,
+                        color: lowBand,
+                        thickness: 16,
+                        borderRadius: '50%'
+                    }, {
+                        from: maxBytes * 0.55,
+                        to: maxBytes * 0.78,
+                        color: '#f5c400',
+                        thickness: 16
+                    }, {
+                        from: maxBytes * 0.78,
+                        to: maxBytes,
+                        color: '#22c55e',
+                        thickness: 16,
+                        borderRadius: '50%'
+                    }]
+                },
+                plotOptions: {
+                    gauge: {
+                        dataLabels: { borderWidth: 0, y: 16 }
+                    }
+                },
+                series: [{
+                    name: group.title,
+                    data: [Number(group.bytes || 0)],
+                    dataLabels: {
+                        format: '<span style="font-size:18px;font-weight:800;color:' + textColor + '">' + group.bytes_label + '</span>',
+                        style: { textOutline: 'none' }
+                    },
+                    dial: {
+                        radius: '78%',
+                        backgroundColor: needle,
+                        baseWidth: 10,
+                        topWidth: 1,
+                        baseLength: '0%',
+                        rearLength: '0%'
+                    },
+                    pivot: {
+                        backgroundColor: dark ? '#111827' : '#ffffff',
+                        radius: 6,
+                        borderWidth: 3,
+                        borderColor: needle
+                    }
+                }]
+            });
+            charts.push(chart);
+        });
+    }
+
+    function load() {
+        var grid = document.getElementById('dbmGrid');
+        grid.innerHTML = '<div class="dbm-empty">Memuat pemakaian memori...</div>';
+        fetch(dataUrl, { credentials: 'same-origin', cache: 'no-store' })
+            .then(function (res) { return res.json(); })
+            .then(function (payload) {
+                if (!payload || !payload.status) {
+                    grid.innerHTML = '<div class="dbm-empty">' + ((payload && payload.error) || 'Gagal memuat data') + '</div>';
+                    return;
+                }
+                render(payload);
+            })
+            .catch(function () {
+                grid.innerHTML = '<div class="dbm-empty">Gagal memuat data ClickHouse.</div>';
+            });
+    }
+
+    document.getElementById('dbmRefresh').addEventListener('click', load);
+    if (typeof Highcharts !== 'undefined') load();
+})();
+</script>
+{% endblock %}

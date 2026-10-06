@@ -1466,3 +1466,175 @@ class PendingRoleAssignmentsNotificationsView(View):
             return JsonResponse({'status': False, 'error': 'Failed to fetch notifications'}, status=500)
 
         return JsonResponse({'status': True, 'count': count, 'data': items})
+
+
+_CLICKHOUSE_MEMORY_GROUPS = (
+    {
+        'key': 'app_credentials',
+        'table': 'app_credentials',
+        'title': 'Data Account AdX & AdSense',
+        'source': 'app_credentials',
+        'show_accounts': True,
+        'color': '#7c3aed',
+    },
+    {
+        'key': 'master_account_ads',
+        'table': 'master_account_ads',
+        'title': 'Data Account Meta',
+        'source': 'master_account_ads',
+        'show_accounts': True,
+        'color': '#2563eb',
+    },
+    {
+        'key': 'data_ads_country',
+        'table': 'data_ads_country',
+        'title': 'Penarikan Meta Ads',
+        'source': 'data_ads_country',
+        'show_accounts': False,
+        'color': '#0284c7',
+    },
+    {
+        'key': 'data_adx_country',
+        'table': 'data_adx_country',
+        'title': 'Penarikan AdX',
+        'source': 'data_adx_country',
+        'show_accounts': False,
+        'color': '#4f46e5',
+    },
+    {
+        'key': 'data_adsense_country',
+        'table': 'data_adsense_country',
+        'title': 'Penarikan AdSense',
+        'source': 'data_adsense_country',
+        'show_accounts': False,
+        'color': '#059669',
+    },
+    {
+        'key': 'log_adx_country',
+        'table': 'log_adx_country',
+        'title': 'Log Penarikan AdX',
+        'source': 'log_adx_country',
+        'show_accounts': False,
+        'color': '#d97706',
+    },
+    {
+        'key': 'log_adsense_country',
+        'table': 'log_adsense_country',
+        'title': 'Log Penarikan AdSense',
+        'source': 'log_adsense_country',
+        'show_accounts': False,
+        'color': '#0f766e',
+    },
+    {
+        'key': 'log_ads_country',
+        'table': 'log_ads_country',
+        'title': 'Log Penarikan Meta Ads',
+        'source': 'log_ads_country',
+        'show_accounts': False,
+        'color': '#e11d48',
+    },
+)
+
+
+def _format_bytes(num):
+    value = float(num or 0)
+    units = ('B', 'KB', 'MB', 'GB', 'TB')
+    idx = 0
+    while value >= 1024 and idx < len(units) - 1:
+        value /= 1024.0
+        idx += 1
+    if idx == 0:
+        return '%d %s' % (int(value), units[idx])
+    return '%.2f %s' % (value, units[idx])
+
+
+def _clickhouse_json_rows(sql):
+    from management.database import _clickhouse_http_post
+    import json
+    resp = _clickhouse_http_post(sql.strip() + '\nFORMAT JSONEachRow', timeout=60)
+    text = (resp.text or '').strip()
+    if not text:
+        return []
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
+
+
+def _clickhouse_memory_payload():
+    tables = [item['table'] for item in _CLICKHOUSE_MEMORY_GROUPS]
+    in_list = ', '.join("'%s'" % name for name in tables)
+    size_rows = _clickhouse_json_rows(
+        "SELECT table, sum(bytes_on_disk) AS bytes "
+        "FROM system.parts "
+        "WHERE active AND database = currentDatabase() "
+        "AND table IN (%s) "
+        "GROUP BY table" % in_list
+    )
+    size_map = {}
+    for row in size_rows:
+        size_map[str(row.get('table') or '')] = int(row.get('bytes') or 0)
+
+    count_rows = _clickhouse_json_rows(
+        "SELECT "
+        "(SELECT uniqExact(account_id) FROM app_credentials) AS adx_adsense_accounts, "
+        "(SELECT uniqExact(account_id) FROM master_account_ads) AS meta_accounts, "
+        "(SELECT sum(bytes_on_disk) FROM system.parts WHERE active AND database = currentDatabase()) AS database_bytes"
+    )
+    counts = count_rows[0] if count_rows else {}
+    account_map = {
+        'app_credentials': int(counts.get('adx_adsense_accounts') or 0),
+        'master_account_ads': int(counts.get('meta_accounts') or 0),
+    }
+    database_bytes = int(counts.get('database_bytes') or 0)
+    groups = []
+    mapped_bytes = 0
+    for item in _CLICKHOUSE_MEMORY_GROUPS:
+        used = int(size_map.get(item['table']) or 0)
+        mapped_bytes += used
+        entry = {
+            'key': item['key'],
+            'title': item['title'],
+            'source': item['source'],
+            'color': item['color'],
+            'bytes': used,
+            'bytes_label': _format_bytes(used),
+            'show_accounts': item['show_accounts'],
+        }
+        if item['show_accounts']:
+            entry['accounts'] = account_map.get(item['table'], 0)
+        groups.append(entry)
+    return {
+        'status': True,
+        'database_bytes': database_bytes,
+        'database_bytes_label': _format_bytes(database_bytes),
+        'mapped_bytes': mapped_bytes,
+        'mapped_bytes_label': _format_bytes(mapped_bytes),
+        'groups': groups,
+    }
+
+
+class DatabaseManagementView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        return render(request, 'users/database_management/index.html', {
+            'title': 'Database Management',
+            'user': request.session.get('hris_admin', {}),
+        })
+
+
+class DatabaseManagementDataView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        try:
+            payload = _clickhouse_memory_payload()
+        except Exception as exc:
+            return JsonResponse({'status': False, 'error': str(exc)}, status=500)
+        response = JsonResponse(payload)
+        response['Cache-Control'] = 'no-store'
+        return response
