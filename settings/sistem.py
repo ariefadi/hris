@@ -137,6 +137,41 @@ def _today_activity_snapshot():
     }
 
 
+def _overview_database_memory():
+    empty = {
+        'status': False,
+        'database_bytes': 0,
+        'database_bytes_label': '-',
+        'mapped_bytes': 0,
+        'mapped_bytes_label': '-',
+        'groups': [],
+    }
+    try:
+        from settings.users import _clickhouse_memory_payload
+        payload = _clickhouse_memory_payload() or {}
+    except Exception as e:
+        print(f"[ERROR] Gagal memuat mapping memori ClickHouse: {e}")
+        return empty
+    groups = []
+    for item in (payload.get('groups') or []):
+        groups.append({
+            'title': item.get('title') or '-',
+            'bytes': int(item.get('bytes') or 0),
+            'bytes_label': item.get('bytes_label') or '0 B',
+            'color': item.get('color') or '#6366f1',
+            'accounts': item.get('accounts'),
+            'show_accounts': bool(item.get('show_accounts')),
+        })
+    return {
+        'status': True,
+        'database_bytes': int(payload.get('database_bytes') or 0),
+        'database_bytes_label': payload.get('database_bytes_label') or '-',
+        'mapped_bytes': int(payload.get('mapped_bytes') or 0),
+        'mapped_bytes_label': payload.get('mapped_bytes_label') or '-',
+        'groups': groups,
+    }
+
+
 def _build_settings_overview_payload(db=None):
     db = db or data_mysql()
     summary_resp = db.get_overview_user_summary()
@@ -176,6 +211,7 @@ def _build_settings_overview_payload(db=None):
         'recent_logins': recent_logins,
         'current_users': current_users,
         'current_users_count': int((online_resp or {}).get('count') or len(current_users)),
+        'database_memory': _overview_database_memory(),
         **_today_activity_snapshot(),
     })
 

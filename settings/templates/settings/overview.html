@@ -205,6 +205,8 @@
     text-align: center;
     padding: 28px 12px;
   }
+  .so-db-grid { margin-top: 16px; }
+  .so-chart-box--db { height: 340px; }
   .so-monitor-grid { margin-top: 16px; }
   .so-breakdown {
     margin-top: 12px;
@@ -362,6 +364,28 @@
         <div class="so-panel__body">
           <div id="soLoginList" class="so-login-list">
             <div class="so-empty">Memuat log login...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row so-db-grid">
+    <div class="col-12">
+      <div class="so-panel">
+        <div class="so-panel__head">
+          <div>
+            <h4 class="so-panel__title">Mapping Memori ClickHouse</h4>
+            <p class="so-panel__sub" id="soDatabaseSub">Pemakaian disk delapan kelompok data</p>
+          </div>
+          <div class="so-panel__head-actions">
+            <span class="so-kpi" id="soDatabaseKpi">-</span>
+            <a href="{% url 'users_database_management' %}" class="btn btn-sm btn-outline-primary">Detail</a>
+          </div>
+        </div>
+        <div class="so-panel__body">
+          <div class="so-chart-box so-chart-box--db">
+            <canvas id="soDatabaseChart"></canvas>
           </div>
         </div>
       </div>
@@ -533,6 +557,7 @@
   var userCompareChart = null;
   var durationTodayChart = null;
   var accessTodayChart = null;
+  var databaseChart = null;
 
   function chartColors() {
     var dark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -547,6 +572,88 @@
     var out = [];
     for (var i = 0; i < n; i++) out.push(colors[i % colors.length]);
     return out;
+  }
+
+  function shortBytes(num) {
+    var value = Number(num) || 0;
+    var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var idx = 0;
+    while (value >= 1024 && idx < units.length - 1) {
+      value /= 1024;
+      idx += 1;
+    }
+    if (idx === 0) return Math.round(value) + ' B';
+    var digits = value >= 10 ? 0 : 1;
+    return value.toFixed(digits) + ' ' + units[idx];
+  }
+
+  function renderDatabaseMemory(data) {
+    var payload = data || {};
+    var groups = Array.isArray(payload.groups) ? payload.groups : [];
+    var kpi = document.getElementById('soDatabaseKpi');
+    if (kpi) kpi.textContent = payload.mapped_bytes_label || '-';
+    var sub = document.getElementById('soDatabaseSub');
+    if (sub) {
+      sub.textContent = payload.status
+        ? ('Total database ' + (payload.database_bytes_label || '-') + ' · delapan kelompok ' + (payload.mapped_bytes_label || '-'))
+        : 'Pemakaian disk delapan kelompok data belum tersedia';
+    }
+    var canvas = document.getElementById('soDatabaseChart');
+    if (!canvas || !window.Chart) return;
+    var labels = groups.map(function (g) { return g.title; });
+    var values = groups.map(function (g) { return Number(g.bytes) || 0; });
+    var colors = groups.map(function (g) { return g.color || '#6366f1'; });
+    var theme = chartColors();
+    if (databaseChart) databaseChart.destroy();
+    databaseChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels.length ? labels : ['Tidak ada data'],
+        datasets: [{
+          label: 'Pemakaian disk',
+          data: labels.length ? values : [0],
+          backgroundColor: labels.length ? colors : ['#94a3b8'],
+          borderRadius: 8,
+          maxBarThickness: 28,
+          minBarLength: 4,
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var group = groups[ctx.dataIndex] || {};
+                var text = group.bytes_label || shortBytes(ctx.raw);
+                if (group.show_accounts) {
+                  text += ' · ' + fmtNum(group.accounts) + ' account';
+                }
+                return text;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: {
+              color: theme.text,
+              callback: function (value) { return shortBytes(value); }
+            },
+            grid: { color: theme.grid },
+            title: { display: true, text: 'Pemakaian disk', color: theme.text },
+          },
+          y: {
+            ticks: { color: theme.text },
+            grid: { display: false },
+          },
+        },
+      },
+    });
   }
 
   function renderBreakdown(id, rows, valueKey, suffix) {
@@ -788,6 +895,7 @@
     renderUserCompareChart(payload.summary || {});
     renderCurrentUsers(payload.current_users || [], payload.current_users_count);
     renderLoginList(payload.recent_logins || []);
+    renderDatabaseMemory(payload.database_memory || {});
     renderDurationToday(payload.duration_today || {});
     renderAccessToday(payload.access_today || {});
   }
@@ -801,6 +909,7 @@
         if (!data) return;
         renderLoginHourChart(data.login_by_hour || [], data.login_hour_days || 7);
         renderUserCompareChart(data.summary || {});
+        renderDatabaseMemory(data.database_memory || {});
         renderDurationToday(data.duration_today || {});
         renderAccessToday(data.access_today || {});
       });
