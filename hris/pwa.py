@@ -18,7 +18,7 @@ def web_manifest(request):
         'name': 'Kiwipixel Analytics',
         'short_name': 'Kiwipixel',
         'description': 'Portal admin analytics, monetisasi, dan manajemen iklan.',
-        'start_url': '/management/admin/dashboard',
+        'start_url': '/management/admin/dashboard?layout=m1',
         'scope': '/',
         'display': 'standalone',
         'orientation': 'portrait-primary',

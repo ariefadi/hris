@@ -1,5 +1,5 @@
 /* Kiwipixel Analytics PWA service worker */
-const CACHE_NAME = 'kiwipixel-pwa-v2';
+const CACHE_NAME = 'kiwipixel-pwa-v3';
 const PRECACHE = [
     '/static/pwa/icon-192.png',
     '/static/pwa/icon-512.png',

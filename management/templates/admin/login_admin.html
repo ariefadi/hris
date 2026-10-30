@@ -3,7 +3,19 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, viewport-fit=cover">
+        <script>
+        (function () {
+            try {
+                var ua = navigator.userAgent || '';
+                var isPhone = /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
+                    || (navigator.maxTouchPoints || 0) > 0
+                    || window.matchMedia('(max-width: 991.98px)').matches;
+                if (isPhone) document.documentElement.classList.add('hris-compact-ui');
+                document.documentElement.style.zoom = '1';
+            } catch (err) {}
+        })();
+        </script>
         <script>
         (function () {
             try {
@@ -67,6 +79,7 @@
         crossorigin="anonymous"
         />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
+        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_mobile_layout.css' %}?v=12">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -980,6 +993,6 @@
         window.HRIS_PWA = { swUrl: "{% url 'pwa_service_worker' %}" };
         </script>
         <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=3"></script>
-        <script src="{% static 'ajax/admin/shared/hris_pwa_shell.js' %}?v=5"></script>
+        <script src="{% static 'ajax/admin/shared/hris_pwa_shell.js' %}?v=18"></script>
     </body>
 </html>

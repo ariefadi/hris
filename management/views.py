@@ -3505,6 +3505,7 @@ def _user_has_role(user_id, role_id):
             pass
 
 
+@method_decorator(never_cache, name='dispatch')
 class DashboardAdmin(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:

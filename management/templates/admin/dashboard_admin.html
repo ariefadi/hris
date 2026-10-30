@@ -1240,7 +1240,8 @@ html[data-theme="dark"] .ds-perf-filter-legend .is-good { color: #6ee7b7; }
     margin: 14px 16px 18px;
     border-radius: 14px;
     border: 1px solid rgba(148, 163, 184, 0.16);
-    overflow: visible !important;
+    overflow-x: auto;
+    overflow-y: visible;
     background: #fff;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
@@ -1257,7 +1258,7 @@ html[data-theme="dark"] .ds-perf-filter-legend .is-good { color: #6ee7b7; }
 .detail-scoring-card .dataTables_wrapper {
     width: 100% !important;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: visible;
 }
 .detail-scoring-card #dashboardRecapTable thead th {
@@ -4233,7 +4234,9 @@ html[data-theme="dark"] .score-detail-modal__body .scx-campaign-table tbody tr.s
     background: rgba(99, 102, 241, 0.22) !important;
 }
 #scxCampaignTableWrap {
-    overflow: visible;
+    overflow-x: auto;
+    overflow-y: visible;
+    max-width: 100%;
 }
 #scxCampaignTableWrap .dataTables_wrapper {
     padding: 10px 8px 8px;
@@ -6436,6 +6439,22 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
         max-width: 100%;
         overflow-x: hidden;
     }
+    .detail-scoring-table-wrap,
+    .detail-scoring-table-wrap.table-responsive,
+    .detail-scoring-card .dataTables_wrapper,
+    .table-responsive {
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
+    }
+    .detail-scoring-card #dashboardRecapTable,
+    .dashboard-recap-table,
+    #dashboardAccountRelationTable {
+        width: max-content !important;
+        min-width: 100% !important;
+        font-size: 13.5px;
+    }
     .db-hero {
         margin: 0 0 14px;
         padding: 18px 16px 20px;
@@ -6746,6 +6765,43 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:hover,
 html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
     background: rgba(99, 102, 241, 0.16);
 }
+
+@media (max-width: 991.98px) {
+    html, body, .wrapper, .content-wrapper, .content, .container-fluid, .dashboard-admin-content {
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+    .content-wrapper, .main-header, .main-footer {
+        margin-left: 0 !important;
+    }
+    .db-hero-title { font-size: 1.5rem !important; }
+    .db-hero-sub { font-size: 15px !important; }
+    .detail-scoring-table-wrap,
+    .detail-scoring-table-wrap.table-responsive,
+    .detail-scoring-card .dataTables_wrapper,
+    .dashboard-recap-card .table-responsive,
+    .table-responsive {
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .detail-scoring-card #dashboardRecapTable,
+    .dashboard-recap-table,
+    #dashboardAccountRelationTable {
+        font-size: 15px !important;
+        width: max-content !important;
+        max-width: none !important;
+    }
+    .detail-scoring-card #dashboardRecapTable thead th,
+    .detail-scoring-card #dashboardRecapTable tbody td,
+    .dashboard-recap-table th,
+    .dashboard-recap-table td {
+        font-size: 15px !important;
+        padding: 11px 12px !important;
+    }
+}
 </style>
 {% endblock %}
 
@@ -6866,10 +6922,10 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                     <div class="card-body">
                         {% if not hide_earning_finance %}
                         <div class="row" id="dashboardRecapSummaryRow">
-                            <div class="col-12 col-sm-6 col-md-3"><div class="metric-card spend"><div class="metric-card-inner"><div><div class="metric-label">Total Spend</div><div class="metric-value" id="recapTotalSpend">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></div></div></div></div>
-                            <div class="col-12 col-sm-6 col-md-3"><div class="metric-card revenue"><div class="metric-card-inner"><div><div class="metric-label">Total Pendapatan</div><div class="metric-value" id="recapTotalRevenue">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-currency-dollar"></i></div></div></div></div>
-                            <div class="col-12 col-sm-6 col-md-3"><div class="metric-card net"><div class="metric-card-inner"><div><div class="metric-label">Total Pendapatan Bersih</div><div class="metric-value" id="recapTotalNet">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-graph-up"></i></div></div></div></div>
-                            <div class="col-12 col-sm-6 col-md-3"><div class="metric-card roi"><div class="metric-card-inner"><div><div class="metric-label">ROI Nett</div><div class="metric-value" id="recapTotalRoi">0%</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-bullseye"></i></div></div></div></div>
+                            <div class="col-6 col-lg-3"><div class="metric-card spend"><div class="metric-card-inner"><div><div class="metric-label">Total Spend</div><div class="metric-value" id="recapTotalSpend">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></div></div></div></div>
+                            <div class="col-6 col-lg-3"><div class="metric-card revenue"><div class="metric-card-inner"><div><div class="metric-label">Total Pendapatan</div><div class="metric-value" id="recapTotalRevenue">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-currency-dollar"></i></div></div></div></div>
+                            <div class="col-6 col-lg-3"><div class="metric-card net"><div class="metric-card-inner"><div><div class="metric-label">Total Pendapatan Bersih</div><div class="metric-value" id="recapTotalNet">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-graph-up"></i></div></div></div></div>
+                            <div class="col-6 col-lg-3"><div class="metric-card roi"><div class="metric-card-inner"><div><div class="metric-label">ROI Nett</div><div class="metric-value" id="recapTotalRoi">0%</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-bullseye"></i></div></div></div></div>
                         </div>
                         {% endif %}
 
@@ -6988,7 +7044,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                             <th class="text-center">Score</th>
                                             <th class="text-center js-perf-indicator-col">Performance <br> Indicator</th>
                                             <th class="text-center">Hasil <br> Keputusan</th>
-                                            <th class="text-center js-pwa-detail-col">Detail</th>
+                                            <th class="text-center">Detail</th>
                                         </tr>
                                     </thead>
                                     <tbody id="dashboardRecapTbody"></tbody>
@@ -17618,6 +17674,7 @@ function initDashboardRecap() {
             order: [[3, 'desc']],
             autoWidth: false,
             responsive: false,
+            scrollX: false,
             destroy: true,
             dom: hasDtButtons
                 ? (hideEarningFinance
@@ -18187,7 +18244,7 @@ function initDashboardRecap() {
             const n = Math.max(0, Math.round(Number(v) || 0));
             return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         };
-        let html = '<table id="scxCampaignDataTable" class="table table-striped table-bordered scx-data-table scx-campaign-table" style="width:100%"><thead><tr>';
+        let html = '<table id="scxCampaignDataTable" class="table table-striped table-bordered scx-data-table scx-campaign-table"><thead><tr>';
         html += '<th class="text-center" style="width:42px;">No</th>';
         html += '<th>Nama Campaign</th>';
         html += '<th>Account Ads</th>';
@@ -20990,7 +21047,7 @@ function initDashboardRecap() {
 
             let h = '';
             h += '<div class="table-responsive">';
-            h += '<table class="table table-sm table-striped" style="margin:0;font-size:12px;table-layout:fixed;">';
+            h += '<table class="table table-sm table-striped scx-data-table" style="margin:0;font-size:12px;">';
             h += '<thead><tr>';
             h += '<th style="width:34px;" class="text-center"><input type="checkbox" id="sdCampCheckAll"></th>';
             h += '<th style="min-width:280px;">Campaign</th>';
