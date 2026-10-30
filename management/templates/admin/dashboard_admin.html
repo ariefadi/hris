@@ -186,6 +186,36 @@
     color: var(--db-primary);
 }
 
+.dashboard-chart-split-row {
+    margin-left: -8px;
+    margin-right: -8px;
+}
+.dashboard-chart-split-row > [class*="col-"] {
+    padding-left: 8px;
+    padding-right: 8px;
+    margin-bottom: 12px;
+}
+.dashboard-chart-split-row .dashboard-card {
+    height: 100%;
+}
+.dashboard-chart-split-row .dashboard-card .card-header {
+    padding: 12px 16px;
+    align-items: flex-start;
+}
+.dashboard-chart-split-row .dashboard-card .card-header > div:first-child {
+    font-size: 13px;
+    line-height: 1.35;
+    max-width: 100%;
+}
+.dashboard-chart-split-row .dashboard-card .card-body {
+    padding: 12px 16px 16px;
+}
+@media (max-width: 991.98px) {
+    .dashboard-chart-split-row > [class*="col-"] {
+        margin-bottom: 10px;
+    }
+}
+
 .metric-card {
     position: relative;
     overflow: hidden;
@@ -1205,30 +1235,30 @@ html[data-theme="dark"] .ds-perf-filter-legend .is-good { color: #6ee7b7; }
     background: rgba(239, 68, 68, .08);
     border: 1px solid rgba(239, 68, 68, .18);
 }
-.detail-scoring-table-wrap {
+.detail-scoring-table-wrap,
+.detail-scoring-table-wrap.table-responsive {
     margin: 14px 16px 18px;
     border-radius: 14px;
     border: 1px solid rgba(148, 163, 184, 0.16);
-    overflow-x: auto;
-    overflow-y: visible;
-    -webkit-overflow-scrolling: touch;
+    overflow: visible !important;
     background: #fff;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 .detail-scoring-card #dashboardRecapTable {
     margin: 0;
     border: 0 !important;
-    min-width: 1080px;
+    min-width: 860px;
     width: 100%;
     table-layout: auto;
 }
-.detail-scoring-card .dataTables_wrapper {
-    overflow: visible;
+.detail-scoring-card.is-country-dim #dashboardRecapTable {
+    min-width: 720px;
 }
-.detail-scoring-card .dataTables_wrapper .dataTables_scroll,
-.detail-scoring-card .dataTables_wrapper .dataTables_scrollHead,
-.detail-scoring-card .dataTables_wrapper .dataTables_scrollBody {
-    overflow: visible !important;
+.detail-scoring-card .dataTables_wrapper {
+    width: 100% !important;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: visible;
 }
 .detail-scoring-card #dashboardRecapTable thead th {
     background: linear-gradient(180deg, #f1f5f9 0%, #e8eef5 100%);
@@ -1342,12 +1372,58 @@ html[data-theme="dark"] .ds-perf-filter-legend .is-good { color: #6ee7b7; }
     border-color: var(--db-primary);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
+.detail-scoring-card .ds-dt-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+}
+.detail-scoring-card .ds-dt-footer,
+.detail-scoring-card .ds-dt-footer__left,
+.detail-scoring-card .ds-dt-footer__right {
+    min-width: 0;
+}
+.detail-scoring-card .ds-dt-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-top: 12px;
+    width: 100%;
+    max-width: 100%;
+}
+.detail-scoring-card .ds-dt-footer__right {
+    margin-left: auto;
+}
 .detail-scoring-card .dataTables_info {
+    float: none !important;
     font-size: 12px;
     color: var(--db-muted);
     font-weight: 600;
+    padding-top: 4px;
+    white-space: nowrap;
 }
-.detail-scoring-card .dataTables_paginate .paginate_button {
+.detail-scoring-card .dataTables_paginate {
+    float: none !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0;
+    padding-top: 0;
+    width: auto;
+    max-width: 100%;
+}
+.detail-scoring-card .dataTables_paginate .pagination {
+    display: flex !important;
+    flex-wrap: wrap;
+    margin: 0;
+    gap: 4px;
+}
+.detail-scoring-card .dataTables_paginate .paginate_button,
+.detail-scoring-card .dataTables_paginate .page-item .page-link {
     border-radius: 8px !important;
     margin: 0 2px;
     font-weight: 700;
@@ -1759,6 +1835,20 @@ html[data-theme="dark"] .ds-roi--zero { background: rgba(148, 163, 184, 0.16); c
 html[data-theme="dark"] .ds-decision--pending { background: rgba(51, 65, 85, 0.65); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.28); }
 html[data-theme="dark"] .ds-decision--scale-down { color: #fff; }
 html[data-theme="dark"] .ds-update-badge { background: rgba(248, 113, 113, 0.18); color: #fca5a5; border-color: rgba(248, 113, 113, 0.32); }
+html[data-theme="dark"] .detail-scoring-card .dataTables_paginate .paginate_button,
+html[data-theme="dark"] .detail-scoring-card .dataTables_paginate .page-item .page-link {
+    background: #0f172a !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(148, 163, 184, 0.35) !important;
+}
+html[data-theme="dark"] .detail-scoring-card .dataTables_paginate .paginate_button.current,
+html[data-theme="dark"] .detail-scoring-card .dataTables_paginate .page-item.active .page-link,
+html[data-theme="dark"] .detail-scoring-card .dataTables_paginate .paginate_button:hover,
+html[data-theme="dark"] .detail-scoring-card .dataTables_paginate .page-item .page-link:hover {
+    background: #1d4ed8 !important;
+    color: #fff !important;
+    border-color: #1d4ed8 !important;
+}
 
 .sd-wrap { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
 .sd-card { flex: 1; min-width: 320px; background: #f8fafc; border: 1px solid rgba(15,23,42,0.08); border-radius: 14px; padding: 12px 14px; }
@@ -1917,6 +2007,51 @@ html[data-theme="dark"] .sd-details .sd-det-body {
 }
 html[data-theme="dark"] .sd-metric .k { color: rgba(226,232,240,0.75); }
 html[data-theme="dark"] .sd-metric .v { color: rgba(226,232,240,0.95); }
+
+#dashboardHistHitCompareCard .dashboard-hist-hit-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+#dashboardHistHitCompareCard .dashboard-hist-hit-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    border: 1px solid transparent;
+}
+#dashboardHistHitCompareCard .dashboard-hist-hit-chip::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+#dashboardHistHitCompareCard .dashboard-hist-hit-chip.adx {
+    color: #4338ca;
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.22);
+}
+#dashboardHistHitCompareCard .dashboard-hist-hit-chip.adx::before { background: #6366f1; }
+#dashboardHistHitCompareCard .dashboard-hist-hit-chip.adsense {
+    color: #047857;
+    background: rgba(5, 150, 105, 0.12);
+    border-color: rgba(5, 150, 105, 0.22);
+}
+#dashboardHistHitCompareCard .dashboard-hist-hit-chip.adsense::before { background: #059669; }
+#dashboardHistHitCompareCard .dashboard-hist-hit-chip.ads {
+    color: #1d4ed8;
+    background: rgba(24, 119, 242, 0.12);
+    border-color: rgba(24, 119, 242, 0.22);
+}
+#dashboardHistHitCompareCard .dashboard-hist-hit-chip.ads::before { background: #1877F2; }
+html[data-theme="dark"] #dashboardHistHitCompareCard .dashboard-hist-hit-chip.adx { color: #c7d2fe; }
+html[data-theme="dark"] #dashboardHistHitCompareCard .dashboard-hist-hit-chip.adsense { color: #6ee7b7; }
+html[data-theme="dark"] #dashboardHistHitCompareCard .dashboard-hist-hit-chip.ads { color: #93c5fd; }
 
 #dashboardRecapTemporalCard .roi-heatmap-title {
     display: flex;
@@ -4018,6 +4153,15 @@ html[data-theme="dark"] .score-detail-modal__body .scx-campaign-active-toggle .s
     cursor: pointer;
     word-break: break-word;
 }
+.score-detail-modal__body .scx-campaign-search-suggest-label {
+    display: block;
+}
+.score-detail-modal__body .scx-campaign-search-suggest-meta {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    color: #64748b;
+}
 .score-detail-modal__body .scx-campaign-search-suggest-item + .scx-campaign-search-suggest-item {
     border-top: 1px solid rgba(148, 163, 184, 0.14);
 }
@@ -4058,6 +4202,9 @@ html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-mark {
 html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-suggest-empty {
     color: #94a3b8;
 }
+html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-suggest-meta {
+    color: #94a3b8;
+}
 .score-detail-modal__body .scx-campaign-table tbody tr.scx-campaign-row-focus td {
     background: rgba(99, 102, 241, 0.14) !important;
     transition: background 0.25s ease;
@@ -4073,6 +4220,11 @@ html[data-theme="dark"] .score-detail-modal__body .scx-campaign-search-suggest-e
     font-weight: 500;
     word-break: break-word;
     line-height: 1.35;
+}
+.score-detail-modal__body .scx-campaign-account-cell {
+    word-break: break-word;
+    line-height: 1.35;
+    min-width: 120px;
 }
 .score-detail-modal__body .scx-campaign-run-badge {
     margin-top: 2px;
@@ -6279,12 +6431,30 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
 }
 
 @media (max-width: 768px) {
-    .db-hero {
-        margin: -8px -8px 20px;
-        padding: 22px 18px 26px;
-        border-radius: 0 0 14px 14px;
+    .dashboard-admin-content {
+        padding: 0 0 20px;
+        max-width: 100%;
+        overflow-x: hidden;
     }
+    .db-hero {
+        margin: 0 0 14px;
+        padding: 18px 16px 20px;
+        border-radius: 14px;
+    }
+    .db-hero-actions { display: none; }
     .db-hero-inner { flex-direction: column; align-items: flex-start; }
+    .db-hero-sub { max-width: none; font-size: 13px; }
+    .dashboard-card,
+    .dashboard-recap-card {
+        max-width: 100%;
+    }
+    .dashboard-recap-card > .card-header {
+        padding: 14px 14px 12px;
+    }
+    .dashboard-recap-header .select2-container {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
     .dashboard-recap-header {
         flex-direction: column;
         align-items: stretch;
@@ -6581,7 +6751,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
 
 {% block navbar_extra_items %}
 <li class="nav-item dropdown" id="dashboardCampaignNotif">
-    <a class="nav-link" data-toggle="dropdown" href="#" aria-expanded="false" aria-label="Notifikasi campaign perlu tindakan" title="Campaign perlu Stop / Scale Down">
+    <a class="nav-link" data-toggle="dropdown" data-display="static" href="#" aria-expanded="false" aria-label="Notifikasi campaign perlu tindakan" title="Campaign perlu Stop / Scale Down">
         <i class="bi bi-bell"></i>
         <span class="badge badge-danger navbar-badge" id="dashboardCampaignNotifCount" style="display:none">0</span>
     </a>
@@ -6803,7 +6973,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                 </div>
                             </div>
                             <div id="dashboardScoringStatusBanner" class="detail-scoring-status-banner" style="display:none;" role="status" aria-live="polite"></div>
-                            <div class="detail-scoring-table-wrap table-responsive">
+                            <div class="detail-scoring-table-wrap">
                                 <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardRecapTable" data-hris-roi-tier-filter="manual" data-hris-roi-tier-filter-mount="#dashboardRecapRoiTierFilter" data-hris-roi-column="7">
                                     <thead>
                                         <tr id="dashboardRecapHeadMain">
@@ -6818,7 +6988,7 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                                             <th class="text-center">Score</th>
                                             <th class="text-center js-perf-indicator-col">Performance <br> Indicator</th>
                                             <th class="text-center">Hasil <br> Keputusan</th>
-                                            <th class="text-center">Detail</th>
+                                            <th class="text-center js-pwa-detail-col">Detail</th>
                                         </tr>
                                     </thead>
                                     <tbody id="dashboardRecapTbody"></tbody>
@@ -6879,34 +7049,55 @@ html[data-theme="dark"] .dashboard-campaign-notif-item:focus {
                         {% endif %}
 
                         {% if not hide_earning_finance %}
-                        <div class="card dashboard-card mt-2" id="dashboardPulseCard" style="border-radius:16px;">
-                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
-                                <div style="font-weight:900;"><i class="bi bi-activity me-2"></i> Grafik Matrik Data (14 Hari + Prediksi 3 Hari)</div>
-                                <div class="d-flex align-items-center" style="gap:10px;flex-wrap:wrap;">
-                                    <div class="dashboard-recap-tabs" id="dashboardPulseTabs" role="tablist" aria-label="Portfolio Pulse">
-                                        <button type="button" class="btn btn-sm btn-primary" data-metric="roi">ROI %</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-metric="spend">SPEND</button>
+                        <div class="row dashboard-chart-split-row mt-2">
+                            <div class="col-lg-6">
+                                <div class="card dashboard-card" id="dashboardPulseCard" style="border-radius:16px;">
+                                    <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:8px;">
+                                        <div style="font-weight:900;"><i class="bi bi-activity me-2"></i> Grafik Matrik Data (14 Hari + Prediksi 3 Hari)</div>
+                                        <div class="d-flex align-items-center" style="gap:8px;flex-wrap:wrap;">
+                                            <div class="dashboard-recap-tabs" id="dashboardPulseTabs" role="tablist" aria-label="Portfolio Pulse">
+                                                <button type="button" class="btn btn-sm btn-primary" data-metric="roi">ROI %</button>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" data-metric="spend">SPEND</button>
+                                            </div>
+                                            <div class="text-muted" style="font-size:12px" id="dashboardPulseMeta"></div>
+                                        </div>
                                     </div>
-                                    <div class="text-muted" style="font-size:12px" id="dashboardPulseMeta"></div>
+                                    <div class="card-body">
+                                        <div class="chart-container" style="height: 280px; margin: 0;">
+                                            <canvas id="dashboardPortfolioPulseChart"></canvas>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <div class="chart-container" style="height: 340px; margin: 0;">
-                                    <canvas id="dashboardPortfolioPulseChart"></canvas>
+                            <div class="col-lg-6">
+                                <div class="card dashboard-card" id="dashboardRecapCompareCard" style="border-radius:16px;">
+                                    <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:8px;">
+                                        <div style="font-weight:900;"><i class="bi bi-bar-chart-line me-2"></i> Perbandingan Spend, Pendapatan, Pendapatan Bersih &amp; ROI</div>
+                                        <div class="text-muted" style="font-size:12px" id="dashboardRecapChartMeta"></div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container" style="height: 280px; margin: 0;">
+                                            <canvas id="dashboardRecapChart"></canvas>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        {% endif %}
 
-                        {% if not hide_earning_finance %}
-                        <div class="card dashboard-card mt-2" id="dashboardRecapCompareCard" style="border-radius:16px;">
+                        <div class="card dashboard-card mt-3" id="dashboardHistHitCompareCard" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
-                                <div style="font-weight:900;"><i class="bi bi-bar-chart-line me-2"></i> Perbandingan Spend, Pendapatan, Pendapatan Bersih & ROI</div>
-                                <div class="text-muted" style="font-size:12px" id="dashboardRecapChartMeta"></div>
+                                <div style="font-weight:900;"><i class="bi bi-graph-up me-2"></i> Perbandingan Historical Hit AdX, AdSense &amp; Ads (Per Jam)</div>
+                                <div class="text-muted" style="font-size:12px" id="dashboardHistHitCompareMeta">Memuat...</div>
                             </div>
                             <div class="card-body">
-                                <div class="chart-container" style="height: 340px; margin: 0;">
-                                    <canvas id="dashboardRecapChart"></canvas>
+                                <div class="dashboard-hist-hit-legend" aria-hidden="true">
+                                    <span class="dashboard-hist-hit-chip adx">AdX Pendapatan</span>
+                                    <span class="dashboard-hist-hit-chip adsense">AdSense Pendapatan</span>
+                                    <span class="dashboard-hist-hit-chip ads">Ads Spend</span>
+                                </div>
+                                <div id="dashboardHistHitCompareChart" style="height:380px;"></div>
+                                <div class="text-muted" style="font-size:12px;margin-top:8px;">
+                                    Garis menanjak adalah hal normal: tiap jam penarikan merekam akumulasi harian sampai jam tersebut, sama seperti grafik di Historical Hit AdX, AdSense, dan Ads.
                                 </div>
                             </div>
                         </div>
@@ -8462,7 +8653,8 @@ function startDashboardTour() {
         ['#dashboardRecapTable', 'Detail Scoring', 'Tabel detail scoring per subdomain/campaign. Filter berdasarkan keputusan: Scale Up, Hold, Pause, dll.'],
         ['#dashboardWinningCampaignCard', 'Winning Campaign', 'Top 5 campaign terbaik dan terburuk berdasarkan score.'],
         ['#dashboardPulseCard', 'Grafik Matrik', 'Trend ROI atau Spend 14 hari terakhir plus prediksi 3 hari ke depan.'],
-        ['#dashboardRecapChart', 'Grafik Perbandingan', 'Perbandingan visual Spend, Pendapatan, Pendapatan Bersih, dan ROI.']
+        ['#dashboardRecapChart', 'Grafik Perbandingan', 'Perbandingan visual Spend, Pendapatan, Pendapatan Bersih, dan ROI.'],
+        ['#dashboardHistHitCompareCard', 'Historical Hit Per Jam', 'Perbandingan pergerakan per jam dari Historical Hit AdX, AdSense, dan Ads pada tanggal yang dipilih.']
     ];
 
     sections.forEach(function(item) {
@@ -10583,16 +10775,14 @@ async function decisionInlineLoadCampaigns(storeKey) {
     const entry = window.detailKeputusanStore && window.detailKeputusanStore[sk];
     const row = entry?.row || {};
     const ymd = String(entry?.state?.date || '').trim();
-    const accountAds = String(row?.account_ads || '').trim();
+    const accountList = lookupDomainAccountList(row);
+    const accountAds = accountList[0] || String(row?.account_ads || '').trim();
     const siteName = String(row?.name || row?.domain || row?.site || '').trim();
     if (!ymd || !accountAds || !siteName) throw new Error('Context domain/account/tanggal tidak valid');
     const d = new Date(ymd + 'T00:00:00'); d.setDate(d.getDate() - 6);
     const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    const qs = new URLSearchParams({ account_ads: accountAds, site_name: siteName, start_date: start, end_date: ymd });
-    const resp = await fetch('/management/admin/page_monitoring_domain_campaigns?' + qs.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-    const json = await resp.json();
-    if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat campaigns');
-    return { accountAds, campaigns: Array.isArray(json.campaigns) ? json.campaigns : [] };
+    const campaigns = await scxFetchFbCampaignsByAccounts(accountList.length ? accountList : [accountAds], siteName, start, ymd);
+    return { accountAds, campaigns };
 }
 async function applyDecisionCampaignAction(storeKey, campaignEnc, actionEnc) {
     const sk = String(storeKey || '');
@@ -10606,6 +10796,7 @@ async function applyDecisionCampaignAction(storeKey, campaignEnc, actionEnc) {
         const loaded = await decisionInlineLoadCampaigns(sk);
         const hit = loaded.campaigns.find(function(c){ return decisionInlineNorm(c?.campaign_name || c?.name || '') === decisionInlineNorm(campaign); }) || null;
         const cid = String(hit?.campaign_id || hit?.id || '');
+        const hitAccount = String(hit?.account_ads || hit?.account_name || loaded.accountAds || '').trim();
         const base = Number(hit?.daily_budget || hit?.budget || 0) || 0;
         const entry = window.detailKeputusanStore && window.detailKeputusanStore[sk];
         const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : {};
@@ -10625,7 +10816,7 @@ async function applyDecisionCampaignAction(storeKey, campaignEnc, actionEnc) {
         const defaultPctByAction = { 'STOP': -100, 'PAUSE': -100, 'SCALE DOWN': -12, 'HOLD': 0, 'SCALE UP': 8 };
         const pct = Number(defaultPctByAction[act] || 0);
         const suggested = (act === 'STOP' || act === 'PAUSE') ? base : Math.max(0, Math.round(base * (1 + (pct / 100))));
-        setDecisionInlineState(sk, { accountAds: loaded.accountAds, targetCampaignId: cid, targetBudgetRaw: String(Math.round(suggested || base || 0)), lastMsg: hit ? '' : 'Campaign target tidak ditemukan di data aktif.' });
+        setDecisionInlineState(sk, { accountAds: hitAccount || loaded.accountAds, targetCampaignId: cid, targetBudgetRaw: String(Math.round(suggested || base || 0)), lastMsg: hit ? '' : 'Campaign target tidak ditemukan di data aktif.' });
     } catch (e) {
         setDecisionInlineState(sk, { lastMsg: String(e?.message || e || 'Gagal memuat budget campaign') });
     }
@@ -10838,7 +11029,11 @@ function initDashboardRecap() {
         const total = Number(info?.recordsDisplay || 0);
         const pages = Number(info?.pages || 0);
         setDetailScoringMeta(`${total} baris`);
-        if (paginateEl) paginateEl.style.display = pages > 1 ? '' : 'none';
+        if (paginateEl) {
+            const pageLen = Math.max(1, Number(info?.length || 10));
+            const needPaging = total > pageLen || pages > 1;
+            paginateEl.style.display = needPaging ? 'flex' : 'none';
+        }
     }
 
     function ensureDashboardRecapAlertDtFilter() {
@@ -11306,6 +11501,57 @@ function initDashboardRecap() {
         return { apiJson: json, score, decision: decisionMeta.decision, label: String(agg?.final_label || agg?.root_cause_label || 'STABLE'), reasons: reasons.concat([decisionMeta.basis, agg?.reason_summary].filter(Boolean)), breakdown: { meta: Object.assign({}, agg, { trend_windows: row?.trend_windows || {}, date: String(state?.date || '').trim(), requested_date: scoring?.requested_date || '', effective_date: scoring?.effective_date || '', audit: scoring?.audit || {} }) } };
     }
 
+    function applyProfitFirstFinanceGuard(meta, row, state) {
+        if (!meta || typeof meta !== 'object') return meta;
+        const decisionNow = String(meta.decision || '').trim().toUpperCase();
+        if (['LEARNING', 'DATA_INCOMPLETE', 'BELUM ADA HASIL'].includes(decisionNow) || meta.score == null) {
+            return meta;
+        }
+        const info = meta?.breakdown?.meta || {};
+        const spend = Number(row?.spend);
+        const revenue = Number(row?.revenue);
+        const spendVal = Number.isFinite(spend) && spend > 0 ? spend : Number(info.spend || 0);
+        const revenueVal = Number.isFinite(revenue) ? revenue : Number(info.revenue || info.revenue_value || 0);
+        if (!(spendVal >= 1000)) return meta;
+
+        const roi = (revenueVal - spendVal) / spendVal;
+        let score = Number(meta.score);
+        let decision = decisionNow.replace(/_/g, ' ');
+        const reasons = Array.isArray(meta.reasons) ? meta.reasons.slice() : [];
+        let applied = '';
+
+        if (revenueVal <= 0 || roi <= -0.99) {
+            if (!Number.isFinite(score) || score > 35) score = 35;
+            if (decision !== 'STOP' && decision !== 'PAUSE') decision = 'PAUSE';
+            applied = 'Profit-first: pendapatan 0 / ROI -100% sementara masih ada spend, score dibatasi dan keputusan diturunkan.';
+            if (!String(meta.label || '').toUpperCase().startsWith('RED_FLAG')) {
+                meta.label = 'REVENUE_DROP';
+                if (info) info.final_label = 'REVENUE_DROP';
+            }
+        } else if (roi <= -0.50) {
+            if (!Number.isFinite(score) || score > 45) score = 45;
+            if (decision === 'SCALE UP' || decision === 'HOLD') decision = 'SCALE DOWN';
+            applied = 'Profit-first: ROI sangat negatif, score dibatasi.';
+        } else if (roi < 0) {
+            if (Number.isFinite(score) && score > 58) score = 58;
+            if (decision === 'SCALE UP') decision = 'HOLD';
+            applied = 'Profit-first: ROI negatif, ekspansi ditahan.';
+        }
+        if (!applied) return meta;
+
+        meta.score = Math.round(score);
+        meta.decision = decision;
+        if (info) {
+            info.profit_first_applied = true;
+            info.profit_first_roi = roi;
+        }
+        if (reasons.every(function(r){ return String(r || '').indexOf('Profit-first:') < 0; })) {
+            reasons.unshift(applied);
+        }
+        meta.reasons = reasons;
+        return meta;
+    }
+
     function summarizeDashboardScoringMeta(meta, row, state) {
         if (!meta || typeof meta !== 'object') return { score: null, decision: '', label: 'BELUM ADA HASIL', reasons: ['Ringkasan scoring belum tersedia'], breakdown: { meta: { date: String(state?.date || '').trim(), trend_windows: row?.trend_windows || {}, scoring_source: 'unavailable', scoring_source_label: 'Data scoring belum tersedia' } } };
         const merged = Object.assign({}, meta);
@@ -11449,7 +11695,7 @@ function initDashboardRecap() {
             merged.decision = '';
         }
         if (!merged.label) merged.label = String(info.final_label || info.root_cause_label || '').trim();
-        return merged;
+        return applyProfitFirstFinanceGuard(merged, row, state);
     }
 
     function shouldPreferCreateScoring(meta) {
@@ -11604,13 +11850,16 @@ function initDashboardRecap() {
     }
 
     function buildCampaignAccountLookup(siteAccountMap) {
-        const map = {};
+        const map = Object.assign({}, window.dashboardRecapDbCampaignAccountMap || {});
         const register = function(st) {
             if (!st || typeof st !== 'object') return;
             const camp = scxCampaignValue(st);
-            const acc = resolveDetailAccount(st, siteAccountMap, null);
-            if (!camp || !acc) return;
-            map[camp.toUpperCase()] = acc;
+            if (!camp) return;
+            const campKey = camp.toUpperCase();
+            if (map[campKey]) return;
+            const acc = resolveDetailAccount(st, siteAccountMap, map);
+            if (!acc) return;
+            map[campKey] = acc;
         };
         Object.values(window.dashboardRecapStoredScoring || {}).forEach(function(raw) {
             if (!raw || typeof raw !== 'object') return;
@@ -11848,6 +12097,10 @@ function initDashboardRecap() {
                 if (r?.account_ads && !cur.account_ads) cur.account_ads = String(r.account_ads || '');
                 if (r?.metrics?.adsense) cur.metrics.adsense = r.metrics.adsense;
             }
+            const incomingAccounts = [];
+            if (Array.isArray(r?.account_ads_list)) incomingAccounts.push.apply(incomingAccounts, r.account_ads_list);
+            if (r?.account_ads) incomingAccounts.push(r.account_ads);
+            cur.account_ads_list = uniqAccountAdsNames((cur.account_ads_list || []).concat(incomingAccounts));
             if (r?.prev_spend != null) cur.prev_spend = Math.max(Number(cur.prev_spend) || 0, Number(r.prev_spend) || 0);
             if (r?.prev_revenue != null) cur.prev_revenue = Number(r.prev_revenue) || 0;
             if (r?.prev_net != null) cur.prev_net = Number(r.prev_net) || 0;
@@ -11867,6 +12120,7 @@ function initDashboardRecap() {
                 cur = {
                     code: String(r?.code || ''),
                     account_ads: String(r?.account_ads || ''),
+                    account_ads_list: Array.isArray(r?.account_ads_list) ? r.account_ads_list.slice() : (r?.account_ads ? [String(r.account_ads)] : []),
                     spend: 0,
                     revenue: 0,
                     active_days: 0,
@@ -11890,6 +12144,7 @@ function initDashboardRecap() {
                 name: name,
                 code: cur.code,
                 account_ads: cur.account_ads,
+                account_ads_list: Array.isArray(cur.account_ads_list) ? cur.account_ads_list : (cur.account_ads ? [cur.account_ads] : []),
                 spend: spend,
                 revenue: revenue,
                 net: revenue - spend,
@@ -15515,9 +15770,9 @@ function initDashboardRecap() {
                         <div class="scx-range-field"><label>Sampai</label><input type="text" class="form-control scx-campaign-end" value="${d}" placeholder="YYYY-MM-DD" autocomplete="off"></div>
                     </div>
                     <div class="scx-range-field scx-campaign-search-field">
-                        <label>Cari Campaign</label>
+                        <label>Cari Campaign / Account Ads</label>
                         <div class="scx-campaign-search-wrap">
-                            <input type="text" class="form-control scx-campaign-search" placeholder="Ketik minimal 3 huruf untuk saran nama campaign..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="scxCampaignSearchSuggest">
+                            <input type="text" class="form-control scx-campaign-search" placeholder="Ketik minimal 3 huruf untuk saran campaign atau account ads..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="scxCampaignSearchSuggest">
                             <div id="scxCampaignSearchSuggest" class="scx-campaign-search-suggest" hidden></div>
                         </div>
                     </div>
@@ -17076,6 +17331,7 @@ function initDashboardRecap() {
         const t = scxCampaignPdfHeaderKey(header);
         if (t === 'no') return 3.2;
         if (t.indexOf('nama') >= 0) return 20;
+        if (t.indexOf('account') >= 0) return 12;
         if (t.indexOf('prediksi') >= 0) return 15;
         if (t.indexOf('status scoring') >= 0) return 10;
         if (t.indexOf('status campaign') >= 0) return 9;
@@ -17223,6 +17479,7 @@ function initDashboardRecap() {
         const t = scxCampaignPdfHeaderKey(header);
         if (t === 'no') return 36;
         if (t.indexOf('nama') >= 0) return 340;
+        if (t.indexOf('account') >= 0) return 180;
         if (t.indexOf('spend') >= 0 || t.indexOf('revenue') >= 0 || t.indexOf('budget') >= 0) return 118;
         if (t === 'roi') return 78;
         if (t.indexOf('performance') >= 0 || t.indexOf('indicator') >= 0) return 120;
@@ -17358,7 +17615,7 @@ function initDashboardRecap() {
             searching: true,
             info: true,
             ordering: true,
-            order: [[2, 'desc']],
+            order: [[3, 'desc']],
             autoWidth: false,
             responsive: false,
             destroy: true,
@@ -17386,11 +17643,13 @@ function initDashboardRecap() {
             columnDefs: hideEarningFinance
                 ? [
                     { targets: 0, className: 'text-center', width: '48px', orderable: false, searchable: false },
-                    { targets: 3, className: 'text-center', width: '120px' }
+                    { targets: 2, width: '160px' },
+                    { targets: 4, className: 'text-center', width: '120px' }
                 ]
                 : [
                     { targets: 0, className: 'text-center', width: '48px', orderable: false, searchable: false },
-                    { targets: 10, className: 'text-center scx-campaign-col-aksi', orderable: false, searchable: false }
+                    { targets: 2, width: '160px' },
+                    { targets: 11, className: 'text-center scx-campaign-col-aksi', orderable: false, searchable: false }
                 ]
         });
         dt.on('order.dt search.dt page.dt', function() {
@@ -17544,37 +17803,61 @@ function initDashboardRecap() {
         const q = String(searchQuery || '').trim().toLowerCase();
         if (!q) return list;
         return list.filter(function(r) {
-            return String(r?.campaign_name || '').toLowerCase().includes(q);
+            return String(r?.campaign_name || '').toLowerCase().includes(q)
+                || String(r?.account_ads || '').toLowerCase().includes(q);
         });
     }
 
     function scxCampaignSearchSuggestOptions(allRows, query, limit, activeOnly, perfFilter) {
         const q = String(query || '').trim().toLowerCase();
         if (q.length < 3) return [];
-        const names = [];
+        const items = [];
         const seen = new Set();
         let sourceRows = Array.isArray(allRows) ? allRows : [];
         if (activeOnly) {
             sourceRows = sourceRows.filter(function(r) { return scxCampaignIsActiveStatus(r?.campaign_status); });
         }
         sourceRows = sourceRows.filter(function(r) { return scxCampaignRowPassesPerfFilter(r, perfFilter); });
+        const rank = function(text) {
+            const t = String(text || '').toLowerCase();
+            if (t.startsWith(q)) return 0;
+            if (t.includes(q)) return 1;
+            return 2;
+        };
+        sourceRows.forEach(function(r) {
+            const acc = String(r?.account_ads || '').trim();
+            if (!acc) return;
+            const key = 'acc:' + acc.toLowerCase();
+            if (seen.has(key) || !acc.toLowerCase().includes(q)) return;
+            seen.add(key);
+            items.push({ value: acc, type: 'account', label: acc, meta: 'Account Ads' });
+        });
         sourceRows.forEach(function(r) {
             const name = String(r?.campaign_name || '').trim();
             if (!name) return;
-            const key = name.toLowerCase();
-            if (seen.has(key) || !key.includes(q)) return;
+            const acc = String(r?.account_ads || '').trim();
+            const key = 'camp:' + name.toLowerCase();
+            const nameHit = name.toLowerCase().includes(q);
+            const accHit = acc.toLowerCase().includes(q);
+            if (seen.has(key) || (!nameHit && !accHit)) return;
             seen.add(key);
-            names.push(name);
+            items.push({
+                value: name,
+                type: 'campaign',
+                label: name,
+                meta: acc ? ('Account Ads: ' + acc) : 'Campaign'
+            });
         });
-        names.sort(function(a, b) {
-            const al = a.toLowerCase();
-            const bl = b.toLowerCase();
-            const aStarts = al.startsWith(q) ? 0 : 1;
-            const bStarts = bl.startsWith(q) ? 0 : 1;
-            if (aStarts !== bStarts) return aStarts - bStarts;
-            return al.localeCompare(bl);
+        items.sort(function(a, b) {
+            const at = a.type === 'account' ? 0 : 1;
+            const bt = b.type === 'account' ? 0 : 1;
+            if (at !== bt) return at - bt;
+            const ar = rank(a.label);
+            const br = rank(b.label);
+            if (ar !== br) return ar - br;
+            return String(a.label || '').localeCompare(String(b.label || ''), 'id');
         });
-        return names.slice(0, Number(limit || 12));
+        return items.slice(0, Number(limit || 12));
     }
 
     function scxHighlightCampaignSuggest(text, query) {
@@ -17589,12 +17872,15 @@ function initDashboardRecap() {
             + esc(raw.slice(idx + q.length));
     }
 
-    function scxRenderCampaignSearchSuggest(names, query) {
-        if (!names.length) {
-            return '<div class="scx-campaign-search-suggest-empty">Tidak ada campaign cocok.</div>';
+    function scxRenderCampaignSearchSuggest(items, query) {
+        if (!items.length) {
+            return '<div class="scx-campaign-search-suggest-empty">Tidak ada campaign atau account ads yang cocok.</div>';
         }
-        return names.map(function(name) {
-            return `<button type="button" class="scx-campaign-search-suggest-item" data-campaign-name="${esc(name)}">${scxHighlightCampaignSuggest(name, query)}</button>`;
+        return items.map(function(item) {
+            const value = String(item?.value || item?.label || '');
+            const type = String(item?.type || 'campaign');
+            const meta = String(item?.meta || '');
+            return `<button type="button" class="scx-campaign-search-suggest-item" data-search-value="${esc(value)}" data-search-type="${esc(type)}" data-campaign-name="${esc(value)}"><span class="scx-campaign-search-suggest-label">${scxHighlightCampaignSuggest(item.label || value, query)}</span>${meta ? `<span class="scx-campaign-search-suggest-meta">${esc(meta)}</span>` : ''}</button>`;
         }).join('');
     }
 
@@ -17617,10 +17903,10 @@ function initDashboardRecap() {
             scxHideCampaignSearchSuggest(searchEl);
             return;
         }
-        const names = scxCampaignSearchSuggestOptions(cache?.allRows, query, 12, !!cache?.activeOnly, cache?.perfFilter);
-        box.innerHTML = scxRenderCampaignSearchSuggest(names, query);
+        const items = scxCampaignSearchSuggestOptions(cache?.allRows, query, 12, !!cache?.activeOnly, cache?.perfFilter);
+        box.innerHTML = scxRenderCampaignSearchSuggest(items, query);
         box.hidden = false;
-        searchEl.setAttribute('aria-expanded', names.length ? 'true' : 'false');
+        searchEl.setAttribute('aria-expanded', items.length ? 'true' : 'false');
     }
 
     function scxApplyCampaignSearchQuery(searchEl, query) {
@@ -17904,6 +18190,7 @@ function initDashboardRecap() {
         let html = '<table id="scxCampaignDataTable" class="table table-striped table-bordered scx-data-table scx-campaign-table" style="width:100%"><thead><tr>';
         html += '<th class="text-center" style="width:42px;">No</th>';
         html += '<th>Nama Campaign</th>';
+        html += '<th>Account Ads</th>';
         html += '<th class="text-end">Spend</th>';
         if (!hideEarningFinance) {
             html += '<th class="text-end">Revenue</th>';
@@ -17924,6 +18211,7 @@ function initDashboardRecap() {
             const name = String(row?.campaign_name || '-');
             const key = scxCampaignNormName(name);
             const cid = String(row?.campaign_id || '').trim();
+            const accountLabel = String(row?.account_ads || accountAds || '').trim() || '-';
             const spend = Number(row?.spend || 0);
             const revenue = Number(row?.revenue || 0);
             const roi = Number(row?.roi != null ? row.roi : (spend > 0 ? ((revenue - spend) / spend * 100) : 0));
@@ -17938,10 +18226,12 @@ function initDashboardRecap() {
             const bud = Number(row?.daily_budget || 0);
             const suggestedBudget = isStatusAction ? bud : Math.max(1, Math.round(bud * (1 + (recPct / 100))));
             const inputId = `scxCampBud_${cid || idx}`;
-            const canAct = !hideEarningFinance && !!(accountAds && cid);
+            const rowAccount = String(row?.account_ads || accountAds || '').trim();
+            const canAct = !hideEarningFinance && !!(rowAccount && cid);
             html += '<tr>';
             html += `<td class="text-center">${esc(String(idx + 1))}</td>`;
             html += `<td data-search="${esc(name)}"><div class="scx-campaign-name-cell"><div class="scx-campaign-name-text" title="${esc(name)}">${esc(name)}</div>${scxCampaignRunningDaysBadgeHtml(row)}</div></td>`;
+            html += `<td data-search="${esc(accountLabel)}"><div class="scx-campaign-account-cell" title="${esc(accountLabel)}">${esc(accountLabel)}</div></td>`;
             html += `<td class="text-end" data-order="${esc(String(spend))}">${esc(fmtIdr(spend))}</td>`;
             if (!hideEarningFinance) {
                 html += `<td class="text-end" data-order="${esc(String(revenue))}">${esc(fmtIdr(revenue))}</td>`;
@@ -17956,8 +18246,8 @@ function initDashboardRecap() {
             html += `<td class="text-end"><span class="scx-pill ${actionTone}" style="font-size:10px;padding:2px 8px;">${esc(action)}</span><div style="font-size:11px;font-weight:700;margin-top:4px;">${esc(recPctTxt)}</div></td>`;
             if (!hideEarningFinance) {
                 if (canAct) {
-                    html += `<td class="text-end" data-order="${esc(String(suggestedBudget))}"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm scx-campaign-budget-input" data-cid="${esc(cid)}" value="${esc(fmtBudgetInput(suggestedBudget))}" style="text-align:right;max-width:132px;margin-left:auto;${isStatusAction ? 'opacity:.65;' : ''}" ${isStatusAction ? 'readonly' : ''}></td>`;
-                    html += `<td class="text-center scx-campaign-col-aksi"><button type="button" class="btn btn-sm btn-outline-primary scx-campaign-act-btn" data-cid="${esc(cid)}" data-action="${esc(action)}" data-bud-input="${esc(inputId)}">Save</button></td>`;
+                    html += `<td class="text-end" data-order="${esc(String(suggestedBudget))}"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm scx-campaign-budget-input" data-cid="${esc(cid)}" data-account="${esc(rowAccount)}" value="${esc(fmtBudgetInput(suggestedBudget))}" style="text-align:right;max-width:132px;margin-left:auto;${isStatusAction ? 'opacity:.65;' : ''}" ${isStatusAction ? 'readonly' : ''}></td>`;
+                    html += `<td class="text-center scx-campaign-col-aksi"><button type="button" class="btn btn-sm btn-outline-primary scx-campaign-act-btn" data-cid="${esc(cid)}" data-account="${esc(rowAccount)}" data-action="${esc(action)}" data-bud-input="${esc(inputId)}">Save</button></td>`;
                 } else {
                     html += `<td class="text-end" data-order="${esc(String(bud))}">${bud > 0 ? esc(fmtIdr(bud)) : '<span class="text-muted">—</span>'}</td>`;
                     html += '<td class="text-center scx-campaign-col-aksi"><span class="text-muted">—</span></td>';
@@ -18011,40 +18301,58 @@ function initDashboardRecap() {
         });
     }
 
+    async function scxFetchFbCampaignsByAccounts(accountNames, siteName, startYmd, endYmd) {
+        const names = uniqAccountAdsNames(accountNames);
+        if (!names.length || !siteName) return [];
+        const chunks = await Promise.all(names.map(async function(acc) {
+            try {
+                const fbQs = new URLSearchParams({ account_ads: acc, site_name: siteName, start_date: startYmd, end_date: endYmd });
+                const fbResp = await fetch('/management/admin/page_monitoring_domain_campaigns?' + fbQs.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const fbJson = await fbResp.json();
+                const list = (fbJson && fbJson.status && Array.isArray(fbJson.campaigns)) ? fbJson.campaigns : [];
+                return list.map(function(c) {
+                    return Object.assign({}, c, { account_ads: acc, account_name: acc });
+                });
+            } catch (_e) {
+                return [];
+            }
+        }));
+        return chunks.reduce(function(all, cur) { return all.concat(cur); }, []);
+    }
+
     async function scxFetchCampaignTabRows(row, state, startYmd, endYmd) {
         const scope = resolveScoreDetailScope(row, state);
         const siteName = String(scope.domain || '').trim();
-        const accountAds = String(row?.account_ads || '').trim();
+        const accountList = lookupDomainAccountList(row);
+        const accountAds = accountList[0] || String(row?.account_ads || '').trim();
         if (!siteName) throw new Error('Subdomain tidak ditemukan.');
         const breakdownQs = new URLSearchParams({ site_name: siteName, start_date: startYmd, end_date: endYmd });
         const breakdownResp = await fetch('/management/admin/page_monitoring_domain_campaign_breakdown?' + breakdownQs.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         const breakdownJson = await breakdownResp.json();
         if (!breakdownJson || !breakdownJson.status) throw new Error(breakdownJson?.error || 'Gagal memuat breakdown campaign');
         const breakdownRows = Array.isArray(breakdownJson.data) ? breakdownJson.data : [];
-        let fbRows = [];
-        if (accountAds) {
-            try {
-                const fbQs = new URLSearchParams({ account_ads: accountAds, site_name: siteName, start_date: startYmd, end_date: endYmd });
-                const fbResp = await fetch('/management/admin/page_monitoring_domain_campaigns?' + fbQs.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-                const fbJson = await fbResp.json();
-                if (fbJson && fbJson.status) fbRows = Array.isArray(fbJson.campaigns) ? fbJson.campaigns : [];
-            } catch (_) {}
-        }
+        const fbRows = await scxFetchFbCampaignsByAccounts(accountList, siteName, startYmd, endYmd);
         const fbByName = new Map();
+        const fbByNameAccount = new Map();
         fbRows.forEach(function(c) {
             const key = scxCampaignNormName(c?.campaign_name || c?.name || '');
-            if (key) fbByName.set(key, c);
+            if (!key) return;
+            const accKey = String(c?.account_ads || c?.account_name || '').trim().toLowerCase();
+            if (accKey) fbByNameAccount.set(key + '|' + accKey, c);
+            if (!fbByName.has(key)) fbByName.set(key, c);
         });
         const merged = new Map();
         breakdownRows.forEach(function(r) {
             const name = String(r?.campaign || r?.campaign_name || '').trim() || 'unknown_campaign';
             const key = scxCampaignNormName(name);
-            const fb = fbByName.get(key);
+            const rowAccount = String(r?.account_ads || '').trim();
+            const fb = (rowAccount && fbByNameAccount.get(key + '|' + rowAccount.toLowerCase())) || fbByName.get(key);
             const spend = Number(r?.spend || 0);
             const revenue = Number(r?.revenue || 0);
             merged.set(key, {
                 campaign_name: name,
                 campaign_id: String(fb?.campaign_id || fb?.id || '').trim(),
+                account_ads: String(r?.account_ads || fb?.account_ads || fb?.account_name || accountAds || '').trim(),
                 spend: spend,
                 revenue: revenue,
                 net_profit: Number(r?.net_profit != null ? r.net_profit : (revenue - spend)),
@@ -18062,6 +18370,7 @@ function initDashboardRecap() {
             merged.set(key, {
                 campaign_name: String(fb?.campaign_name || fb?.name || key),
                 campaign_id: String(fb?.campaign_id || fb?.id || '').trim(),
+                account_ads: String(fb?.account_ads || fb?.account_name || accountAds || '').trim(),
                 spend: spend,
                 revenue: 0,
                 net_profit: -spend,
@@ -18249,7 +18558,7 @@ function initDashboardRecap() {
                     const pick = items[activeIdx >= 0 ? activeIdx : 0];
                     if (!pick) return;
                     e.preventDefault();
-                    scxApplyCampaignSearchQuery(searchEl, pick.getAttribute('data-campaign-name') || '');
+                    scxApplyCampaignSearchQuery(searchEl, pick.getAttribute('data-search-value') || pick.getAttribute('data-campaign-name') || '');
                     scxHideCampaignSearchSuggest(searchEl);
                 } else if (e.key === 'Escape') {
                     scxHideCampaignSearchSuggest(searchEl);
@@ -18260,7 +18569,7 @@ function initDashboardRecap() {
             const suggestBtn = e.target && e.target.closest ? e.target.closest('.scx-campaign-search-suggest-item') : null;
             if (!suggestBtn || !searchEl) return;
             e.preventDefault();
-            scxApplyCampaignSearchQuery(searchEl, suggestBtn.getAttribute('data-campaign-name') || '');
+            scxApplyCampaignSearchQuery(searchEl, suggestBtn.getAttribute('data-search-value') || suggestBtn.getAttribute('data-campaign-name') || '');
             scxHideCampaignSearchSuggest(searchEl);
             searchEl.focus();
         });
@@ -18268,7 +18577,7 @@ function initDashboardRecap() {
             const btn = e.target && e.target.closest ? e.target.closest('.scx-campaign-act-btn') : null;
             if (!btn) return;
             const cache = window.scxCampaignTabCache;
-            if (!cache || !cache.accountAds) return;
+            if (!cache) return;
             const cid = String(btn.getAttribute('data-cid') || '').trim();
             const action = String(btn.getAttribute('data-action') || 'HOLD').toUpperCase();
             const inputId = String(btn.getAttribute('data-bud-input') || '');
@@ -18276,6 +18585,13 @@ function initDashboardRecap() {
             const campaignRow = (cache.allRows || []).find(function(r) {
                 return String(r?.campaign_id || '').trim() === cid;
             });
+            const accountForAction = String(
+                btn.getAttribute('data-account')
+                || campaignRow?.account_ads
+                || cache.accountAds
+                || ''
+            ).trim();
+            if (!accountForAction) return;
             const campaignName = String(campaignRow?.campaign_name || cid || '-');
             let confirmed = false;
             let budgetText = '';
@@ -18309,7 +18625,7 @@ function initDashboardRecap() {
             try {
                 if (action === 'STOP' || action === 'PAUSE') {
                     const j = await postForm('/management/admin/update_campaign_status_monitoring_domain_campaign', {
-                        account_ads: cache.accountAds,
+                        account_ads: accountForAction,
                         status: 'PAUSED',
                         campaign_ids: JSON.stringify([cid])
                     });
@@ -18329,7 +18645,7 @@ function initDashboardRecap() {
                     const n = parseInt(raw, 10);
                     if (!cid || !isFinite(n) || n <= 0) throw new Error('Daily budget tidak valid');
                     const j = await postForm('/management/admin/update_daily_budget_monitoring_domain_campaign', {
-                        account_ads: cache.accountAds,
+                        account_ads: accountForAction,
                         campaign_id: cid,
                         daily_budget: n
                     });
@@ -20590,11 +20906,9 @@ function initDashboardRecap() {
         }
 
         async function getCampaigns() {
-            const qs = new URLSearchParams({ account_ads: accountAds, site_name: siteName, start_date: start, end_date: end });
-            const resp = await fetch('/management/admin/page_monitoring_domain_campaigns?' + qs.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-            const json = await resp.json();
-            if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat campaigns');
-            return Array.isArray(json.campaigns) ? json.campaigns : [];
+            const accountList = lookupDomainAccountList(row);
+            const names = accountList.length ? accountList : (accountAds ? [accountAds] : []);
+            return scxFetchFbCampaignsByAccounts(names, siteName, start, end);
         }
 
         async function postForm(url, data) {
@@ -20612,16 +20926,35 @@ function initDashboardRecap() {
             return await resp.json();
         }
 
+        function accountForCampaign(campaignId) {
+            const item = byId(campaignId);
+            return String(item?.account_ads || item?.account_name || accountAds || '').trim();
+        }
+
         async function updateBudget(campaignId, dailyBudget) {
-            const json = await postForm('/management/admin/update_daily_budget_monitoring_domain_campaign', { account_ads: accountAds, campaign_id: campaignId, daily_budget: dailyBudget });
+            const acc = accountForCampaign(campaignId);
+            const json = await postForm('/management/admin/update_daily_budget_monitoring_domain_campaign', { account_ads: acc, campaign_id: campaignId, daily_budget: dailyBudget });
             if (!json || !json.status) throw new Error(json?.error || 'Gagal update daily budget');
             return json;
         }
 
         async function updateStatus(campaignIds, status) {
-            const json = await postForm('/management/admin/update_campaign_status_monitoring_domain_campaign', { account_ads: accountAds, status: status, campaign_ids: JSON.stringify(campaignIds || []) });
-            if (!json || !json.status) throw new Error(json?.error || 'Gagal update status');
-            return json;
+            const groups = {};
+            (campaignIds || []).forEach(function(id) {
+                const acc = accountForCampaign(id);
+                if (!acc) return;
+                if (!groups[acc]) groups[acc] = [];
+                groups[acc].push(id);
+            });
+            let last = null;
+            const accKeys = Object.keys(groups);
+            if (!accKeys.length) throw new Error('Account Ads campaign tidak ditemukan');
+            for (let i = 0; i < accKeys.length; i += 1) {
+                const acc = accKeys[i];
+                last = await postForm('/management/admin/update_campaign_status_monitoring_domain_campaign', { account_ads: acc, status: status, campaign_ids: JSON.stringify(groups[acc] || []) });
+                if (!last || !last.status) throw new Error(last?.error || 'Gagal update status');
+            }
+            return last;
         }
 
         function selectedIds() {
@@ -22042,7 +22375,7 @@ function initDashboardRecap() {
             + (hideEarningFinance ? '' : '<th class="text-end">Spend</th><th class="text-end">Pendapatan</th>')
             + '<th class="text-center">Alert Dominan</th>'
             + '<th class="text-center">Kondisi</th>'
-            + (hideEarningFinance ? '' : '<th class="text-center">Detail</th>')
+            + (hideEarningFinance ? '' : '<th class="text-center js-pwa-detail-col">Detail</th>')
             + '</tr>';
     }
 
@@ -22147,7 +22480,7 @@ function initDashboardRecap() {
                     + '<span class="badge ' + kondisiBadge + ' dashboard-kondisi-chip" tabindex="0" aria-label="' + esc(x.kondisiReason) + '">' + esc(x.kondisi) + '</span>'
                     + '<span class="dashboard-kondisi-tooltip" role="tooltip">' + esc(x.kondisiReason) + '</span>'
                     + '</span></td>'
-                    + (hideEarningFinance ? '' : ('<td class="text-center">' + detailCell + '</td>'))
+                    + (hideEarningFinance ? '' : ('<td class="text-center js-pwa-detail-col">' + detailCell + '</td>'))
                     + '</tr>';
             }).join('')
             : '<tr><td colspan="' + (hideEarningFinance ? 9 : 12) + '" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>';
@@ -22188,6 +22521,9 @@ function initDashboardRecap() {
 
     async function loadDomainAccountMap(state) {
         window.dashboardRecapDomainAccountMap = {};
+        window.dashboardRecapDomainAccountListMap = {};
+        window.dashboardRecapDomainAccountSpendMap = {};
+        window.dashboardRecapDbCampaignAccountMap = {};
         const date = String(state?.date || '').trim();
         if (!date) return;
         try {
@@ -22199,17 +22535,115 @@ function initDashboardRecap() {
             if (json && json.status && json.data && typeof json.data === 'object') {
                 window.dashboardRecapDomainAccountMap = json.data;
             }
+            if (json && json.accounts && typeof json.accounts === 'object') {
+                window.dashboardRecapDomainAccountListMap = json.accounts;
+            } else {
+                window.dashboardRecapDomainAccountListMap = {};
+            }
             if (json && json.spend && typeof json.spend === 'object') {
                 window.dashboardRecapDomainSpendMap = json.spend;
+            }
+            if (json && json.account_spend && typeof json.account_spend === 'object') {
+                window.dashboardRecapDomainAccountSpendMap = json.account_spend;
+            }
+            if (json && json.campaign_accounts && typeof json.campaign_accounts === 'object') {
+                window.dashboardRecapDbCampaignAccountMap = json.campaign_accounts;
             }
             if (json && json.platform && typeof json.platform === 'object') {
                 window.dashboardRecapDomainPlatformMap = json.platform;
             }
         } catch (_e) {
             window.dashboardRecapDomainAccountMap = {};
+            window.dashboardRecapDomainAccountListMap = {};
             window.dashboardRecapDomainSpendMap = {};
+            window.dashboardRecapDomainAccountSpendMap = {};
+            window.dashboardRecapDbCampaignAccountMap = {};
             window.dashboardRecapDomainPlatformMap = {};
         }
+    }
+
+    function uniqAccountAdsNames(list) {
+        const out = [];
+        const seen = new Set();
+        (Array.isArray(list) ? list : [list]).forEach(function(name) {
+            const val = String(name || '').trim();
+            if (!val) return;
+            const key = val.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            out.push(val);
+        });
+        return out;
+    }
+
+    function lookupDomainAccountSpend(rowOrName) {
+        const row = (rowOrName && typeof rowOrName === 'object') ? rowOrName : { name: rowOrName };
+        const spendMap = window.dashboardRecapDomainAccountSpendMap || {};
+        let best = null;
+        let bestLen = -1;
+        recapRowLookupKeys(row).forEach(function(key) {
+            const hit = spendMap[key];
+            if (!hit || typeof hit !== 'object') return;
+            const len = String(key || '').length;
+            if (len > bestLen) {
+                best = hit;
+                bestLen = len;
+            }
+        });
+        return best || {};
+    }
+
+    function matchRelatedAccount(name, relatedAccounts) {
+        const wanted = String(name || '').trim();
+        if (!wanted) return '';
+        const list = Array.isArray(relatedAccounts) ? relatedAccounts : [];
+        const exact = list.find(function(acc) { return String(acc || '').trim() === wanted; });
+        if (exact) return exact;
+        const lower = wanted.toLowerCase();
+        const fuzzy = list.find(function(acc) { return String(acc || '').trim().toLowerCase() === lower; });
+        return fuzzy || '';
+    }
+
+    function lookupSpendShare(spendMap, accountName) {
+        if (!spendMap || typeof spendMap !== 'object') return 0;
+        if (spendMap[accountName] != null) return Number(spendMap[accountName]) || 0;
+        const lower = String(accountName || '').trim().toLowerCase();
+        const key = Object.keys(spendMap).find(function(k) { return String(k || '').trim().toLowerCase() === lower; });
+        return key ? (Number(spendMap[key]) || 0) : 0;
+    }
+
+    function lookupDomainAccountList(rowOrName) {
+        const row = (rowOrName && typeof rowOrName === 'object') ? rowOrName : { name: rowOrName };
+        const listMap = window.dashboardRecapDomainAccountListMap || {};
+        const singleMap = window.dashboardRecapDomainAccountMap || {};
+        let best = [];
+        let bestLen = -1;
+        recapRowLookupKeys(row).forEach(function(key) {
+            const arr = listMap[key];
+            const hit = (Array.isArray(arr) && arr.length) ? arr : (singleMap[key] ? [singleMap[key]] : []);
+            if (!hit.length) return;
+            const len = String(key || '').length;
+            if (len > bestLen) {
+                best = hit;
+                bestLen = len;
+            }
+        });
+        if (Array.isArray(row.account_ads_list) && row.account_ads_list.length) {
+            best = best.concat(row.account_ads_list);
+        }
+        if (row.account_ads) best = best.concat([row.account_ads]);
+        return uniqAccountAdsNames(best);
+    }
+
+    function formatAccountAdsCell(row) {
+        const names = lookupDomainAccountList(row);
+        if (!names.length) {
+            return { html: '-', search: '' };
+        }
+        const html = names.map(function(name, idx) {
+            return `<div class="${idx ? 'text-muted' : ''}" style="line-height:1.35;word-break:break-word;">${esc(name)}</div>`;
+        }).join('');
+        return { html: html, search: names.join(' ') };
     }
 
     async function loadSiteAccountMap(state, preloadedDomainRows) {
@@ -22260,6 +22694,14 @@ function initDashboardRecap() {
     function resolveDetailAccount(cd, siteAccountMap, campaignAccountMap) {
         const direct = String(cd?.account_ads || cd?.account_name || cd?.meta_account || '').trim();
         if (direct) return direct;
+        const camp = scxCampaignValue(cd);
+        const campMap = (campaignAccountMap && typeof campaignAccountMap === 'object') ? campaignAccountMap : (window.dashboardRecapCampaignAccountMap || {});
+        const dbCampMap = window.dashboardRecapDbCampaignAccountMap || {};
+        if (camp) {
+            const campKey = camp.toUpperCase();
+            if (campMap[campKey]) return campMap[campKey];
+            if (dbCampMap[campKey]) return dbCampMap[campKey];
+        }
         const site = String(resolveDetailSite(cd) || cd?.name || cd?.domain || cd?.site || cd?.site_name || '').trim().toLowerCase().replace(/^www\./i, '');
         const map = (siteAccountMap && typeof siteAccountMap === 'object') ? siteAccountMap : {};
         const domainMap = window.dashboardRecapDomainAccountMap || {};
@@ -22276,9 +22718,6 @@ function initDashboardRecap() {
         }
         const base = normalizeTrafficDomainKey(site);
         if (base && map[base]) return map[base];
-        const camp = scxCampaignValue(cd);
-        const campMap = (campaignAccountMap && typeof campaignAccountMap === 'object') ? campaignAccountMap : (window.dashboardRecapCampaignAccountMap || {});
-        if (camp && campMap[camp.toUpperCase()]) return campMap[camp.toUpperCase()];
         return '';
     }
 
@@ -22351,6 +22790,8 @@ function initDashboardRecap() {
         const recapDim = String(dim || 'domain').toLowerCase() === 'country' ? 'country' : 'domain';
         const thName = document.getElementById('dashboardRecapThName');
         if (thName) thName.textContent = recapDim === 'country' ? 'Nama Negara' : 'Domain';
+        const recapCard = document.querySelector('.detail-scoring-card');
+        if (recapCard) recapCard.classList.toggle('is-country-dim', recapDim === 'country');
 
         function applyDashboardRecapColumnLayout(dt) {
             const isCountry = recapDim === 'country';
@@ -22589,6 +23030,87 @@ function initDashboardRecap() {
                     absorbDetail(current, c, meta, info, num(meta?.score));
                     accMap.set(accountName, current);
                 });
+                return;
+            }
+
+            const relatedAccounts = lookupDomainAccountList(r);
+            if (!isCountryDim && relatedAccounts.length > 1) {
+                const domainName = String(r?.name || r?.domain || r?.site || '-').trim();
+                const spendMap = lookupDomainAccountSpend(r);
+                const recapSpend = num(r?.spend) || 0;
+                const recapRevenue = num(r?.revenue) || 0;
+                const scoreVal = num(meta?.score);
+                const shares = {};
+                let shareTotal = 0;
+                relatedAccounts.forEach(function(acc) {
+                    const share = lookupSpendShare(spendMap, acc);
+                    shares[acc] = share;
+                    shareTotal += share;
+                });
+                if (shareTotal <= 0) {
+                    relatedAccounts.forEach(function(acc) { shares[acc] = 1; });
+                    shareTotal = relatedAccounts.length;
+                }
+
+                relatedAccounts.forEach(function(acc) {
+                    const current = accMap.get(acc) || makeBucket();
+                    if (domainName) current.subs.add(domainName);
+                    const ratio = shares[acc] / shareTotal;
+                    const partSpend = recapSpend * ratio;
+                    const partRevenue = recapRevenue * ratio;
+                    current.spend += partSpend;
+                    current.revenue += partRevenue;
+                    const scoreWeight = pickWeight(partSpend, 1);
+                    if (scoreVal != null) {
+                        current.scoreNum += scoreVal * scoreWeight;
+                        current.scoreDen += scoreWeight;
+                    }
+                    accMap.set(acc, current);
+                });
+
+                const applyHealthRiskAlert = function(current, source, fallbackWeight) {
+                    const spendVal = num(source?.spend);
+                    const weight = pickWeight(spendVal, fallbackWeight || signalWeightOf(source) || 1);
+                    const healthVal = num(source?.health_score);
+                    const riskVal = num(source?.ivt_risk_score);
+                    if (healthVal != null) {
+                        current.healthNum += healthVal * weight;
+                        current.healthDen += weight;
+                    }
+                    if (riskVal != null) {
+                        current.riskNum += riskVal * weight;
+                        current.riskDen += weight;
+                    }
+                    const alert = scxAlertMeta(
+                        source?.final_label || meta?.label || info.final_label || '',
+                        source?.root_cause_label || info.root_cause_label || '',
+                        Number(source?.ivt_risk_score || info.ivt_risk_score || 0),
+                        String(source?.forecast_direction || info.forecast_direction || 'STABLE_OUTLOOK'),
+                        Number(source?.forecast_confidence || info.forecast_confidence || 0)
+                    );
+                    const alertLabel = String(alert?.label || 'Normal');
+                    current.alerts[alertLabel] = Number(current.alerts[alertLabel] || 0) + weight;
+                };
+
+                if (detailRows.length) {
+                    detailRows.forEach(function(c) {
+                        let accountName = matchRelatedAccount(
+                            resolveDetailAccount(c, siteAccountMap, campaignAccountMap),
+                            relatedAccounts
+                        ) || relatedAccounts[0];
+                        const current = accMap.get(accountName) || makeBucket();
+                        const campaign = scxCampaignValue(c);
+                        if (campaign && campaign !== '-') current.camps.add(campaign);
+                        applyHealthRiskAlert(current, c, signalWeightOf(c));
+                        accMap.set(accountName, current);
+                    });
+                } else {
+                    relatedAccounts.forEach(function(acc) {
+                        const current = accMap.get(acc) || makeBucket();
+                        applyHealthRiskAlert(current, info, pickWeight(recapSpend * (shares[acc] / shareTotal), 1));
+                        accMap.set(acc, current);
+                    });
+                }
                 return;
             }
 
@@ -22945,7 +23467,7 @@ function initDashboardRecap() {
             return [
                 i + 1,
                 domainCell(r, k, !!meta),
-                esc(r.account_ads || '-'),
+                formatAccountAdsCell(r),
                 buildActiveCampaignCellData(campStats),
                 Number(campStats.totalBudget) || 0,
                 Number(r.spend) || 0,
@@ -23011,7 +23533,10 @@ function initDashboardRecap() {
         if (isInit) {
             const expectedCols = tableEl.querySelectorAll('thead th').length;
             const dtExisting = window.dashboardRecapDt || $table.DataTable();
-            if (dtExisting && typeof dtExisting.columns === 'function' && dtExisting.columns().count() !== expectedCols) {
+            const wrapperEl = document.getElementById('dashboardRecapTable_wrapper');
+            const needsFooterRebuild = !!(wrapperEl && !wrapperEl.querySelector('.ds-dt-footer'));
+            const colMismatch = !!(dtExisting && typeof dtExisting.columns === 'function' && dtExisting.columns().count() !== expectedCols);
+            if (colMismatch || needsFooterRebuild) {
                 dtExisting.destroy();
                 tbody.innerHTML = '';
                 window.dashboardRecapDt = null;
@@ -23051,8 +23576,8 @@ function initDashboardRecap() {
                 autoWidth: false,
                 responsive: false,
                 dom: hasDtButtons
-                    ? '<"ds-dt-toolbar"<"ds-dt-toolbar__left"B><"ds-dt-toolbar__right"lf>>rtip'
-                    : undefined,
+                    ? '<"ds-dt-toolbar"<"ds-dt-toolbar__left"B><"ds-dt-toolbar__right"lf>><"ds-dt-scroll"t><"ds-dt-footer"<"ds-dt-footer__left"i><"ds-dt-footer__right"p>>'
+                    : '<"ds-dt-scroll"t><"ds-dt-footer"<"ds-dt-footer__left"i><"ds-dt-footer__right"p>>',
                 buttons: hasDtButtons ? [
                     { extend: 'copyHtml5', text: 'Copy', className: 'btn btn-sm btn-info', exportOptions: { columns: ':visible' }, title: exportTitle },
                     { extend: 'excelHtml5', text: 'Export Excel', className: 'btn btn-sm btn-success', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase },
@@ -23099,7 +23624,18 @@ function initDashboardRecap() {
                         }
                     },
                     { targets: 1, orderable: true },
-                    { targets: 2, className: 'text-left', visible: recapDim !== 'country' },
+                    {
+                        targets: 2,
+                        className: 'text-left',
+                        visible: recapDim !== 'country',
+                        render: function (data, type) {
+                            if (data && typeof data === 'object') {
+                                if (type === 'display') return data.html || '-';
+                                return String(data.search || '');
+                            }
+                            return data || '-';
+                        }
+                    },
                     {
                         targets: 3,
                         className: 'text-center',
@@ -23247,16 +23783,20 @@ function initDashboardRecap() {
                 maintainAspectRatio:false,
                 interaction:{ mode:'index', intersect:false },
                 plugins:{
-                    legend:{ position:'top' },
+                    legend:{ position:'top', labels:{ boxWidth:10, font:{ size:10 }, padding:8 } },
                     tooltip:{ callbacks:{ label:function(c){ return c.dataset.yAxisID==='yRoi' ? `${c.dataset.label}: ${fmtPct(c.parsed.y)}` : `${c.dataset.label}: ${fmtIdr(c.parsed.y)}`; } } }
                 },
                 scales:{
-                    yMoney:{ position:'left', ticks:{ callback:(v)=>fmtIdr(v) } },
-                    yRoi:{ position:'right', grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>`${Math.round(Number(v)||0)}%` } }
+                    x:{ ticks:{ autoSkip:true, maxRotation:40, minRotation:0, font:{ size:10 } } },
+                    yMoney:{ position:'left', ticks:{ callback:(v)=>fmtIdr(v), font:{ size:10 } } },
+                    yRoi:{ position:'right', grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>`${Math.round(Number(v)||0)}%`, font:{ size:10 } } }
                 }
             }
         });
         document.getElementById('dashboardRecapChartMeta').textContent = meta;
+        requestAnimationFrame(function() {
+            try { window.dashboardRecapChart.resize(); } catch (_e) {}
+        });
     }
 
     function fmtMmDd(ymd) {
@@ -23339,7 +23879,7 @@ function initDashboardRecap() {
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { position: 'top' },
+                    legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 }, padding: 8 } },
                     tooltip: {
                         callbacks: {
                             label: function(c) {
@@ -23351,8 +23891,10 @@ function initDashboardRecap() {
                     }
                 },
                 scales: {
+                    x: { ticks: { autoSkip: true, maxRotation: 40, minRotation: 0, font: { size: 10 } } },
                     y: {
                         ticks: {
+                            font: { size: 10 },
                             callback: function(v) {
                                 if (metric === 'spend') return fmtIdr(v);
                                 return `${Math.round(Number(v || 0))}%`;
@@ -23361,6 +23903,9 @@ function initDashboardRecap() {
                     }
                 }
             }
+        });
+        requestAnimationFrame(function() {
+            try { window.dashboardPortfolioPulseChart.resize(); } catch (_e) {}
         });
     }
 
@@ -23395,6 +23940,150 @@ function initDashboardRecap() {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
+    }
+
+    function histHitCompareTheme() {
+        const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        return {
+            text: dark ? '#e2e8f0' : '#334155',
+            muted: dark ? '#94a3b8' : '#64748b',
+            grid: dark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(15, 23, 42, 0.08)',
+            tooltipBg: dark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+            tooltipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.1)'
+        };
+    }
+
+    function fmtHistHitIdr(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '-';
+        return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+    }
+
+    async function renderHistoricalHitCompareChart(ymd, subdomain) {
+        const card = document.getElementById('dashboardHistHitCompareCard');
+        const chartEl = document.getElementById('dashboardHistHitCompareChart');
+        const metaEl = document.getElementById('dashboardHistHitCompareMeta');
+        if (!card || !chartEl) return;
+        if (hideEarningFinance) {
+            card.style.display = 'none';
+            return;
+        }
+        card.style.display = '';
+        if (metaEl) metaEl.textContent = 'Memuat...';
+        if (window.dashboardHistHitCompareChart && typeof window.dashboardHistHitCompareChart.destroy === 'function') {
+            try { window.dashboardHistHitCompareChart.destroy(); } catch (_e) {}
+            window.dashboardHistHitCompareChart = null;
+        }
+
+        const qs = new URLSearchParams({ tanggal: String(ymd || '').trim() });
+        const sub = String(subdomain || '').trim();
+        if (sub) qs.set('subdomain', sub);
+
+        let json = null;
+        try {
+            const resp = await fetch('/management/admin/dashboard_historical_hourly?' + qs.toString(), {
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            json = await resp.json();
+        } catch (_e) {
+            json = null;
+        }
+
+        if (!json || !json.status) {
+            chartEl.innerHTML = '<div class="text-muted">Data historical hit tidak tersedia.</div>';
+            if (metaEl) metaEl.textContent = String(ymd || '');
+            return;
+        }
+
+        const hours = Array.isArray(json.hours) ? json.hours : [];
+        const seriesData = json.series || {};
+        const hasPoint = function(arr) {
+            return (Array.isArray(arr) ? arr : []).some(function(v) { return v != null && Number.isFinite(Number(v)); });
+        };
+        const adx = seriesData.adx || [];
+        const adsense = seriesData.adsense || [];
+        const ads = seriesData.ads || [];
+        if (!hours.length || (!hasPoint(adx) && !hasPoint(adsense) && !hasPoint(ads))) {
+            chartEl.innerHTML = '<div class="text-muted">Belum ada data penarikan untuk tanggal ini.</div>';
+            if (metaEl) metaEl.textContent = String(json.date || ymd || '');
+            return;
+        }
+
+        if (!window.Highcharts || !Highcharts.chart) {
+            chartEl.innerHTML = '<div class="text-muted">Highcharts belum termuat.</div>';
+            return;
+        }
+
+        const theme = histHitCompareTheme();
+        const latest = json.latest || {};
+        const lastHourLabel = (json.last_hour != null && hours[json.last_hour]) ? hours[json.last_hour] : (hours[hours.length - 1] || '');
+        const subNote = sub ? ` • subdomain: ${sub}` : '';
+        if (metaEl) {
+            metaEl.textContent = `${json.date || ymd}${subNote} • jam ${lastHourLabel}`
+                + ` • AdX ${fmtHistHitIdr(latest.adx)}`
+                + ` • AdSense ${fmtHistHitIdr(latest.adsense)}`
+                + ` • Ads ${fmtHistHitIdr(latest.ads)}`;
+        }
+
+        chartEl.innerHTML = '';
+        window.dashboardHistHitCompareChart = Highcharts.chart('dashboardHistHitCompareChart', {
+            chart: {
+                type: 'spline',
+                backgroundColor: 'transparent',
+                style: { fontFamily: 'inherit' },
+                spacing: [12, 8, 16, 8]
+            },
+            title: { text: null },
+            credits: { enabled: false },
+            xAxis: {
+                categories: hours,
+                title: { text: 'Jam Penarikan', style: { color: theme.muted, fontSize: '11px' } },
+                lineColor: theme.grid,
+                tickColor: theme.grid,
+                labels: { style: { color: theme.muted, fontSize: '11px' } }
+            },
+            yAxis: {
+                title: { text: null },
+                gridLineColor: theme.grid,
+                labels: {
+                    style: { color: theme.muted, fontSize: '11px' },
+                    formatter: function () { return fmtHistHitIdr(this.value); }
+                }
+            },
+            legend: {
+                enabled: true,
+                itemStyle: { color: theme.text, fontWeight: '600', fontSize: '11px' },
+                itemHoverStyle: { color: theme.text }
+            },
+            tooltip: {
+                shared: true,
+                backgroundColor: theme.tooltipBg,
+                borderColor: theme.tooltipBorder,
+                borderRadius: 10,
+                style: { color: theme.text },
+                formatter: function () {
+                    let out = '<b>Jam ' + this.x + '</b>';
+                    (this.points || []).forEach(function (p) {
+                        out += '<br/><span style="color:' + p.color + '">\u25CF</span> '
+                            + p.series.name + ': <b>' + fmtHistHitIdr(p.y) + '</b>';
+                    });
+                    return out;
+                }
+            },
+            plotOptions: {
+                spline: {
+                    lineWidth: 2.5,
+                    connectNulls: true,
+                    marker: { enabled: true, radius: 3.5, lineWidth: 2, lineColor: '#ffffff' }
+                }
+            },
+            series: [
+                { name: 'AdX (Pendapatan)', color: '#6366f1', data: adx },
+                { name: 'AdSense (Pendapatan)', color: '#059669', data: adsense },
+                { name: 'Ads (Spend)', color: '#1877F2', data: ads }
+            ]
+        });
     }
 
     function setTemporalVisible(visible, hint) {
@@ -23630,9 +24319,18 @@ function initDashboardRecap() {
         const domainMap = window.dashboardRecapDomainAccountMap || {};
         const map = Object.assign({}, domainMap, extraMap || {}, buildSiteAccountLookup(rows));
         return (rows || []).map(function(r) {
-            if (String(r?.account_ads || '').trim()) return r;
-            const acc = resolveDetailAccount(r, map, window.dashboardRecapCampaignAccountMap || {});
-            return acc ? Object.assign({}, r, { account_ads: acc }) : r;
+            const list = lookupDomainAccountList(r);
+            let acc = String(r?.account_ads || '').trim();
+            if (!acc) {
+                acc = resolveDetailAccount(r, map, window.dashboardRecapCampaignAccountMap || {}) || '';
+            }
+            const names = uniqAccountAdsNames(list.concat([acc]));
+            if (!acc && names.length) acc = names[0];
+            if (!acc && !names.length) return r;
+            return Object.assign({}, r, {
+                account_ads: acc || r.account_ads,
+                account_ads_list: names
+            });
         });
     }
 
@@ -23685,7 +24383,8 @@ function initDashboardRecap() {
                 const mk = normalizeDetailScoringDomainKey(k) || String(k || '').trim().toLowerCase();
                 return existing.has(mk) || existing.has(String(k || '').trim().toLowerCase());
             })) return;
-            const account = String(
+            const names = lookupDomainAccountList({ name: normKey });
+            const account = names[0] || String(
                 accountMap[normKey]
                 || accountMap[normalizeTrafficDomainKey(normKey)]
                 || ''
@@ -23695,6 +24394,7 @@ function initDashboardRecap() {
                 name: normKey,
                 code: '',
                 account_ads: account,
+                account_ads_list: names,
                 spend: spend,
                 revenue: revenue,
                 net: revenue - spend,
@@ -23754,12 +24454,25 @@ function initDashboardRecap() {
         });
     }
 
+    function isCountryRecapRow(r) {
+        const code = String(r?.code || r?.country_code || r?.country_cd || '').trim().toUpperCase();
+        if (code === 'TU') return true;
+        return /^[A-Z]{2}$/.test(code);
+    }
+
     function prepareRecapRows(rows, extraMap, dim) {
-        const merged = appendSpendOnlyRecapRows(rows || []);
-        const enriched = enrichRecapRowSpend(enrichRecapRowAccounts(merged, extraMap));
-        const withMetrics = enriched.filter(function(r) { return recapRowHasSpendOrRevenue(r); });
+        const isCountry = String(dim || '').toLowerCase() === 'country';
+        const baseRows = isCountry ? (rows || []) : appendSpendOnlyRecapRows(rows || []);
+        const enriched = isCountry
+            ? enrichRecapRowAccounts(baseRows, extraMap)
+            : enrichRecapRowSpend(enrichRecapRowAccounts(baseRows, extraMap));
+        const withMetrics = enriched.filter(function(r) {
+            if (!recapRowHasSpendOrRevenue(r)) return false;
+            if (isCountry && !isCountryRecapRow(r)) return false;
+            return true;
+        });
         const consolidated = consolidateRecapDomainRows(withMetrics, dim);
-        return applyRecapDomainPlatformSources(consolidated);
+        return isCountry ? consolidated : applyRecapDomainPlatformSources(consolidated);
     }
 
     function domainHasActiveCampaignOrBudget(campaignStatsByDomain, row) {
@@ -23778,6 +24491,7 @@ function initDashboardRecap() {
             ? campaignStatsByDomain
             : null;
         return (rows || []).filter(function(r) {
+            if (isCountry && !isCountryRecapRow(r)) return false;
             const spend = Number(r?.spend) || 0;
             const revenue = Number(r?.revenue) || 0;
             if (spend <= 0 && revenue <= 0) return false;
@@ -24091,6 +24805,7 @@ function initDashboardRecap() {
             await renderTable(st.dim, detailRows, st, scoringPromise);
 
             renderPortfolioPulse(st.date).catch(function(){});
+            renderHistoricalHitCompareChart(st.date, st.subdomain).catch(function(){});
 
             if (!hideEarningFinance && (st.source === 'adx' || st.source === 'adsense' || st.source === 'all') && st.dim === 'domain') {
                 const selectedDomains = rows.map(function(r){ return String(r?.name || '').trim().toLowerCase(); }).filter(Boolean);

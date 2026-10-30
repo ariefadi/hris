@@ -23,28 +23,15 @@ os.environ.setdefault('OAUTHLIB_IGNORE_SCOPE_CHANGE', '1')
 logger = logging.getLogger(__name__)
 
 
-def build_adx_oauth_scopes(include_gmail=False):
-    """OAuth scopes for AdX credential flow; Gmail only needed for policy-events sync."""
-    scopes = [
+def build_adx_oauth_scopes():
+    """OAuth scopes for AdX / AdSense credential flow."""
+    return [
         'openid',
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/admanager',
         'https://www.googleapis.com/auth/adsense',
     ]
-    if include_gmail:
-        scopes.append('https://www.googleapis.com/auth/gmail.readonly')
-    return scopes
-
-
-def adx_oauth_requires_gmail(request):
-    return bool(request.session.get('oauth_require_gmail')) or str(
-        request.session.get('oauth_return_to') or ''
-    ).strip() in (
-        'adsense_policy_events',
-        'ads_policy_events',
-        'adx_policy_events',
-    )
 
 
 def get_google_oauth_callback_url(request, prefer_session=True):
@@ -474,9 +461,7 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
         user_mail = target_user_mail or None
 
         # Gunakan client dari .env secara eksplisit (tanpa DB mapping)
-        require_gmail = adx_oauth_requires_gmail(request)
-        include_gmail = bool(request.session.get('oauth_flow_include_gmail')) or require_gmail
-        scopes = build_adx_oauth_scopes(include_gmail=include_gmail)
+        scopes = build_adx_oauth_scopes()
         client_id = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
         client_secret = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET')
         if not client_id or not client_secret:
@@ -509,20 +494,6 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
                 'message': f'Gagal menukar code menjadi token: {str(e)}'
             }
 
-        gmail_ok = False
-        if require_gmail:
-            from management.list_adsense_policy_events import verify_gmail_credentials, _format_gmail_api_error
-            gmail_ok, gmail_err = verify_gmail_credentials(credentials)
-            if not gmail_ok:
-                formatted = _format_gmail_api_error(gmail_err)
-                raw = str(gmail_err or '').strip()
-                if raw and raw not in formatted:
-                    formatted = f"{formatted} | Google: {raw[:500]}"
-                return {
-                    'status': False,
-                    'message': formatted,
-                }
-
         if not refresh_token:
             existing_refresh = None
             try:
@@ -535,16 +506,6 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
                     existing_refresh = str(row.get('refresh_token') or '').strip() or None
             except Exception:
                 existing_refresh = None
-
-            if require_gmail:
-                return {
-                    'status': False,
-                    'message': (
-                        'Google tidak mengeluarkan refresh token baru. Refresh token lama kemungkinan belum punya izin Gmail. '
-                        'Buka https://myaccount.google.com/permissions → cari aplikasi OAuth HRIS → Hapus Akses → '
-                        'kembali ke menu Policy Events → Izinkan Gmail lagi.'
-                    ),
-                }
 
             if existing_refresh:
                 refresh_token = existing_refresh
@@ -704,16 +665,6 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
             )
             print(f"[DEBUG] Insert result: {result}")
 
-        if isinstance(result, dict) and result.get('status') and require_gmail:
-            from management.list_adsense_policy_events import build_gmail_service, _format_gmail_api_error
-            service, gmail_save_err = build_gmail_service(client_id, client_secret, refresh_token)
-            if gmail_save_err:
-                return {
-                    'status': False,
-                    'message': _format_gmail_api_error(gmail_save_err),
-                }
-            gmail_ok = bool(service)
-
         if isinstance(result, dict) and result.get('status'):
             return {
                 'status': True,
@@ -724,7 +675,6 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
                 'user_mail': effective_user_mail,
                 'network_code': network_code,
                 'refresh_token_saved': True,
-                'gmail_verified': bool(gmail_ok),
             }
         else:
             return {

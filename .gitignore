@@ -84,3 +84,9 @@ staticfiles_backup_*.tgz
 # Current deployment serves from management/static via Nginx
 hris.code-workspace
 roi_compare.md
+
+# Google Sheets ROI OAuth tokens (do not commit)
+var/roi_spreadsheet.json
+var/roi_spreadsheet_client.json
+var/roi_spreadsheet_state.json
+var/roi_spreadsheet_token.json

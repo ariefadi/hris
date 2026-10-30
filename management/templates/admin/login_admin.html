@@ -3,7 +3,25 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <script>
+        (function () {
+            try {
+                var standalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.navigator.standalone === true
+                    || /[?&]pwa=1(?:&|$)/.test(window.location.search || '');
+                var secure = window.location.protocol === 'https:' ? '; Secure' : '';
+                if (!standalone) {
+                    document.documentElement.classList.remove('hris-pwa-app', 'hris-pwa-zoomed', 'hris-pwa-no-zoom');
+                    document.cookie = 'hris_pwa_app=; Path=/; Max-Age=0; SameSite=Lax' + secure;
+                    return;
+                }
+                document.documentElement.classList.add('hris-pwa-app');
+                document.cookie = 'hris_pwa_app=1; Path=/; Max-Age=31536000; SameSite=Lax' + secure;
+            } catch (err) {}
+        })();
+        </script>
         <meta name="theme-color" content="#4f46e5">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
@@ -961,6 +979,7 @@
         <script>
         window.HRIS_PWA = { swUrl: "{% url 'pwa_service_worker' %}" };
         </script>
-        <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=2"></script>
+        <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=3"></script>
+        <script src="{% static 'ajax/admin/shared/hris_pwa_shell.js' %}?v=5"></script>
     </body>
 </html>

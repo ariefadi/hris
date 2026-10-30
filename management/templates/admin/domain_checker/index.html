@@ -1,0 +1,281 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Domain Expired{% endblock %}
+{% block page_heading %}Domain Expired{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Domain Expired</li>
+{% endblock %}
+{% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<style>
+.dc-page, .dc-modal {
+    --dc-text: #0f172a;
+    --dc-muted: #64748b;
+    --dc-border: rgba(15,23,42,.08);
+    --dc-surface: #fff;
+    --dc-soft: #f8fafc;
+    color: var(--dc-text);
+}
+html[data-theme="dark"] .dc-page,
+html[data-theme="dark"] .dc-modal {
+    --dc-text: #e2e8f0;
+    --dc-muted: #94a3b8;
+    --dc-border: rgba(148,163,184,.16);
+    --dc-surface: #1e293b;
+    --dc-soft: #0f172a;
+}
+.dc-hero {
+    position: relative; overflow: hidden;
+    border-radius: 18px; padding: 22px 24px;
+    margin-bottom: 16px; color: #fff;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%);
+    box-shadow: 0 16px 40px rgba(79,70,229,.28);
+}
+.dc-hero::after {
+    content: ""; position: absolute; right: -40px; top: -50px;
+    width: 180px; height: 180px; border-radius: 999px;
+    background: rgba(255,255,255,.14);
+}
+.dc-hero-inner { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+.dc-hero-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 800;
+    letter-spacing: .06em; text-transform: uppercase;
+    background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28);
+}
+.dc-hero h2 { margin: 8px 0 6px; font-size: 1.55rem; font-weight: 800; letter-spacing: -.02em; }
+.dc-hero p { margin: 0; max-width: 560px; opacity: .92; font-size: 14px; line-height: 1.5; }
+.dc-hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.dc-hero-actions .btn {
+    border-radius: 999px; font-weight: 700; padding: 8px 16px;
+}
+.dc-hero-actions .btn-light { color: #4f46e5; }
+.dc-summary { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+.dc-charts { display: grid; grid-template-columns: 1.1fr 1.4fr; gap: 12px; margin-bottom: 16px; }
+.dc-chart-card { border: 1px solid var(--dc-border); border-radius: 16px; background: var(--dc-surface); box-shadow: 0 8px 24px rgba(15,23,42,.06); padding: 8px 10px 6px; min-height: 320px; }
+.dc-chart { min-height: 300px; }
+.dc-export { display: flex; gap: 6px; flex-wrap: wrap; }
+.dc-export .btn { border-radius: 999px; font-weight: 700; }
+.dc-box {
+    border: 1px solid var(--dc-border); border-radius: 16px; padding: 14px 16px;
+    background: var(--dc-surface); cursor: pointer; text-align: left;
+    box-shadow: 0 8px 24px rgba(15,23,42,.06); transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.dc-box:hover { transform: translateY(-2px); }
+.dc-box.is-active { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.18); }
+.dc-box .k { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--dc-muted); }
+.dc-box .v { font-size: 26px; font-weight: 800; margin-top: 4px; line-height: 1.1; }
+.dc-box .s { font-size: 12px; color: var(--dc-muted); margin-top: 4px; }
+.dc-box.is-healthy .v { color: #059669; }
+.dc-box.is-watch .v { color: #d97706; }
+.dc-box.is-soon .v { color: #dc2626; }
+.dc-box.is-expired { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; }
+.dc-box.is-expired .k, .dc-box.is-expired .s, .dc-box.is-expired .v { color: #fff; }
+.dc-box.is-unregistered .v { color: #475569; }
+.dc-box.is-unregistered.is-active { border-color: #64748b; box-shadow: 0 0 0 3px rgba(100,116,139,.18); }
+.dc-card { border: 1px solid var(--dc-border); border-radius: 16px; background: var(--dc-surface); box-shadow: 0 10px 30px rgba(15,23,42,.06); }
+.dc-card-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--dc-border); }
+.dc-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.dc-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.dc-chip {
+    border: 1px solid var(--dc-border); background: var(--dc-soft); color: var(--dc-muted);
+    border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.dc-chip.is-on, .dc-chip:hover { border-color: #6366f1; color: #4f46e5; background: rgba(99,102,241,.1); }
+.dc-search {
+    min-width: 220px; border-radius: 999px; border: 1px solid var(--dc-border);
+    padding: 8px 14px; background: var(--dc-soft); color: var(--dc-text);
+}
+.dc-progress { display: none; margin: 10px 18px 0; }
+.dc-progress-label { font-size: 12px; color: var(--dc-muted); margin-bottom: 6px; }
+.dc-table-wrap { overflow-x: auto; padding: 0 6px 8px; }
+#dcTable { width: 100% !important; color: var(--dc-text); }
+#dcTable thead th {
+    white-space: nowrap; font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--dc-muted); border-bottom: 1px solid var(--dc-border); background: var(--dc-soft);
+}
+#dcTable tbody td { vertical-align: middle; border-color: var(--dc-border); }
+#dcTable tbody tr { border-left: 4px solid transparent; }
+#dcTable tbody tr.is-healthy { border-left-color: #10b981; }
+#dcTable tbody tr.is-watch { border-left-color: #f59e0b; }
+#dcTable tbody tr.is-soon { border-left-color: #f43f5e; background: rgba(244,63,94,.06); }
+#dcTable tbody tr.is-expired { border-left-color: #dc2626; background: rgba(220,38,38,.1); }
+#dcTable tbody tr.is-pending, #dcTable tbody tr.is-unknown { border-left-color: #94a3b8; }
+#dcTable tbody tr.is-unregistered { border-left-color: #64748b; background: rgba(100,116,139,.08); }
+.dc-domain { font-weight: 800; color: var(--dc-text); }
+.dc-sub { display: block; font-size: 12px; color: var(--dc-muted); font-weight: 500; margin-top: 2px; }
+.dc-pill {
+    display: inline-flex; align-items: center; gap: 4px; border-radius: 999px;
+    padding: 3px 9px; font-size: 11px; font-weight: 800; white-space: nowrap;
+}
+.dc-pill.is-healthy { background: rgba(16,185,129,.14); color: #047857; }
+.dc-pill.is-watch { background: rgba(245,158,11,.16); color: #b45309; }
+.dc-pill.is-soon { background: rgba(244,63,94,.14); color: #be123c; }
+.dc-pill.is-expired { background: #dc2626; color: #fff; }
+.dc-pill.is-pending, .dc-pill.is-unknown { background: rgba(148,163,184,.18); color: #475569; }
+.dc-pill.is-unregistered { background: rgba(71,85,105,.16); color: #334155; }
+.dc-src { display: inline-flex; border-radius: 8px; padding: 2px 7px; font-size: 10px; font-weight: 800; background: rgba(99,102,241,.12); color: #4f46e5; }
+.dc-note { font-size: 12px; color: var(--dc-muted); max-width: 240px; }
+.dc-check-btn { border-radius: 9px; font-weight: 700; padding: 4px 10px; }
+.dc-modal .modal-content {
+    border: 0; border-radius: 18px; background: var(--dc-surface); color: var(--dc-text);
+    box-shadow: 0 24px 70px rgba(15,23,42,.28);
+}
+.dc-modal .modal-header { border-bottom: 1px solid var(--dc-border); padding: 16px 20px 12px; align-items: flex-start; }
+.dc-modal .modal-footer { border-top: 1px solid var(--dc-border); }
+.dc-modal .close { color: var(--dc-text); opacity: .7; text-shadow: none; }
+.dc-modal .close:hover { opacity: 1; }
+.dc-modal-kicker { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--dc-muted); }
+.dc-modal .modal-title { font-weight: 800; margin: 2px 0 0; }
+.dc-detail-kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+.dc-kpi { background: var(--dc-soft); border: 1px solid var(--dc-border); border-radius: 14px; padding: 12px 14px; }
+.dc-kpi .k { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--dc-muted); }
+.dc-kpi .v { font-size: 18px; font-weight: 800; margin-top: 4px; line-height: 1.2; word-break: break-word; }
+.dc-kpi .s { font-size: 11px; color: var(--dc-muted); margin-top: 2px; }
+.dc-kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+.dc-kv .k { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--dc-muted); }
+.dc-kv .v { font-weight: 700; margin-top: 2px; word-break: break-word; }
+.dc-ns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.dc-ns span { background: rgba(99,102,241,.12); color: #4f46e5; border-radius: 8px; padding: 3px 8px; font-size: 12px; font-weight: 700; }
+.dc-price {
+    border-radius: 14px; padding: 12px 14px; margin: 12px 0;
+    background: linear-gradient(135deg, rgba(99,102,241,.12), rgba(219,39,119,.1));
+    border: 1px solid var(--dc-border);
+}
+.dc-price .k { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--dc-muted); }
+.dc-price .v { font-size: 20px; font-weight: 800; margin-top: 2px; }
+.dc-whois { white-space: pre-wrap; font-size: 11px; line-height: 1.45; max-height: 220px; overflow: auto;
+    background: var(--dc-soft); border: 1px solid var(--dc-border); border-radius: 12px; padding: 10px 12px; color: var(--dc-muted); }
+.dc-event { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--dc-border); font-size: 13px; }
+.dc-event:last-child { border-bottom: 0; }
+.dc-loading { text-align: center; padding: 36px 12px; color: var(--dc-muted); }
+html[data-theme="dark"] .dc-ns span { color: #c7d2fe; }
+@media (max-width: 767px) {
+    .dc-detail-kpis, .dc-kv-grid { grid-template-columns: 1fr 1fr; }
+}
+html[data-theme="dark"] .dc-pill.is-healthy { color: #6ee7b7; background: rgba(16,185,129,.18); }
+html[data-theme="dark"] .dc-pill.is-watch { color: #fcd34d; background: rgba(245,158,11,.18); }
+html[data-theme="dark"] .dc-pill.is-soon { color: #fda4af; background: rgba(244,63,94,.18); }
+html[data-theme="dark"] .dc-pill.is-pending, html[data-theme="dark"] .dc-pill.is-unknown { color: #cbd5e1; }
+html[data-theme="dark"] .dc-pill.is-unregistered { color: #e2e8f0; background: rgba(148,163,184,.22); }
+html[data-theme="dark"] .dc-box.is-unregistered .v { color: #cbd5e1; }
+html[data-theme="dark"] .dc-src { color: #c7d2fe; }
+html[data-theme="dark"] .dc-chip.is-on, html[data-theme="dark"] .dc-chip:hover { color: #c7d2fe; }
+@media (max-width: 1199px) {
+    .dc-summary { grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+@media (max-width: 991px) {
+    .dc-summary { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .dc-charts { grid-template-columns: 1fr; }
+    .dc-hero h2 { font-size: 1.25rem; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="dc-page">
+    <div class="dc-hero">
+        <div class="dc-hero-inner">
+            <div>
+                <span class="dc-hero-badge"><i class="bi bi-calendar2-x"></i> Domain Checker</span>
+                <h2>Pantau masa berlaku domain Google</h2>
+                <p>Domain utama dari akun AdX &amp; AdSense dicek lewat RDAP, lalu whois.vu. Domain sisa 30 hari atau kurang otomatis muncul di notifikasi.</p>
+            </div>
+            <div class="dc-hero-actions">
+                <button type="button" class="btn btn-light" id="dcCheckAll"><i class="bi bi-search mr-1"></i> Cek Semua Domain</button>
+                <button type="button" class="btn btn-outline-light" id="dcCheckSelected"><i class="bi bi-check2-square mr-1"></i> Cek Terpilih</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="dc-summary" id="dcSummary">
+        <button type="button" class="dc-box is-active" data-filter="all"><div class="k">Semua domain</div><div class="v" id="dcTotal">0</div><div class="s">Tersambung akun Google</div></button>
+        <button type="button" class="dc-box is-healthy" data-filter="healthy"><div class="k">Aman</div><div class="v" id="dcHealthy">0</div><div class="s">Lebih dari 90 hari</div></button>
+        <button type="button" class="dc-box is-watch" data-filter="watch"><div class="k">Perlu pantau</div><div class="v" id="dcWatch">0</div><div class="s">31–90 hari lagi</div></button>
+        <button type="button" class="dc-box is-soon" data-filter="soon"><div class="k">Harus renew</div><div class="v" id="dcSoon">0</div><div class="s">30 hari atau kurang</div></button>
+        <button type="button" class="dc-box is-expired" data-filter="expired"><div class="k">Expired</div><div class="v" id="dcExpired">0</div><div class="s">Sudah lewat masa berlaku</div></button>
+        <button type="button" class="dc-box is-unregistered" data-filter="unregistered"><div class="k">Tidak terdaftar</div><div class="v" id="dcUnregistered">0</div><div class="s">Tidak ada di RDAP/WHOIS</div></button>
+    </div>
+
+    <div class="dc-charts">
+        <div class="dc-chart-card"><div id="dcStatusChart" class="dc-chart"></div></div>
+        <div class="dc-chart-card"><div id="dcUrgencyChart" class="dc-chart"></div></div>
+    </div>
+
+    <div class="dc-card">
+        <div class="dc-card-head">
+            <div class="dc-toolbar">
+                <div class="dc-chips" id="dcChips">
+                    <button type="button" class="dc-chip is-on" data-filter="all">Semua</button>
+                    <button type="button" class="dc-chip" data-filter="soon">Perlu tindakan</button>
+                    <button type="button" class="dc-chip" data-filter="expired">Expired</button>
+                    <button type="button" class="dc-chip" data-filter="unregistered">Tidak terdaftar</button>
+                </div>
+                <div class="d-flex align-items-center" style="gap:8px;flex-wrap:wrap;">
+                    <input type="search" class="dc-search" id="dcSearch" placeholder="Cari domain / akun / registrar">
+                    <div class="dc-export" id="dcExportButtons"></div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="dcReload" style="border-radius:999px;font-weight:700;"><i class="bi bi-arrow-repeat mr-1"></i> Muat Ulang</button>
+                </div>
+            </div>
+        </div>
+        <div class="dc-progress" id="dcProgressWrap">
+            <div class="dc-progress-label" id="dcProgressLabel">Menyiapkan pengecekan...</div>
+            <div class="progress" style="height:8px;border-radius:999px;">
+                <div class="progress-bar bg-primary" id="dcProgressBar" role="progressbar" style="width:0%"></div>
+            </div>
+        </div>
+        <div class="dc-table-wrap">
+            <table class="table mb-0" id="dcTable">
+                <thead>
+                    <tr>
+                        <th class="text-center no-export" style="width:36px;"><input type="checkbox" id="dcCheckAllBox"></th>
+                        <th>Domain</th>
+                        <th>Status</th>
+                        <th>Expired</th>
+                        <th class="text-center">Sisa Hari</th>
+                        <th>Registrar</th>
+                        <th>Terakhir dicek</th>
+                        <th class="no-export"></th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade dc-modal" id="dcDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <div class="dc-modal-kicker">Rincian domain</div>
+                    <h5 class="modal-title" id="dcDetailTitle">-</h5>
+                    <div id="dcDetailPills"></div>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body" id="dcDetailBody">
+                <div class="dc-loading">Memuat rincian domain...</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal"><i class="bi bi-x-lg mr-1"></i> Tutup</button>
+                <button type="button" class="btn btn-primary" id="dcDetailRefresh"><i class="bi bi-arrow-repeat mr-1"></i> Cek ulang WHOIS</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+<script>
+window.HRIS_DOMAIN_CHECKER = {
+    dataUrl: '{% url "domain_checker_data" %}',
+    checkUrl: '{% url "domain_checker_check" %}',
+    detailUrl: '{% url "domain_checker_detail" %}'
+};
+</script>
+<script src="{% static 'ajax/admin/domain_checker/index.js' %}?v=5"></script>
+{% endblock %}

@@ -1,6 +1,70 @@
 /**
  * Reference Ajax AdX Traffic Per Account
  */
+function exportDataTableToGoogleSpreadsheet(dt, getMeta) {
+    if (!dt) {
+        alert('Muat data terlebih dahulu.');
+        return;
+    }
+    if (!(window.HrisTableExport && typeof HrisTableExport.collectFromDataTable === 'function')) {
+        alert('Export belum siap. Muat ulang halaman, lalu coba lagi.');
+        return;
+    }
+    var meta = (typeof getMeta === 'function') ? getMeta() : {};
+    var collected = HrisTableExport.collectFromDataTable(dt, {
+        columnSelector: ':visible:not(.no-export)'
+    });
+    if (typeof HrisTableExport.exportGoogleSpreadsheet === 'function') {
+        HrisTableExport.exportGoogleSpreadsheet(meta, collected.headers, collected.rows);
+        return;
+    }
+    if (!collected.rows.length) {
+        alert('Tidak ada data untuk diekspor.');
+        return;
+    }
+    var normalized = (typeof HrisTableExport.normalizeMeta === 'function') ? HrisTableExport.normalizeMeta(meta) : (meta || {});
+    function sheetCell(value) {
+        return String(value || '').replace(/[\t\r\n]+/g, ' ').trim();
+    }
+    var lines = [];
+    if (normalized.titleText) lines.push(sheetCell(normalized.titleText));
+    if (normalized.periodText) lines.push(sheetCell(normalized.periodText));
+    (normalized.extraLines || []).forEach(function (line) {
+        if (line) lines.push(sheetCell(line));
+    });
+    if (lines.length) lines.push('');
+    lines.push((collected.headers || []).map(sheetCell).join('\t'));
+    collected.rows.forEach(function (cells) {
+        lines.push((cells || []).map(sheetCell).join('\t'));
+    });
+    var text = lines.join('\n');
+    var copyPromise = (navigator.clipboard && navigator.clipboard.writeText)
+        ? navigator.clipboard.writeText(text)
+        : new Promise(function (resolve, reject) {
+            var area = document.createElement('textarea');
+            area.value = text;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.left = '-9999px';
+            document.body.appendChild(area);
+            area.select();
+            try {
+                if (document.execCommand('copy')) resolve();
+                else reject(new Error('copy'));
+            } catch (err) {
+                reject(err);
+            }
+            document.body.removeChild(area);
+        });
+    var opened = window.open('https://docs.google.com/spreadsheets/create', '_blank');
+    copyPromise.then(function () {
+        alert(opened
+            ? 'Google Spreadsheet baru dibuka di tab lain. Data tabel sudah disalin. Klik sel A1, lalu tempel dengan Ctrl+V.'
+            : 'Popup diblokir browser. Data tabel sudah disalin. Buka Google Spreadsheet baru, klik sel A1, lalu tempel dengan Ctrl+V.');
+    }).catch(function () {
+        alert('Data tidak bisa disalin otomatis. Izinkan akses clipboard di browser, lalu coba lagi.');
+    });
+}
 function escapeHtml(text) {
     return String(text || '')
         .replace(/&/g, '&amp;')
@@ -105,6 +169,51 @@ function formatDateCell(formattedDate) {
     return '<span class="date-badge">' + escapeHtml(String(formattedDate)) + '</span>';
 }
 
+function formatDateIdShort(ymd) {
+    var s = String(ymd || '').trim();
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return s || '-';
+    return Number(m[3]) + '/' + Number(m[2]) + '/' + m[1];
+}
+
+function formatCampaignStatusCell(item) {
+    var status = String(item.campaign_status || '').trim().toUpperCase();
+    var account = String(item.account_ads || '').trim();
+    if (!status && (!account || account === '-')) {
+        return '<span class="text-muted">-</span>';
+    }
+    var source = String(item.campaign_status_source || '').trim();
+    var syncOk = item.ads_sync_ok;
+    var cls = 'is-unknown';
+    if (status === 'ACTIVE') cls = 'is-active';
+    else if (status.indexOf('PAUSE') >= 0 || status === 'PAUSED') cls = 'is-paused';
+    if (syncOk === false) cls = 'is-stale';
+    var notes = [];
+    if (source === 'meta_live') {
+        var liveCount = Number(item.active_campaign_count);
+        if (!isNaN(liveCount)) notes.push(liveCount > 0 ? (liveCount + ' campaign ACTIVE di Meta') : 'Tidak ada campaign ACTIVE di Meta');
+    } else if (item.campaign_last_date) {
+        notes.push('cron terakhir ' + formatDateIdShort(item.campaign_last_date));
+    }
+    if (item.campaign_last_spend_date) notes.push('spend terakhir ' + formatDateIdShort(item.campaign_last_spend_date));
+    if (syncOk === false) notes.push('akun tidak ter-sync; campaign mungkin masih jalan di Meta');
+    var camp = String(item.campaign_name || '').trim();
+    var title = camp || status || 'Status campaign';
+    return '<div class="roi-ads-status" title="' + escapeHtml(title) + '">' +
+        (status ? '<span class="roi-status-chip ' + cls + '">' + escapeHtml(status) + '</span>' : '') +
+        (notes.length ? '<span class="roi-status-note">' + escapeHtml(notes.join(' · ')) + '</span>' : '') +
+        '</div>';
+}
+
+function formatRoiCampaignDetailButton(item) {
+    var domain = String(item.site_name || '').trim();
+    if (!domain) return '<span class="text-muted">-</span>';
+    return '<button type="button" class="btn btn-sm btn-outline-primary btn-roi-campaign-detail"' +
+        ' data-domain="' + escapeHtml(domain) + '"' +
+        ' title="Lihat rincian campaign">' +
+        '<i class="bi bi-eye-fill" aria-hidden="true"></i> Detail</button>';
+}
+
 function buildRoiDomainRow(item) {
     var formattedDate = item.date || '-';
     if (item.date && item.date.match(/\d{4}-\d{2}-\d{2}/)) {
@@ -115,6 +224,9 @@ function buildRoiDomainRow(item) {
     return [
         '',
         formatSiteCell(item.site_name),
+        String(item.account_name || '-').trim(),
+        String(item.account_ads || '-').trim() || '-',
+        formatCampaignStatusCell(item),
         { display: formatDateCell(formattedDate), sort: item.date || '' },
         Number(item.spend || 0),
         Number(item.clicks_fb || 0),
@@ -127,8 +239,109 @@ function buildRoiDomainRow(item) {
         Number(item.cpm || 0),
         Number(item.roi || 0),
         Number(item.revenue || 0),
-        (Number(item.revenue || 0) - Number(item.spend || 0))
+        (Number(item.revenue || 0) - Number(item.spend || 0)),
+        formatRoiCampaignDetailButton(item)
     ];
+}
+
+function roiCampaignStatusChip(status, syncOk) {
+    var st = String(status || '').trim().toUpperCase();
+    var cls = 'is-unknown';
+    if (st === 'ACTIVE') cls = 'is-active';
+    else if (st.indexOf('PAUSE') >= 0 || st === 'ARCHIVED' || st === 'DELETED') cls = 'is-paused';
+    if (syncOk === false) cls = 'is-stale';
+    if (!st) st = '-';
+    return '<span class="roi-status-chip ' + cls + '">' + escapeHtml(st) + '</span>';
+}
+
+function roiCampaignSourceLabel(source, syncOk) {
+    var src = String(source || '').trim();
+    if (src === 'meta_live') return 'Live Meta';
+    if (src === 'cron_last_stale' || syncOk === false) return 'Cron (akun tidak sync)';
+    if (src === 'spend_last') return 'Spend HRIS';
+    if (src === 'cron_last') return 'Cron terakhir';
+    return src || '-';
+}
+
+function renderRoiCampaignDetailModal(domain, payload) {
+    var campaigns = (payload && payload.campaigns) || [];
+    var summary = (payload && payload.summary) || {};
+    $('#roiCampaignDetailTitle').text('Rincian Campaign');
+    $('#roiCampaignDetailSubtitle').text(domain || (payload && payload.domain) || '-');
+    $('#roiCampaignDetailSummary').html(
+        '<span class="chip">Total ' + Number(summary.total || campaigns.length || 0) + '</span>' +
+        '<span class="chip">ACTIVE ' + Number(summary.active || 0) + '</span>' +
+        '<span class="chip">Paused/Off ' + Number(summary.paused || 0) + '</span>'
+    );
+    var staleNotes = [];
+    campaigns.forEach(function (c) {
+        if (c && c.ads_sync_ok === false) {
+            var acc = String(c.account_ads || c.account_ads_id || 'akun').trim();
+            var note = 'Akun ' + acc + ' tidak ter-sync ke Meta. Campaign mungkin masih jalan dan tetap memotong kartu.';
+            if (staleNotes.indexOf(note) < 0) staleNotes.push(note);
+        }
+    });
+    if (staleNotes.length) {
+        $('#roiCampaignDetailAlert').html(escapeHtml(staleNotes.join(' '))).show();
+    } else {
+        $('#roiCampaignDetailAlert').hide().text('');
+    }
+    if (!campaigns.length) {
+        $('#roiCampaignDetailBody').html('<tr><td colspan="7" class="roi-campaign-empty">Tidak ada campaign yang cocok untuk subdomain ini.</td></tr>');
+        return;
+    }
+    var rows = campaigns.map(function (c) {
+        var name = String((c && c.campaign_name) || '-').trim() || '-';
+        var cid = String((c && c.campaign_id) || '').trim();
+        var account = String((c && c.account_ads) || '-').trim() || '-';
+        var aid = String((c && c.account_ads_id) || '').trim();
+        return '<tr>' +
+            '<td><div class="roi-campaign-name">' + escapeHtml(name) + '</div>' +
+                (cid ? '<span class="roi-campaign-id">' + escapeHtml(cid) + '</span>' : '') +
+            '</td>' +
+            '<td>' + escapeHtml(account) +
+                (aid ? '<span class="roi-campaign-id">' + escapeHtml(aid) + '</span>' : '') +
+            '</td>' +
+            '<td class="text-center">' + roiCampaignStatusChip(c.status, c.ads_sync_ok) + '</td>' +
+            '<td class="text-center">' + escapeHtml(roiCampaignSourceLabel(c.source, c.ads_sync_ok)) + '</td>' +
+            '<td class="text-center">' + escapeHtml(formatDateIdShort(c.last_cron_date) || '-') + '</td>' +
+            '<td class="text-center">' + escapeHtml(formatDateIdShort(c.last_spend_date) || '-') + '</td>' +
+            '<td class="text-right">' + formatCurrencyIDR(c.spend_total || 0) + '</td>' +
+        '</tr>';
+    });
+    $('#roiCampaignDetailBody').html(rows.join(''));
+}
+
+function openRoiCampaignDetailModal(domain) {
+    var site = String(domain || '').trim();
+    if (!site) return;
+    $('#roiCampaignDetailTitle').text('Rincian Campaign');
+    $('#roiCampaignDetailSubtitle').text(site);
+    $('#roiCampaignDetailSummary').html('<span class="chip">Memuat...</span>');
+    $('#roiCampaignDetailAlert').hide().text('');
+    $('#roiCampaignDetailBody').html('<tr><td colspan="7" class="roi-campaign-empty">Memuat rincian campaign...</td></tr>');
+    $('#roiCampaignDetailModal').modal('show');
+    $.ajax({
+        url: '/management/admin/page_roi_traffic_domain_campaigns',
+        type: 'GET',
+        data: { domain: site },
+        headers: { 'X-CSRFToken': csrftoken },
+        success: function (response) {
+            if (response && response.status) {
+                renderRoiCampaignDetailModal(site, response);
+                return;
+            }
+            $('#roiCampaignDetailBody').html(
+                '<tr><td colspan="7" class="roi-campaign-empty">' +
+                escapeHtml((response && response.error) || 'Gagal memuat rincian campaign.') +
+                '</td></tr>'
+            );
+        },
+        error: function (jqXHR, textStatus) {
+            report_eror(jqXHR, textStatus);
+            $('#roiCampaignDetailBody').html('<tr><td colspan="7" class="roi-campaign-empty">Gagal memuat rincian campaign.</td></tr>');
+        }
+    });
 }
 
 function normalizeDomainFilter(selected_domain) {
@@ -165,6 +378,13 @@ $().ready(function () {
         e.preventDefault();
         setRoiTrafficDomainChartVisible(!window.__roiTrafficDomainChartVisible, true);
     });
+
+    $(document).off('click.roiCampaignDetail', '#table_traffic_account .btn-roi-campaign-detail')
+        .on('click.roiCampaignDetail', '#table_traffic_account .btn-roi-campaign-detail', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openRoiCampaignDetailModal($(this).attr('data-domain'));
+        });
 
     function fallbackCopyText(text) {
         var ta = document.createElement('textarea');
@@ -312,12 +532,13 @@ $().ready(function () {
     }
 
     function roiDomainExportPdfWidths(headers) {
-        if (!headers || headers.length !== 14) return null;
-        return [70, 46, 38, 22, 24, 30, 26, 26, 32, 32, 32, 28, 36, 38];
+        if (!headers || headers.length !== 17) return null;
+        return [64, 50, 50, 58, 42, 34, 22, 24, 28, 24, 24, 30, 30, 28, 26, 34, 36];
     }
 
     function roiDomainPdfExpandWeight(header, index) {
         var h = String(header || '').toLowerCase();
+        if (h.indexOf('account') >= 0) return 0.85;
         if (index === 0 || h.indexOf('subdomain') >= 0 || (h.indexOf('domain') >= 0 && h.indexOf('subdomain') < 0)) return 1.05;
         if (h.indexOf('tanggal') >= 0 || h.indexOf('date') >= 0) return 0.58;
         if (h.indexOf('spend') >= 0) return 0.62;
@@ -439,7 +660,7 @@ $().ready(function () {
                         className: 'btn btn-info',
                         action: function (e, dt) {
                             var lines = [];
-                            lines.push(['Domain', 'Tanggal', 'ROI', 'Pendapatan'].join('\t'));
+                            lines.push(['Domain', 'Account AdX', 'Account Ads', 'Status Campaign', 'Tanggal', 'ROI', 'Pendapatan'].join('\t'));
 
                             $('#table_traffic_account tbody input.row-select:checked').each(function () {
                                 var tr = $(this).closest('tr');
@@ -447,18 +668,21 @@ $().ready(function () {
                                 if (!r) return;
 
                                 var domainPlain = String(r[1] || '').replace(/<[^>]*>/g, '').trim();
-                                var tanggalPlain = String(r[2] || '').replace(/<[^>]*>/g, '').trim();
-                                if (r[2] && typeof r[2] === 'object' && r[2].display) {
-                                    tanggalPlain = String(r[2].display || '').replace(/<[^>]*>/g, '').trim();
+                                var accountPlain = String(r[2] || '').replace(/<[^>]*>/g, '').trim();
+                                var accountAdsPlain = String(r[3] || '').replace(/<[^>]*>/g, '').trim();
+                                var statusPlain = String(r[4] || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                                var tanggalPlain = String(r[5] || '').replace(/<[^>]*>/g, '').trim();
+                                if (r[5] && typeof r[5] === 'object' && r[5].display) {
+                                    tanggalPlain = String(r[5].display || '').replace(/<[^>]*>/g, '').trim();
                                 }
-                                var roiVal = Number(r[12] || 0);
-                                var pendapatanVal = Number(r[13] || 0);
+                                var roiVal = Number(r[15] || 0);
+                                var pendapatanVal = Number(r[16] || 0);
 
                                 var roiText = formatNumber(roiVal, 2) + ' %';
                                 var pendapatanText = formatCurrencyIDR(pendapatanVal);
 
                                 if (domainPlain || tanggalPlain) {
-                                    lines.push([domainPlain, tanggalPlain, roiText, pendapatanText].join('\t'));
+                                    lines.push([domainPlain, accountPlain, accountAdsPlain, statusPlain, tanggalPlain, roiText, pendapatanText].join('\t'));
                                 }
                             });
 
@@ -475,6 +699,13 @@ $().ready(function () {
                             } else {
                                 fallbackCopyText(textToCopy);
                             }
+                        }
+                    },
+                    {
+                        text: 'Export Google Spreadsheet',
+                        className: 'btn btn-success buttons-gsheet',
+                        action: function (e, dt) {
+                            exportDataTableToGoogleSpreadsheet(dt, getExportMetaRoiDomain);
                         }
                     }
                 ],
@@ -500,7 +731,14 @@ $().ready(function () {
                 }
             },
             {
-                targets: 2, // INDEX kolom Tanggal (mulai dari 0)
+                targets: [2, 3],
+                render: function (data, type) {
+                    var name = String(data || '').replace(/<[^>]*>/g, '').trim();
+                    return name || '-';
+                }
+            },
+            {
+                targets: 5, // INDEX kolom Tanggal (mulai dari 0)
                 render: function (data, type) {
                     if (type === 'sort' || type === 'type') {
                         return data.sort;     // YYYY-MM-DD
@@ -509,36 +747,18 @@ $().ready(function () {
                 }
             },
             {
-                targets: [0, 2, 7, 8, 12],
+                targets: [0, 2, 3, 4, 5, 10, 11, 15],
                 className: "text-center"
             },
             {
-                targets: [3, 4, 5, 6, 9, 10, 11, 13, 14],
+                targets: [6, 7, 8, 9, 12, 13, 14, 16, 17],
                 className: "text-right"
             },
             {
-                targets: 3,
-                type: 'num',
-                render: function (data, type) {
-                    var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
-                }
-            },
-            {
-                targets: 4,
-                type: 'num',
-                render: function (data, type) {
-                    var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val);
-                }
-            },
-            {
-                targets: 5,
-                type: 'num',
-                render: function (data, type) {
-                    var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val);
-                }
+                targets: 18,
+                orderable: false,
+                searchable: false,
+                className: 'text-center dt-body-center no-export'
             },
             {
                 targets: 6,
@@ -553,7 +773,7 @@ $().ready(function () {
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val);
                 }
             },
             {
@@ -561,7 +781,7 @@ $().ready(function () {
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val);
                 }
             },
             {
@@ -577,7 +797,7 @@ $().ready(function () {
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
                 }
             },
             {
@@ -585,7 +805,7 @@ $().ready(function () {
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
                 }
             },
             {
@@ -593,11 +813,7 @@ $().ready(function () {
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
-                    if (type === 'sort' || type === 'type' || type === 'filter') return val;
-                    if (window.HrisRoiBadge && HrisRoiBadge.forDataTable) {
-                        return HrisRoiBadge.forDataTable(data, type, { spaceBeforePercent: true });
-                    }
-                    return '<span class="ds-roi ds-roi--na">' + formatNumber(val, 2) + ' %</span>';
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
                 }
             },
             {
@@ -615,9 +831,37 @@ $().ready(function () {
                     var val = Number(data) || 0;
                     return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
                 }
+            },
+            {
+                targets: 15,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    if (type === 'sort' || type === 'type' || type === 'filter') return val;
+                    if (window.HrisRoiBadge && HrisRoiBadge.forDataTable) {
+                        return HrisRoiBadge.forDataTable(data, type, { spaceBeforePercent: true });
+                    }
+                    return '<span class="ds-roi ds-roi--na">' + formatNumber(val, 2) + ' %</span>';
+                }
+            },
+            {
+                targets: 16,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            {
+                targets: 17,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
             }
         ],
-        order: [[2, 'asc']]
+        order: [[5, 'asc']]
     });
 
         window.roiDomainTable = table;

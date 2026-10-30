@@ -1,0 +1,308 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Payment AdSense{% endblock %}
+{% block page_heading %}Payment AdSense{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item">Report Payment Policy</li>
+    <li class="breadcrumb-item active">Payment AdSense</li>
+{% endblock %}
+{% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+{% include "admin/report_payment/_shared_styles.html" with accent="#059669" %}
+{% endblock %}
+{% block content %}
+{% csrf_token %}
+<div class="pay-page">
+    <div class="card mb-3">
+        <div class="card-header">
+            <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+                <div>
+                    <h3 class="card-title mb-0">Payment AdSense</h3>
+                    <p class="pay-lead mt-1">Unpaid dan paid ditarik dari API. CSV tidak wajib — hanya jika ingin rincian Invalid Activity atau membandingkan dengan Payments.</p>
+                </div>
+                <span class="pay-last-update">Update terakhir <b id="payLastSync">-</b><br><small id="payFxNote" class="pay-muted">Semua nominal dalam IDR</small></span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="form-row pay-filter-row">
+                <div class="col-md-2 mb-2">
+                    <label>Range Dari</label>
+                    <input class="form-control datepicker-input" type="text" id="tanggal_dari" placeholder="YYYY-MM-DD">
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label>Range Sampai</label>
+                    <input class="form-control datepicker-input" type="text" id="tanggal_sampai" placeholder="YYYY-MM-DD">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label>Filter Account</label>
+                    <select class="form-control" id="account_filter" multiple>
+                        {% for account in data_account %}
+                        <option value="{{ account.account_id }}">{{ account.account_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label>Status Payment</label>
+                    <select class="form-control" id="status_filter">
+                        <option value="">Semua</option>
+                        <option value="unpaid">Unpaid / berjalan</option>
+                        <option value="paid">Sudah dibayar</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label>Tampilkan</label>
+                    <select class="form-control" id="policy_filter">
+                        <option value="0">Semua transaksi</option>
+                        <option value="1">Hanya potongan policy / IVT</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row pay-filter-row">
+                <div class="col-md-2 mb-2">
+                    <button type="button" class="btn btn-primary form-control" id="btn_load_data">
+                        <i class="fas fa-sync-alt mr-1"></i> Muat Data
+                    </button>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <button type="button" class="btn btn-success form-control" id="btn_sync_api">
+                        <i class="fas fa-cloud-download-alt mr-1"></i> Tarik API
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="paySummary" class="pay-summary-grid">
+        <div class="pay-summary-box is-unpaid">
+            <div class="pay-summary-inner">
+                <div><div class="k">Unpaid / berjalan</div><div class="v" id="sumUnpaid">0</div></div>
+                <div class="pay-summary-icon"><i class="fas fa-hourglass-half"></i></div>
+            </div>
+        </div>
+        <div class="pay-summary-box is-paid">
+            <div class="pay-summary-inner">
+                <div><div class="k">Sudah dibayar</div><div class="v" id="sumPaid">0</div></div>
+                <div class="pay-summary-icon"><i class="fas fa-check-circle"></i></div>
+            </div>
+        </div>
+        <div class="pay-summary-box is-deduct">
+            <div class="pay-summary-inner">
+                <div><div class="k">Potongan policy / IVT</div><div class="v" id="sumDeduct">0</div></div>
+                <div class="pay-summary-icon"><i class="fas fa-minus-circle"></i></div>
+            </div>
+        </div>
+        <div class="pay-summary-box is-count">
+            <div class="pay-summary-inner">
+                <div><div class="k">Baris payment / transaksi</div><div class="v" id="sumCount">0 / 0</div></div>
+                <div class="pay-summary-icon"><i class="fas fa-list"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body position-relative">
+            <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Memuat payment AdSense..." aria-hidden="true"></div>
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-toggle="tab" href="#tabPayments">Payment API</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#tabCompare">Perbandingan API vs CSV</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#tabTransactions">Transaksi CSV</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#tabInvalid">Penyebab Invalid</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#tabAccountAds">Account Ads Meta</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#tabImportCsv">Import CSV (opsional)</a>
+                </li>
+            </ul>
+            <div class="tab-content pt-3">
+                <div class="tab-pane fade show active" id="tabPayments">
+                    <div class="pay-hint mb-3">
+                        <strong>Cukup Tarik API</strong> untuk unpaid dan yang sudah dibayar.
+                        CSV hanya diperlukan jika ingin melihat <em>Invalid Activity</em> atau membandingkan angka Payments.
+                    </div>
+                    <div class="pay-table-wrap">
+                        <table class="table table-sm table-bordered mb-0" id="table_payments">
+                            <thead>
+                                <tr>
+                                    <th>Akun</th>
+                                    <th>Publisher</th>
+                                    <th>Status</th>
+                                    <th>Channel</th>
+                                    <th>Tanggal bayar</th>
+                                    <th>Jumlah</th>
+                                    <th>Estimasi periode</th>
+                                    <th>Selisih vs estimasi</th>
+                                    <th>Sumber</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="tabCompare">
+                    <div class="pay-hint mb-3" id="compareNote">
+                        Bandingkan total resmi API dengan CSV Transactions. Kalau belum import CSV, kolom CSV kosong — itu normal.
+                    </div>
+                    <div class="pay-table-wrap">
+                        <table class="table table-sm table-bordered mb-0" id="table_compare">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Dari API</th>
+                                    <th>Dari CSV</th>
+                                    <th>Selisih</th>
+                                    <th>Status</th>
+                                    <th>Artinya</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="tabImportCsv">
+                    <div class="pay-hint mb-3">
+                        <strong>Import CSV tidak wajib.</strong>
+                        API AdSense sudah mengisi tab Payment API. Unggah CSV hanya untuk rincian potongan IVT dan tab Perbandingan.
+                    </div>
+                    <div class="form-row pay-filter-row">
+                        <div class="col-md-4 mb-2">
+                            <label>Akun tujuan import</label>
+                            <select class="form-control" id="import_account">
+                                <option value="">Pilih akun AdSense</option>
+                                {% for account in data_account %}
+                                <option value="{{ account.account_id }}" data-publisher="{{ account.publisher_account|default:'' }}">{{ account.account_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-5 mb-2">
+                            <label>File CSV / Excel dari AdSense Payments</label>
+                            <input type="file" class="form-control" id="import_file" accept=".csv,.tsv,.txt,.xlsx,.xls">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label>&nbsp;</label>
+                            <button type="button" class="btn btn-primary form-control" id="btn_import_csv">
+                                <i class="fas fa-file-import mr-1"></i> Import CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-row pay-filter-row">
+                        <div class="col-md-3 mb-2">
+                            <a class="btn btn-outline-secondary form-control" id="btn_open_adsense" href="https://www.google.com/adsense/" target="_blank" rel="noopener">
+                                <i class="fas fa-external-link-alt mr-1"></i> Buka Payments AdSense
+                            </a>
+                        </div>
+                    </div>
+                    <ol class="pay-lead mb-0 mt-2 pl-3">
+                        <li>Pilih akun, lalu klik <strong>Buka Payments AdSense</strong>.</li>
+                        <li>Di AdSense buka <strong>Payments → Transactions</strong>.</li>
+                        <li>Pilih rentang tanggal, lalu download CSV.</li>
+                        <li>Kembali ke tab ini, pilih file, lalu <strong>Import CSV</strong>.</li>
+                        <li>Hasilnya tampil di <strong>Perbandingan API vs CSV</strong> dan <strong>Penyebab Invalid</strong>.</li>
+                    </ol>
+                </div>
+                <div class="tab-pane fade" id="tabTransactions">
+                    <div class="pay-table-wrap">
+                        <table class="table table-sm table-bordered mb-0" id="table_transactions">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Akun</th>
+                                    <th>Kategori</th>
+                                    <th>Tipe</th>
+                                    <th>Deskripsi</th>
+                                    <th>Jumlah</th>
+                                    <th>Invoice</th>
+                                    <th>File</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="tabInvalid">
+                    <div class="pay-hint mb-3" id="invalidNote">
+                        Google tidak menulis domain penyebab Invalid Traffic. Tab ini membaca rincian Invalid Activity, lalu memperkirakan kontributornya.
+                    </div>
+                    <div id="invalidGroups" class="pay-insight-grid mb-3"></div>
+                    <h6 class="pay-section-title">Rincian Invalid Activity</h6>
+                    <div class="pay-table-wrap mb-3">
+                        <table class="table table-sm table-bordered mb-0" id="table_invalid">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Produk</th>
+                                    <th>Penyebab</th>
+                                    <th>Deskripsi</th>
+                                    <th>Jumlah</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <h6 class="pay-section-title">Perkiraan kontributor per subdomain</h6>
+                    <div class="pay-table-wrap">
+                        <table class="table table-sm table-bordered mb-0" id="table_invalid_domains">
+                            <thead>
+                                <tr>
+                                    <th>Subdomain</th>
+                                    <th>Account Ads</th>
+                                    <th>Pendapatan harian</th>
+                                    <th>Rekap resmi</th>
+                                    <th>Selisih</th>
+                                    <th>Estimasi IVT</th>
+                                    <th>Indikasi</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="tabAccountAds">
+                    <div class="pay-hint mb-3" id="accountAdsNote">
+                        Rincian Account Ads Meta yang jalan di subdomain Filter Account, pola yang sama dengan Monitoring Per Domain.
+                    </div>
+                    <div id="accountAdsGroups" class="pay-insight-grid mb-3"></div>
+                    <div class="pay-table-wrap">
+                        <table class="table table-sm table-bordered mb-0" id="table_account_ads">
+                            <thead>
+                                <tr>
+                                    <th>Subdomain</th>
+                                    <th>Account Ads</th>
+                                    <th>Status campaign</th>
+                                    <th>Spend</th>
+                                    <th>Pendapatan</th>
+                                    <th>Net</th>
+                                    <th>ROI</th>
+                                    <th>Estimasi IVT</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script>
+window.HRIS_PAYMENT_PAGE = {
+    source: 'adsense',
+    dataUrl: '{% url "payment_adsense_data" %}',
+    syncUrl: '{% url "payment_adsense_sync" %}',
+    importUrl: '{% url "payment_adsense_import" %}',
+    canSync: true
+};
+</script>
+<script src="{% static 'ajax/admin/report_payment/common.js' %}?v={% now 'u' %}"></script>
+{% endblock %}

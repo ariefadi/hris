@@ -236,7 +236,28 @@ class OAuthCallbackView(View):
                 print(f"[DEBUG] AdX flow detected from scope: {scope_param}")
             
             print(f"[DEBUG] Final is_adx_flow decision: {is_adx_flow}")
-            
+            is_sheets_flow = (
+                (isinstance(state, str) and 'flow:sheets' in state)
+                or (isinstance(flow_param, str) and flow_param.lower() == 'sheets')
+            )
+            if is_sheets_flow:
+                from django.http import HttpResponse
+                from management.sheets_roi import PUBLIC_REDIRECT_URI, exchange_sheets_code
+                if not auth_code:
+                    return HttpResponse('Kode otorisasi Google tidak ditemukan.', status=400)
+                try:
+                    email = exchange_sheets_code(auth_code, PUBLIC_REDIRECT_URI)
+                except Exception as exc:
+                    return HttpResponse(
+                        'Spreadsheet belum terhubung. ' + str(exc),
+                        status=400,
+                        content_type='text/plain; charset=utf-8',
+                    )
+                return HttpResponse(
+                    'Spreadsheet ROI TODAY terhubung ke ' + email + '. Cron akan mengisi datanya setelah penarikan Ads, AdX, dan AdSense selesai.',
+                    content_type='text/plain; charset=utf-8',
+                )
+
             if not auth_code:
                 return JsonResponse({'status': False, 'message': 'Authorization code tidak ditemukan di query'}, status=400)
             # Routing ke handler AdX jika flow:adx
@@ -255,11 +276,7 @@ class OAuthCallbackView(View):
                         request.session['oauth_added_success'] = True
                         network_code = result.get('network_code')
                         email_used = result.get('user_mail')
-                        if result.get('gmail_verified'):
-                            request.session['oauth_added_message'] = (
-                                f'OAuth + izin Gmail berhasil untuk {email_used}. Silakan klik Synchronize.'
-                            )
-                        elif network_code:
+                        if network_code:
                             request.session['oauth_added_message'] = (
                                 f'Kredensial disimpan untuk {email_used}. Network Code: {network_code}'
                             )
@@ -270,14 +287,9 @@ class OAuthCallbackView(View):
                     else:
                         request.session['oauth_added_success'] = False
                         request.session['oauth_added_message'] = result.get('message', 'Gagal menyimpan app_credentials.')
-                    return_to = request.session.pop('oauth_return_to', None)
+                    request.session.pop('oauth_return_to', None)
                     request.session.pop('oauth_require_gmail', None)
-                    if return_to == 'adsense_policy_events':
-                        return redirect('/management/admin/adsense_policy_events')
-                    if return_to == 'ads_policy_events':
-                        return redirect('/management/admin/ads_policy_events')
-                    if return_to == 'adx_policy_events':
-                        return redirect('/management/admin/adx_policy_events')
+                    request.session.pop('oauth_flow_include_gmail', None)
                     return redirect('/management/admin/adx_account')
                 # Default: flow umum, arahkan ke dashboard OAuth
                 if result.get('status'):

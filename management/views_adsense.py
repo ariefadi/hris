@@ -42,14 +42,14 @@ from .utils_adsense import (
     get_cached_data_adsense,
 )
 from .last_update_utils import resolve_adsense_last_update, serialize_last_update
-from .list_adsense_policy_events import list_adsense_policy_events
-from .sync_adsense_policy_events import sync_adsense_policy_events
 from management.views import (
     attach_kiwipixel_visitors_to_country_result,
     _fetch_kiwipixel_campaign_traffic,
     _fetch_fb_campaign_ids_by_domain,
     _resolve_kiwipixel_campaign_visitors,
     _normalize_kiwipixel_domain_key,
+    _roi_domain_ads_status_payload,
+    _enrich_roi_domain_ads_live_status,
 )
 
 
@@ -1206,70 +1206,6 @@ class AdsenseCredentialsListView(View):
             return JsonResponse({'status': False, 'error': str(e)})
 
 
-class AdsensePolicyEventsView(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('/management/admin/login')
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, req):
-        db = data_mysql()
-        result = list_adsense_policy_events(db, limit=200)
-        oauth_msg = str(req.session.pop('oauth_added_message', '') or '').strip()
-        oauth_ok = req.session.pop('oauth_added_success', None)
-        data = {
-            'title': 'AdSense Policy Events',
-            'user': req.session.get('hris_admin', {}),
-            'columns': result.get('columns') or [],
-            'rows': result.get('rows') or [],
-            'items': result.get('items') or [],
-            'table_name': result.get('table') or '',
-            'oauth_flash_success': bool(oauth_ok),
-            'oauth_flash_message': oauth_msg,
-        }
-        return render(req, 'admin/adsense_manager/policy_event/index.html', data)
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class AdsensePolicyEventsSyncView(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
-        return super().dispatch(request, *args, **kwargs)
-
-    def post(self, req):
-        try:
-            payload = {}
-            try:
-                payload = json.loads((req.body or b'').decode('utf-8') or '{}')
-            except Exception:
-                payload = {}
-
-            days = payload.get('days')
-            sync_date = str(payload.get('sync_date') or '').strip()
-            raw_account_filter = payload.get('account_filter')
-            if isinstance(raw_account_filter, list):
-                account_filter = [str(v).strip() for v in raw_account_filter if str(v).strip()]
-            else:
-                single_filter = str(raw_account_filter or '').strip()
-                account_filter = [single_filter] if single_filter else []
-            try:
-                days = int(days)
-            except Exception:
-                days = 180
-
-            db = data_mysql()
-            result = sync_adsense_policy_events(
-                db,
-                days=days,
-                sync_date=sync_date or None,
-                account_filter=account_filter or None,
-            )
-            return JsonResponse(result)
-        except Exception as e:
-            return JsonResponse({'status': False, 'error': str(e)}, status=500)
-
-
 class RekapAdsenseSummaryView(View):
     """View untuk Rekap Adsense Summary - menampilkan ringkasan data Adsense"""
     def dispatch(self, request, *args, **kwargs):
@@ -1363,6 +1299,15 @@ class RekapTrafficPerDomainDataView(View):
                 selected_account_list,
                 selected_domain_list
             )
+            _hasil = (adsense_result or {}).get('hasil') if isinstance(adsense_result, dict) else None
+            if isinstance(_hasil, dict) and _hasil.get('status') is False:
+                return JsonResponse({
+                    'status': False,
+                    'error': str(_hasil.get('data') or 'Gagal mengambil data AdSense'),
+                })
+            if isinstance(_hasil, dict):
+                _rows = _hasil.get('data')
+                _hasil['data'] = [r for r in _rows if isinstance(r, dict)] if isinstance(_rows, list) else []
             try:
                 ads_payload = (adsense_result or {}).get('hasil') if isinstance(adsense_result, dict) else {}
                 ads_rows = (ads_payload.get('data') or []) if isinstance(ads_payload, dict) else []
@@ -1522,6 +1467,7 @@ class RekapTrafficPerDomainDataView(View):
                         subdomain, selected_domain_raw_list, selected_domain_list
                     )
                     fb_base = normalize_join_domain_key(subdomain)
+                    account_label = str(adsense_item.get('account_name') or '').strip() or str(adsense_item.get('account_id') or '').strip()
                     impressions_adsense = float(adsense_item.get('impressions_adsense', 0))
                     country_code = normalize_country_code(adsense_item.get('country_code', ''))
                     seen_fb_domain_day_keys.add(f"{date_key}_{fb_base}")
@@ -1541,6 +1487,7 @@ class RekapTrafficPerDomainDataView(View):
                     cpm = float(adsense_item.get('ecpm', 0))
                     raw_rows_all.append({
                         'site_name': table_site,
+                        'account_name': account_label or '-',
                         'date': date_key,
                         'country_code': country_code,
                         'spend': spend,
@@ -1559,6 +1506,7 @@ class RekapTrafficPerDomainDataView(View):
                     key = f"{date_key}|{table_site}"
                     entry = grouped_all.get(key) or {
                         'site_name': table_site,
+                        'account_names': [],
                         'date': date_key,
                         'spend': 0.0,
                         'revenue': 0.0,
@@ -1596,10 +1544,13 @@ class RekapTrafficPerDomainDataView(View):
                     entry['cpm_sum'] += cpm
                     entry['cpm_cnt'] += 1
                     entry['cpm'] = (entry['cpm_sum'] / entry['cpm_cnt']) if entry['cpm_cnt'] > 0 else 0
+                    if account_label and account_label not in entry.setdefault('account_names', []):
+                        entry['account_names'].append(account_label)
                     grouped_all[key] = entry
                     if spend > 0:
                         f_entry = grouped_filtered.get(key) or {
                             'site_name': table_site,
+                            'account_names': [],
                             'date': date_key,
                             'spend': 0.0,
                             'revenue': 0.0,
@@ -1637,6 +1588,8 @@ class RekapTrafficPerDomainDataView(View):
                         f_entry['cpm_sum'] += cpm
                         f_entry['cpm_cnt'] += 1
                         f_entry['cpm'] = (f_entry['cpm_sum'] / f_entry['cpm_cnt']) if f_entry['cpm_cnt'] > 0 else 0
+                        if account_label and account_label not in f_entry.setdefault('account_names', []):
+                            f_entry['account_names'].append(account_label)
                         grouped_filtered[key] = f_entry
                 # Tambahkan baris FB tanpa pasangan AdSense hanya jika tidak ada filter subdomain
                 if not selected_domain_list:
@@ -1734,6 +1687,13 @@ class RekapTrafficPerDomainDataView(View):
                             f_entry['ctr_fb'] = ((f_entry['clicks_fb'] / f_entry['impressions_fb']) * 100) if f_entry['impressions_fb'] > 0 else 0
                             f_entry['cpc_fb'] = (f_entry['revenue'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
                             grouped_filtered[key] = f_entry
+                domain_status_keys = [str(item.get('site_name') or '') for item in grouped_all.values()]
+                ads_status_map = {}
+                try:
+                    ads_status_map = data_mysql().get_ads_last_campaign_status_map(domain_status_keys) or {}
+                except Exception:
+                    ads_status_map = {}
+                _enrich_roi_domain_ads_live_status(ads_status_map, grouped_all)
                 combined_data_all = []
                 total_spend = 0.0
                 total_impressions_fb = 0.0
@@ -1763,8 +1723,11 @@ class RekapTrafficPerDomainDataView(View):
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     site_display = item['site_name']
                     visitors = visitor_metrics_for_site(site_display)
+                    ads_meta = _adsense_domain_ads_status_fields(ads_status_map, item.get('site_name'))
                     combined_data_all.append({
                         'site_name': item['site_name'],
+                        'account_name': ', '.join(item.get('account_names') or []) or '-',
+                        **ads_meta,
                         'date': item['date'],
                         'spend': spend_val,
                         'impressions_fb': impressions_fb_val,
@@ -1812,8 +1775,11 @@ class RekapTrafficPerDomainDataView(View):
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     site_display = item['site_name']
                     visitors = visitor_metrics_for_site(site_display)
+                    ads_meta = _adsense_domain_ads_status_fields(ads_status_map, item.get('site_name'))
                     combined_data_filtered.append({
                         'site_name': item['site_name'],
+                        'account_name': ', '.join(item.get('account_names') or []) or '-',
+                        **ads_meta,
                         'date': item['date'],
                         'spend': spend_val,
                         'impressions_fb': impressions_fb_val,
@@ -1883,6 +1849,24 @@ class RekapTrafficPerDomainDataView(View):
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
+
+def _adsense_domain_ads_status_fields(ads_status_map, site_name):
+    ads_meta = _roi_domain_ads_status_payload(ads_status_map, site_name)
+    raw_status = ads_meta.get('campaign_status')
+    status = data_mysql._normalize_master_ads_status(raw_status) if raw_status else ''
+    return {
+        'account_ads': ads_meta.get('account_ads') or '-',
+        'account_ads_id': ads_meta.get('account_ads_id') or '',
+        'campaign_name': ads_meta.get('campaign_name') or '',
+        'campaign_status': status,
+        'campaign_status_source': ads_meta.get('campaign_status_source') or '',
+        'campaign_last_date': ads_meta.get('campaign_last_date') or '',
+        'campaign_last_spend_date': ads_meta.get('campaign_last_spend_date') or '',
+        'ads_sync_ok': ads_meta.get('ads_sync_ok'),
+        'ads_sync_error': ads_meta.get('ads_sync_error') or '',
+        'active_campaign_count': ads_meta.get('active_campaign_count'),
+    }
+
 
 def extract_base_subdomain_fb_adsense(full_string):
     """Ambil label subdomain + domain utama (2 segmen pertama), selaras dengan AdSense site_name."""
@@ -2275,7 +2259,7 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                     print(f"[DEBUG ROI] Unable to derive sites_for_fb: {_sites_err}")
             # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
             response_cache_key = generate_cache_key_adsense(
-                'roi_traffic_country_response_v5',
+                'roi_traffic_country_response_v6',
                 start_date,
                 end_date,
                 selected_account_list,
@@ -3437,7 +3421,7 @@ class RoiMonitoringCountryAdsenseDataView(View):
                     print(f"[DEBUG ROI] Unable to derive sites_for_fb: {_sites_err}")
             # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
             response_cache_key = generate_cache_key_adsense(
-                'roi_country_adsense_response_v5',
+                'roi_country_adsense_response_v6',
                 start_date,
                 end_date,
                 selected_account or '',

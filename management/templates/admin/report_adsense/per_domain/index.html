@@ -240,6 +240,61 @@ html[data-theme="dark"] .adsense-traffic-table-wrap table.adsense-traffic-table 
 .adsense-traffic-table-wrap .roi-val-negative { color: #dc2626; font-weight: 700; }
 html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-positive { color: #6ee7b7; }
 html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-negative { color: #fca5a5; }
+.roi-ads-status {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 132px;
+}
+.roi-ads-status .roi-status-chip {
+    display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase;
+}
+.roi-ads-status .roi-status-chip.is-active { background: rgba(16,185,129,.18); color: #059669; }
+.roi-ads-status .roi-status-chip.is-paused { background: rgba(245,158,11,.18); color: #d97706; }
+.roi-ads-status .roi-status-chip.is-stale { background: rgba(239,68,68,.16); color: #dc2626; }
+.roi-ads-status .roi-status-chip.is-unknown { background: rgba(148,163,184,.18); color: #64748b; }
+.roi-ads-status .roi-status-note { font-size: 10px; font-weight: 600; color: var(--adsense-muted); line-height: 1.35; }
+html[data-theme="dark"] .roi-ads-status .roi-status-chip.is-active { color: #6ee7b7; }
+html[data-theme="dark"] .roi-ads-status .roi-status-chip.is-paused { color: #fcd34d; }
+html[data-theme="dark"] .roi-ads-status .roi-status-chip.is-stale { color: #fca5a5; }
+html[data-theme="dark"] .roi-ads-status .roi-status-chip.is-unknown { color: #cbd5e1; }
+.adsense-traffic-table-wrap .btn-adsense-campaign-detail {
+    border-radius: 8px; font-weight: 700; font-size: 11px; padding: 4px 10px; white-space: nowrap;
+}
+.adsense-campaign-modal .modal-content {
+    border: 1px solid var(--adsense-border); border-radius: 16px; overflow: hidden;
+    background: var(--adsense-surface); color: var(--adsense-text);
+}
+.adsense-campaign-modal .modal-header {
+    border-bottom: 1px solid var(--adsense-border); background: var(--adsense-surface-2);
+    padding: 14px 18px;
+}
+.adsense-campaign-modal .modal-title { font-weight: 800; font-size: 1.05rem; color: var(--adsense-text); }
+.adsense-campaign-modal .modal-subtitle { font-size: 0.8rem; color: var(--adsense-muted); margin: 2px 0 0; }
+.adsense-campaign-modal .modal-body { padding: 16px 18px; }
+.adsense-campaign-modal .modal-footer { border-top: 1px solid var(--adsense-border); background: var(--adsense-surface-2); }
+.adsense-campaign-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.adsense-campaign-summary .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    background: var(--adsense-surface-2); border: 1px solid var(--adsense-border); color: var(--adsense-text);
+}
+.adsense-campaign-alert {
+    font-size: 12px; font-weight: 600; color: #b45309;
+    background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.28);
+    border-radius: 10px; padding: 8px 12px; margin-bottom: 12px;
+}
+html[data-theme="dark"] .adsense-campaign-alert { color: #fcd34d; }
+.adsense-campaign-table-wrap { overflow-x: auto; max-height: 62vh; }
+.adsense-campaign-table { width: 100%; font-size: 12px; margin: 0; }
+.adsense-campaign-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--adsense-surface-2); color: var(--adsense-text);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .03em;
+    white-space: nowrap; border-bottom: 2px solid var(--adsense-border) !important;
+}
+.adsense-campaign-table tbody td { vertical-align: middle; color: var(--adsense-text); border-color: var(--adsense-border) !important; }
+.adsense-campaign-name { font-weight: 700; max-width: 320px; word-break: break-word; }
+.adsense-campaign-id { display: block; font-size: 10px; font-weight: 600; color: var(--adsense-muted); margin-top: 2px; }
+.adsense-campaign-empty { text-align: center; padding: 28px 12px; color: var(--adsense-muted); }
 .adsense-traffic-table-wrap .dataTables_wrapper .dataTables_filter input,
 .adsense-traffic-table-wrap .dataTables_wrapper .dataTables_length select {
     border-radius: 8px; border-color: var(--adsense-border);
@@ -443,6 +498,9 @@ html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-negative { color: #
                             </div>
                         </th>
                         <th class="text-center">Subdomain</th>
+                        <th class="text-center">Account</th>
+                        <th class="text-center">Account Ads</th>
+                        <th class="text-center">Status Campaign</th>
                         <th class="text-center">Tanggal</th>
                         <th class="text-center">Spend</th>
                         <th class="text-center">Click FB</th>
@@ -455,10 +513,50 @@ html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-negative { color: #
                         <th class="text-center">eCPM</th>
                         <th class="text-center">Pendapatan</th>
                         <th class="text-center">ROI</th>
+                        <th class="text-center no-export">Detail</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade adsense-campaign-modal" id="adsenseCampaignDetailModal" tabindex="-1" role="dialog" aria-labelledby="adsenseCampaignDetailTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="adsenseCampaignDetailTitle">Rincian Campaign</h5>
+                    <p class="modal-subtitle" id="adsenseCampaignDetailSubtitle">Status campaign Meta untuk subdomain ini</p>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="adsense-campaign-summary" id="adsenseCampaignDetailSummary"></div>
+                <div class="adsense-campaign-alert" id="adsenseCampaignDetailAlert" style="display:none;"></div>
+                <div class="adsense-campaign-table-wrap">
+                    <table class="table table-sm adsense-campaign-table">
+                        <thead>
+                            <tr>
+                                <th>Campaign</th>
+                                <th>Account Ads</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Sumber</th>
+                                <th class="text-center">Cron terakhir</th>
+                                <th class="text-center">Spend terakhir</th>
+                                <th class="text-right">Spend (lookback)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adsenseCampaignDetailBody">
+                            <tr><td colspan="7" class="adsense-campaign-empty">Memuat rincian campaign...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+            </div>
         </div>
     </div>
 </div>

@@ -3,7 +3,7 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <meta name="theme-color" content="#4f46e5">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1042,7 +1042,197 @@
         html[data-theme="dark"] .hris-pwa-install-menu .pwa-drop-value { color: #a5b4fc; }
         html[data-theme="dark"] .hris-pwa-install-menu .pwa-drop-label,
         html[data-theme="dark"] .hris-pwa-install-menu .pwa-drop-meta { color: #94a3b8; }
+
+        html.hris-pwa-app,
+        html.hris-pwa-app body,
+        html.hris-pwa-app .wrapper,
+        html.hris-pwa-app .content-wrapper,
+        html.hris-pwa-app .content {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            overflow-x: hidden;
+            zoom: 1 !important;
+            transform: none !important;
+        }
+        html.hris-pwa-app body {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        html.hris-pwa-app .main-sidebar,
+        html.hris-pwa-app .control-sidebar,
+        html.hris-pwa-app [data-widget="pushmenu"],
+        html.hris-pwa-app #hrisLiveChatRoot,
+        html.hris-pwa-app #hrisNetSpeed,
+        html.hris-pwa-app #hrisSessionDurationNotif,
+        html.hris-pwa-app #hrisPwaInstall,
+        html.hris-pwa-app #hrisPortalSwitch,
+        html.hris-pwa-app #dashboardCampaignNotif,
+        html.hris-pwa-app #pendingRoleNotif,
+        html.hris-pwa-app #hrisDomainExpiryNotif,
+        html.hris-pwa-app .content-header,
+        html.hris-pwa-app .db-hero-actions,
+        html.hris-pwa-app #dashboardWinningCampaignCard,
+        html.hris-pwa-app .dashboard-chart-split-row,
+        html.hris-pwa-app #dashboardHistHitCompareCard,
+        html.hris-pwa-app #dashboardRecapTemporalCard,
+        html.hris-pwa-app #dashboard-content,
+        html.hris-pwa-app #dashboardDataHealthBanner,
+        html.hris-pwa-app .user-menu .dropdown-item[href*="user_profile"],
+        html.hris-pwa-app #dashboardRecapSyncBtn,
+        html.hris-pwa-app #dashboardRecapTable .ds-detail-btn,
+        html.hris-pwa-app #dashboardRecapTable th:last-child,
+        html.hris-pwa-app #dashboardRecapTable td:last-child,
+        html.hris-pwa-app .js-pwa-detail-col {
+            display: none !important;
+        }
+        html.hris-pwa-app .main-header,
+        html.hris-pwa-app .content-wrapper,
+        html.hris-pwa-app .main-footer {
+            margin-left: 0 !important;
+        }
+        html.hris-pwa-app .content-wrapper {
+            padding-bottom: 16px;
+        }
+        html.hris-pwa-app .main-header.navbar {
+            border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+        }
+        html.hris-pwa-app .dashboard-admin-content {
+            padding: 0 0 20px;
+            max-width: 100%;
+        }
+        html.hris-pwa-app .db-hero {
+            margin: 0 0 14px;
+            padding: 18px 16px 20px;
+            border-radius: 14px;
+        }
+        html.hris-pwa-app .dashboard-recap-header,
+        html.hris-pwa-app .dashboard-recap-filters,
+        html.hris-pwa-app .dashboard-recap-filter-item {
+            width: 100%;
+            flex-direction: column;
+            align-items: stretch;
+        }
+        html.hris-pwa-app .dashboard-recap-filter-item .form-control {
+            width: 100% !important;
+            max-width: none !important;
+        }
+        html.hris-pwa-app .dashboard-recap-table,
+        html.hris-pwa-app #dashboardAccountRelationTable {
+            font-size: 12px;
+            width: max-content;
+            min-width: 100%;
+        }
+        html.hris-pwa-app .dashboard-recap-table th,
+        html.hris-pwa-app .dashboard-recap-table td,
+        html.hris-pwa-app #dashboardAccountRelationTable th,
+        html.hris-pwa-app #dashboardAccountRelationTable td {
+            padding: 8px 10px;
+            white-space: nowrap;
+        }
+        html.hris-pwa-app .detail-scoring-table-wrap,
+        html.hris-pwa-app .table-responsive {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+        }
+
+        @media (max-width: 991.98px) {
+            html:not(.hris-pwa-app),
+            html:not(.hris-pwa-app) body {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+            html:not(.hris-pwa-app) .wrapper {
+                max-width: 100%;
+                overflow: visible;
+            }
+            html:not(.hris-pwa-app) .content-wrapper,
+            html:not(.hris-pwa-app) .content {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+            body {
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+            html:not(.hris-pwa-app) .main-header {
+                position: relative;
+                z-index: 1050;
+                overflow: visible !important;
+            }
+            .main-header.navbar,
+            .main-header .container-fluid,
+            .main-header .navbar-nav,
+            html:not(.hris-pwa-app) .main-header .navbar-nav.ms-auto {
+                max-width: 100%;
+                overflow: visible !important;
+                flex-wrap: nowrap;
+            }
+            html:not(.hris-pwa-app) .main-header .nav-link {
+                pointer-events: auto !important;
+                touch-action: manipulation;
+                position: relative;
+                z-index: 2;
+            }
+            html:not(.hris-pwa-app) .main-header .dropdown-menu {
+                position: fixed !important;
+                top: calc(env(safe-area-inset-top, 0px) + 56px) !important;
+                right: 8px !important;
+                left: auto !important;
+                transform: none !important;
+                z-index: 2000 !important;
+                max-width: calc(100vw - 16px);
+                max-height: calc(100vh - 80px);
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                pointer-events: auto !important;
+            }
+            html:not(.hris-pwa-app) #hrisLiveChatRoot {
+                display: none !important;
+            }
+            .content-header {
+                display: none !important;
+            }
+            .content-wrapper,
+            .main-header,
+            .main-footer {
+                margin-left: 0 !important;
+            }
+            .content > .container-fluid {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            .main-header.navbar {
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+            .main-header .navbar-nav .user-menu .d-none.d-md-inline {
+                display: none !important;
+            }
+        }
         </style>
+        <script>
+        (function () {
+            try {
+                var standalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.navigator.standalone === true
+                    || /[?&]pwa=1(?:&|$)/.test(window.location.search || '');
+                var secure = window.location.protocol === 'https:' ? '; Secure' : '';
+                document.documentElement.classList.remove('hris-pwa-zoomed', 'hris-pwa-no-zoom');
+                document.documentElement.style.zoom = '';
+                document.documentElement.style.removeProperty('--pwa-zoom');
+                if (standalone) {
+                    document.documentElement.classList.add('hris-pwa-app');
+                    document.cookie = 'hris_pwa_app=1; Path=/; Max-Age=31536000; SameSite=Lax' + secure;
+                } else {
+                    document.documentElement.classList.remove('hris-pwa-app');
+                    document.cookie = 'hris_pwa_app=; Path=/; Max-Age=0; SameSite=Lax' + secure;
+                }
+            } catch (err) {}
+        })();
+        </script>
         {% include "admin/_introjs_theme.html" %}
     </head>
     <body class="{% block body_class %}hold-transition sidebar-mini{% endblock %}">
@@ -1096,7 +1286,7 @@
                 </li>
                 {% block navbar_extra_items %}{% endblock %}
                 <li class="nav-item dropdown" id="hrisPwaInstall">
-                    <a class="nav-link" data-toggle="dropdown" href="#" role="button" aria-expanded="false" aria-label="Install aplikasi">
+                    <a class="nav-link" data-toggle="dropdown" data-display="static" href="#" role="button" aria-expanded="false" aria-label="Install aplikasi" data-hris-pwa-install="1">
                         <i class="bi bi-download"></i>
                     </a>
                     <div class="dropdown-menu dropdown-menu-right hris-pwa-install-menu">
@@ -1111,6 +1301,23 @@
                         </div>
                     </div>
                 </li>
+                {% if request.session.hris_admin %}
+                <li class="nav-item dropdown" id="hrisDomainExpiryNotif">
+                    <a class="nav-link" data-toggle="dropdown" href="#" aria-expanded="false" aria-label="Notifikasi domain expired">
+                        <i class="bi bi-calendar2-x"></i>
+                        <span class="badge badge-danger navbar-badge" id="hrisDomainExpiryCount" style="display:none">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" style="min-width: 320px;">
+                        <span class="dropdown-item dropdown-header" id="hrisDomainExpiryHeader">Domain perlu renew (0)</span>
+                        <div class="dropdown-divider"></div>
+                        <div id="hrisDomainExpiryItems">
+                            <span class="dropdown-item text-muted">Memuat...</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="{% url 'domain_checker' %}" class="dropdown-item dropdown-footer">Buka Domain Expired</a>
+                    </div>
+                </li>
+                {% endif %}
                 {% if request.session.hris_admin %}
                 <li class="nav-item dropdown" id="hrisSessionDurationNotif">
                     <a class="nav-link hris-session-duration-link" data-toggle="dropdown" href="#" role="button" aria-expanded="false" aria-label="Durasi login">
@@ -1134,7 +1341,7 @@
                     </a>
                 </li>
                 <!--begin::Portal Dropdown-->
-                <li class="nav-item dropdown">
+                <li class="nav-item dropdown" id="hrisPortalSwitch">
                     <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-columns-gap"></i>
                     </a>
@@ -1585,8 +1792,27 @@
         <script>
         window.HRIS_PWA = { swUrl: "{% url 'pwa_service_worker' %}" };
         </script>
-        <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=2"></script>
+        <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=3"></script>
+        <script src="{% static 'ajax/admin/shared/hris_pwa_shell.js' %}?v=5"></script>
         <script src="{% static 'plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+        <script>
+        (function ($) {
+            if (!$ || !$.fn || !$.fn.dropdown) return;
+            $(function () {
+                $('.main-header [data-toggle="dropdown"]').each(function () {
+                    var $el = $(this);
+                    $el.attr('data-display', 'static');
+                    try {
+                        $el.dropdown({
+                            boundary: 'window',
+                            display: 'static',
+                            popperConfig: { positionFixed: true }
+                        });
+                    } catch (err) {}
+                });
+            });
+        })(window.jQuery);
+        </script>
         <!-- Select2 -->
         <script src="{% static 'plugins/select2/js/select2.full.min.js' %}"></script>
         <!-- DataTables  & Plugins -->
@@ -1603,7 +1829,7 @@
         <script src="{% static 'ajax/admin/shared/hris_roi_tier_filter.js' %}?v=1"></script>
         <script src="{% static 'ajax/admin/shared/hris_table_export.js' %}?v=21"></script>
         {% if request.session.hris_admin %}
-        <script src="{% static 'ajax/admin/shared/hris_live_chat.js' %}?v=13"></script>
+        <script src="{% static 'ajax/admin/shared/hris_live_chat.js' %}?v=15"></script>
         <script>
         window.HRIS_IDLE_LOGOUT = {
             timeoutMs: {{ hris_idle_timeout_seconds|default:900 }} * 1000,
@@ -1739,6 +1965,50 @@
         <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
         <script src="{% static 'js/hris_datepicker.js' %}?v={% now 'u' %}"></script>
+        {% if request.session.hris_admin %}
+        <script>
+        (function () {
+            var countEl = document.getElementById('hrisDomainExpiryCount');
+            var headerEl = document.getElementById('hrisDomainExpiryHeader');
+            var itemsEl = document.getElementById('hrisDomainExpiryItems');
+            if (!countEl || !itemsEl) return;
+            function loadAlerts() {
+                fetch('/management/admin/domain_checker_alerts', { credentials: 'same-origin' })
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        var items = (data && data.items) || [];
+                        var count = Number((data && data.count) || 0);
+                        countEl.textContent = count > 99 ? '99+' : String(count);
+                        countEl.style.display = count ? '' : 'none';
+                        if (headerEl) headerEl.textContent = 'Domain perlu renew (' + count + ')';
+                        itemsEl.innerHTML = '';
+                        if (!items.length) {
+                            itemsEl.innerHTML = '<span class="dropdown-item text-muted">Tidak ada domain yang harus di-renew.</span>';
+                            return;
+                        }
+                        items.forEach(function (item) {
+                            var a = document.createElement('a');
+                            a.className = 'dropdown-item';
+                            a.href = '/management/admin/domain_checker';
+                            var days = Number(item.days_left);
+                            var label = days < 0 ? ('expired ' + Math.abs(days) + ' hari') : ('sisa ' + days + ' hari');
+                            var strong = document.createElement('strong');
+                            strong.textContent = item.domain || '';
+                            var small = document.createElement('small');
+                            small.textContent = label;
+                            a.appendChild(strong);
+                            a.appendChild(document.createElement('br'));
+                            a.appendChild(small);
+                            itemsEl.appendChild(a);
+                        });
+                    })
+                    .catch(function () {});
+            }
+            loadAlerts();
+            window.setInterval(loadAlerts, 5 * 60 * 1000);
+        })();
+        </script>
+        {% endif %}
         {% block more_scripts %} {% endblock %}
         <!-- AdminLTE Bundle JS App -->
         <script src="{% static 'dist/js/adminlte.min.js' %}"></script>

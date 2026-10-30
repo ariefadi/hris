@@ -126,6 +126,62 @@ html[data-theme="dark"] {
 .roi-domain-page .metric-card.revenue { background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%); }
 .roi-domain-page .metric-card.net-revenue { background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); }
 .roi-domain-page .metric-card.roi { background: linear-gradient(135deg, #047857 0%, #10b981 100%); }
+.roi-ads-status {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 132px;
+}
+.roi-ads-status .roi-status-chip {
+    display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase;
+}
+.roi-ads-status .roi-status-chip.is-active { background: rgba(16,185,129,.18); color: #059669; }
+.roi-ads-status .roi-status-chip.is-paused { background: rgba(245,158,11,.18); color: #d97706; }
+.roi-ads-status .roi-status-chip.is-stale { background: rgba(239,68,68,.16); color: #dc2626; }
+.roi-ads-status .roi-status-chip.is-unknown { background: rgba(148,163,184,.18); color: #64748b; }
+.roi-ads-status .roi-status-note { font-size: 10px; font-weight: 600; color: var(--roi-muted); line-height: 1.35; }
+html[data-theme="dark"] .roi-ads-status .roi-status-chip.is-active { color: #6ee7b7; }
+html[data-theme="dark"] .roi-ads-status .roi-status-chip.is-paused { color: #fcd34d; }
+html[data-theme="dark"] .roi-ads-status .roi-status-chip.is-stale { color: #fca5a5; }
+html[data-theme="dark"] .roi-ads-status .roi-status-chip.is-unknown { color: #cbd5e1; }
+.roi-traffic-table-wrap .btn-roi-campaign-detail {
+    border-radius: 8px; font-weight: 700; font-size: 11px; padding: 4px 10px;
+    white-space: nowrap;
+}
+.roi-campaign-modal .modal-content {
+    border: 1px solid var(--roi-border); border-radius: 16px; overflow: hidden;
+    background: var(--roi-surface); color: var(--roi-text);
+}
+.roi-campaign-modal .modal-header {
+    border-bottom: 1px solid var(--roi-border); background: var(--roi-surface-2);
+    padding: 14px 18px;
+}
+.roi-campaign-modal .modal-title { font-weight: 800; font-size: 1.05rem; color: var(--roi-text); }
+.roi-campaign-modal .modal-subtitle { font-size: 0.8rem; color: var(--roi-muted); margin: 2px 0 0; }
+.roi-campaign-modal .modal-body { padding: 16px 18px; }
+.roi-campaign-modal .modal-footer { border-top: 1px solid var(--roi-border); background: var(--roi-surface-2); }
+.roi-campaign-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.roi-campaign-summary .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    background: var(--roi-surface-2); border: 1px solid var(--roi-border); color: var(--roi-text);
+}
+.roi-campaign-alert {
+    font-size: 12px; font-weight: 600; color: #b45309;
+    background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.28);
+    border-radius: 10px; padding: 8px 12px; margin-bottom: 12px;
+}
+html[data-theme="dark"] .roi-campaign-alert { color: #fcd34d; }
+.roi-campaign-table-wrap { overflow-x: auto; max-height: 62vh; }
+.roi-campaign-table { width: 100%; font-size: 12px; margin: 0; }
+.roi-campaign-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--roi-surface-2); color: var(--roi-text);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .03em;
+    white-space: nowrap; border-bottom: 2px solid var(--roi-border) !important;
+}
+.roi-campaign-table tbody td { vertical-align: middle; color: var(--roi-text); border-color: var(--roi-border) !important; }
+.roi-campaign-name { font-weight: 700; max-width: 320px; word-break: break-word; }
+.roi-campaign-id { display: block; font-size: 10px; font-weight: 600; color: var(--roi-muted); margin-top: 2px; }
+.roi-campaign-empty { text-align: center; padding: 28px 12px; color: var(--roi-muted); }
 .roi-domain-empty {
     text-align: center; padding: 48px 24px; color: var(--roi-muted);
 }
@@ -437,6 +493,9 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                             </div>
                         </th>
                         <th rowspan="2" class="text-center">Subdomain</th>
+                        <th rowspan="2" class="text-center">Account AdX</th>
+                        <th rowspan="2" class="text-center">Account Ads</th>
+                        <th rowspan="2" class="text-center">Status Campaign</th>
                         <th rowspan="2" class="text-center">Tanggal</th>
                         <th rowspan="2" class="text-center">Spend (Rp)</th>
                         <th colspan="2" class="text-center">Klik</th>
@@ -447,6 +506,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th rowspan="2" class="text-center">ROI (%)</th>
                         <th rowspan="2" class="text-center">Pendapatan (Rp)</th>
                         <th rowspan="2" class="text-center">Pendapatan Bersih (Rp)</th>
+                        <th rowspan="2" class="text-center no-export">Detail</th>
                     </tr>
                     <tr>
                         <th class="text-center">Klik Ads</th>
@@ -459,6 +519,45 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 </thead>
                 <tbody></tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade roi-campaign-modal" id="roiCampaignDetailModal" tabindex="-1" role="dialog" aria-labelledby="roiCampaignDetailTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="roiCampaignDetailTitle">Rincian Campaign</h5>
+                    <p class="modal-subtitle" id="roiCampaignDetailSubtitle">Status campaign Meta untuk subdomain ini</p>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="roi-campaign-summary" id="roiCampaignDetailSummary"></div>
+                <div class="roi-campaign-alert" id="roiCampaignDetailAlert" style="display:none;"></div>
+                <div class="roi-campaign-table-wrap">
+                    <table class="table table-sm roi-campaign-table">
+                        <thead>
+                            <tr>
+                                <th>Campaign</th>
+                                <th>Account Ads</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Sumber</th>
+                                <th class="text-center">Cron terakhir</th>
+                                <th class="text-center">Spend terakhir</th>
+                                <th class="text-right">Spend (lookback)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roiCampaignDetailBody">
+                            <tr><td colspan="7" class="roi-campaign-empty">Memuat rincian campaign...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+            </div>
         </div>
     </div>
 </div>

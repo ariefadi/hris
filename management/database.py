@@ -3640,13 +3640,14 @@ class data_mysql:
             self.cur_hris = self.mysql_cur
 
             domain_best = {}
+            domain_accounts = {}
+            domain_account_spend = {}
+            campaign_best = {}
 
-            def register(raw_domain, account_name, weight):
-                name = str(account_name or '').strip()
+            def _domain_keys(raw_domain):
                 raw = str(raw_domain or '').strip()
-                if not name or not raw:
-                    return
-                w = float(weight or 0)
+                if not raw:
+                    return []
                 keys = set(self._dashboard_domain_lookup_keys(raw))
                 primary = self._normalize_subdomain_key(raw)
                 if primary:
@@ -3654,13 +3655,46 @@ class data_mysql:
                 match_key = self._normalize_domain_match_key(raw)
                 if match_key:
                     keys.add(match_key)
-                for key in keys:
-                    k = str(key or '').strip().lower()
-                    if not k:
-                        continue
+                return [str(key or '').strip().lower() for key in keys if str(key or '').strip()]
+
+            def register(raw_domain, account_name, weight):
+                name = str(account_name or '').strip()
+                raw = str(raw_domain or '').strip()
+                if not name or not raw:
+                    return
+                w = float(weight or 0)
+                for k in _domain_keys(raw):
                     prev = domain_best.get(k)
                     if not prev or w > float(prev.get('weight') or 0):
                         domain_best[k] = {'account_name': name, 'weight': w}
+                    accs = domain_accounts.setdefault(k, {})
+                    accs[name] = float(accs.get(name) or 0) + w
+
+            def register_account_spend(raw_domain, account_name, spend_val, fill_missing=False):
+                name = str(account_name or '').strip()
+                if not name:
+                    return
+                spend_amount = float(spend_val or 0)
+                if spend_amount <= 0:
+                    return
+                for k in _domain_keys(raw_domain):
+                    bucket = domain_account_spend.setdefault(k, {})
+                    if fill_missing and float(bucket.get(name) or 0) > 0:
+                        continue
+                    if fill_missing:
+                        bucket[name] = spend_amount
+                    else:
+                        bucket[name] = float(bucket.get(name) or 0) + spend_amount
+
+            def register_campaign(campaign_name, account_name, weight):
+                camp = str(campaign_name or '').strip().upper()
+                name = str(account_name or '').strip()
+                if not camp or not name:
+                    return
+                w = float(weight or 0)
+                prev = campaign_best.get(camp)
+                if not prev or w > float(prev.get('weight') or 0):
+                    campaign_best[camp] = {'account_name': name, 'weight': w}
 
             sql_country = """
                 SELECT
@@ -3677,12 +3711,13 @@ class data_mysql:
             self.cur_hris.execute(sql_country, (start_date, end_date))
             for row in (self.cur_hris.fetchall() or []):
                 register(row.get('raw_domain'), row.get('account_name'), row.get('weight'))
+                register_account_spend(row.get('raw_domain'), row.get('account_name'), row.get('weight'), fill_missing=False)
 
             sql_campaign = """
                 SELECT
                     b.data_ads_domain AS raw_domain,
                     a.account_name,
-                    COUNT(*) AS weight
+                    COALESCE(SUM(b.data_ads_spend), 0) AS weight
                 FROM data_ads_campaign b
                 INNER JOIN master_account_ads a ON a.account_id = b.account_ads_id
                 WHERE b.data_ads_tanggal BETWEEN %s AND %s
@@ -3693,6 +3728,41 @@ class data_mysql:
             self.cur_hris.execute(sql_campaign, (start_date, end_date))
             for row in (self.cur_hris.fetchall() or []):
                 register(row.get('raw_domain'), row.get('account_name'), row.get('weight'))
+                register_account_spend(row.get('raw_domain'), row.get('account_name'), row.get('weight'), fill_missing=True)
+
+            sql_campaign_names = """
+                SELECT
+                    b.data_ads_campaign_nm AS campaign,
+                    a.account_name,
+                    COALESCE(SUM(b.data_ads_spend), 0) AS weight
+                FROM data_ads_campaign b
+                INNER JOIN master_account_ads a ON a.account_id = b.account_ads_id
+                WHERE b.data_ads_tanggal BETWEEN %s AND %s
+                  AND TRIM(COALESCE(b.data_ads_campaign_nm, '')) <> ''
+                  AND TRIM(COALESCE(a.account_name, '')) <> ''
+                GROUP BY b.data_ads_campaign_nm, a.account_name
+            """
+            self.cur_hris.execute(sql_campaign_names, (start_date, end_date))
+            for row in (self.cur_hris.fetchall() or []):
+                register_campaign(row.get('campaign'), row.get('account_name'), row.get('weight'))
+
+            sql_country_campaigns = """
+                SELECT
+                    b.data_ads_campaign_nm AS campaign,
+                    a.account_name,
+                    COALESCE(SUM(b.data_ads_country_spend), 0) AS weight
+                FROM data_ads_country b
+                INNER JOIN master_account_ads a ON a.account_id = b.account_ads_id
+                WHERE b.data_ads_country_tanggal BETWEEN %s AND %s
+                  AND TRIM(COALESCE(b.data_ads_campaign_nm, '')) <> ''
+                  AND TRIM(COALESCE(a.account_name, '')) <> ''
+                GROUP BY b.data_ads_campaign_nm, a.account_name
+            """
+            self.cur_hris.execute(sql_country_campaigns, (start_date, end_date))
+            for row in (self.cur_hris.fetchall() or []):
+                camp = str(row.get('campaign') or '').strip().upper()
+                if camp and camp not in campaign_best:
+                    register_campaign(row.get('campaign'), row.get('account_name'), row.get('weight'))
 
             spend_totals = {}
 
@@ -3734,10 +3804,36 @@ class data_mysql:
                 for k, v in domain_best.items()
                 if str(v.get('account_name') or '').strip()
             }
+            accounts = {}
+            for k, accs in domain_accounts.items():
+                ordered = [
+                    name
+                    for name, _weight in sorted(
+                        (accs or {}).items(),
+                        key=lambda item: (-float(item[1] or 0), str(item[0] or '').lower()),
+                    )
+                    if str(name or '').strip()
+                ]
+                if ordered:
+                    accounts[str(k).strip().lower()] = ordered
             spend = {
                 str(k).strip().lower(): round(float(v or 0), 2)
                 for k, v in spend_totals.items()
                 if float(v or 0) > 0
+            }
+            account_spend = {}
+            for k, accs in domain_account_spend.items():
+                cleaned = {
+                    str(name).strip(): round(float(val or 0), 2)
+                    for name, val in (accs or {}).items()
+                    if str(name or '').strip() and float(val or 0) > 0
+                }
+                if cleaned:
+                    account_spend[str(k).strip().lower()] = cleaned
+            campaign_accounts = {
+                str(camp).strip().upper(): str(v.get('account_name') or '').strip()
+                for camp, v in campaign_best.items()
+                if str(camp or '').strip() and str(v.get('account_name') or '').strip()
             }
 
             platform_flags = {}
@@ -3799,9 +3895,156 @@ class data_mysql:
                 elif has_adx:
                     platform[k] = 'adx'
 
-            return {'status': True, 'data': data, 'spend': spend, 'platform': platform}
+            return {
+                'status': True,
+                'data': data,
+                'accounts': accounts,
+                'spend': spend,
+                'account_spend': account_spend,
+                'campaign_accounts': campaign_accounts,
+                'platform': platform,
+            }
         except Exception as e:
-            return {'status': False, 'data': {}, 'spend': {}, 'platform': {}, 'error': str(e)}
+            return {
+                'status': False,
+                'data': {},
+                'accounts': {},
+                'spend': {},
+                'account_spend': {},
+                'campaign_accounts': {},
+                'platform': {},
+                'error': str(e),
+            }
+
+    def get_dashboard_historical_hourly_compare(self, tanggal, domain=None):
+        """Snapshot kumulatif per jam penarikan: AdX revenue, AdSense revenue, Ads spend.
+
+        Sumber sama dengan menu Historical Hit AdX / AdSense / Ads (tabel log_*_country).
+        """
+        ymd = str(tanggal or '').strip()[:10]
+        domain_key = str(domain or '').strip().lower()
+        empty = {'adx': {}, 'adsense': {}, 'ads': {}}
+        if not ymd:
+            return {'status': False, 'hours': {}, 'error': 'Tanggal wajib'}
+
+        engine = (self._report_engine() or '').strip().lower()
+        use_ch = engine in ('clickhouse', 'ch')
+
+        sources = {
+            'adx': {
+                'table': 'log_adx_country',
+                'date_col': 'log_adx_country_tanggal',
+                'value_col': 'log_adx_country_revenue',
+                'domain_col': 'log_adx_country_domain',
+            },
+            'adsense': {
+                'table': 'log_adsense_country',
+                'date_col': 'log_adsense_country_tanggal',
+                'value_col': 'log_adsense_country_revenue',
+                'domain_col': 'log_adsense_country_domain',
+            },
+            'ads': {
+                'table': 'log_ads_country',
+                'date_col': 'log_ads_country_tanggal',
+                'value_col': 'log_ads_country_spend',
+                'domain_col': 'log_ads_domain',
+            },
+        }
+
+        def _rows_to_hour_map(rows):
+            out = {}
+            for row in rows or []:
+                try:
+                    hour = int((row or {}).get('pull_hour'))
+                except (TypeError, ValueError):
+                    continue
+                if hour < 0 or hour > 23:
+                    continue
+                try:
+                    val = float((row or {}).get('value') or 0)
+                except (TypeError, ValueError):
+                    val = 0.0
+                out[hour] = round(val, 2)
+            return out
+
+        def _query_source(meta):
+            table = meta['table']
+            date_col = meta['date_col']
+            value_col = meta['value_col']
+            domain_col = meta['domain_col']
+            params = [ymd]
+            if use_ch:
+                sql = [
+                    "SELECT",
+                    "\ttoHour(b.mdd) AS pull_hour,",
+                    f"\tSUM(b.{value_col}) AS value",
+                    f"FROM {table} b",
+                    "WHERE",
+                    f"\ttoDate(b.{date_col}) = toDate(%s)",
+                ]
+                if domain_key:
+                    sql.append(f"\tAND positionCaseInsensitiveUTF8(toString(b.{domain_col}), %s) > 0")
+                    params.append(domain_key)
+                sql.append("GROUP BY pull_hour")
+                sql.append("ORDER BY pull_hour")
+            else:
+                sql = [
+                    "SELECT",
+                    "\tHOUR(b.mdd) AS pull_hour,",
+                    f"\tSUM(b.{value_col}) AS value",
+                    f"FROM {table} b",
+                    "WHERE",
+                    f"\tDATE(b.{date_col}) = %s",
+                ]
+                if domain_key:
+                    sql.append(f"\tAND LOWER(b.{domain_col}) LIKE %s")
+                    params.append(f"%{domain_key}%")
+                sql.append("GROUP BY HOUR(b.mdd)")
+                sql.append("ORDER BY pull_hour")
+            query = "\n".join(sql)
+            if not self.execute_query(query, tuple(params)):
+                raise pymysql.Error(self.last_error or f'Gagal query {table}')
+            mapped = _rows_to_hour_map(self.fetch_all())
+            # ClickHouse sync log Ads tertinggal (cron 6 jam). Jika hari ini kosong, pakai MySQL.
+            if use_ch and not any(float(v or 0) > 0 for v in mapped.values()):
+                mysql_params = [ymd]
+                mysql_sql = [
+                    "SELECT",
+                    "\tHOUR(b.mdd) AS pull_hour,",
+                    f"\tSUM(b.{value_col}) AS value",
+                    f"FROM {table} b",
+                    "WHERE",
+                    f"\tDATE(b.{date_col}) = %s",
+                ]
+                if domain_key:
+                    mysql_sql.append(f"\tAND LOWER(b.{domain_col}) LIKE %s")
+                    mysql_params.append(f"%{domain_key}%")
+                mysql_sql.append("GROUP BY HOUR(b.mdd)")
+                mysql_sql.append("ORDER BY pull_hour")
+                try:
+                    mapped = _rows_to_hour_map(
+                        self._fetch_mysql_rows("\n".join(mysql_sql), tuple(mysql_params))
+                    )
+                except Exception:
+                    pass
+            return mapped
+
+        hours = {'adx': {}, 'adsense': {}, 'ads': {}}
+        errors = {}
+        for key, meta in sources.items():
+            try:
+                hours[key] = _query_source(meta)
+            except Exception as exc:
+                hours[key] = {}
+                errors[key] = str(exc)
+
+        return {
+            'status': True,
+            'date': ymd,
+            'domain': domain_key,
+            'hours': hours,
+            'errors': errors,
+        }
 
     def _format_dashboard_account_sync_rows(self, rows):
         def _fmt_dt(val):
@@ -8591,10 +8834,17 @@ class data_mysql:
                     "WHERE",
                     "\ttoDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
                 ]
-                if account_tokens:
-                    like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(account_tokens))
-                    base_sql.append(f"\tAND ({like_conditions_account})")
-                    params.extend([f"%{account}%" for account in account_tokens])
+                exact_account_ids = []
+                for token in account_tokens:
+                    aid = str(token or '').strip()
+                    if aid.lower().startswith('act_'):
+                        aid = aid[4:]
+                    if aid and aid not in exact_account_ids:
+                        exact_account_ids.append(aid)
+                if exact_account_ids:
+                    placeholders = ",".join(["%s"] * len(exact_account_ids))
+                    base_sql.append(f"\tAND {account_col} IN ({placeholders})")
+                    params.extend(exact_account_ids)
                 if data_domain_list:
                     like_conditions_domain = " OR ".join(["lowerUTF8(b.data_adx_country_domain) LIKE lowerUTF8(%s)"] * len(data_domain_list))
                     base_sql.append(f"\tAND ({like_conditions_domain})")
@@ -8607,6 +8857,8 @@ class data_mysql:
                 self.cur_hris = self.report_cur
                 self.cur_hris.execute(sql, tuple(params))
                 data = self.fetch_all()
+                if isinstance(data, list):
+                    self._fill_adsense_credential_names(data)
             else:
                 # MySQL query
                 params = [start_date, end_date]
@@ -8866,9 +9118,9 @@ class data_mysql:
                     "\tb.data_adsense_country_tanggal BETWEEN %s AND %s",
                 ]
                 if data_account_list:
-                    like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(data_account_list))
-                    base_sql.append(f"\tAND ({like_conditions_account})")
-                    params.extend([f"%{account}%" for account in data_account_list])
+                    placeholders = ",".join(["%s"] * len(data_account_list))
+                    base_sql.append(f"\tAND toString(b.account_id) IN ({placeholders})")
+                    params.extend([str(account) for account in data_account_list])
                 if expanded_domain_tokens:
                     like_conditions_domain = " OR ".join([f"(b.data_adsense_country_domain LIKE %s OR {site_expr} LIKE %s)"] * len(expanded_domain_tokens))
                     base_sql.append(f"\tAND ({like_conditions_domain})")
@@ -8914,6 +9166,8 @@ class data_mysql:
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adsense traffic account by params")
             data = self.fetch_all()
+            if use_clickhouse and isinstance(data, list):
+                self._fill_adsense_credential_names(data)
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all adsense traffic account by params")
             hasil = {
@@ -8927,6 +9181,38 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+
+    def _fill_adsense_credential_names(self, rows):
+        """Isi account_name AdSense dari app_credentials. Query ClickHouse hanya punya account_id."""
+        if not isinstance(rows, list) or not rows:
+            return
+        ids = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            aid = str(row.get('account_id') or '').strip()
+            if aid and aid not in ids:
+                ids.append(aid)
+        if not ids:
+            return
+        placeholders = ",".join(["%s"] * len(ids))
+        sql = (
+            "SELECT account_id, account_name FROM app_credentials "
+            "WHERE CAST(account_id AS CHAR) IN (" + placeholders + ")"
+        )
+        if not self.execute_query(sql, tuple(ids)):
+            return
+        name_map = {}
+        for row in (self.fetch_all() or []):
+            if not isinstance(row, dict):
+                continue
+            name_map[str(row.get('account_id') or '').strip()] = str(row.get('account_name') or '').strip()
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            aid = str(row.get('account_id') or '').strip()
+            if not str(row.get('account_name') or '').strip():
+                row['account_name'] = name_map.get(aid) or aid
 
     def get_all_adx_monitoring_account_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None):
         try:
@@ -9875,6 +10161,52 @@ class data_mysql:
 
         return {"hasil": hasil}
 
+    def _ads_log_domain_match_keys(self, domain_list):
+        """Kunci match log_ads_domain (format subdomain.sld.ADX, tanpa TLD asli)."""
+        skip_tail = {'com', 'net', 'org', 'id', 'co', 'www', 'adx', 'io', 'top', 'my'}
+        keys = []
+        seen = set()
+        for raw in domain_list or []:
+            s = str(raw or '').strip().lower()
+            s = re.sub(r'^https?://', '', s)
+            s = re.sub(r'^www\.', '', s)
+            s = s.split('/')[0].split('?')[0].split('#')[0]
+            s = re.sub(r'\.adx$', '', s)
+            parts = [p for p in s.split('.') if p]
+            while parts and parts[-1] in skip_tail:
+                parts.pop()
+            if len(parts) >= 2:
+                key = parts[0] + '.' + parts[1]
+            elif parts:
+                key = parts[0]
+            else:
+                continue
+            if key not in seen:
+                seen.add(key)
+                keys.append(key)
+        return keys
+
+    def _ads_country_hourly_from_mysql(self, tanggal, domains=None):
+        keys = self._ads_log_domain_match_keys(domains)
+        like_clause = ''
+        params = [tanggal]
+        if keys:
+            like_clause = ' AND (' + ' OR '.join(['LOWER(log_ads_domain) LIKE %s'] * len(keys)) + ')'
+            params.extend([f'%{k}%' for k in keys])
+        sql = "\n".join([
+            "SELECT",
+            "\tHOUR(mdd) AS hour,",
+            "\tSUM(log_ads_country_spend) AS spend,",
+            "\tSUM(log_ads_country_impresi) AS impressions,",
+            "\tSUM(log_ads_country_click) AS clicks",
+            "FROM log_ads_country",
+            "WHERE log_ads_country_tanggal = %s",
+            like_clause,
+            "GROUP BY HOUR(mdd)",
+            "ORDER BY hour ASC",
+        ])
+        return self._fetch_mysql_rows(sql, tuple(params)) or []
+
     def get_all_ads_country_hourly_by_params(self, tanggal, data_sub_domain=None):
         try:
             # Normalisasi domain
@@ -9889,9 +10221,10 @@ class data_mysql:
             if not domains:
                 raise ValueError("data_sub_domain is required")
 
-            # Buat clause startsWith
-            starts_clause_ch = " OR ".join(["startsWith(log_ads_domain, %s)"] * len(domains))
-            # Query: last record per hour (menit terakhir)
+            match_keys = self._ads_log_domain_match_keys(domains) or [str(d).strip().lower() for d in domains]
+            pos_clause_ch = " OR ".join(
+                ["positionCaseInsensitiveUTF8(toString(log_ads_domain), %s) > 0"] * len(match_keys)
+            )
             sql_ch = f"""
             SELECT
                 toHour(lacs.mdd) AS hour,
@@ -9900,18 +10233,23 @@ class data_mysql:
                 SUM(lacs.log_ads_country_click) AS clicks
             FROM hris_trendHorizone.log_ads_country AS lacs
             WHERE toDate(lacs.log_ads_country_tanggal) = toDate(%s)
-            AND ({starts_clause_ch})
+            AND ({pos_clause_ch})
             GROUP BY hour
-            ORDER BY hour;
+            ORDER BY hour
             """
+            params_tuple = tuple([tanggal] + match_keys)
+            data = []
+            try:
+                self._ensure_report_connection()
+                self.cur_hris = self.report_cur
+                self.cur_hris.execute(sql_ch, params_tuple)
+                data = self.fetch_all() or []
+            except Exception:
+                data = []
 
-            # Params: tanggal untuk CTE + tanggal untuk main query + domains
-            params_tuple = tuple([tanggal] + domains)
-
-            self._ensure_report_connection()
-            self.cur_hris = self.report_cur
-            self.cur_hris.execute(sql_ch, params_tuple)
-            data = self.fetch_all() or []
+            has_spend = any(float((r or {}).get('spend') or 0) > 0 for r in data)
+            if not has_spend:
+                data = self._ads_country_hourly_from_mysql(tanggal, domains)
 
             return {
                 "hasil": {
@@ -9935,30 +10273,26 @@ class data_mysql:
             like_clause = ""
             like_params = []
             if domain_list:
-                # log_ads_domain menyimpan 'you.example.xxx' (tanpa TLD asli),
-                # maka gunakan pola LIKE berbasis domain tanpa TLD: 'you.example.%'
+                # log_ads_domain: 'you.example.ADX' (bukan FQDN). Match 2 label pertama.
                 patterns = []
-                for d in domain_list:
-                    parts = d.split('.')
-                    # buang segmen TLD terakhir jika ada
-                    if len(parts) >= 2:
-                        base = ".".join(parts[:-1]) + "."
-                    else:
-                        base = d + "."
-                    patterns.append(base + "%")
-                like_conditions = " OR ".join(["log_ads_domain LIKE %s"] * len(patterns))
-                like_clause = f"\tAND ({like_conditions})"
-                like_params = patterns
+                for key in self._ads_log_domain_match_keys(domain_list) or domain_list:
+                    token = str(key or '').strip().lower()
+                    if token:
+                        patterns.append(f"%{token}%")
+                if patterns:
+                    like_conditions = " OR ".join(["LOWER(log_ads_domain) LIKE %s"] * len(patterns))
+                    like_clause = f"\tAND ({like_conditions})"
+                    like_params = patterns
             base_sql = [
                 "SELECT",
-                "\tDATE(log_ads_country_tanggal) AS 'date',",
-                "\tHOUR(mdd) AS 'hour',",
-                "\tlog_ads_country_cd AS 'country_code',",
-                "\tlog_ads_country_nm AS 'country_name',",
-                "\tSUM(log_ads_country_spend) AS 'spend',",
-                "\tSUM(log_ads_country_impresi) AS 'impressions',",
-                "\tSUM(log_ads_country_click) AS 'clicks',",
-                "\tROUND(AVG(log_ads_country_cpr), 0) AS 'cpr'",
+                "\tDATE(log_ads_country_tanggal) AS date,",
+                "\tHOUR(mdd) AS hour,",
+                "\tlog_ads_country_cd AS country_code,",
+                "\tlog_ads_country_nm AS country_name,",
+                "\tSUM(log_ads_country_spend) AS spend,",
+                "\tSUM(log_ads_country_impresi) AS impressions,",
+                "\tSUM(log_ads_country_click) AS clicks,",
+                "\tROUND(AVG(log_ads_country_cpr), 0) AS cpr",
                 "FROM log_ads_country",
                 "WHERE log_ads_country_tanggal = %s",
             ]
@@ -9968,9 +10302,8 @@ class data_mysql:
             base_sql.append("GROUP BY date, hour, log_ads_country_cd, log_ads_country_nm")
             base_sql.append("ORDER BY hour ASC, country_name ASC")
             sql = "\n".join(base_sql)
-            if not self.execute_query(sql, tuple(params)):
-                raise pymysql.Error("Failed to get hourly Ads country logs by params")
-            data = self.fetch_all()
+            # Selalu MySQL: ClickHouse log_ads_country sering tertinggal (sync 6 jam).
+            data = self._fetch_mysql_rows(sql, tuple(params))
             hasil = {"status": True, "message": "Hourly Ads country logs berhasil diambil", "data": data}
         except Exception as e:
             hasil = {"status": False, "data": f"Terjadi error {e!r}"}
@@ -10115,8 +10448,23 @@ class data_mysql:
             engine = (self._report_engine() or '').strip().lower()
             use_clickhouse = bool(force_clickhouse) or engine in ('clickhouse', 'ch')
 
-            params = [start_date, end_date]
-            if use_clickhouse:
+            def _row_date(row):
+                val = (row or {}).get('date')
+                if hasattr(val, 'strftime'):
+                    return val.strftime('%Y-%m-%d')
+                return str(val or '')[:10]
+
+            def _filter_params(range_start, range_end):
+                out = [range_start, range_end]
+                if account_ids:
+                    out.extend(account_ids)
+                if data_domain_list:
+                    out.extend([f"%{domain}%" for domain in data_domain_list])
+                if data_hour_list:
+                    out.extend(data_hour_list)
+                return tuple(out)
+
+            def _query_clickhouse(range_start, range_end):
                 base_sql = [
                     "SELECT",
                     "\ttoDate(b.log_ads_country_tanggal) AS date,",
@@ -10137,37 +10485,33 @@ class data_mysql:
                     base_sql.append(
                         "\tAND replaceRegexpAll(lowerUTF8(toString(b.account_ads_id)), '^act_', '') IN (" + placeholders + ")"
                     )
-                    params.extend(account_ids)
                 if data_domain_list:
                     like_conditions_domain = " OR ".join(
                         ["lowerUTF8(b.log_ads_domain) LIKE lowerUTF8(%s)"] * len(data_domain_list)
                     )
                     base_sql.append(f"\tAND ({like_conditions_domain})")
-                    params.extend([f"%{domain}%" for domain in data_domain_list])
                 if data_hour_list:
                     placeholders = ",".join(["%s"] * len(data_hour_list))
                     base_sql.append(f"\tAND toHour(b.mdd) IN ({placeholders})")
-                    params.extend(data_hour_list)
                 base_sql.append("GROUP BY date, pull_hour, site_name")
                 base_sql.append("ORDER BY date ASC, pull_hour ASC, site_name ASC")
-
-                sql = "\n".join(base_sql)
                 self._ensure_report_connection()
                 self.cur_hris = self.report_cur
-                self.cur_hris.execute(sql, tuple(params))
-                data = self.fetch_all()
-            else:
+                self.cur_hris.execute("\n".join(base_sql), _filter_params(range_start, range_end))
+                return self.fetch_all() or []
+
+            def _query_mysql(range_start, range_end):
                 base_sql = [
                     "SELECT",
-                    "\tDATE(b.log_ads_country_tanggal) AS 'date',",
-                    "\tHOUR(b.mdd) AS 'pull_hour',",
-                    "\tb.log_ads_domain AS 'site_name',",
-                    "\tSUM(b.log_ads_country_spend) AS 'spend',",
-                    "\tSUM(b.log_ads_country_impresi) AS 'impressions',",
-                    "\tSUM(b.log_ads_country_click) AS 'clicks',",
-                    "\tSUM(b.log_ads_country_reach) AS 'reach',",
-                    "\tSUM(b.log_ads_country_lpv) AS 'lpv',",
-                    "\tMAX(b.mdd) AS 'pull_at'",
+                    "\tDATE(b.log_ads_country_tanggal) AS date,",
+                    "\tHOUR(b.mdd) AS pull_hour,",
+                    "\tb.log_ads_domain AS site_name,",
+                    "\tSUM(b.log_ads_country_spend) AS spend,",
+                    "\tSUM(b.log_ads_country_impresi) AS impressions,",
+                    "\tSUM(b.log_ads_country_click) AS clicks,",
+                    "\tSUM(b.log_ads_country_reach) AS reach,",
+                    "\tSUM(b.log_ads_country_lpv) AS lpv,",
+                    "\tMAX(b.mdd) AS pull_at",
                     "FROM log_ads_country b",
                     "WHERE",
                     "\tDATE(b.log_ads_country_tanggal) BETWEEN %s AND %s",
@@ -10177,23 +10521,41 @@ class data_mysql:
                     base_sql.append(
                         "\tAND REPLACE(LOWER(b.account_ads_id), 'act_', '') IN (" + placeholders + ")"
                     )
-                    params.extend(account_ids)
                 if data_domain_list:
                     like_conditions_domain = " OR ".join(
                         ["b.log_ads_domain LIKE %s"] * len(data_domain_list)
                     )
                     base_sql.append(f"\tAND ({like_conditions_domain})")
-                    params.extend([f"%{domain}%" for domain in data_domain_list])
                 if data_hour_list:
                     placeholders = ",".join(["%s"] * len(data_hour_list))
                     base_sql.append(f"\tAND HOUR(b.mdd) IN ({placeholders})")
-                    params.extend(data_hour_list)
                 base_sql.append("GROUP BY DATE(b.log_ads_country_tanggal), HOUR(b.mdd), b.log_ads_domain")
                 base_sql.append("ORDER BY 1 ASC, 2 ASC, 3 ASC")
+                return self._fetch_mysql_rows("\n".join(base_sql), _filter_params(range_start, range_end)) or []
 
-                sql = "\n".join(base_sql)
-                self.cur_hris.execute(sql, tuple(params))
-                data = self.fetch_all()
+            data = []
+            if use_clickhouse:
+                try:
+                    data = _query_clickhouse(start_date, end_date)
+                except Exception:
+                    data = []
+
+            wanted_dates = []
+            try:
+                cursor_dt = datetime.strptime(str(start_date)[:10], '%Y-%m-%d').date()
+                end_dt = datetime.strptime(str(end_date)[:10], '%Y-%m-%d').date()
+                while cursor_dt <= end_dt:
+                    wanted_dates.append(cursor_dt.strftime('%Y-%m-%d'))
+                    cursor_dt += timedelta(days=1)
+            except Exception:
+                wanted_dates = [str(start_date)[:10], str(end_date)[:10]]
+
+            ch_dates = {_row_date(row) for row in data}
+            missing_dates = [d for d in wanted_dates if d and d not in ch_dates]
+            if missing_dates:
+                mysql_rows = _query_mysql(missing_dates[0], missing_dates[-1])
+                missing_set = set(missing_dates)
+                data = list(data) + [row for row in mysql_rows if _row_date(row) in missing_set]
 
             hasil = {
                 "status": True,
@@ -10990,6 +11352,273 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+
+    def get_ads_last_campaign_status_map(self, domain_keys, lookback_days=150):
+        """Snapshot campaign Meta terakhir per kunci subdomain.domain (master_ads + spend terakhir)."""
+        keys = []
+        seen = set()
+        for raw in domain_keys or []:
+            key = normalize_roi_domain_merge_key(raw)
+            if key and key not in seen:
+                seen.add(key)
+                keys.append(key)
+        if not keys:
+            return {}
+
+        like_parts = []
+        params = []
+        for key in keys:
+            like_parts.append("LOWER(m.master_domain) LIKE %s OR LOWER(m.master_campaign_nm) LIKE %s")
+            needle = f"%{key}%"
+            params.extend([needle, needle])
+        where_like = " OR ".join(like_parts)
+        lookback = max(14, int(lookback_days or 150))
+        sql = f"""
+            SELECT
+                m.master_domain,
+                m.account_ads_id,
+                a.account_name,
+                m.master_campaign_id,
+                m.master_campaign_nm,
+                m.master_status,
+                m.master_date,
+                m.mdd
+            FROM master_ads m
+            LEFT JOIN master_account_ads a ON a.account_id = m.account_ads_id
+            WHERE m.master_date >= DATE_SUB(CURDATE(), INTERVAL {lookback} DAY)
+              AND ({where_like})
+            ORDER BY m.mdd DESC
+            LIMIT 4000
+        """
+        rows = []
+        try:
+            rows = self._fetch_mysql_rows(sql, tuple(params)) or []
+        except Exception:
+            rows = []
+
+        out = {}
+        for row in rows:
+            merge_key = normalize_roi_domain_merge_key(
+                (row or {}).get('master_domain') or (row or {}).get('master_campaign_nm')
+            )
+            if not merge_key or merge_key in out:
+                continue
+            mdd = (row or {}).get('mdd')
+            master_date = (row or {}).get('master_date')
+            out[merge_key] = {
+                'account_ads_id': str((row or {}).get('account_ads_id') or '').strip(),
+                'account_ads': str((row or {}).get('account_name') or '').strip(),
+                'campaign_id': str((row or {}).get('master_campaign_id') or '').strip(),
+                'campaign_name': str((row or {}).get('master_campaign_nm') or '').strip(),
+                'campaign_status': str((row or {}).get('master_status') or '').strip().upper() or 'UNKNOWN',
+                'campaign_last_date': master_date.strftime('%Y-%m-%d') if hasattr(master_date, 'strftime') else str(master_date or '')[:10],
+                'campaign_last_mdd': mdd.strftime('%Y-%m-%d %H:%M:%S') if hasattr(mdd, 'strftime') else str(mdd or '')[:19],
+            }
+
+        spend_like = []
+        spend_params = []
+        for key in keys:
+            spend_like.append("LOWER(c.data_ads_domain) LIKE %s OR LOWER(c.data_ads_campaign_nm) LIKE %s")
+            needle = f"%{key}%"
+            spend_params.extend([needle, needle])
+        spend_sql = f"""
+            SELECT
+                c.data_ads_domain,
+                c.account_ads_id,
+                a.account_name,
+                MAX(c.data_ads_tanggal) AS last_spend_date,
+                COALESCE(SUM(c.data_ads_spend), 0) AS spend_total
+            FROM data_ads_campaign c
+            LEFT JOIN master_account_ads a ON a.account_id = c.account_ads_id
+            WHERE c.data_ads_tanggal >= DATE_SUB(CURDATE(), INTERVAL {lookback} DAY)
+              AND ({' OR '.join(spend_like)})
+            GROUP BY c.data_ads_domain, c.account_ads_id, a.account_name
+        """
+        try:
+            spend_rows = self._fetch_mysql_rows(spend_sql, tuple(spend_params)) or []
+        except Exception:
+            spend_rows = []
+        for row in spend_rows:
+            merge_key = normalize_roi_domain_merge_key((row or {}).get('data_ads_domain'))
+            if not merge_key:
+                continue
+            last_spend = (row or {}).get('last_spend_date')
+            last_spend_s = last_spend.strftime('%Y-%m-%d') if hasattr(last_spend, 'strftime') else str(last_spend or '')[:10]
+            cur = out.setdefault(merge_key, {
+                'account_ads_id': str((row or {}).get('account_ads_id') or '').strip(),
+                'account_ads': str((row or {}).get('account_name') or '').strip(),
+                'campaign_id': '',
+                'campaign_name': '',
+                'campaign_status': 'UNKNOWN',
+                'campaign_last_date': last_spend_s,
+                'campaign_last_mdd': '',
+            })
+            if not cur.get('account_ads'):
+                cur['account_ads'] = str((row or {}).get('account_name') or '').strip()
+            if not cur.get('account_ads_id'):
+                cur['account_ads_id'] = str((row or {}).get('account_ads_id') or '').strip()
+            prev = str(cur.get('campaign_last_spend_date') or '')
+            if last_spend_s and last_spend_s >= prev:
+                cur['campaign_last_spend_date'] = last_spend_s
+        return out
+
+    @staticmethod
+    def _normalize_master_ads_status(value):
+        s = str(value or '').strip().upper()
+        if s in ('1', 'ACTIVE', 'ENABLED', 'TRUE'):
+            return 'ACTIVE'
+        if s in ('0', 'PAUSED', 'PAUSE', 'DISABLED', 'FALSE'):
+            return 'PAUSED'
+        if s in ('DELETED', 'ARCHIVED', 'CAMPAIGN_PAUSED', 'WITH_ISSUES'):
+            return s
+        try:
+            return 'ACTIVE' if int(float(value)) == 1 else 'PAUSED'
+        except Exception:
+            return s or 'UNKNOWN'
+
+    @staticmethod
+    def _fmt_sql_date(value, with_time=False):
+        if not value:
+            return ''
+        if hasattr(value, 'strftime'):
+            return value.strftime('%Y-%m-%d %H:%M:%S' if with_time else '%Y-%m-%d')
+        text = str(value or '')
+        return text[:19] if with_time else text[:10]
+
+    def get_ads_campaigns_for_domain(self, domain_key, lookback_days=365):
+        """Semua campaign Meta yang namanya/domain-nya cocok dengan subdomain (snapshot cron + spend)."""
+        key = normalize_roi_domain_merge_key(domain_key)
+        if not key:
+            return []
+        lookback = max(30, int(lookback_days or 365))
+        needle = f"%{key}%"
+        sql = """
+            SELECT
+                m.master_campaign_id,
+                m.master_campaign_nm,
+                m.master_status,
+                m.master_domain,
+                m.account_ads_id,
+                a.account_name,
+                m.master_budget,
+                m.master_date,
+                m.mdd
+            FROM master_ads m
+            LEFT JOIN master_account_ads a ON a.account_id = m.account_ads_id
+            WHERE m.master_date >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+              AND (LOWER(m.master_domain) LIKE %s OR LOWER(m.master_campaign_nm) LIKE %s)
+            ORDER BY m.mdd DESC
+            LIMIT 4000
+        """
+        rows = []
+        try:
+            rows = self._fetch_mysql_rows(sql, (lookback, needle, needle)) or []
+        except Exception:
+            rows = []
+
+        campaigns = []
+        seen = set()
+        for row in rows:
+            cid = str((row or {}).get('master_campaign_id') or '').strip()
+            name = str((row or {}).get('master_campaign_nm') or '').strip()
+            aid = str((row or {}).get('account_ads_id') or '').strip()
+            camp_key = cid or ('nm:%s|%s' % (name.lower(), aid))
+            if not camp_key or camp_key in seen:
+                continue
+            seen.add(camp_key)
+            campaigns.append({
+                'campaign_id': cid,
+                'campaign_name': name,
+                'account_ads_id': aid,
+                'account_ads': str((row or {}).get('account_name') or '').strip(),
+                'status': self._normalize_master_ads_status((row or {}).get('master_status')),
+                'configured_status': self._normalize_master_ads_status((row or {}).get('master_status')),
+                'daily_budget': float((row or {}).get('master_budget') or 0) or 0.0,
+                'last_cron_date': self._fmt_sql_date((row or {}).get('master_date')),
+                'last_cron_at': self._fmt_sql_date((row or {}).get('mdd'), with_time=True),
+                'last_spend_date': '',
+                'spend_total': 0.0,
+                'source': 'cron_last',
+            })
+
+        spend_sql = """
+            SELECT
+                c.data_ads_campaign_id,
+                c.data_ads_campaign_nm,
+                c.account_ads_id,
+                a.account_name,
+                MAX(c.data_ads_tanggal) AS last_spend_date,
+                COALESCE(SUM(c.data_ads_spend), 0) AS spend_total
+            FROM data_ads_campaign c
+            LEFT JOIN master_account_ads a ON a.account_id = c.account_ads_id
+            WHERE c.data_ads_tanggal >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+              AND (LOWER(c.data_ads_domain) LIKE %s OR LOWER(c.data_ads_campaign_nm) LIKE %s)
+            GROUP BY c.data_ads_campaign_id, c.data_ads_campaign_nm, c.account_ads_id, a.account_name
+        """
+        spend_rows = []
+        try:
+            spend_rows = self._fetch_mysql_rows(spend_sql, (lookback, needle, needle)) or []
+        except Exception:
+            spend_rows = []
+
+        by_id = {}
+        by_name_acc = {}
+        for camp in campaigns:
+            if camp.get('campaign_id'):
+                by_id[camp['campaign_id']] = camp
+            name_key = '%s|%s' % (str(camp.get('campaign_name') or '').strip().lower(), camp.get('account_ads_id') or '')
+            if name_key.strip('|'):
+                by_name_acc[name_key] = camp
+
+        for row in spend_rows:
+            cid = str((row or {}).get('data_ads_campaign_id') or '').strip()
+            name = str((row or {}).get('data_ads_campaign_nm') or '').strip()
+            aid = str((row or {}).get('account_ads_id') or '').strip()
+            last_spend = self._fmt_sql_date((row or {}).get('last_spend_date'))
+            spend_total = float((row or {}).get('spend_total') or 0) or 0.0
+            camp = by_id.get(cid) if cid else None
+            if not camp:
+                camp = by_name_acc.get('%s|%s' % (name.lower(), aid))
+            if camp:
+                camp['last_spend_date'] = last_spend
+                camp['spend_total'] = spend_total
+                if not camp.get('account_ads'):
+                    camp['account_ads'] = str((row or {}).get('account_name') or '').strip()
+                continue
+            campaigns.append({
+                'campaign_id': cid,
+                'campaign_name': name,
+                'account_ads_id': aid,
+                'account_ads': str((row or {}).get('account_name') or '').strip(),
+                'status': 'UNKNOWN',
+                'configured_status': 'UNKNOWN',
+                'daily_budget': 0.0,
+                'last_cron_date': '',
+                'last_cron_at': '',
+                'last_spend_date': last_spend,
+                'spend_total': spend_total,
+                'source': 'spend_last',
+            })
+        return campaigns
+
+    def get_master_account_ads_token(self, account_id):
+        aid = str(account_id or '').strip()
+        if not aid:
+            return ''
+        alts = [aid]
+        if aid.startswith('act_'):
+            alts.append(aid[4:])
+        else:
+            alts.append('act_' + aid)
+        placeholders = ','.join(['%s'] * len(alts))
+        sql = f"SELECT access_token FROM master_account_ads WHERE account_id IN ({placeholders}) LIMIT 1"
+        try:
+            rows = self._fetch_mysql_rows(sql, tuple(alts)) or []
+        except Exception:
+            rows = []
+        if not rows:
+            return ''
+        return str((rows[0] or {}).get('access_token') or '').strip()
 
     def get_all_ads_roi_traffic_campaign_by_params(
         self, start_date_formatted, end_date_formatted, data_sub_domain=None, selected_account_ads_list=None
@@ -11917,9 +12546,13 @@ class data_mysql:
             engine = (self._report_engine() or '').strip().lower()
             use_clickhouse = engine in ('clickhouse', 'ch')
 
-            like_account_col = "b.account_id" if use_clickhouse else "a.account_id"
-            like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(data_account_list))
-            like_params_account = [f"%{account}%" for account in data_account_list]
+            if use_clickhouse:
+                like_conditions_account = ""
+                like_params_account = []
+            else:
+                like_account_col = "a.account_id"
+                like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(data_account_list))
+                like_params_account = [f"%{account}%" for account in data_account_list]
 
             if use_clickhouse:
                 site_expr = "concat(arrayElement(splitByChar('.', b.data_adsense_country_domain), 1), '.', arrayElement(splitByChar('.', b.data_adsense_country_domain), 2))"
@@ -11981,8 +12614,21 @@ class data_mysql:
             params.extend([start_date, end_date])
 
             if data_account_list:
-                base_sql.append(f"\tAND ({like_conditions_account})")
-                params.extend(like_params_account)
+                if use_clickhouse:
+                    exact_ids = []
+                    for account in data_account_list:
+                        token = str(account).strip()
+                        if token.lower().startswith('act_'):
+                            token = token[4:]
+                        if token and token not in exact_ids:
+                            exact_ids.append(token)
+                    if exact_ids:
+                        placeholders = ",".join(["%s"] * len(exact_ids))
+                        base_sql.append(f"\tAND toString(b.account_id) IN ({placeholders})")
+                        params.extend(exact_ids)
+                else:
+                    base_sql.append(f"\tAND ({like_conditions_account})")
+                    params.extend(like_params_account)
 
             if data_domain_list:
                 base_sql.append(f"\tAND ({like_conditions_domain})")
@@ -12605,9 +13251,13 @@ class data_mysql:
             engine = (self._report_engine() or '').strip().lower()
             use_clickhouse = engine in ('clickhouse', 'ch')
 
-            like_account_col = "b.account_id" if use_clickhouse else "a.account_id"
-            like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(data_account_list))
-            like_params_account = [f"%{account}%" for account in data_account_list]
+            if use_clickhouse:
+                like_conditions_account = ""
+                like_params_account = []
+            else:
+                like_account_col = "a.account_id"
+                like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(data_account_list))
+                like_params_account = [f"%{account}%" for account in data_account_list]
 
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
@@ -12647,8 +13297,21 @@ class data_mysql:
 
             params = [start_date, end_date]
             if data_account_list:
-                base_sql.append(f"\tAND ({like_conditions_account})")
-                params.extend(like_params_account)
+                if use_clickhouse:
+                    exact_ids = []
+                    for account in data_account_list:
+                        token = str(account).strip()
+                        if token.lower().startswith('act_'):
+                            token = token[4:]
+                        if token and token not in exact_ids:
+                            exact_ids.append(token)
+                    if exact_ids:
+                        placeholders = ",".join(["%s"] * len(exact_ids))
+                        base_sql.append(f"\tAND toString(b.account_id) IN ({placeholders})")
+                        params.extend(exact_ids)
+                else:
+                    base_sql.append(f"\tAND ({like_conditions_account})")
+                    params.extend(like_params_account)
             if data_domain_list:
                 base_sql.append(f"\tAND ({like_conditions_domain})")
                 params.extend(like_params_domain)
@@ -13503,6 +14166,7 @@ class data_mysql:
             camp_sql = f"""
             SELECT
                 ifNull(nullIf(lower(trim(data_ads_campaign_nm)), ''), 'unknown_campaign') AS campaign,
+                argMax(toString(account_ads_id), toFloat64(data_ads_spend)) AS account_ads_id,
                 sum(toFloat64(data_ads_spend)) AS spend,
                 sum(toFloat64(data_ads_lpv)) AS lpv
             FROM hris_trendHorizone.data_ads_campaign
@@ -13518,12 +14182,14 @@ class data_mysql:
                 log_sql = f"""
                 SELECT
                     campaign,
-                    sum(spend) AS spend,
+                    argMax(account_ads_id, spend_amt) AS account_ads_id,
+                    sum(spend_amt) AS spend,
                     sum(lpv) AS lpv
                 FROM (
                     SELECT
                         ifNull(nullIf(lower(trim(log_ads_campaign_nm)), ''), 'unknown_campaign') AS campaign,
-                        argMax(toFloat64(log_ads_country_spend), mdd) AS spend,
+                        argMax(toString(account_ads_id), mdd) AS account_ads_id,
+                        argMax(toFloat64(log_ads_country_spend), mdd) AS spend_amt,
                         argMax(toFloat64(log_ads_country_lpv), mdd) AS lpv
                     FROM hris_trendHorizone.log_ads_country
                     WHERE toDate(log_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
@@ -13601,6 +14267,7 @@ class data_mysql:
                 roi = ((net_profit / spend) * 100.0) if spend > 0 else 0.0
                 rows_out.append({
                     'campaign': c.get('campaign'),
+                    'account_ads_id': str(c.get('account_ads_id') or '').strip(),
                     'spend': int(round(spend)),
                     'revenue': int(round(revenue)),
                     'net_profit': int(round(net_profit)),

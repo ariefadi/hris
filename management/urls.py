@@ -3,6 +3,9 @@ from django.urls import path
 from django.views.generic.base import RedirectView
 from . import views
 from . import views_adsense
+from . import views_payment
+from . import views_domain_checker
+from .sheets_roi import RoiSpreadsheetConnectView
 from . import views_chat
 from . import views_histats
 from .oauth_views_package.oauth_views import (
@@ -43,6 +46,7 @@ urlpatterns = [
     path('admin/dashboard_country_traffic_metrics', views.DashboardCountryTrafficMetricsView.as_view(), name='dashboard_country_traffic_metrics'),
     path('admin/dashboard_create_scoring', views.DashboardCreateScoringView.as_view(), name='dashboard_create_scoring'),
     path('admin/dashboard_hourly_heatmap', views.DashboardDomainHourlyHeatmapView.as_view()),
+    path('admin/dashboard_historical_hourly', views.DashboardHistoricalHourlyCompareView.as_view()),
     path('admin/dashboard_portfolio_pulse', views.DashboardPortfolioPulseView.as_view()),
     path('admin/dashboard_scoring_compare', views.DashboardScoringCompareView.as_view(), name='dashboard_scoring_compare'),
     path('admin/dashboard_scoring_rekap_compare', views.DashboardScoringRekapCompareView.as_view(), name='dashboard_scoring_rekap_compare'),
@@ -75,10 +79,6 @@ urlpatterns = [
     path('admin/facebook_partner_token_request', views.FacebookPartnerTokenRequestView.as_view(), name='facebook_partner_token_request'),
     path('admin/facebook_partner_api', views.FacebookPartnerApiDocsView.as_view(), name='facebook_partner_api'),
     path('api/facebook/partner/submit-token', views.FacebookPartnerSubmitTokenApiView.as_view(), name='facebook_partner_submit_token'),
-    # Menu Meta Ads Policy Events (Gmail)
-    path('admin/ads_policy_events', views.AdsPolicyEventsView.as_view(), name='ads_policy_events'),
-    path('admin/ads_policy_events_sync', views.AdsPolicyEventsSyncView.as_view(), name='ads_policy_events_sync'),
-    path('admin/ads_policy_events_credentials_list', views.AdsPolicyEventsCredentialsListView.as_view(), name='ads_policy_events_credentials_list'),
     # Menu Per Account Facebook Ads
     path('admin/ads_historical', views.AdsHistoricalView.as_view(), name='ads_historical'),
     path('admin/page_ads_historical', views.AdsHistoricalDataView.as_view()),
@@ -142,8 +142,6 @@ urlpatterns = [
     path('admin/page_adx_active_sites', views.AdxActiveSitesView.as_view(), name='adx_active_sites'),
     # Menu AdX Account Data
     path('admin/adx_account', views.AdxAccountView.as_view(), name='adx_account'),
-    path('admin/adx_policy_events', views.AdxPolicyEventsView.as_view(), name='adx_policy_events'),
-    path('admin/adx_policy_events_sync', views.AdxPolicyEventsSyncView.as_view(), name='adx_policy_events_sync'),
     path('admin/adx_account/oauth_start', views.AdxAccountOAuthStartView.as_view(), name='adx_account_oauth_start'),
     path('admin/adx_account/oauth_callback', views.AdxAccountOAuthCallbackView.as_view(), name='adx_account_oauth_callback'),
     path('admin/page_adx_account', views.AdxAccountDataView.as_view()),
@@ -196,15 +194,26 @@ urlpatterns = [
     path('admin/adsense_traffic_country_data', views_adsense.AdsenseTrafficPerCountryDataView.as_view(), name='adsense_traffic_country_data'),
     path('admin/get_countries_adsense', views_adsense.get_countries_adsense, name='get_countries_adsense'),
     path('admin/adsense_domain_suggest', views_adsense.AdsenseDomainSuggestView.as_view(), name='adsense_domain_suggest'),
-    # Menu AdSense Policy Events (Gmail)
-    path('admin/adsense_policy_events', views_adsense.AdsensePolicyEventsView.as_view(), name='adsense_policy_events'),
-    path('admin/adsense_policy_events_sync', views_adsense.AdsensePolicyEventsSyncView.as_view(), name='adsense_policy_events_sync'),
+    # Menu Report Payment Policy
+    path('admin/payment_adsense', views_payment.PaymentAdsenseView.as_view(), name='payment_adsense'),
+    path('admin/page_payment_adsense', views_payment.PaymentAdsenseDataView.as_view(), name='payment_adsense_data'),
+    path('admin/payment_adsense_sync', views_payment.PaymentAdsenseSyncView.as_view(), name='payment_adsense_sync'),
+    path('admin/payment_adsense_import', views_payment.PaymentAdsenseImportView.as_view(), name='payment_adsense_import'),
+    path('admin/payment_adx', views_payment.PaymentAdxView.as_view(), name='payment_adx'),
+    path('admin/domain_checker', views_domain_checker.DomainCheckerView.as_view(), name='domain_checker'),
+    path('admin/domain_checker_data', views_domain_checker.DomainCheckerDataView.as_view(), name='domain_checker_data'),
+    path('admin/domain_checker_check', views_domain_checker.DomainCheckerCheckView.as_view(), name='domain_checker_check'),
+    path('admin/domain_checker_detail', views_domain_checker.DomainCheckerDetailView.as_view(), name='domain_checker_detail'),
+    path('admin/domain_checker_alerts', views_domain_checker.DomainCheckerAlertView.as_view(), name='domain_checker_alerts'),
+    path('admin/page_payment_adx', views_payment.PaymentAdxDataView.as_view(), name='payment_adx_data'),
+    path('admin/payment_adx_import', views_payment.PaymentAdxImportView.as_view(), name='payment_adx_import'),
 
     # OAuth Management - menggunakan oauth_views_package untuk konsistensi
     path('admin/oauth/management/', oauth_management_dashboard, name='oauth_management_dashboard'),
     path('admin/oauth/status/', oauth_status_api, name='oauth_status_api'),
     path('admin/oauth/generate-url/', generate_oauth_url_api, name='generate_oauth_url_api'),
     path('admin/oauth/callback/', oauth_callback_api, name='oauth_callback_api'),
+    path('admin/roi_spreadsheet/connect', RoiSpreadsheetConnectView.as_view(), name='roi_spreadsheet_connect'),
     
     # MENU REPORT
     # Menu Report Account
@@ -225,6 +234,7 @@ urlpatterns = [
     # Menu ROI Per Domain
     path('admin/roi_traffic_domain', views.RoiTrafficPerDomainView.as_view(), name='roi_traffic_domain'),
     path('admin/page_roi_traffic_domain', views.RoiTrafficPerDomainDataView.as_view()),
+    path('admin/page_roi_traffic_domain_campaigns', views.RoiTrafficDomainCampaignsView.as_view()),
     # Menu Traffic Per Domain
     path('admin/traffic_per_domain', views.TrafficPerDomainReportView.as_view(), name='report_traffic_domain'),
     path('admin/komparasi_traffic', views.KomparasiTrafficReportView.as_view(), name='komparasi_traffic'),

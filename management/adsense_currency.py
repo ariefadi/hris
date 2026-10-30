@@ -2,26 +2,33 @@
 import os
 
 
+def get_idr_rate(currency_code):
+    code = (currency_code or 'IDR').strip().upper()
+    if not code or code == 'IDR':
+        return 1.0
+    env_key = f'EXCHANGE_RATE_{code}_IDR'
+    if os.getenv(env_key):
+        try:
+            return float(os.getenv(env_key))
+        except (TypeError, ValueError):
+            pass
+    default_rates = {
+        'USD': float(os.getenv('USD_IDR_RATE', '16000')),
+        'EUR': float(os.getenv('EUR_IDR_RATE', '17500')),
+        'SGD': float(os.getenv('SGD_IDR_RATE', '12000')),
+        'HKG': float(os.getenv('HKG_IDR_RATE', '3000')),
+        'HKD': float(os.getenv('HKD_IDR_RATE', os.getenv('HKG_IDR_RATE', '2050'))),
+        'GBP': float(os.getenv('GBP_IDR_RATE', '20000')),
+    }
+    try:
+        return float(default_rates.get(code) or 1.0)
+    except (TypeError, ValueError):
+        return 1.0
+
+
 def convert_to_idr(amount, currency_code):
     try:
-        code = (currency_code or 'IDR').strip().upper()
-        base = float(amount or 0.0)
-        if code == 'IDR':
-            return base
-        env_key = f'EXCHANGE_RATE_{code}_IDR'
-        if os.getenv(env_key):
-            rate = float(os.getenv(env_key))
-            return base * rate
-        default_rates = {
-            'USD': float(os.getenv('USD_IDR_RATE', '16000')),
-            'EUR': float(os.getenv('EUR_IDR_RATE', '17500')),
-            'SGD': float(os.getenv('SGD_IDR_RATE', '12000')),
-            'HKG': float(os.getenv('HKG_IDR_RATE', '3000')),
-            'HKD': float(os.getenv('HKD_IDR_RATE', os.getenv('HKG_IDR_RATE', '2050'))),
-            'GBP': float(os.getenv('GBP_IDR_RATE', '20000')),
-        }
-        rate = default_rates.get(code)
-        return base * rate if rate else base
+        return float(amount or 0.0) * get_idr_rate(currency_code)
     except Exception:
         return float(amount or 0.0)
 

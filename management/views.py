@@ -215,6 +215,10 @@ def redirect_login_user(request):
         return redirect('dashboard_admin')
     return redirect('admin_login')
 
+
+def _wants_pwa_shell(request):
+    return str((request.COOKIES or {}).get('hris_pwa_app') or '').strip().lower() in ('1', 'true', 'yes')
+
 META_ADSET_TZ = timezone(timedelta(hours=7))
 
 
@@ -543,6 +547,8 @@ class LoginAdmin(View):
                     if db.execute_query(q, (user_id, portal_id)):
                         row = db.cur_hris.fetchone() or {}
                         default_page = row.get('default_page')
+                    if _wants_pwa_shell(request):
+                        return redirect('dashboard_admin')
                     target = default_page or 'management/admin/dashboard'
                     if not target.startswith('/'):
                         target = '/' + target
@@ -638,6 +644,8 @@ class OAuthRedirectView(View):
             if db.execute_query(q, (uid, portal_id)):
                 row = db.cur_hris.fetchone() or {}
                 default_page = row.get('default_page')
+            if _wants_pwa_shell(request):
+                return redirect('dashboard_admin')
             target = default_page or 'management/admin/dashboard'
             if not target.startswith('/'):
                 target = '/' + target
@@ -3696,6 +3704,7 @@ class DashboardScoringDataView(View):
             profit_guard_hold = profit_strong and risk < 35 and anomaly_pressure == 0 and (label_up in ["WATCH_DECAY", "WATCH_NEGATIVE"]) and (decision in ["SCALE_DOWN", "SCALE DOWN", "PAUSE"])
             if profit_guard_hold:
                 decision = "HOLD"
+            score, decision = apply_profit_first_score_guard(score, decision, roi_value)
             return score, decision
 
         def derive_campaign_action(status_tag, margin, risk, health, join_status=''):
@@ -4452,6 +4461,10 @@ class DashboardScoringDataView(View):
                 revenue_total = float(pd.to_numeric(part_eval['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in part_eval.columns else 0.0
                 roi_total_raw = ((revenue_total - spend_total) / spend_total) if spend_total > 0 else 0.0
                 roi_total = float(blended_snapshot.get('roi', roi_total_raw))
+                if spend_total > 0 and revenue_total <= 0:
+                    roi_total = -1.0
+                elif spend_total > 0 and roi_total_raw < roi_total:
+                    roi_total = roi_total_raw
                 history_has_spend = any(safe_float((historical_windows.get(k) or {}).get('spend')) > 0 for k in ['h1', 'h3', 'h7', 'h14', 'h28', 'h35'])
                 profit_strong = (roi_total >= 0.30) and ((revenue_total > 0) or history_has_spend)
                 full_spend_total = spend_total
@@ -5135,6 +5148,7 @@ class DashboardScoringCompareView(View):
                 decision = "HOLD"
             if decision == "SCALE_DOWN":
                 decision = "SCALE DOWN"
+            score, decision = apply_profit_first_score_guard(score, decision, roi_value)
             return score, decision
 
         def aggregate_snapshot(frame: pd.DataFrame, country_mode: bool = False) -> dict:
@@ -5647,6 +5661,39 @@ def _get_scoring_concept_module():
     return scoring_concept
 
 
+def apply_profit_first_score_guard(score, decision, roi_value):
+    """Turunkan score/keputusan jika ROI sangat negatif, termasuk pendapatan 0 (ROI -100%)."""
+    dec = str(decision or '').strip().upper().replace('_', ' ')
+    if dec in ('LEARNING', 'DATA INCOMPLETE', 'DATA_INCOMPLETE', 'BELUM ADA HASIL'):
+        return score, decision
+    try:
+        roi = float(roi_value or 0.0)
+    except (TypeError, ValueError):
+        roi = 0.0
+    sc = None
+    try:
+        if score is not None and str(score).strip() != '':
+            sc = int(round(float(score)))
+    except (TypeError, ValueError):
+        sc = None
+    if roi <= -0.99:
+        if sc is not None:
+            sc = min(sc, 35)
+        if dec not in ('STOP', 'PAUSE'):
+            dec = 'PAUSE'
+    elif roi <= -0.50:
+        if sc is not None:
+            sc = min(sc, 45)
+        if dec in ('SCALE UP', 'HOLD'):
+            dec = 'SCALE DOWN'
+    elif roi < 0:
+        if sc is not None:
+            sc = min(sc, 58)
+        if dec == 'SCALE UP':
+            dec = 'HOLD'
+    return sc, dec
+
+
 _DASHBOARD_SCORING_META_CACHE = {}
 _DASHBOARD_SCORING_META_TTL_SEC = 300
 
@@ -5970,7 +6017,10 @@ class DashboardDomainAccountMapView(View):
                 'status': True,
                 'date': date,
                 'data': result.get('data') or {},
+                'accounts': result.get('accounts') or {},
                 'spend': result.get('spend') or {},
+                'account_spend': result.get('account_spend') or {},
+                'campaign_accounts': result.get('campaign_accounts') or {},
                 'platform': result.get('platform') or {},
             })
         except ValueError:
@@ -7787,92 +7837,6 @@ class FacebookPartnerApiDocsView(View):
             'partner_auto_token_configured': bool(partner_cfg.get('fb_access_token')),
         }
         return render(req, 'admin/facebook_ads/partner_api.html', context)
-
-
-class AdsPolicyEventsCredentialsListView(View):
-    """AJAX: daftar akun Meta Ads (master_account_ads) untuk filter policy events."""
-    def get(self, request):
-        try:
-            from .list_ads_policy_events import list_meta_ads_policy_accounts
-            db = data_mysql()
-            rows = list_meta_ads_policy_accounts(db)
-            data = [
-                {
-                    'account_name': r.get('account_name'),
-                    'user_mail': r.get('user_mail'),
-                    'account_ads_id': r.get('account_ads_id'),
-                }
-                for r in rows
-            ]
-            return JsonResponse({'status': True, 'data': data})
-        except Exception as e:
-            return JsonResponse({'status': False, 'error': str(e)})
-
-
-class AdsPolicyEventsView(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('/management/admin/login')
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, req):
-        from .list_ads_policy_events import list_ads_policy_events
-        db = data_mysql()
-        result = list_ads_policy_events(db, limit=200)
-        oauth_msg = str(req.session.pop('oauth_added_message', '') or '').strip()
-        oauth_ok = req.session.pop('oauth_added_success', None)
-        data = {
-            'title': 'Meta Ads Policy Events',
-            'user': req.session.get('hris_admin', {}),
-            'columns': result.get('columns') or [],
-            'rows': result.get('rows') or [],
-            'items': result.get('items') or [],
-            'table_name': result.get('table') or '',
-            'oauth_flash_success': bool(oauth_ok),
-            'oauth_flash_message': oauth_msg,
-        }
-        return render(req, 'admin/facebook_ads/policy_event/index.html', data)
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class AdsPolicyEventsSyncView(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
-        return super().dispatch(request, *args, **kwargs)
-
-    def post(self, req):
-        try:
-            from .sync_ads_policy_events import sync_ads_policy_events
-            payload = {}
-            try:
-                payload = json.loads((req.body or b'').decode('utf-8') or '{}')
-            except Exception:
-                payload = {}
-
-            days = payload.get('days')
-            sync_date = str(payload.get('sync_date') or '').strip()
-            raw_account_filter = payload.get('account_filter')
-            if isinstance(raw_account_filter, list):
-                account_filter = [str(v).strip() for v in raw_account_filter if str(v).strip()]
-            else:
-                single_filter = str(raw_account_filter or '').strip()
-                account_filter = [single_filter] if single_filter else []
-            try:
-                days = int(days)
-            except Exception:
-                days = 180
-
-            db = data_mysql()
-            result = sync_ads_policy_events(
-                db,
-                days=days,
-                sync_date=sync_date or None,
-                account_filter=account_filter or None,
-            )
-            return JsonResponse(result)
-        except Exception as e:
-            return JsonResponse({'status': False, 'error': str(e)}, status=500)
 
 
 class AccountFacebookAds(View):
@@ -12655,72 +12619,6 @@ def _enrich_adx_credentials_subdomains(credentials_data):
     return rows
 
 
-class AdxPolicyEventsView(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('/management/admin/login')
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, req):
-        from .list_adx_policy_events import list_adx_policy_events
-        db = data_mysql()
-        result = list_adx_policy_events(db, limit=200)
-        oauth_msg = str(req.session.pop('oauth_added_message', '') or '').strip()
-        oauth_ok = req.session.pop('oauth_added_success', None)
-        data = {
-            'title': 'AdX Policy Events',
-            'user': req.session.get('hris_admin', {}),
-            'columns': result.get('columns') or [],
-            'rows': result.get('rows') or [],
-            'items': result.get('items') or [],
-            'table_name': result.get('table') or '',
-            'oauth_flash_success': bool(oauth_ok),
-            'oauth_flash_message': oauth_msg,
-        }
-        return render(req, 'admin/adx_manager/policy_event/index.html', data)
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class AdxPolicyEventsSyncView(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
-        return super().dispatch(request, *args, **kwargs)
-
-    def post(self, req):
-        try:
-            from .sync_adx_policy_events import sync_adx_policy_events
-            payload = {}
-            try:
-                payload = json.loads((req.body or b'').decode('utf-8') or '{}')
-            except Exception:
-                payload = {}
-
-            days = payload.get('days')
-            sync_date = str(payload.get('sync_date') or '').strip()
-            raw_account_filter = payload.get('account_filter')
-            if isinstance(raw_account_filter, list):
-                account_filter = [str(v).strip() for v in raw_account_filter if str(v).strip()]
-            else:
-                single_filter = str(raw_account_filter or '').strip()
-                account_filter = [single_filter] if single_filter else []
-            try:
-                days = int(days)
-            except Exception:
-                days = 180
-
-            db = data_mysql()
-            result = sync_adx_policy_events(
-                db,
-                days=days,
-                sync_date=sync_date or None,
-                account_filter=account_filter or None,
-            )
-            return JsonResponse(result)
-        except Exception as e:
-            return JsonResponse({'status': False, 'error': str(e)}, status=500)
-
-
 class AdxAccountView(View):
     """View untuk AdX Account Data"""
     def dispatch(self, request, *args, **kwargs):
@@ -13080,19 +12978,9 @@ class AdxAccountOAuthStartView(View):
             current_user = req.session.get('hris_admin', {})
             # Izinkan target email via query (?email=xxx); jika tidak ada, JANGAN paksa fallback ke email session
             target_mail = req.GET.get('email')
-            return_to = str(req.GET.get('return_to') or '').strip().lower()
-            if return_to in ('policy_events', 'adsense_policy_events'):
-                req.session['oauth_return_to'] = 'adsense_policy_events'
-                req.session['oauth_require_gmail'] = True
-            elif return_to in ('ads_policy_events', 'meta_policy_events'):
-                req.session['oauth_return_to'] = 'ads_policy_events'
-                req.session['oauth_require_gmail'] = True
-            elif return_to in ('adx_policy_events',):
-                req.session['oauth_return_to'] = 'adx_policy_events'
-                req.session['oauth_require_gmail'] = True
-            else:
-                req.session.pop('oauth_return_to', None)
-                req.session.pop('oauth_require_gmail', None)
+            req.session.pop('oauth_return_to', None)
+            req.session.pop('oauth_require_gmail', None)
+            req.session.pop('oauth_flow_include_gmail', None)
             user_id = current_user.get('user_id')
             # Ambil konfigurasi dari .env secara eksklusif
             client_id = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
@@ -13108,8 +12996,6 @@ class AdxAccountOAuthStartView(View):
                 get_google_oauth_callback_url,
             )
             redirect_uri = get_google_oauth_callback_url(req, prefer_session=False)
-            include_gmail = bool(req.session.get('oauth_require_gmail'))
-            req.session['oauth_flow_include_gmail'] = include_gmail
             client_config = {
                 'web': {
                     'client_id': client_id,
@@ -13119,7 +13005,7 @@ class AdxAccountOAuthStartView(View):
                     'redirect_uris': [redirect_uri]
                 }
             }
-            scopes = build_adx_oauth_scopes(include_gmail=include_gmail)
+            scopes = build_adx_oauth_scopes()
             flow = Flow.from_client_config(client_config, scopes=scopes)
             flow.redirect_uri = redirect_uri
             # Bangun authorization URL secara manual untuk memastikan nilai parameter tepat (lowercase)
@@ -15318,6 +15204,15 @@ class RoiTrafficPerDomainDataView(View):
                 selected_account_ads_list,
                 domain_terms,
             )
+            _adx_hasil = (adx_result or {}).get('hasil') if isinstance(adx_result, dict) else None
+            if isinstance(_adx_hasil, dict) and _adx_hasil.get('status') is False:
+                return JsonResponse({
+                    'status': False,
+                    'error': str(_adx_hasil.get('data') or 'Gagal mengambil data AdX'),
+                })
+            if isinstance(_adx_hasil, dict):
+                _adx_rows = _adx_hasil.get('data')
+                _adx_hasil['data'] = [r for r in _adx_rows if isinstance(r, dict)] if isinstance(_adx_rows, list) else []
             # --- 4. Proses Facebook data
             facebook_data = None
             unique_name_site = []
@@ -15381,8 +15276,13 @@ class RoiTrafficPerDomainDataView(View):
                 return c
 
             facebook_map = {}
-            if facebook_data and facebook_data['hasil']['data']:
-                for fb_item in facebook_data['hasil']['data']:
+            fb_rows = []
+            if isinstance(facebook_data, dict) and isinstance((facebook_data.get('hasil') or {}), dict):
+                _fb_raw = facebook_data['hasil'].get('data')
+                if isinstance(_fb_raw, list):
+                    fb_rows = [row for row in _fb_raw if isinstance(row, dict)]
+            if fb_rows:
+                for fb_item in fb_rows:
                     date_key = str(fb_item.get('date', ''))
                     subdomain = str(fb_item.get('domain', ''))
                     country_code = normalize_country_code(fb_item.get('country_code', ''))
@@ -15395,6 +15295,7 @@ class RoiTrafficPerDomainDataView(View):
                 for adx_item in adx_result['hasil']['data']:
                     date_key = str(adx_item.get('date', ''))
                     subdomain = str(adx_item.get('site_name', ''))
+                    account_label = str(adx_item.get('account_name') or '').strip() or str(adx_item.get('account_id') or '').strip()
                     impressions_adx = float(adx_item.get('impressions_adx', 0))
                     base_subdomain = extract_base_subdomain(subdomain)
                     country_code = normalize_country_code(adx_item.get('country_code', ''))
@@ -15474,6 +15375,8 @@ class RoiTrafficPerDomainDataView(View):
                     entry['cpm_sum'] += cpm
                     entry['cpm_cnt'] += 1
                     entry['cpm'] = (entry['cpm_sum'] / entry['cpm_cnt']) if entry['cpm_cnt'] > 0 else 0
+                    if account_label and account_label not in entry.setdefault('account_names', []):
+                        entry['account_names'].append(account_label)
 
                     grouped_all[key] = entry
                     if spend > 0:
@@ -15516,6 +15419,8 @@ class RoiTrafficPerDomainDataView(View):
                         f_entry['cpm_sum'] += cpm
                         f_entry['cpm_cnt'] += 1
                         f_entry['cpm'] = (f_entry['cpm_sum'] / f_entry['cpm_cnt']) if f_entry['cpm_cnt'] > 0 else 0
+                        if account_label and account_label not in f_entry.setdefault('account_names', []):
+                            f_entry['account_names'].append(account_label)
 
                         grouped_filtered[key] = f_entry
 
@@ -15612,6 +15517,16 @@ class RoiTrafficPerDomainDataView(View):
                         f_entry['cpc_fb'] = (f_entry['spend'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
                         grouped_filtered[key] = f_entry
 
+                domain_status_keys = []
+                for item in grouped_all.values():
+                    domain_status_keys.append(str(item.get('site_name') or ''))
+                ads_status_map = {}
+                try:
+                    ads_status_map = data_mysql().get_ads_last_campaign_status_map(domain_status_keys) or {}
+                except Exception:
+                    ads_status_map = {}
+                _enrich_roi_domain_ads_live_status(ads_status_map, grouped_all)
+
                 combined_data_all = []
                 total_spend = 0.0
                 total_impressions_fb = 0.0
@@ -15641,8 +15556,20 @@ class RoiTrafficPerDomainDataView(View):
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     site_display = item['site_name'] + '.com'
                     visitors = visitor_metrics_for_site(site_display)
+                    ads_meta = _roi_domain_ads_status_payload(ads_status_map, item.get('site_name'))
                     combined_data_all.append({
                         'site_name': site_display,
+                        'account_name': ', '.join(item.get('account_names') or []) or '-',
+                        'account_ads': ads_meta.get('account_ads') or '-',
+                        'account_ads_id': ads_meta.get('account_ads_id') or '',
+                        'campaign_name': ads_meta.get('campaign_name') or '',
+                        'campaign_status': ads_meta.get('campaign_status') or '',
+                        'campaign_status_source': ads_meta.get('campaign_status_source') or '',
+                        'campaign_last_date': ads_meta.get('campaign_last_date') or '',
+                        'campaign_last_spend_date': ads_meta.get('campaign_last_spend_date') or '',
+                        'ads_sync_ok': ads_meta.get('ads_sync_ok'),
+                        'ads_sync_error': ads_meta.get('ads_sync_error') or '',
+                        'active_campaign_count': ads_meta.get('active_campaign_count'),
                         'date': item['date'],
                         'spend': spend_val,
                         'impressions_fb': impressions_fb_val,
@@ -15691,8 +15618,20 @@ class RoiTrafficPerDomainDataView(View):
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     site_display = item['site_name'] + '.com'
                     visitors = visitor_metrics_for_site(site_display)
+                    ads_meta = _roi_domain_ads_status_payload(ads_status_map, item.get('site_name'))
                     combined_data_filtered.append({
                         'site_name': site_display,
+                        'account_name': ', '.join(item.get('account_names') or []) or '-',
+                        'account_ads': ads_meta.get('account_ads') or '-',
+                        'account_ads_id': ads_meta.get('account_ads_id') or '',
+                        'campaign_name': ads_meta.get('campaign_name') or '',
+                        'campaign_status': ads_meta.get('campaign_status') or '',
+                        'campaign_status_source': ads_meta.get('campaign_status_source') or '',
+                        'campaign_last_date': ads_meta.get('campaign_last_date') or '',
+                        'campaign_last_spend_date': ads_meta.get('campaign_last_spend_date') or '',
+                        'ads_sync_ok': ads_meta.get('ads_sync_ok'),
+                        'ads_sync_error': ads_meta.get('ads_sync_error') or '',
+                        'active_campaign_count': ads_meta.get('active_campaign_count'),
                         'date': item['date'],
                         'spend': spend_val,
                         'impressions_fb': impressions_fb_val,
@@ -15729,6 +15668,127 @@ class RoiTrafficPerDomainDataView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
+def _roi_domain_ads_status_payload(status_map, site_name):
+    key = extract_base_subdomain(site_name)
+    meta = dict((status_map or {}).get(key) or {})
+    if not meta:
+        alt = normalize_roi_domain_merge_key(site_name) if 'normalize_roi_domain_merge_key' in globals() else ''
+        if alt:
+            meta = dict((status_map or {}).get(alt) or {})
+    return meta
+
+
+def _enrich_roi_domain_ads_live_status(status_map, grouped_all):
+    """Cek Meta live hanya untuk domain yang ada earning tapi spend 0 (kasus residual / akun mati)."""
+    if not isinstance(status_map, dict) or not grouped_all:
+        return
+    suspects = []
+    seen_accounts = set()
+    for item in grouped_all.values():
+        spend = float((item or {}).get('spend') or 0)
+        revenue = float((item or {}).get('revenue') or 0)
+        if spend > 0 or revenue <= 0:
+            continue
+        key = extract_base_subdomain((item or {}).get('site_name'))
+        meta = status_map.get(key) or {}
+        aid = str(meta.get('account_ads_id') or '').strip()
+        if not aid or aid in seen_accounts:
+            continue
+        seen_accounts.add(aid)
+        suspects.append((aid, key, meta))
+        if len(suspects) >= 6:
+            break
+    if not suspects:
+        return
+    db = data_mysql()
+    for aid, domain_key, meta in suspects:
+        token = ''
+        try:
+            token = db.get_master_account_ads_token(aid)
+        except Exception:
+            token = ''
+        live = _probe_meta_campaigns_for_domain(aid, token, domain_key)
+        for map_key, row in list(status_map.items()):
+            if str((row or {}).get('account_ads_id') or '').strip() != aid:
+                continue
+            row['ads_sync_ok'] = live.get('sync_ok')
+            row['ads_sync_error'] = live.get('error') or ''
+            if map_key != domain_key and not str(row.get('campaign_status_source') or '').startswith('meta'):
+                continue
+            if live.get('sync_ok') and live.get('matches'):
+                matches = live.get('matches') or []
+                active = [c for c in matches if str(c.get('effective_status') or c.get('status') or '').upper() in ('ACTIVE', 'CAMPAIGN_PAUSED', 'WITH_ISSUES')]
+                active_running = [c for c in matches if str(c.get('effective_status') or '').upper() == 'ACTIVE']
+                top = (active_running or active or matches)[0]
+                row['campaign_status'] = str(top.get('effective_status') or top.get('status') or row.get('campaign_status') or '').upper()
+                row['campaign_name'] = str(top.get('name') or row.get('campaign_name') or '')
+                row['campaign_status_source'] = 'meta_live'
+                row['active_campaign_count'] = len(active_running)
+            elif live.get('sync_ok'):
+                row['campaign_status_source'] = 'meta_live'
+                row['active_campaign_count'] = 0
+            else:
+                row['campaign_status_source'] = 'cron_last_stale'
+
+
+def _probe_meta_campaigns_for_domain(account_id, access_token, domain_key, paginate=False):
+    real_id = str(account_id or '').replace('act_', '').strip()
+    token = str(access_token or '').strip()
+    needle = str(domain_key or '').strip().lower()
+    if not real_id or not token:
+        return {'sync_ok': False, 'error': 'token_missing', 'matches': []}
+    url = f'https://graph.facebook.com/v22.0/act_{real_id}/campaigns'
+    params = {
+        'access_token': token,
+        'fields': 'id,name,status,effective_status,daily_budget,updated_time',
+        'limit': 100 if paginate else 80,
+    }
+    matches = []
+    pages = 0
+    max_pages = 4 if paginate else 1
+    timeout = 12 if paginate else 8
+    while url and pages < max_pages:
+        try:
+            resp = requests.get(url, params=params if pages == 0 else None, timeout=timeout)
+            body = resp.json() if resp.text else {}
+        except Exception:
+            if pages == 0:
+                return {'sync_ok': False, 'error': 'request_failed', 'matches': []}
+            break
+        err = body.get('error') if isinstance(body, dict) else None
+        if resp.status_code >= 400 or err:
+            code = ''
+            if isinstance(err, dict):
+                code = str(err.get('code') or '')
+            if pages == 0:
+                return {
+                    'sync_ok': False,
+                    'error': 'token_invalid' if code == '190' else 'meta_error',
+                    'matches': [],
+                }
+            break
+        for item in (body.get('data') or []):
+            name = str((item or {}).get('name') or '').strip().lower()
+            if needle and needle not in name:
+                continue
+            matches.append({
+                'id': str((item or {}).get('id') or ''),
+                'name': str((item or {}).get('name') or ''),
+                'status': str((item or {}).get('status') or ''),
+                'effective_status': str((item or {}).get('effective_status') or ''),
+                'daily_budget': float((item or {}).get('daily_budget') or 0) or 0.0,
+                'updated_time': str((item or {}).get('updated_time') or ''),
+            })
+        next_url = ''
+        paging = body.get('paging') if isinstance(body, dict) else None
+        if isinstance(paging, dict):
+            next_url = str(paging.get('next') or '').strip()
+        url = next_url
+        params = None
+        pages += 1
+    return {'sync_ok': True, 'error': '', 'matches': matches}
+
+
 def extract_base_subdomain(full_string):
     from management.database import normalize_roi_domain_merge_key
     key = normalize_roi_domain_merge_key(full_string)
@@ -15739,6 +15799,151 @@ def extract_base_subdomain(full_string):
     if len(parts) >= 2:
         return '.'.join(parts[:2])
     return s
+
+
+class RoiTrafficDomainCampaignsView(View):
+    """AJAX: rincian semua campaign Meta + status untuk satu subdomain ROI."""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        domain_raw = str(req.GET.get('domain') or '').strip()
+        domain_key = extract_base_subdomain(domain_raw)
+        if not domain_key:
+            return JsonResponse({'status': False, 'error': 'domain wajib diisi'}, status=400)
+        db = data_mysql()
+        try:
+            campaigns = db.get_ads_campaigns_for_domain(domain_key) or []
+        except Exception:
+            campaigns = []
+
+        accounts = []
+        seen_accounts = set()
+        for camp in campaigns:
+            aid = str((camp or {}).get('account_ads_id') or '').strip()
+            if aid and aid not in seen_accounts:
+                seen_accounts.add(aid)
+                accounts.append(aid)
+
+        account_sync = {}
+        live_by_id = {}
+        live_by_name = {}
+        for aid in accounts[:8]:
+            token = ''
+            try:
+                token = db.get_master_account_ads_token(aid)
+            except Exception:
+                token = ''
+            live = _probe_meta_campaigns_for_domain(aid, token, domain_key, paginate=True)
+            account_sync[aid] = {
+                'sync_ok': bool(live.get('sync_ok')),
+                'error': str(live.get('error') or ''),
+            }
+            if not live.get('sync_ok'):
+                continue
+            for item in (live.get('matches') or []):
+                cid = str((item or {}).get('id') or '').strip()
+                name = str((item or {}).get('name') or '').strip()
+                payload = {
+                    'campaign_id': cid,
+                    'campaign_name': name,
+                    'account_ads_id': aid,
+                    'status': str((item or {}).get('effective_status') or (item or {}).get('status') or '').upper(),
+                    'configured_status': str((item or {}).get('status') or '').upper(),
+                    'daily_budget': float((item or {}).get('daily_budget') or 0) or 0.0,
+                    'updated_time': str((item or {}).get('updated_time') or ''),
+                }
+                if cid:
+                    live_by_id[cid] = payload
+                if name:
+                    live_by_name['%s|%s' % (name.lower(), aid)] = payload
+
+        account_name_map = {}
+        for camp in campaigns:
+            aid = str((camp or {}).get('account_ads_id') or '').strip()
+            if aid and camp.get('account_ads'):
+                account_name_map[aid] = camp.get('account_ads')
+
+        used_live_ids = set()
+        for camp in campaigns:
+            aid = str((camp or {}).get('account_ads_id') or '').strip()
+            sync = account_sync.get(aid) or {}
+            camp['ads_sync_ok'] = sync.get('sync_ok')
+            camp['ads_sync_error'] = sync.get('error') or ''
+            live = None
+            cid = str(camp.get('campaign_id') or '').strip()
+            if cid and cid in live_by_id:
+                live = live_by_id[cid]
+            else:
+                live = live_by_name.get('%s|%s' % (str(camp.get('campaign_name') or '').strip().lower(), aid))
+            if live:
+                used_live_ids.add(str(live.get('campaign_id') or ''))
+                camp['status'] = live.get('status') or camp.get('status')
+                camp['configured_status'] = live.get('configured_status') or camp.get('configured_status')
+                if live.get('daily_budget'):
+                    camp['daily_budget'] = live.get('daily_budget')
+                camp['source'] = 'meta_live'
+                camp['ads_sync_ok'] = True
+                camp['updated_time'] = live.get('updated_time') or ''
+            elif sync and sync.get('sync_ok') is False:
+                camp['source'] = 'cron_last_stale'
+            camp['status'] = str(camp.get('status') or 'UNKNOWN').upper()
+
+        for cid, live in live_by_id.items():
+            if cid and cid in used_live_ids:
+                continue
+            aid = str(live.get('account_ads_id') or '').strip()
+            campaigns.append({
+                'campaign_id': cid,
+                'campaign_name': live.get('campaign_name') or '',
+                'account_ads_id': aid,
+                'account_ads': account_name_map.get(aid) or aid,
+                'status': str(live.get('status') or 'UNKNOWN').upper(),
+                'configured_status': str(live.get('configured_status') or '').upper(),
+                'daily_budget': live.get('daily_budget') or 0.0,
+                'last_cron_date': '',
+                'last_cron_at': '',
+                'last_spend_date': '',
+                'spend_total': 0.0,
+                'source': 'meta_live',
+                'ads_sync_ok': True,
+                'ads_sync_error': '',
+                'updated_time': live.get('updated_time') or '',
+            })
+
+        rank = {'ACTIVE': 0, 'WITH_ISSUES': 1, 'CAMPAIGN_PAUSED': 2, 'PAUSED': 3, 'ARCHIVED': 4, 'DELETED': 5}
+        campaigns.sort(key=lambda c: (
+            rank.get(str((c or {}).get('status') or '').upper(), 9),
+            -float((c or {}).get('spend_total') or 0),
+            str((c or {}).get('campaign_name') or '').lower(),
+        ))
+
+        active_count = 0
+        paused_count = 0
+        stale_count = 0
+        for camp in campaigns:
+            status = str((camp or {}).get('status') or '').upper()
+            if status == 'ACTIVE':
+                active_count += 1
+            elif 'PAUSE' in status or status in ('ARCHIVED', 'DELETED'):
+                paused_count += 1
+            if camp.get('ads_sync_ok') is False:
+                stale_count += 1
+
+        return JsonResponse({
+            'status': True,
+            'domain': domain_raw or domain_key,
+            'domain_key': domain_key,
+            'campaigns': campaigns,
+            'summary': {
+                'total': len(campaigns),
+                'active': active_count,
+                'paused': paused_count,
+                'stale_accounts': stale_count,
+            },
+        })
 
 
 def accumulate_facebook_monitoring_map(facebook_map, fb_item, date_key, subdomain, country_code):
@@ -16772,6 +16977,85 @@ class DashboardDomainHourlyHeatmapView(View):
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
+
+class DashboardHistoricalHourlyCompareView(View):
+    """Perbandingan snapshot per jam: Historical Hit AdX, AdSense, dan Ads."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            is_ajax = False
+            try:
+                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            except Exception:
+                pass
+            if not is_ajax:
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            if is_ajax:
+                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            tanggal = str(req.GET.get('tanggal') or req.GET.get('date') or '').strip()
+            if not tanggal:
+                tanggal = datetime.now().strftime('%Y-%m-%d')
+            datetime.strptime(tanggal, '%Y-%m-%d')
+            domain = str(req.GET.get('subdomain') or req.GET.get('domain') or '').strip()
+            result = data_mysql().get_dashboard_historical_hourly_compare(tanggal, domain)
+            hours_map = (result or {}).get('hours') or {}
+
+            def series_from(source_key):
+                raw = hours_map.get(source_key) or {}
+                data = []
+                for h in range(24):
+                    val = raw.get(h)
+                    if val is None and str(h) in raw:
+                        val = raw.get(str(h))
+                    data.append(None if val is None else round(float(val or 0), 2))
+                return data
+
+            adx = series_from('adx')
+            adsense = series_from('adsense')
+            ads = series_from('ads')
+
+            last_hour = None
+            for h in range(23, -1, -1):
+                if adx[h] is not None or adsense[h] is not None or ads[h] is not None:
+                    last_hour = h
+                    break
+
+            hours = [f"{h:02d}:00" for h in range(24)]
+            if last_hour is not None:
+                hours = hours[: last_hour + 1]
+                adx = adx[: last_hour + 1]
+                adsense = adsense[: last_hour + 1]
+                ads = ads[: last_hour + 1]
+
+            return JsonResponse({
+                'status': True,
+                'date': tanggal,
+                'domain': domain,
+                'hours': hours,
+                'last_hour': last_hour,
+                'series': {
+                    'adx': adx,
+                    'adsense': adsense,
+                    'ads': ads,
+                },
+                'latest': {
+                    'adx': adx[last_hour] if last_hour is not None else None,
+                    'adsense': adsense[last_hour] if last_hour is not None else None,
+                    'ads': ads[last_hour] if last_hour is not None else None,
+                },
+                'errors': (result or {}).get('errors') or {},
+            })
+        except ValueError:
+            return JsonResponse({'status': False, 'error': 'Format tanggal harus YYYY-MM-DD'})
+        except Exception as e:
+            logger.exception('DashboardHistoricalHourlyCompareView failed')
+            return JsonResponse({'status': False, 'error': str(e)})
+
 
 class DashboardPortfolioPulseView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -18063,6 +18347,37 @@ def _friendly_fb_campaign_error(message):
         )
     return raw_message or 'Gagal memuat data campaign dari Facebook.'
 
+
+def _account_ads_name_lookup():
+    accounts = (data_mysql().master_account_ads() or {}).get('data') or []
+    by_id = {}
+    for acc in accounts or []:
+        name = str((acc or {}).get('account_name') or '').strip()
+        if not name:
+            continue
+        for key in ((acc or {}).get('account_id'), (acc or {}).get('account_ads_id')):
+            raw = str(key or '').strip()
+            if not raw:
+                continue
+            by_id[raw] = name
+            low = raw.lower()
+            if low != raw:
+                by_id[low] = name
+            if raw.startswith('act_'):
+                by_id[raw[4:]] = name
+            else:
+                by_id['act_' + raw] = name
+    return by_id
+
+
+def _resolve_account_ads_name(raw, lookup=None):
+    value = str(raw or '').strip()
+    if not value:
+        return ''
+    names = lookup if lookup is not None else _account_ads_name_lookup()
+    return names.get(value) or names.get(value.lower()) or value
+
+
 class RoiMonitoringDomainCampaignsView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -18161,6 +18476,9 @@ class RoiMonitoringDomainCampaignsView(View):
                         cur['status'] = str((it or {}).get('status') or '').strip()
 
             campaigns = list(by_id.values())
+            for camp in campaigns:
+                camp['account_name'] = account_name
+                camp['account_ads'] = account_name
             try:
                 campaigns.sort(key=lambda x: float((x or {}).get('spend') or 0.0), reverse=True)
             except Exception:
@@ -18200,7 +18518,12 @@ class RoiMonitoringDomainCampaignBreakdownView(View):
             if not (isinstance(rs, dict) and rs.get('status')):
                 return JsonResponse({'status': False, 'error': (rs or {}).get('error', 'Gagal mengambil data'), 'data': []}, safe=False)
 
-            return JsonResponse({'status': True, 'site_name': site_name, 'start_date': start_date, 'end_date': end_date, 'data': rs.get('data', [])}, safe=False)
+            rows = rs.get('data', []) or []
+            names = _account_ads_name_lookup()
+            for row in rows:
+                row['account_ads'] = _resolve_account_ads_name((row or {}).get('account_ads_id'), names)
+
+            return JsonResponse({'status': True, 'site_name': site_name, 'start_date': start_date, 'end_date': end_date, 'data': rows}, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e), 'data': []}, safe=False)
 
