@@ -505,17 +505,54 @@ def get_user_chat_profile(db, viewer_id, target_user_id):
     }, None
 
 
+def _latest_incoming_at(db, user_id, peer):
+    uid = str(user_id or '').strip()
+    kind, pid = parse_peer(peer)
+    sql = ''
+    params = tuple()
+    if kind == 'team':
+        sql = """
+            SELECT MAX(created_at) AS last_at
+            FROM app_chat_message
+            WHERE room_type = 'team' AND from_user_id <> %s
+        """
+        params = (uid,)
+    elif kind == 'group':
+        sql = """
+            SELECT MAX(created_at) AS last_at
+            FROM app_chat_message
+            WHERE room_type = 'group' AND group_id = %s AND from_user_id <> %s
+        """
+        params = (pid, uid)
+    else:
+        sql = """
+            SELECT MAX(created_at) AS last_at
+            FROM app_chat_message
+            WHERE room_type = 'direct' AND to_user_id = %s AND from_user_id = %s
+        """
+        params = (uid, pid)
+    if not sql or not db.execute_query(sql, params):
+        return None
+    row = db.cur_hris.fetchone()
+    return _row_get(row, 'last_at') if row else None
+
+
 def mark_read(db, user_id, peer):
     uid = str(user_id or '').strip()
     if not uid:
         return False
     key = room_key_for(peer)
+    stamp = _now()
+    latest = _latest_incoming_at(db, uid, peer)
+    if latest and hasattr(latest, 'strftime') and latest > stamp:
+        stamp = latest
+    stamp = stamp + timedelta(seconds=1)
     sql = """
         INSERT INTO app_chat_read (user_id, room_key, last_read_at)
         VALUES (%s, %s, %s)
         ON DUPLICATE KEY UPDATE last_read_at = VALUES(last_read_at)
     """
-    if not db.execute_query(sql, (uid, key, _now())):
+    if not db.execute_query(sql, (uid, key, stamp)):
         return False
     try:
         db.commit()

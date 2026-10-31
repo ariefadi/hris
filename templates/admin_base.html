@@ -7,11 +7,11 @@
         <script>
         (function () {
             try {
-                var ua = navigator.userAgent || '';
-                var isPhone = /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
-                    || (navigator.maxTouchPoints || 0) > 0
-                    || window.matchMedia('(max-width: 991.98px)').matches;
-                if (isPhone) document.documentElement.classList.add('hris-compact-ui');
+                var standalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true;
+                var compact = standalone || window.matchMedia('(max-width: 991.98px)').matches;
+                document.documentElement.classList.toggle('hris-compact-ui', compact);
+                if (!standalone) document.documentElement.classList.remove('hris-pwa-app');
                 document.documentElement.style.zoom = '1';
             } catch (err) {}
         })();
@@ -48,7 +48,7 @@
         <!-- DataTables Responsive Custom CSS -->
         <link rel="stylesheet" href="{% static 'css/datatable-responsive.css' %}">
         <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_roi_badge.css' %}?v=2">
-        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_live_chat.css' %}?v=12">
+        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_live_chat.css' %}?v=13">
         {% block more_stylesheet %}{% endblock %}
         <style>
         /* FixedColumns CSS removed as requested */
@@ -1064,14 +1064,18 @@
         html.hris-compact-ui,
         html.hris-compact-ui body,
         html.hris-compact-ui .wrapper,
-        html.hris-compact-ui .content-wrapper,
-        html.hris-compact-ui .content {
+        html.hris-compact-ui .content-wrapper {
             width: 100% !important;
             min-width: 0 !important;
             max-width: 100% !important;
             overflow-x: hidden;
             zoom: 1 !important;
             transform: none !important;
+        }
+        html.hris-compact-ui .content {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
         }
         html.hris-compact-ui body {
             font-size: 16px;
@@ -1088,7 +1092,6 @@
         html.hris-pwa-app .main-sidebar,
         html.hris-pwa-app .control-sidebar,
         html.hris-pwa-app [data-widget="pushmenu"],
-        html.hris-pwa-app #hrisLiveChatRoot,
         html.hris-pwa-app #hrisNetSpeed,
         html.hris-pwa-app #hrisSessionDurationNotif,
         html.hris-pwa-app #hrisPwaInstall,
@@ -1159,7 +1162,6 @@
             border-bottom: 1px solid rgba(148, 163, 184, 0.18);
             min-height: 56px;
             padding: 6px 8px;
-            backdrop-filter: blur(14px);
         }
         html.hris-compact-ui .main-header .navbar-nav .nav-link {
             min-width: 42px;
@@ -1355,22 +1357,34 @@
                 position: relative;
                 z-index: 1050;
                 max-width: 100%;
-                overflow-x: hidden;
-                overflow-y: visible;
+                overflow: visible !important;
             }
             .main-header.navbar,
             .main-header .container-fluid {
                 max-width: 100%;
                 min-width: 0;
             }
-            .main-header .navbar-nav,
+            html:not(.hris-pwa-app) .main-header .container-fluid {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                align-items: center;
+                overflow: hidden !important;
+            }
+            html:not(.hris-pwa-app) .main-header .navbar-nav:not(.ms-auto) {
+                flex: 0 0 auto;
+                overflow: visible !important;
+            }
             html:not(.hris-pwa-app) .main-header .navbar-nav.ms-auto {
-                max-width: 100%;
+                flex: 1 1 auto;
                 min-width: 0;
                 flex-wrap: nowrap;
-                overflow-x: auto;
-                overflow-y: visible;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
                 -webkit-overflow-scrolling: touch;
+                touch-action: pan-x;
+            }
+            html:not(.hris-pwa-app) .main-header .navbar-nav.ms-auto > .nav-item {
+                flex: 0 0 auto;
             }
             html:not(.hris-pwa-app) .main-header .nav-link {
                 pointer-events: auto !important;
@@ -1378,21 +1392,23 @@
                 position: relative;
                 z-index: 2;
             }
-            html:not(.hris-pwa-app) .main-header .dropdown-menu {
+            html:not(.hris-pwa-app) .main-header .dropdown-menu,
+            .dropdown-menu.hris-header-drop-open {
                 position: fixed !important;
-                top: calc(env(safe-area-inset-top, 0px) + 56px) !important;
+                top: calc(env(safe-area-inset-top, 0px) + 58px) !important;
                 right: 8px !important;
                 left: auto !important;
                 transform: none !important;
-                z-index: 2000 !important;
+                z-index: 20050 !important;
                 max-width: calc(100vw - 16px);
+                width: min(360px, calc(100vw - 16px));
                 max-height: calc(100vh - 80px);
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 pointer-events: auto !important;
             }
             html:not(.hris-pwa-app) #hrisLiveChatRoot {
-                display: none !important;
+                display: block !important;
             }
             .content-header {
                 display: none !important;
@@ -1432,22 +1448,15 @@
             .db-hero-sub { font-size: 15px !important; }
         }
         </style>
-        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_mobile_layout.css' %}?v=12">
+        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_mobile_layout.css' %}?v=20">
         <script>
         (function () {
             try {
                 var vp = document.querySelector('meta[name="viewport"]');
                 if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, viewport-fit=cover');
                 var standalone = window.matchMedia('(display-mode: standalone)').matches
-                    || window.matchMedia('(display-mode: fullscreen)').matches
-                    || window.navigator.standalone === true
-                    || /[?&]pwa=1(?:&|$)/.test(window.location.search || '');
-                var screenW = Math.min(window.screen.width || 9999, window.screen.height || 9999);
-                var visualW = (window.visualViewport && window.visualViewport.width) || window.innerWidth || 9999;
-                var compact = standalone
-                    || window.matchMedia('(max-width: 991.98px)').matches
-                    || screenW <= 991
-                    || visualW <= 991;
+                    || window.navigator.standalone === true;
+                var compact = standalone || window.matchMedia('(max-width: 991.98px)').matches;
                 var secure = window.location.protocol === 'https:' ? '; Secure' : '';
                 document.documentElement.classList.remove('hris-pwa-zoomed', 'hris-pwa-no-zoom');
                 document.documentElement.style.zoom = '1';
@@ -1522,7 +1531,7 @@
                 </li>
                 {% block navbar_extra_items %}{% endblock %}
                 <li class="nav-item dropdown" id="hrisPwaInstall">
-                    <a class="nav-link" data-toggle="dropdown" data-display="static" href="#" role="button" aria-expanded="false" aria-label="Install aplikasi" data-hris-pwa-install="1">
+                    <a class="nav-link" data-toggle="dropdown" data-display="static" href="#" role="button" aria-expanded="false" aria-label="Install aplikasi">
                         <i class="bi bi-download"></i>
                     </a>
                     <div class="dropdown-menu dropdown-menu-right hris-pwa-install-menu">
@@ -2029,7 +2038,7 @@
         window.HRIS_PWA = { swUrl: "{% url 'pwa_service_worker' %}" };
         </script>
         <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=3"></script>
-        <script src="{% static 'ajax/admin/shared/hris_pwa_shell.js' %}?v=18"></script>
+        <script src="{% static 'ajax/admin/shared/hris_pwa_shell.js' %}?v=24"></script>
         <script src="{% static 'plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
         <script>
         (function ($) {
@@ -2045,6 +2054,21 @@
                             popperConfig: { positionFixed: true }
                         });
                     } catch (err) {}
+                });
+                $(document).on('shown.bs.dropdown', '.main-header .nav-item.dropdown', function () {
+                    var $item = $(this);
+                    var $menu = $item.children('.dropdown-menu');
+                    if (!$menu.length) return;
+                    $item.data('hrisDropMenu', $menu);
+                    document.body.appendChild($menu[0]);
+                    $menu.addClass('show hris-header-drop-open');
+                });
+                $(document).on('hide.bs.dropdown', '.main-header .nav-item.dropdown', function () {
+                    var $item = $(this);
+                    var $menu = $item.data('hrisDropMenu');
+                    if (!$menu || !$menu.length) return;
+                    $menu.removeClass('hris-header-drop-open');
+                    $item.append($menu);
                 });
             });
         })(window.jQuery);
@@ -2065,7 +2089,7 @@
         <script src="{% static 'ajax/admin/shared/hris_roi_tier_filter.js' %}?v=1"></script>
         <script src="{% static 'ajax/admin/shared/hris_table_export.js' %}?v=21"></script>
         {% if request.session.hris_admin %}
-        <script src="{% static 'ajax/admin/shared/hris_live_chat.js' %}?v=15"></script>
+        <script src="{% static 'ajax/admin/shared/hris_live_chat.js' %}?v=17"></script>
         <script>
         window.HRIS_IDLE_LOGOUT = {
             timeoutMs: {{ hris_idle_timeout_seconds|default:900 }} * 1000,

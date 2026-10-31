@@ -149,7 +149,12 @@ class ChatReadView(View):
                 return JsonResponse({'status': False, 'error': err}, status=500)
             chat_db.mark_read(db, user['user_id'], peer)
             receipt = chat_db.get_peer_receipt(db, user['user_id'], peer)
-            return JsonResponse({'status': True, **receipt})
+            snap = chat_db.snapshot(db, user['user_id'])
+            return JsonResponse({
+                'status': True,
+                'unread_total': int((snap or {}).get('unread_total') or 0),
+                **receipt,
+            })
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)}, status=500)
         finally:

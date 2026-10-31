@@ -1055,13 +1055,34 @@ html[data-theme="dark"] .hris-live-chat-empty {
     color: #94a3b8;
 }
 
+@media (max-width: 991.98px) {
+    .hris-live-chat-fab {
+        right: max(12px, env(safe-area-inset-right, 0px));
+        bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 56px);
+        z-index: 40010;
+        width: 48px;
+        height: 48px;
+    }
+    .hris-live-chat-panel {
+        right: 8px;
+        left: 8px;
+        bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 118px);
+        width: auto;
+        max-width: none;
+        height: auto;
+        max-height: calc(100dvh - 140px);
+        z-index: 40020;
+    }
+}
+
 @media (max-width: 576px) {
     .hris-live-chat-panel {
         right: 8px;
         left: 8px;
-        bottom: 78px;
+        bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 118px);
         width: auto;
-        height: min(82vh, 720px);
+        height: auto;
+        max-height: calc(100dvh - 140px);
     }
 
     .hris-live-chat-back {

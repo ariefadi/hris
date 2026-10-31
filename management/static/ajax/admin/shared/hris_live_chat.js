@@ -1,10 +1,6 @@
 (function () {
     'use strict';
 
-    if (document.documentElement.classList.contains('hris-pwa-app')) return;
-    try {
-        if (window.matchMedia('(max-width: 991.98px)').matches) return;
-    } catch (err) {}
     var root = document.getElementById('hrisLiveChatRoot');
     if (!root) return;
 
@@ -1447,6 +1443,7 @@
         state.groups = groups;
         var teamUnread = parseInt(team.unread, 10) || 0;
         if (state.open && !document.hidden && state.peer === 'team') teamUnread = 0;
+        state.teamUnread = teamUnread;
         var unreadTotal = teamUnread;
         for (var c = 0; c < convs.length; c++) {
             var itemUnread = parseInt(convs[c].unread, 10) || 0;
@@ -1810,7 +1807,39 @@
         }).catch(function () {});
     }
 
+    function currentUnreadTotal() {
+        var n = 0;
+        if (!(state.open && !document.hidden && state.peer === 'team')) {
+            n += parseInt(state.teamUnread, 10) || 0;
+        }
+        var convs = state.conversations || [];
+        for (var i = 0; i < convs.length; i++) {
+            if (state.open && !document.hidden && String(convs[i].user_id) === String(state.peer)) continue;
+            n += parseInt(convs[i]._unread, 10) || 0;
+        }
+        var groups = state.groups || [];
+        for (var g = 0; g < groups.length; g++) {
+            if (state.open && !document.hidden && groups[g].peer === state.peer) continue;
+            n += parseInt(groups[g]._unread, 10) || 0;
+        }
+        return n;
+    }
+
+    function markCurrentPeerReadLocally() {
+        if (state.peer === 'team') state.teamUnread = 0;
+        var convs = state.conversations || [];
+        for (var i = 0; i < convs.length; i++) {
+            if (String(convs[i].user_id) === String(state.peer)) convs[i]._unread = 0;
+        }
+        var groups = state.groups || [];
+        for (var g = 0; g < groups.length; g++) {
+            if (groups[g].peer === state.peer) groups[g]._unread = 0;
+        }
+        setBadge(currentUnreadTotal());
+    }
+
     function markRead() {
+        markCurrentPeerReadLocally();
         if (!urls.read) return;
         requestJson(urls.read, {
             method: 'POST',
@@ -1818,6 +1847,7 @@
             body: JSON.stringify({ peer: state.peer })
         }).then(function (json) {
             applyReceiptPayload(json);
+            if (json && json.unread_total != null) setBadge(json.unread_total);
         }).catch(function () {});
     }
 

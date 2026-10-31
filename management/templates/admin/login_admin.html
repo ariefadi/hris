@@ -7,11 +7,11 @@
         <script>
         (function () {
             try {
-                var ua = navigator.userAgent || '';
-                var isPhone = /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
-                    || (navigator.maxTouchPoints || 0) > 0
-                    || window.matchMedia('(max-width: 991.98px)').matches;
-                if (isPhone) document.documentElement.classList.add('hris-compact-ui');
+                var standalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true;
+                var compact = standalone || window.matchMedia('(max-width: 991.98px)').matches;
+                document.documentElement.classList.toggle('hris-compact-ui', compact);
+                if (!standalone) document.documentElement.classList.remove('hris-pwa-app');
                 document.documentElement.style.zoom = '1';
             } catch (err) {}
         })();
@@ -20,9 +20,7 @@
         (function () {
             try {
                 var standalone = window.matchMedia('(display-mode: standalone)').matches
-                    || window.matchMedia('(display-mode: fullscreen)').matches
-                    || window.navigator.standalone === true
-                    || /[?&]pwa=1(?:&|$)/.test(window.location.search || '');
+                    || window.navigator.standalone === true;
                 var secure = window.location.protocol === 'https:' ? '; Secure' : '';
                 if (!standalone) {
                     document.documentElement.classList.remove('hris-pwa-app', 'hris-pwa-zoomed', 'hris-pwa-no-zoom');
@@ -79,7 +77,7 @@
         crossorigin="anonymous"
         />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
-        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_mobile_layout.css' %}?v=12">
+        <link rel="stylesheet" href="{% static 'ajax/admin/shared/hris_mobile_layout.css' %}?v=20">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -993,6 +991,6 @@
         window.HRIS_PWA = { swUrl: "{% url 'pwa_service_worker' %}" };
         </script>
         <script src="{% static 'ajax/admin/shared/hris_pwa_install.js' %}?v=3"></script>
-        <script src="{% static 'ajax/admin/shared/hris_pwa_shell.js' %}?v=18"></script>
+        <script src="{% static 'ajax/admin/shared/hris_pwa_shell.js' %}?v=24"></script>
     </body>
 </html>
